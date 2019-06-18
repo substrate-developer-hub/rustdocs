@@ -1,0 +1,11 @@
+(function() {var implementors = {};
+implementors["substrate_primitives"] = [];
+implementors["substrate_state_machine"] = [{text:"impl <a class=\"trait\" href=\"substrate_primitives/trait.OffchainExt.html\" title=\"trait substrate_primitives::OffchainExt\">OffchainExt</a> for <a class=\"enum\" href=\"substrate_state_machine/enum.NeverOffchainExt.html\" title=\"enum substrate_state_machine::NeverOffchainExt\">NeverOffchainExt</a>",synthetic:false,types:["substrate_state_machine::NeverOffchainExt"]},];
+
+            if (window.register_implementors) {
+                window.register_implementors(implementors);
+            } else {
+                window.pending_implementors = implementors;
+            }
+        
+})()

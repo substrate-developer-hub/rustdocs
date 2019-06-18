@@ -1,0 +1,1 @@
+initSidebarItems({"constant":[["AURA_ENGINE_ID","The `ConsensusEngineId` of AuRa."]],"trait":[["AuraApi","API necessary for block authorship with aura."]]});

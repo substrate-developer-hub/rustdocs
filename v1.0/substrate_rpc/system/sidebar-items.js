@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["error","System RPC module errors."]],"struct":[["Health","Health struct returned by the RPC"],["PeerInfo","Network Peer information"],["System","System API implementation"],["SystemInfo","Running node's static details."]],"trait":[["SystemApi","Substrate system RPC API"]],"type":[["Properties","Node properties"]]});

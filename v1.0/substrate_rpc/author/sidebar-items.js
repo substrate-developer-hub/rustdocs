@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["error","Authoring RPC module errors."]],"struct":[["Author","Authoring API"]],"trait":[["AuthorApi","Substrate authoring RPC API"]]});

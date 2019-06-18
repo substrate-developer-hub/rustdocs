@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["TcpStream","A non-blocking TCP stream between a local socket and a remote socket."],["Timeout","A timeout, as returned by `Timer::set_timeout`."],["Token","Associates readiness notifications with [`Evented`] handles."]]});

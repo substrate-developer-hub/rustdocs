@@ -1,0 +1,11 @@
+(function() {var implementors = {};
+implementors["node_runtime"] = [{text:"impl <a class=\"trait\" href=\"sr_primitives/traits/trait.DigestItem.html\" title=\"trait sr_primitives::traits::DigestItem\">DigestItem</a> for <a class=\"struct\" href=\"node_runtime/struct.Log.html\" title=\"struct node_runtime::Log\">Log</a>",synthetic:false,types:["node_runtime::Log"]},];
+implementors["sr_primitives"] = [];
+
+            if (window.register_implementors) {
+                window.register_implementors(implementors);
+            } else {
+                window.pending_implementors = implementors;
+            }
+        
+})()

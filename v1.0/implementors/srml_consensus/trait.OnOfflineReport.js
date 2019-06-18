@@ -1,0 +1,11 @@
+(function() {var implementors = {};
+implementors["srml_consensus"] = [];
+implementors["srml_staking"] = [{text:"impl&lt;T:&nbsp;<a class=\"trait\" href=\"srml_staking/trait.Trait.html\" title=\"trait srml_staking::Trait\">Trait</a>&gt; <a class=\"trait\" href=\"srml_consensus/trait.OnOfflineReport.html\" title=\"trait srml_consensus::OnOfflineReport\">OnOfflineReport</a>&lt;<a class=\"struct\" href=\"https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html\" title=\"struct alloc::vec::Vec\">Vec</a>&lt;<a class=\"primitive\" href=\"https://doc.rust-lang.org/nightly/std/primitive.u32.html\">u32</a>&gt;&gt; for <a class=\"struct\" href=\"srml_staking/struct.Module.html\" title=\"struct srml_staking::Module\">Module</a>&lt;T&gt;",synthetic:false,types:["srml_staking::Module"]},];
+
+            if (window.register_implementors) {
+                window.register_implementors(implementors);
+            } else {
+                window.pending_implementors = implementors;
+            }
+        
+})()

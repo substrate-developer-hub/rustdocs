@@ -1,0 +1,1 @@
+initSidebarItems({"constant":[["AUTHORITY_COUNT","The key for the authorities count."],["AUTHORITY_PREFIX","The key for the authorities and weights vector in storage."]]});

@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["motions","Council voting system."],["seats","Council system: Handles the voting in and maintenance of council members."],["voting","Council voting system."]]});

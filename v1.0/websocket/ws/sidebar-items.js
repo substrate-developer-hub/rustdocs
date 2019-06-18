@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["dataframe","Describes the generic DataFrame, defining a trait that all dataframes should share. This is so one can optimize the memory footprint of a dataframe for their own needs, and be able to use custom dataframes quickly"],["message","Provides a trait for WebSocket messages"],["util","Utility functions for various portions of Rust-WebSocket."]]});

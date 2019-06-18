@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["ValidationResult","Message validation result."]],"struct":[["ConsensusGossip","Consensus network protocol handler. Manages statements and candidate requests."]],"trait":[["Validator","Validates consensus messages."]]});
