@@ -1,0 +1,1 @@
+initSidebarItems({"trait":[["ClientExt","Extension trait for a test client."]]});

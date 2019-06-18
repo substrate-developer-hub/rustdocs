@@ -1,0 +1,11 @@
+(function() {var implementors = {};
+implementors["srml_finality_tracker"] = [];
+implementors["srml_grandpa"] = [{text:"impl&lt;T:&nbsp;<a class=\"trait\" href=\"srml_grandpa/trait.Trait.html\" title=\"trait srml_grandpa::Trait\">Trait</a>&gt; <a class=\"trait\" href=\"srml_finality_tracker/trait.OnFinalizationStalled.html\" title=\"trait srml_finality_tracker::OnFinalizationStalled\">OnFinalizationStalled</a>&lt;&lt;T as <a class=\"trait\" href=\"srml_system/trait.Trait.html\" title=\"trait srml_system::Trait\">Trait</a>&gt;::<a class=\"type\" href=\"srml_system/trait.Trait.html#associatedtype.BlockNumber\" title=\"type srml_system::Trait::BlockNumber\">BlockNumber</a>&gt; for <a class=\"struct\" href=\"srml_grandpa/struct.Module.html\" title=\"struct srml_grandpa::Module\">Module</a>&lt;T&gt;",synthetic:false,types:["srml_grandpa::Module"]},];
+
+            if (window.register_implementors) {
+                window.register_implementors(implementors);
+            } else {
+                window.pending_implementors = implementors;
+            }
+        
+})()
