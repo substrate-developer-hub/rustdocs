@@ -1,1 +1,0 @@
-initSidebarItems({"mod":[["client","A collection of handy synchronous-only parts of the `client` module."],["server","A collection of handy synchronous-only parts of the `server` module."]]});

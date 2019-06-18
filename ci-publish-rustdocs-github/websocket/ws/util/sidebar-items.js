@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["bytes_to_string","Transforms a u8 slice into an owned String"],["update_framed_codec","Updates codec of Framed"]],"mod":[["header","Utility functions for reading and writing data frame headers."],["mask","Utility functions for masking data frame payload data"]]});

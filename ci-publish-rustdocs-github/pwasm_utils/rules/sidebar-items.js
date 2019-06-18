@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["InstructionType",""],["Metering",""]],"struct":[["Set",""],["UnknownInstruction",""]]});

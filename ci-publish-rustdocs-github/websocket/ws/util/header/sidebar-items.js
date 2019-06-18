@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["read_header","Reads a data frame header."],["write_header","Writes a data frame header."]],"struct":[["DataFrameFlags","Flags relevant to a WebSocket data frame."],["DataFrameHeader","Represents a data frame header."]]});
