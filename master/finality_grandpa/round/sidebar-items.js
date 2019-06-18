@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Round","Stores data for a round."],["RoundParams","Parameters for starting a round."],["State","State of the round."]]});
