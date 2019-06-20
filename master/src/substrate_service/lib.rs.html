@@ -884,6 +884,8 @@
 <span id="884">884</span>
 <span id="885">885</span>
 <span id="886">886</span>
+<span id="887">887</span>
+<span id="888">888</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -961,7 +963,7 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Components</span>: <span class="ident">components</span>::<span class="ident">Components</span><span class="op">&gt;</span> {
 	<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ComponentClient</span><span class="op">&lt;</span><span class="ident">Components</span><span class="op">&gt;&gt;</span>,
 	<span class="ident">select_chain</span>: <span class="prelude-ty">Option</span><span class="op">&lt;&lt;</span><span class="ident">Components</span> <span class="kw">as</span> <span class="ident">components</span>::<span class="ident">Components</span><span class="op">&gt;</span>::<span class="ident">SelectChain</span><span class="op">&gt;</span>,
-	<span class="ident">network</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">components</span>::<span class="ident">NetworkService</span><span class="op">&lt;</span><span class="ident">Components</span>::<span class="ident">Factory</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">network</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">components</span>::<span class="ident">NetworkService</span><span class="op">&lt;</span><span class="ident">Components</span>::<span class="ident">Factory</span><span class="op">&gt;&gt;</span>,
 	<span class="ident">transaction_pool</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">TransactionPool</span><span class="op">&lt;</span><span class="ident">Components</span>::<span class="ident">TransactionPoolApi</span><span class="op">&gt;&gt;</span>,
 	<span class="ident">keystore</span>: <span class="ident">Keystore</span>,
 	<span class="ident">exit</span>: ::<span class="ident">exit_future</span>::<span class="ident">Exit</span>,
@@ -1303,7 +1305,12 @@
 			<span class="kw">let</span> <span class="ident">telemetry</span> <span class="op">=</span> <span class="ident">tel</span>::<span class="ident">init_telemetry</span>(<span class="ident">tel</span>::<span class="ident">TelemetryConfig</span> {
 				<span class="ident">endpoints</span>,
 				<span class="ident">wasm_external_transport</span>: <span class="prelude-val">None</span>,
-				<span class="ident">on_connect</span>: <span class="ident">Box</span>::<span class="ident">new</span>(<span class="kw">move</span> <span class="op">||</span> {
+			});
+			<span class="kw">let</span> <span class="ident">future</span> <span class="op">=</span> <span class="ident">telemetry</span>.<span class="ident">clone</span>()
+				.<span class="ident">for_each</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">event</span><span class="op">|</span> {
+					<span class="comment">// Safe-guard in case we add more events in the future.</span>
+					<span class="kw">let</span> <span class="ident">tel</span>::<span class="ident">TelemetryEvent</span>::<span class="ident">Connected</span> <span class="op">=</span> <span class="ident">event</span>;
+
 					<span class="macro">telemetry</span><span class="macro">!</span>(<span class="ident">SUBSTRATE_INFO</span>; <span class="string">&quot;system.connected&quot;</span>;
 						<span class="string">&quot;name&quot;</span> <span class="op">=&gt;</span> <span class="ident">name</span>.<span class="ident">clone</span>(),
 						<span class="string">&quot;implementation&quot;</span> <span class="op">=&gt;</span> <span class="ident">impl_name</span>.<span class="ident">clone</span>(),
@@ -1318,9 +1325,9 @@
 					<span class="ident">telemetry_connection_sinks_</span>.<span class="ident">lock</span>().<span class="ident">retain</span>(<span class="op">|</span><span class="ident">sink</span><span class="op">|</span> {
 						<span class="ident">sink</span>.<span class="ident">unbounded_send</span>(()).<span class="ident">is_ok</span>()
 					});
-				}),
-			});
-			<span class="ident">task_executor</span>.<span class="ident">spawn</span>(<span class="ident">telemetry</span>.<span class="ident">clone</span>()
+					<span class="prelude-val">Ok</span>(())
+				});
+			<span class="ident">task_executor</span>.<span class="ident">spawn</span>(<span class="ident">future</span>
 				.<span class="ident">select</span>(<span class="ident">exit</span>.<span class="ident">clone</span>())
 				.<span class="ident">then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(())));
 			<span class="ident">telemetry</span>
@@ -1328,7 +1335,7 @@
 
 		<span class="prelude-val">Ok</span>(<span class="ident">Service</span> {
 			<span class="ident">client</span>,
-			<span class="ident">network</span>: <span class="prelude-val">Some</span>(<span class="ident">network</span>),
+			<span class="ident">network</span>,
 			<span class="ident">select_chain</span>,
 			<span class="ident">transaction_pool</span>,
 			<span class="ident">signal</span>: <span class="prelude-val">Some</span>(<span class="ident">signal</span>),
@@ -1374,7 +1381,7 @@
 
 	<span class="doccomment">/// Get shared network instance.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">network</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">components</span>::<span class="ident">NetworkService</span><span class="op">&lt;</span><span class="ident">Components</span>::<span class="ident">Factory</span><span class="op">&gt;&gt;</span> {
-		<span class="self">self</span>.<span class="ident">network</span>.<span class="ident">as_ref</span>().<span class="ident">expect</span>(<span class="string">&quot;self.network always Some&quot;</span>).<span class="ident">clone</span>()
+		<span class="self">self</span>.<span class="ident">network</span>.<span class="ident">clone</span>()
 	}
 
 	<span class="doccomment">/// Get shared transaction pool instance.</span>
@@ -1397,9 +1404,6 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Components</span><span class="op">&gt;</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Components</span><span class="op">&gt;</span> <span class="kw">where</span> <span class="ident">Components</span>: <span class="ident">components</span>::<span class="ident">Components</span> {
 	<span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
 		<span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;service&quot;</span>, <span class="string">&quot;Substrate service shutdown&quot;</span>);
-
-		<span class="ident">drop</span>(<span class="self">self</span>.<span class="ident">network</span>.<span class="ident">take</span>());
-
 		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">signal</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">signal</span>.<span class="ident">take</span>() {
 			<span class="ident">signal</span>.<span class="ident">fire</span>();
 		}
