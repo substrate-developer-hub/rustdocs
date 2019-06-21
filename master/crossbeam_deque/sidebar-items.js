@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["Steal","Possible outcomes of a steal operation."]],"struct":[["Deque","A concurrent work-stealing deque."],["Stealer","A stealer that steals elements from the top of a deque."]]});
+initSidebarItems({"enum":[["Steal","Possible outcomes of a steal operation."]],"struct":[["Injector","An injector queue."],["Stealer","A stealer handle of a worker queue."],["Worker","A worker queue."]]});

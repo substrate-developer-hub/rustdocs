@@ -1,1 +1,1 @@
-initSidebarItems({"derive":[["Zeroize",""]]});
+initSidebarItems({"derive":[["Zeroize",""],["ZeroizeOnDrop",""]]});

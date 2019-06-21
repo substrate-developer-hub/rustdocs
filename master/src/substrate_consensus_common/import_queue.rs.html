@@ -739,15 +739,6 @@
 <span id="739">739</span>
 <span id="740">740</span>
 <span id="741">741</span>
-<span id="742">742</span>
-<span id="743">743</span>
-<span id="744">744</span>
-<span id="745">745</span>
-<span id="746">746</span>
-<span id="747">747</span>
-<span id="748">748</span>
-<span id="749">749</span>
-<span id="750">750</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -776,8 +767,7 @@
 <span class="doccomment">//! instantiated. The `BasicQueue` and `BasicVerifier` traits allow serial</span>
 <span class="doccomment">//! queues to be instantiated simply.</span>
 
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">thread</span>, <span class="ident">collections</span>::<span class="ident">HashMap</span>};
-<span class="kw">use</span> <span class="ident">crossbeam_channel</span>::{<span class="self">self</span> <span class="kw">as</span> <span class="ident">channel</span>, <span class="ident">Sender</span>};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">collections</span>::<span class="ident">HashMap</span>};
 <span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">sync</span>::<span class="ident">mpsc</span>};
 <span class="kw">use</span> <span class="ident">runtime_primitives</span>::{<span class="ident">Justification</span>, <span class="ident">traits</span>::{
 	<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">Header</span> <span class="kw">as</span> <span class="ident">HeaderT</span>, <span class="ident">NumberFor</span>,
@@ -872,31 +862,25 @@
 }
 
 <span class="doccomment">/// Interface to a basic block import queue that is importing blocks sequentially in a separate</span>
-<span class="doccomment">/// thread, with pluggable verification.</span>
+<span class="doccomment">/// task, with pluggable verification.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BasicQueue</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> {
-	<span class="doccomment">/// Channel to send messages to the background thread.</span>
-	<span class="ident">sender</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ToWorkerMsg</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>,
-	<span class="doccomment">/// Results coming from the worker thread.</span>
+	<span class="doccomment">/// Channel to send messages to the background task.</span>
+	<span class="ident">sender</span>: <span class="ident">mpsc</span>::<span class="ident">UnboundedSender</span><span class="op">&lt;</span><span class="ident">ToWorkerMsg</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>,
+	<span class="doccomment">/// Results coming from the worker task.</span>
 	<span class="ident">result_port</span>: <span class="ident">BufferedLinkReceiver</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// Sent through the link as soon as possible.</span>
 	<span class="ident">finality_proof_request_builder</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SharedFinalityProofRequestBuilder</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>,
-}
-
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">BasicQueue</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> {
-	<span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
-		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">sender</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">take</span>() {
-			<span class="kw">let</span> (<span class="ident">shutdown_sender</span>, <span class="ident">shutdown_receiver</span>) <span class="op">=</span> <span class="ident">channel</span>::<span class="ident">unbounded</span>();
-			<span class="kw">if</span> <span class="ident">sender</span>.<span class="ident">send</span>(<span class="ident">ToWorkerMsg</span>::<span class="ident">Shutdown</span>(<span class="ident">shutdown_sender</span>)).<span class="ident">is_ok</span>() {
-				<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">shutdown_receiver</span>.<span class="ident">recv</span>();
-			}
-		}
-	}
+	<span class="doccomment">/// Since we have to be in a tokio context in order to spawn background tasks, we first store</span>
+	<span class="doccomment">/// the task to spawn here, then extract it as soon as we are in a tokio context.</span>
+	<span class="doccomment">/// If `Some`, contains the task to spawn in the background. If `None`, the future has already</span>
+	<span class="doccomment">/// been spawned.</span>
+	<span class="ident">future_to_spawn</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> <span class="ident">BasicQueue</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Instantiate a new basic queue, with given verifier.</span>
 	<span class="doccomment">///</span>
-	<span class="doccomment">/// This creates a background thread, and calls `on_start` on the justification importer and</span>
+	<span class="doccomment">/// This creates a background task, and calls `on_start` on the justification importer and</span>
 	<span class="doccomment">/// finality proof importer.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span><span class="op">&lt;</span><span class="ident">V</span>: <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Verifier</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>(
 		<span class="ident">verifier</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">V</span><span class="op">&gt;</span>,
@@ -906,7 +890,7 @@
 		<span class="ident">finality_proof_request_builder</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SharedFinalityProofRequestBuilder</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>,
 	) <span class="op">-&gt;</span> <span class="self">Self</span> {
 		<span class="kw">let</span> (<span class="ident">result_sender</span>, <span class="ident">result_port</span>) <span class="op">=</span> <span class="ident">buffered_link</span>();
-		<span class="kw">let</span> <span class="ident">worker_sender</span> <span class="op">=</span> <span class="ident">BlockImportWorker</span>::<span class="ident">new</span>(
+		<span class="kw">let</span> (<span class="ident">future</span>, <span class="ident">worker_sender</span>) <span class="op">=</span> <span class="ident">BlockImportWorker</span>::<span class="ident">new</span>(
 			<span class="ident">result_sender</span>,
 			<span class="ident">verifier</span>,
 			<span class="ident">block_import</span>,
@@ -915,9 +899,10 @@
 		);
 
 		<span class="self">Self</span> {
-			<span class="ident">sender</span>: <span class="prelude-val">Some</span>(<span class="ident">worker_sender</span>),
+			<span class="ident">sender</span>: <span class="ident">worker_sender</span>,
 			<span class="ident">result_port</span>,
 			<span class="ident">finality_proof_request_builder</span>,
+			<span class="ident">future_to_spawn</span>: <span class="prelude-val">Some</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">future</span>)),
 		}
 	}
 
@@ -927,9 +912,7 @@
 	<span class="doccomment">/// has synchronized with ImportQueue.</span>
 	<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">any</span>(<span class="ident">test</span>, <span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;test-helpers&quot;</span>))]</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">synchronize</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">sender</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">sender</span> {
-			<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">sender</span>.<span class="ident">send</span>(<span class="ident">ToWorkerMsg</span>::<span class="ident">Synchronize</span>);
-		}
+		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">unbounded_send</span>(<span class="ident">ToWorkerMsg</span>::<span class="ident">Synchronize</span>);
 	}
 }
 
@@ -939,10 +922,8 @@
 			<span class="kw">return</span>;
 		}
 
-		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">sender</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">sender</span> {
-			<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Scheduling {} blocks for import&quot;</span>, <span class="ident">blocks</span>.<span class="ident">len</span>());
-			<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">sender</span>.<span class="ident">send</span>(<span class="ident">ToWorkerMsg</span>::<span class="ident">ImportBlocks</span>(<span class="ident">origin</span>, <span class="ident">blocks</span>));
-		}
+		<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Scheduling {} blocks for import&quot;</span>, <span class="ident">blocks</span>.<span class="ident">len</span>());
+		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">unbounded_send</span>(<span class="ident">ToWorkerMsg</span>::<span class="ident">ImportBlocks</span>(<span class="ident">origin</span>, <span class="ident">blocks</span>));
 	}
 
 	<span class="kw">fn</span> <span class="ident">import_justification</span>(
@@ -952,19 +933,19 @@
 		<span class="ident">number</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 		<span class="ident">justification</span>: <span class="ident">Justification</span>
 	) {
-		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">sender</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">sender</span> {
-			<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">sender</span>.<span class="ident">send</span>(<span class="ident">ToWorkerMsg</span>::<span class="ident">ImportJustification</span>(<span class="ident">who</span>.<span class="ident">clone</span>(), <span class="ident">hash</span>, <span class="ident">number</span>, <span class="ident">justification</span>));
-		}
+		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">unbounded_send</span>(<span class="ident">ToWorkerMsg</span>::<span class="ident">ImportJustification</span>(<span class="ident">who</span>.<span class="ident">clone</span>(), <span class="ident">hash</span>, <span class="ident">number</span>, <span class="ident">justification</span>));
 	}
 
 	<span class="kw">fn</span> <span class="ident">import_finality_proof</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">who</span>: <span class="ident">Origin</span>, <span class="ident">hash</span>: <span class="ident">B</span>::<span class="ident">Hash</span>, <span class="ident">number</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">finality_proof</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) {
-		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">sender</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">sender</span> {
-			<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Scheduling finality proof of {}/{} for import&quot;</span>, <span class="ident">number</span>, <span class="ident">hash</span>);
-			<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">sender</span>.<span class="ident">send</span>(<span class="ident">ToWorkerMsg</span>::<span class="ident">ImportFinalityProof</span>(<span class="ident">who</span>, <span class="ident">hash</span>, <span class="ident">number</span>, <span class="ident">finality_proof</span>));
-		}
+		<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Scheduling finality proof of {}/{} for import&quot;</span>, <span class="ident">number</span>, <span class="ident">hash</span>);
+		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">unbounded_send</span>(<span class="ident">ToWorkerMsg</span>::<span class="ident">ImportFinalityProof</span>(<span class="ident">who</span>, <span class="ident">hash</span>, <span class="ident">number</span>, <span class="ident">finality_proof</span>));
 	}
 
 	<span class="kw">fn</span> <span class="ident">poll_actions</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">link</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">Link</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>) {
+		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">future</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">future_to_spawn</span>.<span class="ident">take</span>() {
+			<span class="ident">tokio_executor</span>::<span class="ident">spawn</span>(<span class="ident">future</span>);
+		}
+
 		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">fprb</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">finality_proof_request_builder</span>.<span class="ident">take</span>() {
 			<span class="ident">link</span>.<span class="ident">set_finality_proof_request_builder</span>(<span class="ident">fprb</span>);
 		}
@@ -979,7 +960,6 @@
 	<span class="ident">ImportBlocks</span>(<span class="ident">BlockOrigin</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">IncomingBlock</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>),
 	<span class="ident">ImportJustification</span>(<span class="ident">Origin</span>, <span class="ident">B</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">Justification</span>),
 	<span class="ident">ImportFinalityProof</span>(<span class="ident">Origin</span>, <span class="ident">B</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>),
-	<span class="ident">Shutdown</span>(<span class="ident">Sender</span><span class="op">&lt;</span>()<span class="op">&gt;</span>),
 	<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">any</span>(<span class="ident">test</span>, <span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;test-helpers&quot;</span>))]</span>
 	<span class="ident">Synchronize</span>,
 }
@@ -999,50 +979,52 @@
 		<span class="ident">block_import</span>: <span class="ident">SharedBlockImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 		<span class="ident">justification_import</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SharedJustificationImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>,
 		<span class="ident">finality_proof_import</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SharedFinalityProofImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>,
-	) <span class="op">-&gt;</span> <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ToWorkerMsg</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span> {
-		<span class="kw">let</span> (<span class="ident">sender</span>, <span class="ident">port</span>) <span class="op">=</span> <span class="ident">channel</span>::<span class="ident">bounded</span>(<span class="number">4</span>);
-		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">thread</span>::<span class="ident">Builder</span>::<span class="ident">new</span>()
-			.<span class="ident">name</span>(<span class="string">&quot;ImportQueueWorker&quot;</span>.<span class="ident">into</span>())
-			.<span class="ident">spawn</span>(<span class="kw">move</span> <span class="op">||</span> {
-				<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">worker</span> <span class="op">=</span> <span class="ident">BlockImportWorker</span> {
-					<span class="ident">result_sender</span>,
-					<span class="ident">verifier</span>,
-					<span class="ident">justification_import</span>,
-					<span class="ident">block_import</span>,
-					<span class="ident">finality_proof_import</span>,
+	) <span class="op">-&gt;</span> (<span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span>, <span class="ident">mpsc</span>::<span class="ident">UnboundedSender</span><span class="op">&lt;</span><span class="ident">ToWorkerMsg</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>) {
+		<span class="kw">let</span> (<span class="ident">sender</span>, <span class="kw-2">mut</span> <span class="ident">port</span>) <span class="op">=</span> <span class="ident">mpsc</span>::<span class="ident">unbounded</span>();
+
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">worker</span> <span class="op">=</span> <span class="ident">BlockImportWorker</span> {
+			<span class="ident">result_sender</span>,
+			<span class="ident">verifier</span>,
+			<span class="ident">justification_import</span>,
+			<span class="ident">block_import</span>,
+			<span class="ident">finality_proof_import</span>,
+		};
+
+		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">justification_import</span>) <span class="op">=</span> <span class="ident">worker</span>.<span class="ident">justification_import</span>.<span class="ident">as_ref</span>() {
+			<span class="ident">justification_import</span>.<span class="ident">on_start</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">worker</span>.<span class="ident">result_sender</span>);
+		}
+		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">finality_proof_import</span>) <span class="op">=</span> <span class="ident">worker</span>.<span class="ident">finality_proof_import</span>.<span class="ident">as_ref</span>() {
+			<span class="ident">finality_proof_import</span>.<span class="ident">on_start</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">worker</span>.<span class="ident">result_sender</span>);
+		}
+
+		<span class="kw">let</span> <span class="ident">future</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">poll_fn</span>(<span class="kw">move</span> <span class="op">||</span> {
+			<span class="kw">loop</span> {
+				<span class="kw">let</span> <span class="ident">msg</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">port</span>.<span class="ident">poll</span>() {
+					<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">msg</span>))) <span class="op">=&gt;</span> <span class="ident">msg</span>,
+					<span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>)) <span class="op">=&gt;</span> <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(())),
+					<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=&gt;</span> <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>),
 				};
-				<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">justification_import</span>) <span class="op">=</span> <span class="ident">worker</span>.<span class="ident">justification_import</span>.<span class="ident">as_ref</span>() {
-					<span class="ident">justification_import</span>.<span class="ident">on_start</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">worker</span>.<span class="ident">result_sender</span>);
-				}
-				<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">finality_proof_import</span>) <span class="op">=</span> <span class="ident">worker</span>.<span class="ident">finality_proof_import</span>.<span class="ident">as_ref</span>() {
-					<span class="ident">finality_proof_import</span>.<span class="ident">on_start</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">worker</span>.<span class="ident">result_sender</span>);
-				}
-				<span class="kw">for</span> <span class="ident">msg</span> <span class="kw">in</span> <span class="ident">port</span>.<span class="ident">iter</span>() {
-					<span class="comment">// Working until all senders have been dropped...</span>
-					<span class="kw">match</span> <span class="ident">msg</span> {
-						<span class="ident">ToWorkerMsg</span>::<span class="ident">ImportBlocks</span>(<span class="ident">origin</span>, <span class="ident">blocks</span>) <span class="op">=&gt;</span> {
-							<span class="ident">worker</span>.<span class="ident">import_a_batch_of_blocks</span>(<span class="ident">origin</span>, <span class="ident">blocks</span>);
-						},
-						<span class="ident">ToWorkerMsg</span>::<span class="ident">ImportFinalityProof</span>(<span class="ident">who</span>, <span class="ident">hash</span>, <span class="ident">number</span>, <span class="ident">proof</span>) <span class="op">=&gt;</span> {
-							<span class="ident">worker</span>.<span class="ident">import_finality_proof</span>(<span class="ident">who</span>, <span class="ident">hash</span>, <span class="ident">number</span>, <span class="ident">proof</span>);
-						},
-						<span class="ident">ToWorkerMsg</span>::<span class="ident">ImportJustification</span>(<span class="ident">who</span>, <span class="ident">hash</span>, <span class="ident">number</span>, <span class="ident">justification</span>) <span class="op">=&gt;</span> {
-							<span class="ident">worker</span>.<span class="ident">import_justification</span>(<span class="ident">who</span>, <span class="ident">hash</span>, <span class="ident">number</span>, <span class="ident">justification</span>);
-						}
-						<span class="ident">ToWorkerMsg</span>::<span class="ident">Shutdown</span>(<span class="ident">result_sender</span>) <span class="op">=&gt;</span> {
-							<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">result_sender</span>.<span class="ident">send</span>(());
-							<span class="kw">break</span>;
-						},
-						<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">any</span>(<span class="ident">test</span>, <span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;test-helpers&quot;</span>))]</span>
-						<span class="ident">ToWorkerMsg</span>::<span class="ident">Synchronize</span> <span class="op">=&gt;</span> {
-							<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Sending sync message&quot;</span>);
-							<span class="ident">worker</span>.<span class="ident">result_sender</span>.<span class="ident">synchronized</span>();
-						},
+
+				<span class="kw">match</span> <span class="ident">msg</span> {
+					<span class="ident">ToWorkerMsg</span>::<span class="ident">ImportBlocks</span>(<span class="ident">origin</span>, <span class="ident">blocks</span>) <span class="op">=&gt;</span> {
+						<span class="ident">worker</span>.<span class="ident">import_a_batch_of_blocks</span>(<span class="ident">origin</span>, <span class="ident">blocks</span>);
+					},
+					<span class="ident">ToWorkerMsg</span>::<span class="ident">ImportFinalityProof</span>(<span class="ident">who</span>, <span class="ident">hash</span>, <span class="ident">number</span>, <span class="ident">proof</span>) <span class="op">=&gt;</span> {
+						<span class="ident">worker</span>.<span class="ident">import_finality_proof</span>(<span class="ident">who</span>, <span class="ident">hash</span>, <span class="ident">number</span>, <span class="ident">proof</span>);
+					},
+					<span class="ident">ToWorkerMsg</span>::<span class="ident">ImportJustification</span>(<span class="ident">who</span>, <span class="ident">hash</span>, <span class="ident">number</span>, <span class="ident">justification</span>) <span class="op">=&gt;</span> {
+						<span class="ident">worker</span>.<span class="ident">import_justification</span>(<span class="ident">who</span>, <span class="ident">hash</span>, <span class="ident">number</span>, <span class="ident">justification</span>);
 					}
+					<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">any</span>(<span class="ident">test</span>, <span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;test-helpers&quot;</span>))]</span>
+					<span class="ident">ToWorkerMsg</span>::<span class="ident">Synchronize</span> <span class="op">=&gt;</span> {
+						<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Sending sync message&quot;</span>);
+						<span class="ident">worker</span>.<span class="ident">result_sender</span>.<span class="ident">synchronized</span>();
+					},
 				}
-			})
-			.<span class="ident">expect</span>(<span class="string">&quot;ImportQueueWorker thread spawning failed&quot;</span>);
-		<span class="ident">sender</span>
+			}
+		});
+
+		(<span class="ident">future</span>, <span class="ident">sender</span>)
 	}
 
 	<span class="kw">fn</span> <span class="ident">import_a_batch_of_blocks</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">origin</span>: <span class="ident">BlockOrigin</span>, <span class="ident">blocks</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">IncomingBlock</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>) {
