@@ -1488,10 +1488,6 @@
 <span id="1488">1488</span>
 <span id="1489">1489</span>
 <span id="1490">1490</span>
-<span id="1491">1491</span>
-<span id="1492">1492</span>
-<span id="1493">1493</span>
-<span id="1494">1494</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1528,7 +1524,7 @@
 <span class="kw">use</span> <span class="ident">consensus_gossip</span>::{<span class="ident">ConsensusGossip</span>, <span class="ident">MessageRecipient</span> <span class="kw">as</span> <span class="ident">GossipMessageRecipient</span>};
 <span class="kw">use</span> <span class="ident">on_demand</span>::{<span class="ident">OnDemandCore</span>, <span class="ident">OnDemandNetwork</span>, <span class="ident">RequestData</span>};
 <span class="kw">use</span> <span class="ident">specialization</span>::<span class="ident">NetworkSpecialization</span>;
-<span class="kw">use</span> <span class="ident">sync</span>::{<span class="ident">ChainSync</span>, <span class="ident">Context</span> <span class="kw">as</span> <span class="ident">SyncContext</span>, <span class="ident">Status</span> <span class="kw">as</span> <span class="ident">SyncStatus</span>, <span class="ident">SyncState</span>};
+<span class="kw">use</span> <span class="ident">sync</span>::{<span class="ident">ChainSync</span>, <span class="ident">Context</span> <span class="kw">as</span> <span class="ident">SyncContext</span>, <span class="ident">SyncState</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">service</span>::{<span class="ident">TransactionPool</span>, <span class="ident">ExHashT</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">config</span>::<span class="ident">Roles</span>;
 <span class="kw">use</span> <span class="ident">rustc_hex</span>::<span class="ident">ToHex</span>;
@@ -1608,17 +1604,6 @@
 <span class="doccomment">/// and from whom we have not yet received a Status message.</span>
 <span class="kw">struct</span> <span class="ident">HandshakingPeer</span> {
 	<span class="ident">timestamp</span>: <span class="ident">time</span>::<span class="ident">Instant</span>,
-}
-
-<span class="doccomment">/// Syncing status and statistics</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ProtocolStatus</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> {
-	<span class="doccomment">/// Sync status.</span>
-	<span class="kw">pub</span> <span class="ident">sync</span>: <span class="ident">SyncStatus</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
-	<span class="doccomment">/// Total number of connected peers</span>
-	<span class="kw">pub</span> <span class="ident">num_peers</span>: <span class="ident">usize</span>,
-	<span class="doccomment">/// Total number of active peers.</span>
-	<span class="kw">pub</span> <span class="ident">num_active_peers</span>: <span class="ident">usize</span>,
 }
 
 <span class="doccomment">/// Peer information</span>
@@ -1910,26 +1895,33 @@
 		})
 	}
 
-	<span class="doccomment">/// Returns an object representing the status of the protocol.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">status</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">ProtocolStatus</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> {
-		<span class="ident">ProtocolStatus</span> {
-			<span class="ident">sync</span>: <span class="self">self</span>.<span class="ident">sync</span>.<span class="ident">status</span>(),
-			<span class="ident">num_peers</span>: <span class="self">self</span>.<span class="ident">context_data</span>.<span class="ident">peers</span>.<span class="ident">values</span>().<span class="ident">count</span>(),
-			<span class="ident">num_active_peers</span>: <span class="self">self</span>
-				.<span class="ident">context_data</span>
-				.<span class="ident">peers</span>
-				.<span class="ident">values</span>()
-				.<span class="ident">filter</span>(<span class="op">|</span><span class="ident">p</span><span class="op">|</span> <span class="ident">p</span>.<span class="ident">block_request</span>.<span class="ident">is_some</span>())
-				.<span class="ident">count</span>(),
-		}
+	<span class="doccomment">/// Returns the number of peers we&#39;re connected to.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">num_connected_peers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">usize</span> {
+		<span class="self">self</span>.<span class="ident">context_data</span>.<span class="ident">peers</span>.<span class="ident">values</span>().<span class="ident">count</span>()
 	}
 
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_major_syncing</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
-		<span class="self">self</span>.<span class="ident">sync</span>.<span class="ident">status</span>().<span class="ident">is_major_syncing</span>()
+	<span class="doccomment">/// Returns the number of peers we&#39;re connected to and that are being queried.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">num_active_peers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">usize</span> {
+		<span class="self">self</span>.<span class="ident">context_data</span>
+			.<span class="ident">peers</span>
+			.<span class="ident">values</span>()
+			.<span class="ident">filter</span>(<span class="op">|</span><span class="ident">p</span><span class="op">|</span> <span class="ident">p</span>.<span class="ident">block_request</span>.<span class="ident">is_some</span>())
+			.<span class="ident">count</span>()
 	}
 
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_offline</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
-		<span class="self">self</span>.<span class="ident">sync</span>.<span class="ident">status</span>().<span class="ident">is_offline</span>()
+	<span class="doccomment">/// Current global sync state.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">sync_state</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">SyncState</span> {
+		<span class="self">self</span>.<span class="ident">sync</span>.<span class="ident">status</span>().<span class="ident">state</span>
+	}
+
+	<span class="doccomment">/// Target sync block number.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">best_seen_block</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span> {
+		<span class="self">self</span>.<span class="ident">sync</span>.<span class="ident">status</span>().<span class="ident">best_seen_block</span>
+	}
+
+	<span class="doccomment">/// Number of peers participating in syncing.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">num_sync_peers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">u32</span> {
+		<span class="self">self</span>.<span class="ident">sync</span>.<span class="ident">status</span>().<span class="ident">num_peers</span>
 	}
 
 	<span class="doccomment">/// Starts a new data demand request.</span>

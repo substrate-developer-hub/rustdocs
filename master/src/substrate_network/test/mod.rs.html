@@ -1378,6 +1378,12 @@
 <span id="1378">1378</span>
 <span id="1379">1379</span>
 <span id="1380">1380</span>
+<span id="1381">1381</span>
+<span id="1382">1382</span>
+<span id="1383">1383</span>
+<span id="1384">1384</span>
+<span id="1385">1385</span>
+<span id="1386">1386</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1427,7 +1433,8 @@
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">PeerId</span>;
 <span class="kw">use</span> <span class="ident">parking_lot</span>::{<span class="ident">Mutex</span>, <span class="ident">RwLock</span>};
 <span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">H256</span>, <span class="ident">Blake2Hasher</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">protocol</span>::{<span class="ident">Context</span>, <span class="ident">Protocol</span>, <span class="ident">ProtocolConfig</span>, <span class="ident">ProtocolStatus</span>, <span class="ident">CustomMessageOutcome</span>, <span class="ident">NetworkOut</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">SyncState</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">protocol</span>::{<span class="ident">Context</span>, <span class="ident">Protocol</span>, <span class="ident">ProtocolConfig</span>, <span class="ident">CustomMessageOutcome</span>, <span class="ident">NetworkOut</span>};
 <span class="kw">use</span> <span class="ident">runtime_primitives</span>::<span class="ident">generic</span>::{<span class="ident">BlockId</span>, <span class="ident">OpaqueDigestItemId</span>};
 <span class="kw">use</span> <span class="ident">runtime_primitives</span>::<span class="ident">traits</span>::{<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">Header</span>, <span class="ident">NumberFor</span>};
 <span class="kw">use</span> <span class="ident">runtime_primitives</span>::{<span class="ident">Justification</span>, <span class="ident">ConsensusEngineId</span>};
@@ -1746,7 +1753,8 @@
 	<span class="doccomment">/// instantiation paths or field names is too much hassle, hence</span>
 	<span class="doccomment">/// we allow it to be unused.</span>
 	<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">not</span>(<span class="ident">test</span>), <span class="ident">allow</span>(<span class="ident">unused</span>))]</span>
-	<span class="ident">protocol_status</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">RwLock</span><span class="op">&lt;</span><span class="ident">ProtocolStatus</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>,
+	<span class="doccomment">/// `(is_offline, is_major_syncing, num_peers)`</span>
+	<span class="ident">protocol_status</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">RwLock</span><span class="op">&lt;</span>(<span class="ident">bool</span>, <span class="ident">bool</span>, <span class="ident">usize</span>)<span class="op">&gt;&gt;</span>,
 	<span class="ident">import_queue</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="ident">BasicQueue</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;&gt;</span><span class="op">&gt;&gt;</span>,
 	<span class="kw">pub</span> <span class="ident">data</span>: <span class="ident">D</span>,
 	<span class="ident">best_hash</span>: <span class="ident">Mutex</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">H256</span><span class="op">&gt;&gt;</span>,
@@ -1890,7 +1898,7 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">D</span>, <span class="ident">S</span>: <span class="ident">NetworkSpecialization</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;&gt;</span> <span class="ident">Peer</span><span class="op">&lt;</span><span class="ident">D</span>, <span class="ident">S</span><span class="op">&gt;</span> {
 	<span class="kw">fn</span> <span class="ident">new</span>(
-		<span class="ident">protocol_status</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">RwLock</span><span class="op">&lt;</span><span class="ident">ProtocolStatus</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>,
+		<span class="ident">protocol_status</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">RwLock</span><span class="op">&lt;</span>(<span class="ident">bool</span>, <span class="ident">bool</span>, <span class="ident">usize</span>)<span class="op">&gt;&gt;</span>,
 		<span class="ident">client</span>: <span class="ident">PeersClient</span>,
 		<span class="ident">import_queue</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="ident">BasicQueue</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;&gt;</span><span class="op">&gt;&gt;</span>,
 		<span class="ident">use_tokio</span>: <span class="ident">bool</span>,
@@ -1941,19 +1949,19 @@
 	<span class="doccomment">/// SyncOracle: are we connected to any peer?</span>
 	<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 	<span class="kw">fn</span> <span class="ident">is_offline</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
-		<span class="self">self</span>.<span class="ident">protocol_status</span>.<span class="ident">read</span>().<span class="ident">sync</span>.<span class="ident">is_offline</span>()
+		<span class="self">self</span>.<span class="ident">protocol_status</span>.<span class="ident">read</span>().<span class="number">0</span>
 	}
 
 	<span class="doccomment">/// SyncOracle: are we in the process of catching-up with the chain?</span>
 	<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 	<span class="kw">fn</span> <span class="ident">is_major_syncing</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
-		<span class="self">self</span>.<span class="ident">protocol_status</span>.<span class="ident">read</span>().<span class="ident">sync</span>.<span class="ident">is_major_syncing</span>()
+		<span class="self">self</span>.<span class="ident">protocol_status</span>.<span class="ident">read</span>().<span class="number">1</span>
 	}
 
 	<span class="doccomment">/// Get protocol status.</span>
 	<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-	<span class="kw">fn</span> <span class="ident">protocol_status</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">ProtocolStatus</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> {
-		<span class="self">self</span>.<span class="ident">protocol_status</span>.<span class="ident">read</span>().<span class="ident">clone</span>()
+	<span class="kw">fn</span> <span class="ident">num_peers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">usize</span> {
+		<span class="self">self</span>.<span class="ident">protocol_status</span>.<span class="ident">read</span>().<span class="number">2</span>
 	}
 
 	<span class="doccomment">/// Called on connection to other indicated peer.</span>
@@ -2254,7 +2262,7 @@
 	<span class="doccomment">/// Add created peer.</span>
 	<span class="kw">fn</span> <span class="ident">add_peer</span>(
 		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-		<span class="ident">protocol_status</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">RwLock</span><span class="op">&lt;</span><span class="ident">ProtocolStatus</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>,
+		<span class="ident">protocol_status</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">RwLock</span><span class="op">&lt;</span>(<span class="ident">bool</span>, <span class="ident">bool</span>, <span class="ident">usize</span>)<span class="op">&gt;&gt;</span>,
 		<span class="ident">import_queue</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="ident">BasicQueue</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;&gt;</span><span class="op">&gt;&gt;</span>,
 		<span class="ident">tx_pool</span>: <span class="ident">EmptyTransactionPool</span>,
 		<span class="ident">finality_proof_provider</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">FinalityProofProvider</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>,
@@ -2390,7 +2398,11 @@
 					<span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(()))
 				}
 
-				<span class="kw-2">*</span><span class="ident">protocol_status</span>.<span class="ident">write</span>() <span class="op">=</span> <span class="ident">protocol</span>.<span class="ident">status</span>();
+				<span class="kw-2">*</span><span class="ident">protocol_status</span>.<span class="ident">write</span>() <span class="op">=</span> (
+					<span class="ident">protocol</span>.<span class="ident">num_connected_peers</span>() <span class="op">==</span> <span class="number">0</span>,
+					<span class="ident">protocol</span>.<span class="ident">sync_state</span>() <span class="op">==</span> <span class="ident">SyncState</span>::<span class="ident">Downloading</span>,
+					<span class="ident">protocol</span>.<span class="ident">num_connected_peers</span>()
+				);
 				<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>)
 			}));
 		});
@@ -2435,7 +2447,7 @@
 			<span class="ident">specialization</span>,
 		).<span class="ident">unwrap</span>();
 
-		<span class="kw">let</span> <span class="ident">protocol_status</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">RwLock</span>::<span class="ident">new</span>(<span class="ident">protocol</span>.<span class="ident">status</span>()));
+		<span class="kw">let</span> <span class="ident">protocol_status</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">RwLock</span>::<span class="ident">new</span>((<span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="number">0</span>)));
 		<span class="self">self</span>.<span class="ident">add_peer</span>(
 			<span class="ident">protocol_status</span>.<span class="ident">clone</span>(),
 			<span class="ident">import_queue</span>.<span class="ident">clone</span>(),
@@ -2491,7 +2503,7 @@
 			<span class="ident">specialization</span>,
 		).<span class="ident">unwrap</span>();
 
-		<span class="kw">let</span> <span class="ident">protocol_status</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">RwLock</span>::<span class="ident">new</span>(<span class="ident">protocol</span>.<span class="ident">status</span>()));
+		<span class="kw">let</span> <span class="ident">protocol_status</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">RwLock</span>::<span class="ident">new</span>((<span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="number">0</span>)));
 		<span class="self">self</span>.<span class="ident">add_peer</span>(
 			<span class="ident">protocol_status</span>.<span class="ident">clone</span>(),
 			<span class="ident">import_queue</span>.<span class="ident">clone</span>(),

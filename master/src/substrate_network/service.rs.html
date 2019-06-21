@@ -838,6 +838,12 @@
 <span id="838">838</span>
 <span id="839">839</span>
 <span id="840">840</span>
+<span id="841">841</span>
+<span id="842">842</span>
+<span id="843">843</span>
+<span id="844">844</span>
+<span id="845">845</span>
+<span id="846">846</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -880,13 +886,12 @@
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">protocol</span>::<span class="ident">message</span>::<span class="ident">Message</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">protocol</span>::<span class="ident">on_demand</span>::<span class="ident">RequestData</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">protocol</span>::{<span class="self">self</span>, <span class="ident">Context</span>, <span class="ident">CustomMessageOutcome</span>, <span class="ident">Protocol</span>, <span class="ident">ConnectedPeer</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">protocol</span>::{<span class="ident">ProtocolStatus</span>, <span class="ident">PeerInfo</span>, <span class="ident">NetworkOut</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">protocol</span>::{<span class="ident">PeerInfo</span>, <span class="ident">NetworkOut</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">protocol</span>::<span class="ident">sync</span>::<span class="ident">SyncState</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">config</span>::<span class="ident">Params</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">error</span>::<span class="ident">Error</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">protocol</span>::<span class="ident">specialization</span>::<span class="ident">NetworkSpecialization</span>;
 
-<span class="doccomment">/// Interval at which we send status updates on the status stream.</span>
-<span class="kw">const</span> <span class="ident">STATUS_INTERVAL</span>: <span class="ident">Duration</span> <span class="op">=</span> <span class="ident">Duration</span>::<span class="ident">from_millis</span>(<span class="number">5000</span>);
 <span class="doccomment">/// Interval at which we update the `peers` field on the main thread.</span>
 <span class="kw">const</span> <span class="ident">CONNECTED_PEERS_INTERVAL</span>: <span class="ident">Duration</span> <span class="op">=</span> <span class="ident">Duration</span>::<span class="ident">from_millis</span>(<span class="number">500</span>);
 
@@ -931,8 +936,6 @@
 
 <span class="doccomment">/// Substrate network service. Handles network IO and manages connectivity.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">NetworkService</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>, <span class="ident">S</span>: <span class="ident">NetworkSpecialization</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span> {
-	<span class="doccomment">/// Sinks to propagate status updates.</span>
-	<span class="ident">status_sinks</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">mpsc</span>::<span class="ident">UnboundedSender</span><span class="op">&lt;</span><span class="ident">ProtocolStatus</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// Are we connected to any peer?</span>
 	<span class="ident">is_offline</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">AtomicBool</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// Are we actively catching up with the chain?</span>
@@ -963,7 +966,6 @@
 	) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">NetworkWorker</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">S</span>, <span class="ident">H</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> (<span class="ident">network_chan</span>, <span class="ident">network_port</span>) <span class="op">=</span> <span class="ident">mpsc</span>::<span class="ident">unbounded</span>();
 		<span class="kw">let</span> (<span class="ident">protocol_sender</span>, <span class="ident">protocol_rx</span>) <span class="op">=</span> <span class="ident">mpsc</span>::<span class="ident">unbounded</span>();
-		<span class="kw">let</span> <span class="ident">status_sinks</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Mutex</span>::<span class="ident">new</span>(<span class="ident">Vec</span>::<span class="ident">new</span>()));
 
 		<span class="comment">// Start in off-line mode, since we&#39;re not connected to any nodes yet.</span>
 		<span class="kw">let</span> <span class="ident">is_offline</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">AtomicBool</span>::<span class="ident">new</span>(<span class="bool-val">true</span>));
@@ -989,7 +991,6 @@
 			};
 
 		<span class="kw">let</span> <span class="ident">service</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">NetworkService</span> {
-			<span class="ident">status_sinks</span>: <span class="ident">status_sinks</span>.<span class="ident">clone</span>(),
 			<span class="ident">bandwidth</span>,
 			<span class="ident">is_offline</span>: <span class="ident">is_offline</span>.<span class="ident">clone</span>(),
 			<span class="ident">is_major_syncing</span>: <span class="ident">is_major_syncing</span>.<span class="ident">clone</span>(),
@@ -1013,11 +1014,44 @@
 			<span class="ident">finality_proof_provider</span>: <span class="ident">params</span>.<span class="ident">finality_proof_provider</span>,
 			<span class="ident">network_port</span>,
 			<span class="ident">protocol_rx</span>,
-			<span class="ident">status_sinks</span>,
 			<span class="ident">on_demand_in</span>: <span class="ident">params</span>.<span class="ident">on_demand</span>.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">od</span><span class="op">|</span> <span class="ident">od</span>.<span class="ident">extract_receiver</span>()),
-			<span class="ident">status_interval</span>: <span class="ident">tokio_timer</span>::<span class="ident">Interval</span>::<span class="ident">new_interval</span>(<span class="ident">STATUS_INTERVAL</span>),
 			<span class="ident">connected_peers_interval</span>: <span class="ident">tokio_timer</span>::<span class="ident">Interval</span>::<span class="ident">new_interval</span>(<span class="ident">CONNECTED_PEERS_INTERVAL</span>),
 		})
+	}
+
+	<span class="doccomment">/// Returns the downloaded bytes per second averaged over the past few seconds.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">average_download_per_sec</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">u64</span> {
+		<span class="self">self</span>.<span class="ident">service</span>.<span class="ident">bandwidth</span>.<span class="ident">average_download_per_sec</span>()
+	}
+
+	<span class="doccomment">/// Returns the uploaded bytes per second averaged over the past few seconds.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">average_upload_per_sec</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">u64</span> {
+		<span class="self">self</span>.<span class="ident">service</span>.<span class="ident">bandwidth</span>.<span class="ident">average_upload_per_sec</span>()
+	}
+
+	<span class="doccomment">/// Returns the number of peers we&#39;re connected to.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">num_connected_peers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">usize</span> {
+		<span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">num_connected_peers</span>()
+	}
+
+	<span class="doccomment">/// Returns the number of peers we&#39;re connected to and that are being queried.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">num_active_peers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">usize</span> {
+		<span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">num_active_peers</span>()
+	}
+
+	<span class="doccomment">/// Current global sync state.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">sync_state</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">SyncState</span> {
+		<span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">sync_state</span>()
+	}
+
+	<span class="doccomment">/// Target sync block number.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">best_seen_block</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span> {
+		<span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">best_seen_block</span>()
+	}
+
+	<span class="doccomment">/// Number of peers participating in syncing.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">num_sync_peers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">u32</span> {
+		<span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">num_sync_peers</span>()
 	}
 
 	<span class="doccomment">/// Return a `NetworkService` that can be shared through the code base and can be used to</span>
@@ -1028,16 +1062,6 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>, <span class="ident">S</span>: <span class="ident">NetworkSpecialization</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span> <span class="ident">NetworkService</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">S</span><span class="op">&gt;</span> {
-	<span class="doccomment">/// Returns the downloaded bytes per second averaged over the past few seconds.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">average_download_per_sec</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">u64</span> {
-		<span class="self">self</span>.<span class="ident">bandwidth</span>.<span class="ident">average_download_per_sec</span>()
-	}
-
-	<span class="doccomment">/// Returns the uploaded bytes per second averaged over the past few seconds.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">average_upload_per_sec</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">u64</span> {
-		<span class="self">self</span>.<span class="ident">bandwidth</span>.<span class="ident">average_upload_per_sec</span>()
-	}
-
 	<span class="doccomment">/// Returns the network identity of the node.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">local_peer_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">PeerId</span> {
 		<span class="ident">Swarm</span>::<span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>::<span class="ident">local_peer_id</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">network</span>.<span class="ident">lock</span>()).<span class="ident">clone</span>()
@@ -1126,13 +1150,6 @@
 	<span class="doccomment">/// Are we in the process of downloading the chain?</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_major_syncing</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
 		<span class="self">self</span>.<span class="ident">is_major_syncing</span>.<span class="ident">load</span>(<span class="ident">Ordering</span>::<span class="ident">Relaxed</span>)
-	}
-
-	<span class="doccomment">/// Get sync status</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">status</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">mpsc</span>::<span class="ident">UnboundedReceiver</span><span class="op">&lt;</span><span class="ident">ProtocolStatus</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span> {
-		<span class="kw">let</span> (<span class="ident">sink</span>, <span class="ident">stream</span>) <span class="op">=</span> <span class="ident">mpsc</span>::<span class="ident">unbounded</span>();
-		<span class="self">self</span>.<span class="ident">status_sinks</span>.<span class="ident">lock</span>().<span class="ident">push</span>(<span class="ident">sink</span>);
-		<span class="ident">stream</span>
 	}
 
 	<span class="doccomment">/// Get network state.</span>
@@ -1338,12 +1355,9 @@
 	<span class="ident">finality_proof_provider</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">FinalityProofProvider</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">network_port</span>: <span class="ident">mpsc</span>::<span class="ident">UnboundedReceiver</span><span class="op">&lt;</span><span class="ident">NetworkMsg</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>,
 	<span class="ident">protocol_rx</span>: <span class="ident">mpsc</span>::<span class="ident">UnboundedReceiver</span><span class="op">&lt;</span><span class="ident">ProtocolMsg</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">S</span><span class="op">&gt;&gt;</span>,
-	<span class="ident">status_sinks</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">mpsc</span>::<span class="ident">UnboundedSender</span><span class="op">&lt;</span><span class="ident">ProtocolStatus</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">peerset</span>: <span class="ident">PeersetHandle</span>,
 	<span class="ident">on_demand_in</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">mpsc</span>::<span class="ident">UnboundedReceiver</span><span class="op">&lt;</span><span class="ident">RequestData</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>,
 
-	<span class="doccomment">/// Interval at which we send status updates on the `status_sinks`.</span>
-	<span class="ident">status_interval</span>: <span class="ident">tokio_timer</span>::<span class="ident">Interval</span>,
 	<span class="doccomment">/// Interval at which we update the `connected_peers` Arc.</span>
 	<span class="ident">connected_peers_interval</span>: <span class="ident">tokio_timer</span>::<span class="ident">Interval</span>,
 }
@@ -1419,11 +1433,6 @@
 			<span class="kw">fn</span> <span class="ident">set_finality_proof_request_builder</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">builder</span>: <span class="ident">SharedFinalityProofRequestBuilder</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>) {
 				<span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">set_finality_proof_request_builder</span>(<span class="ident">builder</span>)
 			}
-		}
-
-		<span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="kw">_</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="ident">status_interval</span>.<span class="ident">poll</span>() {
-			<span class="kw">let</span> <span class="ident">status</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">status</span>();
-			<span class="self">self</span>.<span class="ident">status_sinks</span>.<span class="ident">lock</span>().<span class="ident">retain</span>(<span class="op">|</span><span class="ident">sink</span><span class="op">|</span> <span class="ident">sink</span>.<span class="ident">unbounded_send</span>(<span class="ident">status</span>.<span class="ident">clone</span>()).<span class="ident">is_ok</span>());
 		}
 
 		{
@@ -1583,8 +1592,11 @@
 			}
 		}
 
-		<span class="self">self</span>.<span class="ident">is_offline</span>.<span class="ident">store</span>(<span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">is_offline</span>(), <span class="ident">Ordering</span>::<span class="ident">Relaxed</span>);
-		<span class="self">self</span>.<span class="ident">is_major_syncing</span>.<span class="ident">store</span>(<span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">is_major_syncing</span>(), <span class="ident">Ordering</span>::<span class="ident">Relaxed</span>);
+		<span class="self">self</span>.<span class="ident">is_offline</span>.<span class="ident">store</span>(<span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">num_connected_peers</span>() <span class="op">==</span> <span class="number">0</span>, <span class="ident">Ordering</span>::<span class="ident">Relaxed</span>);
+		<span class="self">self</span>.<span class="ident">is_major_syncing</span>.<span class="ident">store</span>(<span class="kw">match</span> <span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">sync_state</span>() {
+			<span class="ident">SyncState</span>::<span class="ident">Idle</span> <span class="op">=&gt;</span> <span class="bool-val">false</span>,
+			<span class="ident">SyncState</span>::<span class="ident">Downloading</span> <span class="op">=&gt;</span> <span class="bool-val">true</span>,
+		}, <span class="ident">Ordering</span>::<span class="ident">Relaxed</span>);
 
 		<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>)
 	}
