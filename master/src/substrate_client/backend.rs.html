@@ -222,6 +222,30 @@
 <span id="222">222</span>
 <span id="223">223</span>
 <span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -364,6 +388,8 @@
 	<span class="kw">type</span> <span class="ident">State</span>: <span class="ident">StateBackend</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span>;
 	<span class="doccomment">/// Changes trie storage.</span>
 	<span class="kw">type</span> <span class="ident">ChangesTrieStorage</span>: <span class="ident">PrunableStateChangesTrieStorage</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">H</span><span class="op">&gt;</span>;
+	<span class="doccomment">/// Offchain workers local storage.</span>
+	<span class="kw">type</span> <span class="ident">OffchainStorage</span>: <span class="ident">OffchainStorage</span>;
 
 	<span class="doccomment">/// Begin a new block insertion transaction with given parent block id.</span>
 	<span class="doccomment">/// When constructing the genesis, this is called with all-zero hash.</span>
@@ -381,6 +407,8 @@
 	<span class="kw">fn</span> <span class="ident">used_state_cache_size</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>;
 	<span class="doccomment">/// Returns reference to changes trie storage.</span>
 	<span class="kw">fn</span> <span class="ident">changes_trie_storage</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">ChangesTrieStorage</span><span class="op">&gt;</span>;
+	<span class="doccomment">/// Returns a handle to offchain storage.</span>
+	<span class="kw">fn</span> <span class="ident">offchain_storage</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">OffchainStorage</span><span class="op">&gt;</span>;
 	<span class="doccomment">/// Returns true if state for given block is available.</span>
 	<span class="kw">fn</span> <span class="ident">have_state_at</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">hash</span>: <span class="kw-2">&amp;</span><span class="ident">Block</span>::<span class="ident">Hash</span>, <span class="ident">_number</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
 		<span class="self">self</span>.<span class="ident">state_at</span>(<span class="ident">BlockId</span>::<span class="ident">Hash</span>(<span class="ident">hash</span>.<span class="ident">clone</span>())).<span class="ident">is_ok</span>()
@@ -417,6 +445,26 @@
 	<span class="doccomment">/// something that the import of a block would interfere with, e.g. importing</span>
 	<span class="doccomment">/// a new block or calculating the best head.</span>
 	<span class="kw">fn</span> <span class="ident">get_import_lock</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="ident">Mutex</span><span class="op">&lt;</span>()<span class="op">&gt;</span>;
+}
+
+<span class="doccomment">/// Offchain workers local storage.</span>
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">OffchainStorage</span>: <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> {
+	<span class="doccomment">/// Persist a value in storage under given key and prefix.</span>
+	<span class="kw">fn</span> <span class="ident">set</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">prefix</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">value</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]);
+
+	<span class="doccomment">/// Retrieve a value from storage under given key and prefix.</span>
+	<span class="kw">fn</span> <span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">prefix</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;&gt;</span>;
+
+	<span class="doccomment">/// Replace the value in storage if given old_value matches the current one.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// Returns `true` if the value has been set and false otherwise.</span>
+	<span class="kw">fn</span> <span class="ident">compare_and_set</span>(
+		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+		<span class="ident">prefix</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
+		<span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
+		<span class="ident">old_value</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span>,
+		<span class="ident">new_value</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
+	) <span class="op">-&gt;</span> <span class="ident">bool</span>;
 }
 
 <span class="doccomment">/// Changes trie storage that supports pruning.</span>

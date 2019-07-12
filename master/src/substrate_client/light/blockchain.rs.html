@@ -329,7 +329,6 @@
 <span class="doccomment">//! blocks. CHT roots are stored for headers of ancient blocks.</span>
 
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">sync</span>::{<span class="ident">Weak</span>, <span class="ident">Arc</span>}, <span class="ident">collections</span>::<span class="ident">HashMap</span>};
-<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">Future</span>, <span class="ident">IntoFuture</span>};
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">Mutex</span>;
 
 <span class="kw">use</span> <span class="ident">runtime_primitives</span>::{<span class="ident">Justification</span>, <span class="ident">generic</span>::<span class="ident">BlockId</span>};
@@ -433,14 +432,15 @@
 					<span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
 				}
 
-				<span class="self">self</span>.<span class="ident">fetcher</span>().<span class="ident">upgrade</span>().<span class="ident">ok_or</span>(<span class="ident">ClientError</span>::<span class="ident">NotAvailableOnLightClient</span>)<span class="question-mark">?</span>
-					.<span class="ident">remote_header</span>(<span class="ident">RemoteHeaderRequest</span> {
-						<span class="ident">cht_root</span>: <span class="self">self</span>.<span class="ident">storage</span>.<span class="ident">header_cht_root</span>(<span class="ident">cht</span>::<span class="ident">size</span>(), <span class="ident">number</span>)<span class="question-mark">?</span>,
-						<span class="ident">block</span>: <span class="ident">number</span>,
-						<span class="ident">retry_count</span>: <span class="prelude-val">None</span>,
+				<span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on</span>(
+					<span class="self">self</span>.<span class="ident">fetcher</span>().<span class="ident">upgrade</span>()
+						.<span class="ident">ok_or</span>(<span class="ident">ClientError</span>::<span class="ident">NotAvailableOnLightClient</span>)<span class="question-mark">?</span>
+						.<span class="ident">remote_header</span>(<span class="ident">RemoteHeaderRequest</span> {
+							<span class="ident">cht_root</span>: <span class="self">self</span>.<span class="ident">storage</span>.<span class="ident">header_cht_root</span>(<span class="ident">cht</span>::<span class="ident">size</span>(), <span class="ident">number</span>)<span class="question-mark">?</span>,
+							<span class="ident">block</span>: <span class="ident">number</span>,
+							<span class="ident">retry_count</span>: <span class="prelude-val">None</span>,
 					})
-					.<span class="ident">into_future</span>().<span class="ident">wait</span>()
-					.<span class="ident">map</span>(<span class="prelude-val">Some</span>)
+				).<span class="ident">map</span>(<span class="prelude-val">Some</span>)
 			}
 		}
 	}
@@ -469,13 +469,13 @@
 			<span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>),
 		};
 
-		<span class="self">self</span>.<span class="ident">fetcher</span>().<span class="ident">upgrade</span>().<span class="ident">ok_or</span>(<span class="ident">ClientError</span>::<span class="ident">NotAvailableOnLightClient</span>)<span class="question-mark">?</span>
-			.<span class="ident">remote_body</span>(<span class="ident">RemoteBodyRequest</span> {
-				<span class="ident">header</span>,
-				<span class="ident">retry_count</span>: <span class="prelude-val">None</span>,
-			})
-			.<span class="ident">into_future</span>().<span class="ident">wait</span>()
-			.<span class="ident">map</span>(<span class="prelude-val">Some</span>)
+		<span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on</span>(
+			<span class="self">self</span>.<span class="ident">fetcher</span>().<span class="ident">upgrade</span>().<span class="ident">ok_or</span>(<span class="ident">ClientError</span>::<span class="ident">NotAvailableOnLightClient</span>)<span class="question-mark">?</span>
+				.<span class="ident">remote_body</span>(<span class="ident">RemoteBodyRequest</span> {
+					<span class="ident">header</span>,
+					<span class="ident">retry_count</span>: <span class="prelude-val">None</span>,
+				})
+		).<span class="ident">map</span>(<span class="prelude-val">Some</span>)
 	}
 
 	<span class="kw">fn</span> <span class="ident">justification</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_id</span>: <span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Justification</span><span class="op">&gt;&gt;</span> {

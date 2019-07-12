@@ -594,6 +594,7 @@
 <span id="594">594</span>
 <span id="595">595</span>
 <span id="596">596</span>
+<span id="597">597</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -623,6 +624,7 @@
 	<span class="ident">ops</span>::<span class="ident">Range</span>,
 	<span class="ident">sync</span>::<span class="ident">Arc</span>,
 };
+<span class="kw">use</span> <span class="ident">futures03</span>::{<span class="ident">future</span>, <span class="ident">StreamExt</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">TryStreamExt</span> <span class="kw">as</span> <span class="kw">_</span>};
 
 <span class="kw">use</span> <span class="ident">client</span>::{<span class="self">self</span>, <span class="ident">Client</span>, <span class="ident">CallExecutor</span>, <span class="ident">BlockchainEvents</span>, <span class="ident">runtime_api</span>::<span class="ident">Metadata</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">rpc</span>::<span class="prelude-ty">Result</span> <span class="kw">as</span> <span class="ident">RpcResult</span>;
@@ -1081,14 +1083,14 @@
 
 		<span class="self">self</span>.<span class="ident">subscriptions</span>.<span class="ident">add</span>(<span class="ident">subscriber</span>, <span class="op">|</span><span class="ident">sink</span><span class="op">|</span> {
 			<span class="kw">let</span> <span class="ident">stream</span> <span class="op">=</span> <span class="ident">stream</span>
-				.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;Error creating storage notification stream: {:?}&quot;</span>, <span class="ident">e</span>))
-				.<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">block</span>, <span class="ident">changes</span>)<span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="ident">StorageChangeSet</span> {
+				.<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">block</span>, <span class="ident">changes</span>)<span class="op">|</span> <span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, ()<span class="op">&gt;</span>(<span class="prelude-val">Ok</span>(<span class="ident">StorageChangeSet</span> {
 					<span class="ident">block</span>,
 					<span class="ident">changes</span>: <span class="ident">changes</span>.<span class="ident">iter</span>()
 						.<span class="ident">filter_map</span>(<span class="op">|</span>(<span class="ident">o_sk</span>, <span class="ident">k</span>, <span class="ident">v</span>)<span class="op">|</span> <span class="kw">if</span> <span class="ident">o_sk</span>.<span class="ident">is_none</span>() {
 							<span class="prelude-val">Some</span>((<span class="ident">k</span>.<span class="ident">clone</span>(),<span class="ident">v</span>.<span class="ident">cloned</span>()))
 						} <span class="kw">else</span> { <span class="prelude-val">None</span> }).<span class="ident">collect</span>(),
-				}));
+				})))
+				.<span class="ident">compat</span>();
 
 			<span class="ident">sink</span>
 				.<span class="ident">sink_map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;Error sending notifications: {:?}&quot;</span>, <span class="ident">e</span>))
@@ -1127,7 +1129,6 @@
 			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">previous_version</span> <span class="op">=</span> <span class="ident">version</span>.<span class="ident">clone</span>();
 
 			<span class="kw">let</span> <span class="ident">stream</span> <span class="op">=</span> <span class="ident">stream</span>
-				.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;Error creating storage notification stream: {:?}&quot;</span>, <span class="ident">e</span>))
 				.<span class="ident">filter_map</span>(<span class="kw">move</span> <span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
 					<span class="kw">let</span> <span class="ident">info</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">info</span>();
 					<span class="kw">let</span> <span class="ident">version</span> <span class="op">=</span> <span class="ident">client</span>
@@ -1136,11 +1137,12 @@
 						.<span class="ident">map_err</span>(<span class="ident">Into</span>::<span class="ident">into</span>);
 					<span class="kw">if</span> <span class="ident">previous_version</span> <span class="op">!=</span> <span class="ident">version</span> {
 						<span class="ident">previous_version</span> <span class="op">=</span> <span class="ident">version</span>.<span class="ident">clone</span>();
-						<span class="prelude-val">Some</span>(<span class="ident">version</span>)
+						<span class="ident">future</span>::<span class="ident">ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, ()<span class="op">&gt;</span>(<span class="ident">version</span>)))
 					} <span class="kw">else</span> {
-						<span class="prelude-val">None</span>
+						<span class="ident">future</span>::<span class="ident">ready</span>(<span class="prelude-val">None</span>)
 					}
-				});
+				})
+				.<span class="ident">compat</span>();
 
 			<span class="ident">sink</span>
 				.<span class="ident">sink_map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;Error sending notifications: {:?}&quot;</span>, <span class="ident">e</span>))

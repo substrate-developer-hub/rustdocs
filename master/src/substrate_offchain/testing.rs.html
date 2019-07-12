@@ -242,6 +242,88 @@
 <span id="242">242</span>
 <span id="243">243</span>
 <span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -265,6 +347,7 @@
 	<span class="ident">collections</span>::<span class="ident">BTreeMap</span>,
 	<span class="ident">sync</span>::<span class="ident">Arc</span>,
 };
+<span class="kw">use</span> <span class="ident">client</span>::<span class="ident">backend</span>::<span class="ident">OffchainStorage</span>;
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">RwLock</span>;
 <span class="kw">use</span> <span class="ident">primitives</span>::<span class="ident">offchain</span>::{
 	<span class="self">self</span>,
@@ -274,6 +357,7 @@
 	<span class="ident">Timestamp</span>,
 	<span class="ident">CryptoKind</span>,
 	<span class="ident">CryptoKeyId</span>,
+	<span class="ident">StorageKind</span>,
 };
 
 <span class="doccomment">/// Pending request.</span>
@@ -306,6 +390,11 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">State</span> {
 	<span class="doccomment">/// A list of pending requests.</span>
 	<span class="kw">pub</span> <span class="ident">requests</span>: <span class="ident">BTreeMap</span><span class="op">&lt;</span><span class="ident">RequestId</span>, <span class="ident">PendingRequest</span><span class="op">&gt;</span>,
+	<span class="ident">expected_requests</span>: <span class="ident">BTreeMap</span><span class="op">&lt;</span><span class="ident">RequestId</span>, <span class="ident">PendingRequest</span><span class="op">&gt;</span>,
+	<span class="doccomment">/// Persistent local storage</span>
+	<span class="kw">pub</span> <span class="ident">persistent_storage</span>: <span class="ident">client</span>::<span class="ident">in_mem</span>::<span class="ident">OffchainStorage</span>,
+	<span class="doccomment">/// Local storage</span>
+	<span class="kw">pub</span> <span class="ident">local_storage</span>: <span class="ident">client</span>::<span class="ident">in_mem</span>::<span class="ident">OffchainStorage</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">State</span> {
@@ -319,7 +408,7 @@
 	) {
 		<span class="kw">match</span> <span class="self">self</span>.<span class="ident">requests</span>.<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">RequestId</span>(<span class="ident">id</span>)) {
 			<span class="prelude-val">None</span> <span class="op">=&gt;</span> {
-				<span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Missing expected request: {:?}.\n\nAll: {:?}&quot;</span>, <span class="ident">id</span>, <span class="self">self</span>.<span class="ident">requests</span>);
+				<span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Missing pending request: {:?}.\n\nAll: {:?}&quot;</span>, <span class="ident">id</span>, <span class="self">self</span>.<span class="ident">requests</span>);
 			}
 			<span class="prelude-val">Some</span>(<span class="ident">req</span>) <span class="op">=&gt;</span> {
 				<span class="macro">assert_eq</span><span class="macro">!</span>(
@@ -331,11 +420,46 @@
 			}
 		}
 	}
+
+	<span class="kw">fn</span> <span class="ident">fulfill_expected</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">u16</span>) {
+		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">req</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">expected_requests</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">RequestId</span>(<span class="ident">id</span>)) {
+			<span class="kw">let</span> <span class="ident">response</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">replace</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">req</span>.<span class="ident">response</span>, <span class="macro">vec</span><span class="macro">!</span>[]);
+			<span class="kw">let</span> <span class="ident">headers</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">replace</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">req</span>.<span class="ident">response_headers</span>, <span class="macro">vec</span><span class="macro">!</span>[]);
+			<span class="self">self</span>.<span class="ident">fulfill_pending_request</span>(<span class="ident">id</span>, <span class="ident">req</span>, <span class="ident">response</span>, <span class="ident">headers</span>);
+		}
+	}
+
+	<span class="doccomment">/// Add expected HTTP request.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// This method can be used to initialize expected HTTP requests and their responses</span>
+	<span class="doccomment">/// before running the actual code that utilizes them (for instance before calling into runtime).</span>
+	<span class="doccomment">/// Expected request has to be fulfilled before this struct is dropped,</span>
+	<span class="doccomment">/// the `response` and `response_headers` fields will be used to return results to the callers.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">expect_request</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">u16</span>, <span class="ident">expected</span>: <span class="ident">PendingRequest</span>) {
+		<span class="self">self</span>.<span class="ident">expected_requests</span>.<span class="ident">insert</span>(<span class="ident">RequestId</span>(<span class="ident">id</span>), <span class="ident">expected</span>);
+	}
+}
+
+<span class="kw">impl</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">State</span> {
+	<span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
+		<span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">expected_requests</span>.<span class="ident">is_empty</span>() {
+			<span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Unfulfilled expected requests: {:?}&quot;</span>, <span class="self">self</span>.<span class="ident">expected_requests</span>);
+		}
+	}
 }
 
 <span class="doccomment">/// Implementation of offchain externalities used for tests.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Default</span>, <span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">TestOffchainExt</span>(<span class="kw">pub</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">RwLock</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;&gt;</span>);
+
+<span class="kw">impl</span> <span class="ident">TestOffchainExt</span> {
+	<span class="doccomment">/// Create new `TestOffchainExt` and a reference to the internal state.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() <span class="op">-&gt;</span> (<span class="self">Self</span>, <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">RwLock</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;&gt;</span>) {
+		<span class="kw">let</span> <span class="ident">ext</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">default</span>();
+		<span class="kw">let</span> <span class="ident">state</span> <span class="op">=</span> <span class="ident">ext</span>.<span class="number">0</span>.<span class="ident">clone</span>();
+		(<span class="ident">ext</span>, <span class="ident">state</span>)
+	}
+}
 
 <span class="kw">impl</span> <span class="ident">offchain</span>::<span class="ident">Externalities</span> <span class="kw">for</span> <span class="ident">TestOffchainExt</span> {
 	<span class="kw">fn</span> <span class="ident">submit_transaction</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">_ex</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), ()<span class="op">&gt;</span> {
@@ -346,19 +470,40 @@
 		<span class="macro">unimplemented</span><span class="macro">!</span>(<span class="string">&quot;not needed in tests so far&quot;</span>)
 	}
 
-	<span class="kw">fn</span> <span class="ident">encrypt</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">_key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">CryptoKeyId</span><span class="op">&gt;</span>, <span class="ident">_data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">encrypt</span>(
+		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+		<span class="ident">_key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">CryptoKeyId</span><span class="op">&gt;</span>,
+		<span class="ident">_kind</span>: <span class="ident">CryptoKind</span>,
+		<span class="ident">_data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
+	) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
 		<span class="macro">unimplemented</span><span class="macro">!</span>(<span class="string">&quot;not needed in tests so far&quot;</span>)
 	}
 
-	<span class="kw">fn</span> <span class="ident">decrypt</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">_key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">CryptoKeyId</span><span class="op">&gt;</span>, <span class="ident">_data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">decrypt</span>(
+		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+		<span class="ident">_key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">CryptoKeyId</span><span class="op">&gt;</span>,
+		<span class="ident">_kind</span>: <span class="ident">CryptoKind</span>,
+		<span class="ident">_data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
+	) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
 		<span class="macro">unimplemented</span><span class="macro">!</span>(<span class="string">&quot;not needed in tests so far&quot;</span>)
 	}
 
-	<span class="kw">fn</span> <span class="ident">sign</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">_key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">CryptoKeyId</span><span class="op">&gt;</span>, <span class="ident">_data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">sign</span>(
+		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+		<span class="ident">_key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">CryptoKeyId</span><span class="op">&gt;</span>,
+		<span class="ident">_kind</span>: <span class="ident">CryptoKind</span>,
+		<span class="ident">_data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
+	) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
 		<span class="macro">unimplemented</span><span class="macro">!</span>(<span class="string">&quot;not needed in tests so far&quot;</span>)
 	}
 
-	<span class="kw">fn</span> <span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">_key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">CryptoKeyId</span><span class="op">&gt;</span>, <span class="ident">_msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">_signature</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span>, ()<span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">verify</span>(
+		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+		<span class="ident">_key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">CryptoKeyId</span><span class="op">&gt;</span>,
+		<span class="ident">_kind</span>: <span class="ident">CryptoKind</span>,
+		<span class="ident">_msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
+		<span class="ident">_signature</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
+	) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span>, ()<span class="op">&gt;</span> {
 		<span class="macro">unimplemented</span><span class="macro">!</span>(<span class="string">&quot;not needed in tests so far&quot;</span>)
 	}
 
@@ -374,21 +519,34 @@
 		<span class="macro">unimplemented</span><span class="macro">!</span>(<span class="string">&quot;not needed in tests so far&quot;</span>)
 	}
 
-	<span class="kw">fn</span> <span class="ident">local_storage_set</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">_value</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) {
-		<span class="macro">unimplemented</span><span class="macro">!</span>(<span class="string">&quot;not needed in tests so far&quot;</span>)
+	<span class="kw">fn</span> <span class="ident">local_storage_set</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">kind</span>: <span class="ident">StorageKind</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">value</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) {
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">state</span> <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">write</span>();
+		<span class="kw">match</span> <span class="ident">kind</span> {
+			<span class="ident">StorageKind</span>::<span class="ident">LOCAL</span> <span class="op">=&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">state</span>.<span class="ident">local_storage</span>,
+			<span class="ident">StorageKind</span>::<span class="ident">PERSISTENT</span> <span class="op">=&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">state</span>.<span class="ident">persistent_storage</span>,
+		}.<span class="ident">set</span>(<span class="string">b&quot;&quot;</span>, <span class="ident">key</span>, <span class="ident">value</span>);
 	}
 
 	<span class="kw">fn</span> <span class="ident">local_storage_compare_and_set</span>(
 		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-		<span class="ident">_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
-		<span class="ident">_old_value</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
-		<span class="ident">_new_value</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]
-	) {
-		<span class="macro">unimplemented</span><span class="macro">!</span>(<span class="string">&quot;not needed in tests so far&quot;</span>)
+		<span class="ident">kind</span>: <span class="ident">StorageKind</span>,
+		<span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
+		<span class="ident">old_value</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
+		<span class="ident">new_value</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]
+	) <span class="op">-&gt;</span> <span class="ident">bool</span> {
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">state</span> <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">write</span>();
+		<span class="kw">match</span> <span class="ident">kind</span> {
+			<span class="ident">StorageKind</span>::<span class="ident">LOCAL</span> <span class="op">=&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">state</span>.<span class="ident">local_storage</span>,
+			<span class="ident">StorageKind</span>::<span class="ident">PERSISTENT</span> <span class="op">=&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">state</span>.<span class="ident">persistent_storage</span>,
+		}.<span class="ident">compare_and_set</span>(<span class="string">b&quot;&quot;</span>, <span class="ident">key</span>, <span class="prelude-val">Some</span>(<span class="ident">old_value</span>), <span class="ident">new_value</span>)
 	}
 
-	<span class="kw">fn</span> <span class="ident">local_storage_get</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;&gt;</span> {
-		<span class="macro">unimplemented</span><span class="macro">!</span>(<span class="string">&quot;not needed in tests so far&quot;</span>)
+	<span class="kw">fn</span> <span class="ident">local_storage_get</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">kind</span>: <span class="ident">StorageKind</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;&gt;</span> {
+		<span class="kw">let</span> <span class="ident">state</span> <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">read</span>();
+		<span class="kw">match</span> <span class="ident">kind</span> {
+			<span class="ident">StorageKind</span>::<span class="ident">LOCAL</span> <span class="op">=&gt;</span> <span class="kw-2">&amp;</span><span class="ident">state</span>.<span class="ident">local_storage</span>,
+			<span class="ident">StorageKind</span>::<span class="ident">PERSISTENT</span> <span class="op">=&gt;</span> <span class="kw-2">&amp;</span><span class="ident">state</span>.<span class="ident">persistent_storage</span>,
+		}.<span class="ident">get</span>(<span class="string">b&quot;&quot;</span>, <span class="ident">key</span>)
 	}
 
 	<span class="kw">fn</span> <span class="ident">http_request_start</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">method</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="ident">uri</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="ident">meta</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">RequestId</span>, ()<span class="op">&gt;</span> {
@@ -425,15 +583,21 @@
 		<span class="ident">_deadline</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Timestamp</span><span class="op">&gt;</span>
 	) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">HttpError</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">state</span> <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">write</span>();
-		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">req</span>) <span class="op">=</span> <span class="ident">state</span>.<span class="ident">requests</span>.<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">request_id</span>) {
+
+		<span class="kw">let</span> <span class="ident">sent</span> <span class="op">=</span> {
+			<span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">state</span>.<span class="ident">requests</span>.<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">request_id</span>).<span class="ident">ok_or</span>(<span class="ident">HttpError</span>::<span class="ident">IoError</span>)<span class="question-mark">?</span>;
+			<span class="ident">req</span>.<span class="ident">body</span>.<span class="ident">extend</span>(<span class="ident">chunk</span>);
 			<span class="kw">if</span> <span class="ident">chunk</span>.<span class="ident">is_empty</span>() {
 				<span class="ident">req</span>.<span class="ident">sent</span> <span class="op">=</span> <span class="bool-val">true</span>;
 			}
-			<span class="ident">req</span>.<span class="ident">body</span>.<span class="ident">extend</span>(<span class="ident">chunk</span>);
-			<span class="prelude-val">Ok</span>(())
-		} <span class="kw">else</span> {
-			<span class="prelude-val">Err</span>(<span class="ident">HttpError</span>::<span class="ident">IoError</span>)
+			<span class="ident">req</span>.<span class="ident">sent</span>
+		};
+
+		<span class="kw">if</span> <span class="ident">sent</span> {
+			<span class="ident">state</span>.<span class="ident">fulfill_expected</span>(<span class="ident">request_id</span>.<span class="number">0</span>);
 		}
+
+		<span class="prelude-val">Ok</span>(())
 	}
 
 	<span class="kw">fn</span> <span class="ident">http_response_wait</span>(

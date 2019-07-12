@@ -222,6 +222,14 @@
 <span id="222">222</span>
 <span id="223">223</span>
 <span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -246,7 +254,7 @@
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">info</span>, <span class="ident">warn</span>};
 
 <span class="kw">use</span> <span class="ident">runtime_primitives</span>::<span class="ident">generic</span>::{<span class="ident">SignedBlock</span>, <span class="ident">BlockId</span>};
-<span class="kw">use</span> <span class="ident">runtime_primitives</span>::<span class="ident">traits</span>::{<span class="ident">SaturatedConversion</span>, <span class="ident">Zero</span>, <span class="ident">One</span>, <span class="ident">Block</span>, <span class="ident">Header</span>, <span class="ident">NumberFor</span>};
+<span class="kw">use</span> <span class="ident">runtime_primitives</span>::<span class="ident">traits</span>::{<span class="ident">SaturatedConversion</span>, <span class="ident">Zero</span>, <span class="ident">One</span>, <span class="ident">Block</span>, <span class="ident">Header</span>};
 <span class="kw">use</span> <span class="ident">consensus_common</span>::<span class="ident">import_queue</span>::{<span class="ident">ImportQueue</span>, <span class="ident">IncomingBlock</span>, <span class="ident">Link</span>};
 <span class="kw">use</span> <span class="ident">network</span>::<span class="ident">message</span>;
 
@@ -336,23 +344,30 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">Block</span><span class="op">&gt;</span> <span class="ident">Link</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">WaitLink</span> {
-	<span class="kw">fn</span> <span class="ident">block_imported</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">_hash</span>: <span class="kw-2">&amp;</span><span class="ident">B</span>::<span class="ident">Hash</span>, <span class="ident">_number</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>) {
-		<span class="self">self</span>.<span class="ident">imported_blocks</span> <span class="op">+=</span> <span class="number">1</span>;
+	<span class="kw">fn</span> <span class="ident">blocks_processed</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">processed_blocks</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Hash</span><span class="op">&gt;</span>, <span class="ident">has_error</span>: <span class="ident">bool</span>) {
+		<span class="self">self</span>.<span class="ident">imported_blocks</span> <span class="op">+=</span> <span class="ident">processed_blocks</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u64</span>;
+		<span class="kw">if</span> <span class="ident">has_error</span> {
+			<span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;There was an error importing {} blocks&quot;</span>, <span class="ident">processed_blocks</span>.<span class="ident">len</span>());
+		}
 	}
 }
 
-<span class="doccomment">/// Import blocks from a binary stream.</span>
+<span class="doccomment">/// Returns a future that import blocks from a binary stream.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">import_blocks</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">E</span>, <span class="ident">R</span><span class="op">&gt;</span>(
 	<span class="kw-2">mut</span> <span class="ident">config</span>: <span class="ident">FactoryFullConfiguration</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>,
 	<span class="ident">exit</span>: <span class="ident">E</span>,
 	<span class="kw-2">mut</span> <span class="ident">input</span>: <span class="ident">R</span>
-) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
+) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;&gt;</span>
 	<span class="kw">where</span> <span class="ident">F</span>: <span class="ident">ServiceFactory</span>, <span class="ident">E</span>: <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span>(),<span class="ident">Error</span><span class="op">=</span>()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>, <span class="ident">R</span>: <span class="ident">Read</span>,
 {
 	<span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">new_client</span>::<span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="ident">config</span>)<span class="question-mark">?</span>;
 	<span class="comment">// FIXME #1134 this shouldn&#39;t need a mutable config.</span>
 	<span class="kw">let</span> <span class="ident">select_chain</span> <span class="op">=</span> <span class="ident">components</span>::<span class="ident">FullComponents</span>::<span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>::<span class="ident">build_select_chain</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">config</span>, <span class="ident">client</span>.<span class="ident">clone</span>())<span class="question-mark">?</span>;
-	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">queue</span> <span class="op">=</span> <span class="ident">components</span>::<span class="ident">FullComponents</span>::<span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>::<span class="ident">build_import_queue</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">config</span>, <span class="ident">client</span>.<span class="ident">clone</span>(), <span class="ident">select_chain</span>)<span class="question-mark">?</span>;
+	<span class="kw">let</span> (<span class="kw-2">mut</span> <span class="ident">queue</span>, <span class="kw">_</span>) <span class="op">=</span> <span class="ident">components</span>::<span class="ident">FullComponents</span>::<span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>::<span class="ident">build_import_queue</span>(
+		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">config</span>,
+		<span class="ident">client</span>.<span class="ident">clone</span>(),
+		<span class="ident">select_chain</span>
+	)<span class="question-mark">?</span>;
 
 	<span class="kw">let</span> (<span class="ident">exit_send</span>, <span class="ident">exit_recv</span>) <span class="op">=</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">mpsc</span>::<span class="ident">channel</span>();
 	::<span class="ident">std</span>::<span class="ident">thread</span>::<span class="ident">spawn</span>(<span class="kw">move</span> <span class="op">||</span> {
@@ -394,13 +409,17 @@
 		}
 
 		<span class="ident">block_count</span> <span class="op">=</span> <span class="ident">b</span>;
-		<span class="kw">if</span> <span class="ident">b</span> <span class="op">%</span> <span class="number">1000</span> <span class="op">==</span> <span class="number">0</span> {
+		<span class="kw">if</span> <span class="ident">b</span> <span class="op">%</span> <span class="number">1000</span> <span class="op">==</span> <span class="number">0</span> <span class="op">&amp;&amp;</span> <span class="ident">b</span> <span class="op">!=</span> <span class="number">0</span> {
 			<span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;#{} blocks were added to the queue&quot;</span>, <span class="ident">b</span>);
 		}
 	}
 
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">link</span> <span class="op">=</span> <span class="ident">WaitLink</span>::<span class="ident">new</span>();
-	<span class="ident">tokio</span>::<span class="ident">run</span>(<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">poll_fn</span>(<span class="kw">move</span> <span class="op">||</span> {
+	<span class="prelude-val">Ok</span>(<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">poll_fn</span>(<span class="kw">move</span> <span class="op">||</span> {
+		<span class="kw">if</span> <span class="ident">exit_recv</span>.<span class="ident">try_recv</span>().<span class="ident">is_ok</span>() {
+			<span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(()));
+		}
+
 		<span class="kw">let</span> <span class="ident">blocks_before</span> <span class="op">=</span> <span class="ident">link</span>.<span class="ident">imported_blocks</span>;
 		<span class="ident">queue</span>.<span class="ident">poll_actions</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">link</span>);
 		<span class="kw">if</span> <span class="ident">link</span>.<span class="ident">imported_blocks</span> <span class="op">/</span> <span class="number">1000</span> <span class="op">!=</span> <span class="ident">blocks_before</span> <span class="op">/</span> <span class="number">1000</span> {
@@ -411,15 +430,12 @@
 			);
 		}
 		<span class="kw">if</span> <span class="ident">link</span>.<span class="ident">imported_blocks</span> <span class="op">&gt;=</span> <span class="ident">count</span> {
+			<span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;Imported {} blocks. Best: #{}&quot;</span>, <span class="ident">block_count</span>, <span class="ident">client</span>.<span class="ident">info</span>().<span class="ident">chain</span>.<span class="ident">best_number</span>);
 			<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(()))
 		} <span class="kw">else</span> {
 			<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>)
 		}
-	}));
-
-	<span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;Imported {} blocks. Best: #{}&quot;</span>, <span class="ident">block_count</span>, <span class="ident">client</span>.<span class="ident">info</span>().<span class="ident">chain</span>.<span class="ident">best_number</span>);
-
-	<span class="prelude-val">Ok</span>(())
+	}))
 }
 
 <span class="doccomment">/// Revert the chain.</span>

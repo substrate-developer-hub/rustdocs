@@ -1,1 +1,0 @@
-initSidebarItems({"mod":[["motions","Council voting system."],["seats","Council system: Handles the voting in and maintenance of council members."]],"trait":[["OnMembersChanged","Trait for type that can handle incremental changes to a set of account IDs."]]});

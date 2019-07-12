@@ -1,0 +1,1 @@
+initSidebarItems({"constant":[["ED25519","ED25519 public key."],["SR25519","SR25519 public key."]]});

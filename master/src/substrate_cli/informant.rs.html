@@ -153,6 +153,7 @@
 <span id="153">153</span>
 <span id="154">154</span>
 <span id="155">155</span>
+<span id="156">156</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -176,6 +177,7 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>;
 <span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">Future</span>, <span class="ident">Stream</span>};
+<span class="kw">use</span> <span class="ident">futures03</span>::{<span class="ident">StreamExt</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">TryStreamExt</span> <span class="kw">as</span> <span class="kw">_</span>};
 <span class="kw">use</span> <span class="ident">service</span>::{<span class="ident">Service</span>, <span class="ident">Components</span>};
 <span class="kw">use</span> <span class="ident">tokio</span>::<span class="ident">runtime</span>::<span class="ident">TaskExecutor</span>;
 <span class="kw">use</span> <span class="ident">network</span>::<span class="ident">SyncState</span>;
@@ -200,7 +202,7 @@
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">last_number</span> <span class="op">=</span> <span class="prelude-val">None</span>;
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">last_update</span> <span class="op">=</span> <span class="ident">time</span>::<span class="ident">Instant</span>::<span class="ident">now</span>();
 
-	<span class="kw">let</span> <span class="ident">display_notifications</span> <span class="op">=</span> <span class="ident">service</span>.<span class="ident">network_status</span>().<span class="ident">for_each</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">net_status</span><span class="op">|</span> {
+	<span class="kw">let</span> <span class="ident">display_notifications</span> <span class="op">=</span> <span class="ident">service</span>.<span class="ident">network_status</span>().<span class="ident">for_each</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="ident">net_status</span>, <span class="kw">_</span>)<span class="op">|</span> {
 
 		<span class="kw">let</span> <span class="ident">info</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">info</span>();
 		<span class="kw">let</span> <span class="ident">best_number</span> <span class="op">=</span> <span class="ident">info</span>.<span class="ident">chain</span>.<span class="ident">best_number</span>.<span class="ident">saturated_into</span>::<span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>();
@@ -237,7 +239,7 @@
 		<span class="prelude-val">Some</span>((<span class="ident">info</span>.<span class="ident">chain</span>.<span class="ident">best_number</span>, <span class="ident">info</span>.<span class="ident">chain</span>.<span class="ident">best_hash</span>))
 	};
 
-	<span class="kw">let</span> <span class="ident">display_block_import</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">import_notification_stream</span>().<span class="ident">for_each</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">n</span><span class="op">|</span> {
+	<span class="kw">let</span> <span class="ident">display_block_import</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">import_notification_stream</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, ()<span class="op">&gt;</span>(<span class="ident">v</span>)).<span class="ident">compat</span>().<span class="ident">for_each</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">n</span><span class="op">|</span> {
 		<span class="comment">// detect and log reorganizations.</span>
 		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="kw-2">ref</span> <span class="ident">last_num</span>, <span class="kw-2">ref</span> <span class="ident">last_hash</span>)) <span class="op">=</span> <span class="ident">last</span> {
 			<span class="kw">if</span> <span class="ident">n</span>.<span class="ident">header</span>.<span class="ident">parent_hash</span>() <span class="op">!=</span> <span class="ident">last_hash</span> {

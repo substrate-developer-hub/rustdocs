@@ -574,6 +574,13 @@
 <span id="574">574</span>
 <span id="575">575</span>
 <span id="576">576</span>
+<span id="577">577</span>
+<span id="578">578</span>
+<span id="579">579</span>
+<span id="580">580</span>
+<span id="581">581</span>
+<span id="582">582</span>
+<span id="583">583</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -598,7 +605,6 @@
 	<span class="ident">collections</span>::<span class="ident">HashSet</span>, <span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">panic</span>::<span class="ident">UnwindSafe</span>, <span class="ident">result</span>,
 	<span class="ident">marker</span>::<span class="ident">PhantomData</span>, <span class="ident">cell</span>::<span class="ident">RefCell</span>, <span class="ident">rc</span>::<span class="ident">Rc</span>,
 };
-<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">IntoFuture</span>, <span class="ident">Future</span>};
 
 <span class="kw">use</span> <span class="ident">parity_codec</span>::{<span class="ident">Encode</span>, <span class="ident">Decode</span>};
 <span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">offchain</span>, <span class="ident">H256</span>, <span class="ident">Blake2Hasher</span>, <span class="ident">convert_hash</span>, <span class="ident">NativeOrEncoded</span>};
@@ -677,13 +683,13 @@
 		<span class="kw">let</span> <span class="ident">block_hash</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">blockchain</span>.<span class="ident">expect_block_hash_from_id</span>(<span class="ident">id</span>)<span class="question-mark">?</span>;
 		<span class="kw">let</span> <span class="ident">block_header</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">blockchain</span>.<span class="ident">expect_header</span>(<span class="ident">id</span>.<span class="ident">clone</span>())<span class="question-mark">?</span>;
 
-		<span class="self">self</span>.<span class="ident">fetcher</span>.<span class="ident">remote_call</span>(<span class="ident">RemoteCallRequest</span> {
+		<span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on</span>(<span class="self">self</span>.<span class="ident">fetcher</span>.<span class="ident">remote_call</span>(<span class="ident">RemoteCallRequest</span> {
 			<span class="ident">block</span>: <span class="ident">block_hash</span>,
 			<span class="ident">header</span>: <span class="ident">block_header</span>,
 			<span class="ident">method</span>: <span class="ident">method</span>.<span class="ident">into</span>(),
 			<span class="ident">call_data</span>: <span class="ident">call_data</span>.<span class="ident">to_vec</span>(),
 			<span class="ident">retry_count</span>: <span class="prelude-val">None</span>,
-		}).<span class="ident">into_future</span>().<span class="ident">wait</span>()
+		}))
 	}
 
 	<span class="kw">fn</span> <span class="ident">contextual_call</span><span class="op">&lt;</span>
@@ -747,7 +753,11 @@
 		<span class="ident">_m</span>: <span class="ident">ExecutionManager</span><span class="op">&lt;</span><span class="ident">FF</span><span class="op">&gt;</span>,
 		<span class="ident">_native_call</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">NC</span><span class="op">&gt;</span>,
 		<span class="ident">_side_effects_handler</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">O</span><span class="op">&gt;</span>,
-	) <span class="op">-&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span>(<span class="ident">NativeOrEncoded</span><span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;</span>, <span class="ident">S</span>::<span class="ident">Transaction</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">MemoryDB</span><span class="op">&lt;</span><span class="ident">Blake2Hasher</span><span class="op">&gt;&gt;</span>)<span class="op">&gt;</span> {
+	) <span class="op">-&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span>(
+		<span class="ident">NativeOrEncoded</span><span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;</span>,
+		(<span class="ident">S</span>::<span class="ident">Transaction</span>, <span class="op">&lt;</span><span class="ident">Blake2Hasher</span> <span class="kw">as</span> <span class="ident">Hasher</span><span class="op">&gt;</span>::<span class="ident">Out</span>),
+		<span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">MemoryDB</span><span class="op">&lt;</span><span class="ident">Blake2Hasher</span><span class="op">&gt;&gt;</span>,
+	)<span class="op">&gt;</span> {
 		<span class="prelude-val">Err</span>(<span class="ident">ClientError</span>::<span class="ident">NotAvailableOnLightClient</span>.<span class="ident">into</span>())
 	}
 
@@ -920,7 +930,11 @@
 		<span class="ident">_manager</span>: <span class="ident">ExecutionManager</span><span class="op">&lt;</span><span class="ident">FF</span><span class="op">&gt;</span>,
 		<span class="ident">native_call</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">NC</span><span class="op">&gt;</span>,
 		<span class="ident">side_effects_handler</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">O</span><span class="op">&gt;</span>,
-	) <span class="op">-&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span>(<span class="ident">NativeOrEncoded</span><span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;</span>, <span class="ident">S</span>::<span class="ident">Transaction</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">MemoryDB</span><span class="op">&lt;</span><span class="ident">Blake2Hasher</span><span class="op">&gt;&gt;</span>)<span class="op">&gt;</span> {
+	) <span class="op">-&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span>(
+		<span class="ident">NativeOrEncoded</span><span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;</span>,
+		(<span class="ident">S</span>::<span class="ident">Transaction</span>, <span class="op">&lt;</span><span class="ident">Blake2Hasher</span> <span class="kw">as</span> <span class="ident">Hasher</span><span class="op">&gt;</span>::<span class="ident">Out</span>),
+		<span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">MemoryDB</span><span class="op">&lt;</span><span class="ident">Blake2Hasher</span><span class="op">&gt;&gt;</span>,
+	)<span class="op">&gt;</span> {
 		<span class="comment">// there&#39;s no actual way/need to specify native/wasm execution strategy on light node</span>
 		<span class="comment">// =&gt; we can safely ignore passed values</span>
 

@@ -1008,6 +1008,27 @@
 <span id="1008">1008</span>
 <span id="1009">1009</span>
 <span id="1010">1010</span>
+<span id="1011">1011</span>
+<span id="1012">1012</span>
+<span id="1013">1013</span>
+<span id="1014">1014</span>
+<span id="1015">1015</span>
+<span id="1016">1016</span>
+<span id="1017">1017</span>
+<span id="1018">1018</span>
+<span id="1019">1019</span>
+<span id="1020">1020</span>
+<span id="1021">1021</span>
+<span id="1022">1022</span>
+<span id="1023">1023</span>
+<span id="1024">1024</span>
+<span id="1025">1025</span>
+<span id="1026">1026</span>
+<span id="1027">1027</span>
+<span id="1028">1028</span>
+<span id="1029">1029</span>
+<span id="1030">1030</span>
+<span id="1031">1031</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1033,7 +1054,7 @@
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">debug</span>, <span class="ident">warn</span>, <span class="ident">info</span>};
 <span class="kw">use</span> <span class="ident">parity_codec</span>::{<span class="ident">Decode</span>, <span class="ident">Encode</span>};
 <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
-<span class="kw">use</span> <span class="ident">tokio</span>::<span class="ident">timer</span>::<span class="ident">Delay</span>;
+<span class="kw">use</span> <span class="ident">tokio_timer</span>::<span class="ident">Delay</span>;
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">RwLock</span>;
 
 <span class="kw">use</span> <span class="ident">client</span>::{
@@ -1061,9 +1082,17 @@
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">consensus_changes</span>::<span class="ident">SharedConsensusChanges</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">justification</span>::<span class="ident">GrandpaJustification</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">until_imported</span>::<span class="ident">UntilVoteTargetImported</span>;
-<span class="kw">use</span> <span class="ident">fg_primitives</span>::<span class="ident">AuthorityId</span>;
+<span class="kw">use</span> <span class="ident">fg_primitives</span>::{<span class="ident">AuthorityId</span>, <span class="ident">AuthoritySignature</span>};
 
-<span class="doccomment">/// Data about a completed round.</span>
+<span class="kw">type</span> <span class="ident">HistoricalVotes</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">grandpa</span>::<span class="ident">HistoricalVotes</span><span class="op">&lt;</span>
+	<span class="op">&lt;</span><span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span><span class="op">&gt;</span>::<span class="ident">Hash</span>,
+	<span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
+	<span class="ident">AuthoritySignature</span>,
+	<span class="ident">AuthorityId</span>,
+<span class="op">&gt;</span>;
+
+<span class="doccomment">/// Data about a completed round. The set of votes that is stored must be</span>
+<span class="doccomment">/// minimal, i.e. at most one equivocation is stored per voter.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">Decode</span>, <span class="ident">Encode</span>, <span class="ident">PartialEq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">CompletedRound</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// The round number.</span>
@@ -1186,6 +1215,16 @@
 				<span class="ident">completed_rounds</span>.<span class="ident">clone</span>(),
 			<span class="ident">VoterSetState</span>::<span class="ident">Paused</span> { <span class="ident">completed_rounds</span> } <span class="op">=&gt;</span>
 				<span class="ident">completed_rounds</span>.<span class="ident">clone</span>(),
+		}
+	}
+
+	<span class="doccomment">/// Returns the last completed round.</span>
+	<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">last_completed_round</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">CompletedRound</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> {
+		<span class="kw">match</span> <span class="self">self</span> {
+			<span class="ident">VoterSetState</span>::<span class="ident">Live</span> { <span class="ident">completed_rounds</span>, .. } <span class="op">=&gt;</span>
+				<span class="ident">completed_rounds</span>.<span class="ident">last</span>().<span class="ident">clone</span>(),
+			<span class="ident">VoterSetState</span>::<span class="ident">Paused</span> { <span class="ident">completed_rounds</span> } <span class="op">=&gt;</span>
+				<span class="ident">completed_rounds</span>.<span class="ident">last</span>().<span class="ident">clone</span>(),
 		}
 	}
 }
@@ -1647,7 +1686,7 @@
 		<span class="ident">round</span>: <span class="ident">u64</span>,
 		<span class="ident">state</span>: <span class="ident">RoundState</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;&gt;</span>,
 		<span class="ident">base</span>: (<span class="ident">Block</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>),
-		<span class="ident">votes</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SignedMessage</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;&gt;</span>,
+		<span class="ident">historical_votes</span>: <span class="kw-2">&amp;</span><span class="ident">HistoricalVotes</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 	) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
 		<span class="macro">debug</span><span class="macro">!</span>(
 			<span class="ident">target</span>: <span class="string">&quot;afg&quot;</span>, <span class="string">&quot;Voter {} completed round {} in set {}. Estimate = {:?}, Finalized in round = {:?}&quot;</span>,
@@ -1660,6 +1699,9 @@
 
 		<span class="self">self</span>.<span class="ident">update_voter_set_state</span>(<span class="op">|</span><span class="ident">voter_set_state</span><span class="op">|</span> {
 			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">completed_rounds</span> <span class="op">=</span> <span class="ident">voter_set_state</span>.<span class="ident">completed_rounds</span>();
+
+			<span class="comment">// TODO: Future integration will store the prevote and precommit index. See #2611.</span>
+			<span class="kw">let</span> <span class="ident">votes</span> <span class="op">=</span> <span class="ident">historical_votes</span>.<span class="ident">seen</span>().<span class="ident">clone</span>();
 
 			<span class="comment">// NOTE: the Environment assumes that rounds are *always* completed in-order.</span>
 			<span class="kw">if</span> <span class="op">!</span><span class="ident">completed_rounds</span>.<span class="ident">push</span>(<span class="ident">CompletedRound</span> {

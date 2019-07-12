@@ -313,6 +313,16 @@
 <span id="313">313</span>
 <span id="314">314</span>
 <span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -368,8 +378,11 @@
 
 <span class="kw">use</span> <span class="ident">rstd</span>::{<span class="ident">result</span>, <span class="ident">prelude</span>::<span class="kw-2">*</span>};
 <span class="kw">use</span> <span class="ident">parity_codec</span>::<span class="ident">Encode</span>;
-<span class="kw">use</span> <span class="ident">srml_support</span>::{<span class="ident">decl_storage</span>, <span class="ident">decl_module</span>, <span class="ident">Parameter</span>, <span class="ident">storage</span>::<span class="ident">StorageValue</span>};
-<span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">traits</span>::{<span class="ident">SaturatedConversion</span>, <span class="ident">Saturating</span>, <span class="ident">Zero</span>, <span class="ident">One</span>, <span class="ident">Member</span>}, <span class="ident">generic</span>::<span class="ident">DigestItem</span>};
+<span class="kw">use</span> <span class="ident">srml_support</span>::{<span class="ident">decl_storage</span>, <span class="ident">decl_module</span>, <span class="ident">Parameter</span>, <span class="ident">storage</span>::<span class="ident">StorageValue</span>, <span class="ident">traits</span>::<span class="ident">Get</span>};
+<span class="kw">use</span> <span class="ident">primitives</span>::{
+	<span class="ident">traits</span>::{<span class="ident">SaturatedConversion</span>, <span class="ident">Saturating</span>, <span class="ident">Zero</span>, <span class="ident">One</span>, <span class="ident">Member</span>, <span class="ident">TypedKey</span>},
+	<span class="ident">generic</span>::<span class="ident">DigestItem</span>,
+};
 <span class="kw">use</span> <span class="ident">timestamp</span>::<span class="ident">OnTimestampSet</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">timestamp</span>::<span class="ident">TimestampInherentData</span>;
@@ -469,7 +482,7 @@
 	<span class="kw">type</span> <span class="ident">HandleReport</span>: <span class="ident">HandleReport</span>;
 
 	<span class="doccomment">/// The identifier type for an authority.</span>
-	<span class="kw">type</span> <span class="ident">AuthorityId</span>: <span class="ident">Member</span> <span class="op">+</span> <span class="ident">Parameter</span> <span class="op">+</span> <span class="ident">Default</span>;
+	<span class="kw">type</span> <span class="ident">AuthorityId</span>: <span class="ident">Member</span> <span class="op">+</span> <span class="ident">Parameter</span> <span class="op">+</span> <span class="ident">TypedKey</span> <span class="op">+</span> <span class="ident">Default</span>;
 }
 
 <span class="macro">decl_storage</span><span class="macro">!</span> {
@@ -500,6 +513,7 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Trait</span><span class="op">&gt;</span> <span class="ident">session</span>::<span class="ident">OneSessionHandler</span><span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">AccountId</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
 	<span class="kw">type</span> <span class="ident">Key</span> <span class="op">=</span> <span class="ident">T</span>::<span class="ident">AuthorityId</span>;
+
 	<span class="kw">fn</span> <span class="ident">on_new_session</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">I</span>: <span class="lifetime">&#39;a</span><span class="op">&gt;</span>(<span class="ident">changed</span>: <span class="ident">bool</span>, <span class="ident">validators</span>: <span class="ident">I</span>)
 		<span class="kw">where</span> <span class="ident">I</span>: <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">T</span>::<span class="ident">AccountId</span>, <span class="ident">T</span>::<span class="ident">AuthorityId</span>)<span class="op">&gt;</span>
 	{
@@ -512,8 +526,13 @@
 			}
 		}
 	}
-	<span class="kw">fn</span> <span class="ident">on_disabled</span>(<span class="ident">_i</span>: <span class="ident">usize</span>) {
-		<span class="comment">// ignore?</span>
+	<span class="kw">fn</span> <span class="ident">on_disabled</span>(<span class="ident">i</span>: <span class="ident">usize</span>) {
+		<span class="kw">let</span> <span class="ident">log</span>: <span class="ident">DigestItem</span><span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">Hash</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">DigestItem</span>::<span class="ident">Consensus</span>(
+			<span class="ident">AURA_ENGINE_ID</span>,
+			<span class="ident">ConsensusLog</span>::<span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">AuthorityId</span><span class="op">&gt;</span>::<span class="ident">OnDisabled</span>(<span class="ident">i</span> <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">encode</span>(),
+		);
+
+		<span class="op">&lt;</span><span class="ident">system</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;&gt;</span>::<span class="ident">deposit_log</span>(<span class="ident">log</span>.<span class="ident">into</span>());
 	}
 }
 
@@ -550,7 +569,7 @@
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">slot_duration</span>() <span class="op">-&gt;</span> <span class="ident">T</span>::<span class="ident">Moment</span> {
 		<span class="comment">// we double the minimum block-period so each author can always propose within</span>
 		<span class="comment">// the majority of its slot.</span>
-		<span class="op">&lt;</span><span class="ident">timestamp</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;&gt;</span>::<span class="ident">minimum_period</span>().<span class="ident">saturating_mul</span>(<span class="number">2</span>.<span class="ident">into</span>())
+		<span class="op">&lt;</span><span class="ident">T</span> <span class="kw">as</span> <span class="ident">timestamp</span>::<span class="ident">Trait</span><span class="op">&gt;</span>::<span class="ident">MinimumPeriod</span>::<span class="ident">get</span>().<span class="ident">saturating_mul</span>(<span class="number">2</span>.<span class="ident">into</span>())
 	}
 
 	<span class="kw">fn</span> <span class="ident">on_timestamp_set</span><span class="op">&lt;</span><span class="ident">H</span>: <span class="ident">HandleReport</span><span class="op">&gt;</span>(<span class="ident">now</span>: <span class="ident">T</span>::<span class="ident">Moment</span>, <span class="ident">slot_duration</span>: <span class="ident">T</span>::<span class="ident">Moment</span>) {
@@ -590,7 +609,8 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">staking</span>::<span class="ident">Trait</span> <span class="op">+</span> <span class="ident">Trait</span><span class="op">&gt;</span> <span class="ident">HandleReport</span> <span class="kw">for</span> <span class="ident">StakingSlasher</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
 	<span class="kw">fn</span> <span class="ident">handle_report</span>(<span class="ident">report</span>: <span class="ident">AuraReport</span>) {
-		<span class="kw">let</span> <span class="ident">validators</span> <span class="op">=</span> <span class="ident">session</span>::<span class="ident">Module</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>::<span class="ident">validators</span>();
+		<span class="kw">use</span> <span class="ident">staking</span>::<span class="ident">SessionInterface</span>;
+		<span class="kw">let</span> <span class="ident">validators</span> <span class="op">=</span> <span class="ident">T</span>::<span class="ident">SessionInterface</span>::<span class="ident">validators</span>();
 
 		<span class="ident">report</span>.<span class="ident">punish</span>(
 			<span class="ident">validators</span>.<span class="ident">len</span>(),

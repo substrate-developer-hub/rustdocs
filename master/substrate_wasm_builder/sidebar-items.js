@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["build_project","Build the currently built project as WASM binary."]]});

@@ -888,22 +888,6 @@
 <span id="888">888</span>
 <span id="889">889</span>
 <span id="890">890</span>
-<span id="891">891</span>
-<span id="892">892</span>
-<span id="893">893</span>
-<span id="894">894</span>
-<span id="895">895</span>
-<span id="896">896</span>
-<span id="897">897</span>
-<span id="898">898</span>
-<span id="899">899</span>
-<span id="900">900</span>
-<span id="901">901</span>
-<span id="902">902</span>
-<span id="903">903</span>
-<span id="904">904</span>
-<span id="905">905</span>
-<span id="906">906</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -943,8 +927,7 @@
 	<span class="ident">SelectChain</span>, <span class="ident">well_known_cache_keys</span>::{<span class="self">self</span>, <span class="ident">Id</span> <span class="kw">as</span> <span class="ident">CacheKeyId</span>}
 };
 <span class="kw">use</span> <span class="ident">consensus_common</span>::<span class="ident">import_queue</span>::{
-	<span class="ident">Verifier</span>, <span class="ident">BasicQueue</span>, <span class="ident">SharedBlockImport</span>, <span class="ident">SharedJustificationImport</span>, <span class="ident">SharedFinalityProofImport</span>,
-	<span class="ident">SharedFinalityProofRequestBuilder</span>,
+	<span class="ident">Verifier</span>, <span class="ident">BasicQueue</span>, <span class="ident">BoxBlockImport</span>, <span class="ident">BoxJustificationImport</span>, <span class="ident">BoxFinalityProofImport</span>,
 };
 <span class="kw">use</span> <span class="ident">client</span>::{
 	<span class="ident">block_builder</span>::<span class="ident">api</span>::<span class="ident">BlockBuilder</span> <span class="kw">as</span> <span class="ident">BlockBuilderApi</span>,
@@ -961,6 +944,7 @@
 <span class="kw">use</span> <span class="ident">inherents</span>::{<span class="ident">InherentDataProviders</span>, <span class="ident">InherentData</span>};
 
 <span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">Future</span>, <span class="ident">IntoFuture</span>, <span class="ident">future</span>};
+<span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">Mutex</span>;
 <span class="kw">use</span> <span class="ident">tokio_timer</span>::<span class="ident">Timeout</span>;
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">error</span>, <span class="ident">warn</span>, <span class="ident">debug</span>, <span class="ident">info</span>, <span class="ident">trace</span>};
 
@@ -970,7 +954,8 @@
 };
 <span class="kw">use</span> <span class="ident">substrate_telemetry</span>::{<span class="ident">telemetry</span>, <span class="ident">CONSENSUS_TRACE</span>, <span class="ident">CONSENSUS_DEBUG</span>, <span class="ident">CONSENSUS_WARN</span>, <span class="ident">CONSENSUS_INFO</span>};
 
-<span class="kw">use</span> <span class="ident">slots</span>::{<span class="ident">CheckedHeader</span>, <span class="ident">SlotData</span>, <span class="ident">SlotWorker</span>, <span class="ident">SlotInfo</span>, <span class="ident">SlotCompatible</span>, <span class="ident">slot_now</span>, <span class="ident">check_equivocation</span>};
+<span class="kw">use</span> <span class="ident">slots</span>::{<span class="ident">CheckedHeader</span>, <span class="ident">SlotData</span>, <span class="ident">SlotWorker</span>, <span class="ident">SlotInfo</span>, <span class="ident">SlotCompatible</span>};
+<span class="kw">use</span> <span class="ident">slots</span>::{<span class="ident">SignedDuration</span>, <span class="ident">check_equivocation</span>};
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">aura_primitives</span>::<span class="kw-2">*</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">consensus_common</span>::<span class="ident">SyncOracle</span>;
@@ -1023,12 +1008,14 @@
 
 <span class="kw">impl</span> <span class="ident">SlotCompatible</span> <span class="kw">for</span> <span class="ident">AuraSlotCompatible</span> {
 	<span class="kw">fn</span> <span class="ident">extract_timestamp_and_slot</span>(
+		<span class="kw-2">&amp;</span><span class="self">self</span>,
 		<span class="ident">data</span>: <span class="kw-2">&amp;</span><span class="ident">InherentData</span>
-	) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">TimestampInherent</span>, <span class="ident">AuraInherent</span>), <span class="ident">consensus_common</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+	) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">TimestampInherent</span>, <span class="ident">AuraInherent</span>, <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>), <span class="ident">consensus_common</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
 		<span class="ident">data</span>.<span class="ident">timestamp_inherent_data</span>()
 			.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">t</span><span class="op">|</span> <span class="ident">data</span>.<span class="ident">aura_inherent_data</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">a</span><span class="op">|</span> (<span class="ident">t</span>, <span class="ident">a</span>)))
 			.<span class="ident">map_err</span>(<span class="ident">Into</span>::<span class="ident">into</span>)
 			.<span class="ident">map_err</span>(<span class="ident">consensus_common</span>::<span class="ident">Error</span>::<span class="ident">InherentData</span>)
+			.<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">x</span>, <span class="ident">y</span>)<span class="op">|</span> (<span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">Default</span>::<span class="ident">default</span>()))
 	}
 }
 
@@ -1038,7 +1025,7 @@
 	<span class="ident">local_key</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>,
 	<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span>,
 	<span class="ident">select_chain</span>: <span class="ident">SC</span>,
-	<span class="ident">block_import</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">I</span><span class="op">&gt;</span>,
+	<span class="ident">block_import</span>: <span class="ident">I</span>,
 	<span class="ident">env</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span>,
 	<span class="ident">sync_oracle</span>: <span class="ident">SO</span>,
 	<span class="ident">inherent_data_providers</span>: <span class="ident">InherentDataProviders</span>,
@@ -1061,7 +1048,7 @@
 {
 	<span class="kw">let</span> <span class="ident">worker</span> <span class="op">=</span> <span class="ident">AuraWorker</span> {
 		<span class="ident">client</span>: <span class="ident">client</span>.<span class="ident">clone</span>(),
-		<span class="ident">block_import</span>,
+		<span class="ident">block_import</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Mutex</span>::<span class="ident">new</span>(<span class="ident">block_import</span>)),
 		<span class="ident">env</span>,
 		<span class="ident">local_key</span>,
 		<span class="ident">sync_oracle</span>: <span class="ident">sync_oracle</span>.<span class="ident">clone</span>(),
@@ -1076,13 +1063,14 @@
 		<span class="ident">select_chain</span>,
 		<span class="ident">worker</span>,
 		<span class="ident">sync_oracle</span>,
-		<span class="ident">inherent_data_providers</span>
+		<span class="ident">inherent_data_providers</span>,
+		<span class="ident">AuraSlotCompatible</span>,
 	))
 }
 
 <span class="kw">struct</span> <span class="ident">AuraWorker</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">E</span>, <span class="ident">I</span>, <span class="ident">P</span>, <span class="ident">SO</span><span class="op">&gt;</span> {
 	<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span>,
-	<span class="ident">block_import</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">I</span><span class="op">&gt;</span>,
+	<span class="ident">block_import</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">I</span><span class="op">&gt;&gt;</span>,
 	<span class="ident">env</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span>,
 	<span class="ident">local_key</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>,
 	<span class="ident">sync_oracle</span>: <span class="ident">SO</span>,
@@ -1190,8 +1178,8 @@
 		<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">proposal_work</span>.<span class="ident">map</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">b</span><span class="op">|</span> {
 			<span class="comment">// minor hack since we don&#39;t have access to the timestamp</span>
 			<span class="comment">// that is actually set by the proposer.</span>
-			<span class="kw">let</span> <span class="ident">slot_after_building</span> <span class="op">=</span> <span class="ident">slot_now</span>(<span class="ident">slot_duration</span>);
-			<span class="kw">if</span> <span class="ident">slot_after_building</span> <span class="op">!=</span> <span class="prelude-val">Some</span>(<span class="ident">slot_num</span>) {
+			<span class="kw">let</span> <span class="ident">slot_after_building</span> <span class="op">=</span> <span class="ident">SignedDuration</span>::<span class="ident">default</span>().<span class="ident">slot_now</span>(<span class="ident">slot_duration</span>);
+			<span class="kw">if</span> <span class="ident">slot_after_building</span> <span class="op">!=</span> <span class="ident">slot_num</span> {
 				<span class="macro">info</span><span class="macro">!</span>(
 					<span class="string">&quot;Discarding proposal for slot {}; block production took too long&quot;</span>,
 					<span class="ident">slot_num</span>
@@ -1242,7 +1230,7 @@
 				<span class="string">&quot;hash_previously&quot;</span> <span class="op">=&gt;</span> <span class="question-mark">?</span><span class="ident">header_hash</span>
 			);
 
-			<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span> <span class="ident">block_import</span>.<span class="ident">import_block</span>(<span class="ident">import_block</span>, <span class="ident">Default</span>::<span class="ident">default</span>()) {
+			<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span> <span class="ident">block_import</span>.<span class="ident">lock</span>().<span class="ident">import_block</span>(<span class="ident">import_block</span>, <span class="ident">Default</span>::<span class="ident">default</span>()) {
 				<span class="macro">warn</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;aura&quot;</span>, <span class="string">&quot;Error with block built on {:?}: {:?}&quot;</span>,
 						<span class="ident">parent_hash</span>, <span class="ident">e</span>);
 				<span class="macro">telemetry</span><span class="macro">!</span>(<span class="ident">CONSENSUS_WARN</span>; <span class="string">&quot;aura.err_with_block_built_on&quot;</span>;
@@ -1420,7 +1408,7 @@
 		<span class="kw-2">mut</span> <span class="ident">body</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Extrinsic</span><span class="op">&gt;&gt;</span>,
 	) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">ImportBlock</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">CacheKeyId</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>)<span class="op">&gt;&gt;</span>), <span class="ident">String</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">inherent_data</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">inherent_data_providers</span>.<span class="ident">create_inherent_data</span>().<span class="ident">map_err</span>(<span class="ident">String</span>::<span class="ident">from</span>)<span class="question-mark">?</span>;
-		<span class="kw">let</span> (<span class="ident">timestamp_now</span>, <span class="ident">slot_now</span>) <span class="op">=</span> <span class="ident">AuraSlotCompatible</span>::<span class="ident">extract_timestamp_and_slot</span>(<span class="kw-2">&amp;</span><span class="ident">inherent_data</span>)
+		<span class="kw">let</span> (<span class="ident">timestamp_now</span>, <span class="ident">slot_now</span>, <span class="kw">_</span>) <span class="op">=</span> <span class="ident">AuraSlotCompatible</span>.<span class="ident">extract_timestamp_and_slot</span>(<span class="kw-2">&amp;</span><span class="ident">inherent_data</span>)
 			.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Could not extract timestamp and slot: {:?}&quot;</span>, <span class="ident">e</span>))<span class="question-mark">?</span>;
 		<span class="kw">let</span> <span class="ident">hash</span> <span class="op">=</span> <span class="ident">header</span>.<span class="ident">hash</span>();
 		<span class="kw">let</span> <span class="ident">parent_hash</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">header</span>.<span class="ident">parent_hash</span>();
@@ -1467,14 +1455,19 @@
 				<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;aura&quot;</span>, <span class="string">&quot;Checked {:?}; importing.&quot;</span>, <span class="ident">pre_header</span>);
 				<span class="macro">telemetry</span><span class="macro">!</span>(<span class="ident">CONSENSUS_TRACE</span>; <span class="string">&quot;aura.checked_and_importing&quot;</span>; <span class="string">&quot;pre_header&quot;</span> <span class="op">=&gt;</span> <span class="question-mark">?</span><span class="ident">pre_header</span>);
 
-				<span class="comment">// `Consensus` is the Aura-specific authorities change log.</span>
+				<span class="comment">// Look for an authorities-change log.</span>
 				<span class="kw">let</span> <span class="ident">maybe_keys</span> <span class="op">=</span> <span class="ident">pre_header</span>.<span class="ident">digest</span>()
-					.<span class="ident">convert_first</span>(<span class="op">|</span><span class="ident">l</span><span class="op">|</span> <span class="ident">l</span>.<span class="ident">try_to</span>::<span class="op">&lt;</span><span class="ident">ConsensusLog</span><span class="op">&lt;</span><span class="ident">AuthorityId</span><span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>(
+					.<span class="ident">logs</span>()
+					.<span class="ident">iter</span>()
+					.<span class="ident">filter_map</span>(<span class="op">|</span><span class="ident">l</span><span class="op">|</span> <span class="ident">l</span>.<span class="ident">try_to</span>::<span class="op">&lt;</span><span class="ident">ConsensusLog</span><span class="op">&lt;</span><span class="ident">AuthorityId</span><span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>(
 						<span class="ident">OpaqueDigestItemId</span>::<span class="ident">Consensus</span>(<span class="kw-2">&amp;</span><span class="ident">AURA_ENGINE_ID</span>)
 					))
-					.<span class="ident">map</span>(<span class="op">|</span><span class="ident">ConsensusLog</span>::<span class="ident">AuthoritiesChange</span>(<span class="ident">a</span>)<span class="op">|</span>
-						<span class="macro">vec</span><span class="macro">!</span>[(<span class="ident">well_known_cache_keys</span>::<span class="ident">AUTHORITIES</span>, <span class="ident">a</span>.<span class="ident">encode</span>())]
-					);
+					.<span class="ident">find_map</span>(<span class="op">|</span><span class="ident">l</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">l</span> {
+						<span class="ident">ConsensusLog</span>::<span class="ident">AuthoritiesChange</span>(<span class="ident">a</span>) <span class="op">=&gt;</span> <span class="prelude-val">Some</span>(
+							<span class="macro">vec</span><span class="macro">!</span>[(<span class="ident">well_known_cache_keys</span>::<span class="ident">AUTHORITIES</span>, <span class="ident">a</span>.<span class="ident">encode</span>())]
+						),
+						<span class="kw">_</span> <span class="op">=&gt;</span> <span class="prelude-val">None</span>,
+					});
 
 				<span class="kw">let</span> <span class="ident">import_block</span> <span class="op">=</span> <span class="ident">ImportBlock</span> {
 					<span class="ident">origin</span>,
@@ -1571,10 +1564,9 @@
 <span class="doccomment">/// Start an import queue for the Aura consensus algorithm.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">import_queue</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">C</span>, <span class="ident">P</span><span class="op">&gt;</span>(
 	<span class="ident">slot_duration</span>: <span class="ident">SlotDuration</span>,
-	<span class="ident">block_import</span>: <span class="ident">SharedBlockImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
-	<span class="ident">justification_import</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SharedJustificationImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>,
-	<span class="ident">finality_proof_import</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SharedFinalityProofImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>,
-	<span class="ident">finality_proof_request_builder</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SharedFinalityProofRequestBuilder</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>,
+	<span class="ident">block_import</span>: <span class="ident">BoxBlockImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+	<span class="ident">justification_import</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">BoxJustificationImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>,
+	<span class="ident">finality_proof_import</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">BoxFinalityProofImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>,
 	<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span>,
 	<span class="ident">inherent_data_providers</span>: <span class="ident">InherentDataProviders</span>,
 ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">AuraImportQueue</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">consensus_common</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="kw">where</span>
@@ -1601,14 +1593,14 @@
 		<span class="ident">block_import</span>,
 		<span class="ident">justification_import</span>,
 		<span class="ident">finality_proof_import</span>,
-		<span class="ident">finality_proof_request_builder</span>,
 	))
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span> {
 	<span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-	<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">stream</span>::<span class="ident">Stream</span> <span class="kw">as</span> <span class="kw">_</span>;
+	<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">Async</span>, <span class="ident">stream</span>::<span class="ident">Stream</span> <span class="kw">as</span> <span class="kw">_</span>};
+	<span class="kw">use</span> <span class="ident">futures03</span>::{<span class="ident">StreamExt</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">TryStreamExt</span> <span class="kw">as</span> <span class="kw">_</span>};
 	<span class="kw">use</span> <span class="ident">consensus_common</span>::<span class="ident">NoNetwork</span> <span class="kw">as</span> <span class="ident">DummyOracle</span>;
 	<span class="kw">use</span> <span class="ident">network</span>::<span class="ident">test</span>::<span class="kw-2">*</span>;
 	<span class="kw">use</span> <span class="ident">network</span>::<span class="ident">test</span>::{<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">TestBlock</span>, <span class="ident">PeersClient</span>, <span class="ident">PeersFullClient</span>};
@@ -1659,11 +1651,9 @@
 	}
 
 	<span class="kw">const</span> <span class="ident">SLOT_DURATION</span>: <span class="ident">u64</span> <span class="op">=</span> <span class="number">1</span>;
-	<span class="kw">const</span> <span class="ident">TEST_ROUTING_INTERVAL</span>: <span class="ident">Duration</span> <span class="op">=</span> <span class="ident">Duration</span>::<span class="ident">from_millis</span>(<span class="number">50</span>);
 
 	<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">AuraTestNet</span> {
-		<span class="ident">peers</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Peer</span><span class="op">&lt;</span>(), <span class="ident">DummySpecialization</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>,
-		<span class="ident">started</span>: <span class="ident">bool</span>,
+		<span class="ident">peers</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Peer</span><span class="op">&lt;</span>(), <span class="ident">DummySpecialization</span><span class="op">&gt;&gt;</span>,
 	}
 
 	<span class="kw">impl</span> <span class="ident">TestNetFactory</span> <span class="kw">for</span> <span class="ident">AuraTestNet</span> {
@@ -1675,7 +1665,6 @@
 		<span class="kw">fn</span> <span class="ident">from_config</span>(<span class="ident">_config</span>: <span class="kw-2">&amp;</span><span class="ident">ProtocolConfig</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
 			<span class="ident">AuraTestNet</span> {
 				<span class="ident">peers</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
-				<span class="ident">started</span>: <span class="bool-val">false</span>,
 			}
 		}
 
@@ -1703,28 +1692,16 @@
 			}
 		}
 
-		<span class="kw">fn</span> <span class="ident">uses_tokio</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
-			<span class="bool-val">true</span>
+		<span class="kw">fn</span> <span class="ident">peer</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">i</span>: <span class="ident">usize</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Peer</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">PeerData</span>, <span class="ident">DummySpecialization</span><span class="op">&gt;</span> {
+			<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">peers</span>[<span class="ident">i</span>]
 		}
 
-		<span class="kw">fn</span> <span class="ident">peer</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">i</span>: <span class="ident">usize</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="ident">Peer</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">PeerData</span>, <span class="ident">DummySpecialization</span><span class="op">&gt;</span> {
-			<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">peers</span>[<span class="ident">i</span>]
-		}
-
-		<span class="kw">fn</span> <span class="ident">peers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Peer</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">PeerData</span>, <span class="ident">DummySpecialization</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span> {
+		<span class="kw">fn</span> <span class="ident">peers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Peer</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">PeerData</span>, <span class="ident">DummySpecialization</span><span class="op">&gt;&gt;</span> {
 			<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">peers</span>
 		}
 
-		<span class="kw">fn</span> <span class="ident">mut_peers</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Peer</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">PeerData</span>, <span class="ident">DummySpecialization</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>)<span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">closure</span>: <span class="ident">F</span>) {
+		<span class="kw">fn</span> <span class="ident">mut_peers</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Peer</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">PeerData</span>, <span class="ident">DummySpecialization</span><span class="op">&gt;&gt;</span>)<span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">closure</span>: <span class="ident">F</span>) {
 			<span class="ident">closure</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">peers</span>);
-		}
-
-		<span class="kw">fn</span> <span class="ident">started</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
-			<span class="self">self</span>.<span class="ident">started</span>
-		}
-
-		<span class="kw">fn</span> <span class="ident">set_started</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">new</span>: <span class="ident">bool</span>) {
-			<span class="self">self</span>.<span class="ident">started</span> <span class="op">=</span> <span class="ident">new</span>;
 		}
 	}
 
@@ -1732,9 +1709,7 @@
 	<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span>
 	<span class="kw">fn</span> <span class="ident">authoring_blocks</span>() {
 		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> ::<span class="ident">env_logger</span>::<span class="ident">try_init</span>();
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">net</span> <span class="op">=</span> <span class="ident">AuraTestNet</span>::<span class="ident">new</span>(<span class="number">3</span>);
-
-		<span class="ident">net</span>.<span class="ident">start</span>();
+		<span class="kw">let</span> <span class="ident">net</span> <span class="op">=</span> <span class="ident">AuraTestNet</span>::<span class="ident">new</span>(<span class="number">3</span>);
 
 		<span class="kw">let</span> <span class="ident">peers</span> <span class="op">=</span> <span class="kw-2">&amp;</span>[
 			(<span class="number">0</span>, <span class="ident">Keyring</span>::<span class="ident">Alice</span>),
@@ -1755,6 +1730,7 @@
 			<span class="kw">let</span> <span class="ident">environ</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">DummyFactory</span>(<span class="ident">client</span>.<span class="ident">clone</span>()));
 			<span class="ident">import_notifications</span>.<span class="ident">push</span>(
 				<span class="ident">client</span>.<span class="ident">import_notification_stream</span>()
+					.<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, ()<span class="op">&gt;</span>(<span class="ident">v</span>)).<span class="ident">compat</span>()
 					.<span class="ident">take_while</span>(<span class="op">|</span><span class="ident">n</span><span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="op">!</span>(<span class="ident">n</span>.<span class="ident">origin</span> <span class="op">!=</span> <span class="ident">BlockOrigin</span>::<span class="ident">Own</span> <span class="op">&amp;&amp;</span> <span class="ident">n</span>.<span class="ident">header</span>.<span class="ident">number</span>() <span class="op">&lt;</span> <span class="kw-2">&amp;</span><span class="number">5</span>)))
 					.<span class="ident">for_each</span>(<span class="kw">move</span> <span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()))
 			);
@@ -1787,15 +1763,7 @@
 			.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
 			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ());
 
-		<span class="kw">let</span> <span class="ident">drive_to_completion</span> <span class="op">=</span> ::<span class="ident">tokio_timer</span>::<span class="ident">Interval</span>::<span class="ident">new_interval</span>(<span class="ident">TEST_ROUTING_INTERVAL</span>)
-			.<span class="ident">for_each</span>(<span class="kw">move</span> <span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
-				<span class="ident">net</span>.<span class="ident">lock</span>().<span class="ident">send_import_notifications</span>();
-				<span class="ident">net</span>.<span class="ident">lock</span>().<span class="ident">sync_without_disconnects</span>();
-				<span class="prelude-val">Ok</span>(())
-			})
-			.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
-			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ());
-
+		<span class="kw">let</span> <span class="ident">drive_to_completion</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">poll_fn</span>(<span class="op">||</span> { <span class="ident">net</span>.<span class="ident">lock</span>().<span class="ident">poll</span>(); <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) });
 		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">runtime</span>.<span class="ident">block_on</span>(<span class="ident">wait_for</span>.<span class="ident">select</span>(<span class="ident">drive_to_completion</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())).<span class="ident">unwrap</span>();
 	}
 
