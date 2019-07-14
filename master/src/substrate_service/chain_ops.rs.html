@@ -230,6 +230,11 @@
 <span id="230">230</span>
 <span id="231">231</span>
 <span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -254,8 +259,8 @@
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">info</span>, <span class="ident">warn</span>};
 
 <span class="kw">use</span> <span class="ident">runtime_primitives</span>::<span class="ident">generic</span>::{<span class="ident">SignedBlock</span>, <span class="ident">BlockId</span>};
-<span class="kw">use</span> <span class="ident">runtime_primitives</span>::<span class="ident">traits</span>::{<span class="ident">SaturatedConversion</span>, <span class="ident">Zero</span>, <span class="ident">One</span>, <span class="ident">Block</span>, <span class="ident">Header</span>};
-<span class="kw">use</span> <span class="ident">consensus_common</span>::<span class="ident">import_queue</span>::{<span class="ident">ImportQueue</span>, <span class="ident">IncomingBlock</span>, <span class="ident">Link</span>};
+<span class="kw">use</span> <span class="ident">runtime_primitives</span>::<span class="ident">traits</span>::{<span class="ident">SaturatedConversion</span>, <span class="ident">Zero</span>, <span class="ident">One</span>, <span class="ident">Block</span>, <span class="ident">Header</span>, <span class="ident">NumberFor</span>};
+<span class="kw">use</span> <span class="ident">consensus_common</span>::<span class="ident">import_queue</span>::{<span class="ident">ImportQueue</span>, <span class="ident">IncomingBlock</span>, <span class="ident">Link</span>, <span class="ident">BlockImportError</span>, <span class="ident">BlockImportResult</span>};
 <span class="kw">use</span> <span class="ident">network</span>::<span class="ident">message</span>;
 
 <span class="kw">use</span> <span class="ident">consensus_common</span>::<span class="ident">BlockOrigin</span>;
@@ -344,10 +349,15 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">Block</span><span class="op">&gt;</span> <span class="ident">Link</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">WaitLink</span> {
-	<span class="kw">fn</span> <span class="ident">blocks_processed</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">processed_blocks</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Hash</span><span class="op">&gt;</span>, <span class="ident">has_error</span>: <span class="ident">bool</span>) {
-		<span class="self">self</span>.<span class="ident">imported_blocks</span> <span class="op">+=</span> <span class="ident">processed_blocks</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u64</span>;
-		<span class="kw">if</span> <span class="ident">has_error</span> {
-			<span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;There was an error importing {} blocks&quot;</span>, <span class="ident">processed_blocks</span>.<span class="ident">len</span>());
+	<span class="kw">fn</span> <span class="ident">blocks_processed</span>(
+		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+		<span class="ident">imported</span>: <span class="ident">usize</span>,
+		<span class="ident">count</span>: <span class="ident">usize</span>,
+		<span class="ident">results</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">BlockImportResult</span><span class="op">&lt;</span><span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>, <span class="ident">BlockImportError</span><span class="op">&gt;</span>, <span class="ident">B</span>::<span class="ident">Hash</span>)<span class="op">&gt;</span>
+	) {
+		<span class="self">self</span>.<span class="ident">imported_blocks</span> <span class="op">+=</span> <span class="ident">imported</span> <span class="kw">as</span> <span class="ident">u64</span>;
+		<span class="kw">if</span> <span class="ident">results</span>.<span class="ident">iter</span>().<span class="ident">any</span>(<span class="op">|</span>(<span class="ident">r</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">r</span>.<span class="ident">is_err</span>()) {
+			<span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;There was an error importing {} blocks&quot;</span>, <span class="ident">count</span>);
 		}
 	}
 }

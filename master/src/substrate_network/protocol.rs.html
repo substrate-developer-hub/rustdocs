@@ -1633,9 +1633,6 @@
 <span id="1633">1633</span>
 <span id="1634">1634</span>
 <span id="1635">1635</span>
-<span id="1636">1636</span>
-<span id="1637">1637</span>
-<span id="1638">1638</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1667,6 +1664,7 @@
 	<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">Header</span> <span class="kw">as</span> <span class="ident">HeaderT</span>, <span class="ident">NumberFor</span>, <span class="ident">One</span>, <span class="ident">Zero</span>,
 	<span class="ident">CheckedSub</span>, <span class="ident">SaturatedConversion</span>
 };
+<span class="kw">use</span> <span class="ident">consensus</span>::<span class="ident">import_queue</span>::{<span class="ident">BlockImportResult</span>, <span class="ident">BlockImportError</span>};
 <span class="kw">use</span> <span class="ident">message</span>::{<span class="ident">BlockAttributes</span>, <span class="ident">Direction</span>, <span class="ident">FromBlock</span>, <span class="ident">Message</span>, <span class="ident">RequestId</span>};
 <span class="kw">use</span> <span class="ident">message</span>::<span class="ident">generic</span>::{<span class="ident">Message</span> <span class="kw">as</span> <span class="ident">GenericMessage</span>, <span class="ident">ConsensusMessage</span>};
 <span class="kw">use</span> <span class="ident">event</span>::<span class="ident">Event</span>;
@@ -2833,22 +2831,23 @@
 		<span class="self">self</span>.<span class="ident">sync</span>.<span class="ident">request_justification</span>(<span class="kw-2">&amp;</span><span class="ident">hash</span>, <span class="ident">number</span>)
 	}
 
-	<span class="doccomment">/// Clears all pending justification requests.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">clear_justification_requests</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
-		<span class="self">self</span>.<span class="ident">sync</span>.<span class="ident">clear_justification_requests</span>()
-	}
-
 	<span class="doccomment">/// A batch of blocks have been processed, with or without errors.</span>
-	<span class="doccomment">/// Call this when a batch of blocks have been processed by the import queue, with or without</span>
+	<span class="doccomment">/// Call this when a batch of blocks have been processed by the importqueue, with or without</span>
 	<span class="doccomment">/// errors.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">blocks_processed</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">processed_blocks</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Hash</span><span class="op">&gt;</span>, <span class="ident">has_error</span>: <span class="ident">bool</span>) {
-		<span class="self">self</span>.<span class="ident">sync</span>.<span class="ident">on_blocks_processed</span>(<span class="ident">processed_blocks</span>, <span class="ident">has_error</span>);
-	}
-
-	<span class="doccomment">/// Restart the sync process.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">restart</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">blocks_processed</span>(
+		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+		<span class="ident">imported</span>: <span class="ident">usize</span>,
+		<span class="ident">count</span>: <span class="ident">usize</span>,
+		<span class="ident">results</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">BlockImportResult</span><span class="op">&lt;</span><span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>, <span class="ident">BlockImportError</span><span class="op">&gt;</span>, <span class="ident">B</span>::<span class="ident">Hash</span>)<span class="op">&gt;</span>
+	) {
 		<span class="kw">let</span> <span class="ident">peers</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">context_data</span>.<span class="ident">peers</span>.<span class="ident">clone</span>();
-		<span class="kw">for</span> <span class="ident">result</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">sync</span>.<span class="ident">restart</span>(<span class="op">|</span><span class="ident">peer_id</span><span class="op">|</span> <span class="ident">peers</span>.<span class="ident">get</span>(<span class="ident">peer_id</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">i</span>.<span class="ident">info</span>.<span class="ident">clone</span>())) {
+		<span class="kw">let</span> <span class="ident">results</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">sync</span>.<span class="ident">on_blocks_processed</span>(
+			<span class="ident">imported</span>,
+			<span class="ident">count</span>,
+			<span class="ident">results</span>,
+			<span class="op">|</span><span class="ident">peer_id</span><span class="op">|</span> <span class="ident">peers</span>.<span class="ident">get</span>(<span class="ident">peer_id</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">i</span>.<span class="ident">info</span>.<span class="ident">clone</span>())
+		);
+		<span class="kw">for</span> <span class="ident">result</span> <span class="kw">in</span> <span class="ident">results</span> {
 			<span class="kw">match</span> <span class="ident">result</span> {
 				<span class="prelude-val">Ok</span>((<span class="ident">id</span>, <span class="ident">req</span>)) <span class="op">=&gt;</span> {
 					<span class="kw">let</span> <span class="ident">msg</span> <span class="op">=</span> <span class="ident">GenericMessage</span>::<span class="ident">BlockRequest</span>(<span class="ident">req</span>);
@@ -2860,11 +2859,6 @@
 				}
 			}
 		}
-	}
-
-	<span class="doccomment">/// Notify about successful import of the given block.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">block_imported</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">hash</span>: <span class="kw-2">&amp;</span><span class="ident">B</span>::<span class="ident">Hash</span>, <span class="ident">number</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>) {
-		<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Block imported successfully {} ({})&quot;</span>, <span class="ident">number</span>, <span class="ident">hash</span>)
 	}
 
 	<span class="doccomment">/// Call this when a justification has been processed by the import queue, with or without</span>

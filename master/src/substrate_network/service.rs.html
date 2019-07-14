@@ -679,12 +679,6 @@
 <span id="679">679</span>
 <span id="680">680</span>
 <span id="681">681</span>
-<span id="682">682</span>
-<span id="683">683</span>
-<span id="684">684</span>
-<span id="685">685</span>
-<span id="686">686</span>
-<span id="687">687</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -717,6 +711,7 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::{<span class="ident">Arc</span>, <span class="ident">atomic</span>::{<span class="ident">AtomicBool</span>, <span class="ident">AtomicUsize</span>, <span class="ident">Ordering</span>}};
 
 <span class="kw">use</span> <span class="ident">consensus</span>::<span class="ident">import_queue</span>::{<span class="ident">ImportQueue</span>, <span class="ident">Link</span>};
+<span class="kw">use</span> <span class="ident">consensus</span>::<span class="ident">import_queue</span>::{<span class="ident">BlockImportResult</span>, <span class="ident">BlockImportError</span>};
 <span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">sync</span>::<span class="ident">mpsc</span>};
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">warn</span>, <span class="ident">error</span>, <span class="ident">info</span>};
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">core</span>::{<span class="ident">swarm</span>::<span class="ident">NetworkBehaviour</span>, <span class="ident">transport</span>::<span class="ident">boxed</span>::<span class="ident">Boxed</span>, <span class="ident">muxing</span>::<span class="ident">StreamMuxerBox</span>};
@@ -1329,11 +1324,13 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">S</span>: <span class="ident">NetworkSpecialization</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">H</span>: <span class="ident">ExHashT</span><span class="op">&gt;</span> <span class="ident">Link</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">NetworkLink</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">B</span>, <span class="ident">S</span>, <span class="ident">H</span><span class="op">&gt;</span> {
-	<span class="kw">fn</span> <span class="ident">block_imported</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">hash</span>: <span class="kw-2">&amp;</span><span class="ident">B</span>::<span class="ident">Hash</span>, <span class="ident">number</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>) {
-		<span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">user_protocol_mut</span>().<span class="ident">block_imported</span>(<span class="kw-2">&amp;</span><span class="ident">hash</span>, <span class="ident">number</span>)
-	}
-	<span class="kw">fn</span> <span class="ident">blocks_processed</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">hashes</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Hash</span><span class="op">&gt;</span>, <span class="ident">has_error</span>: <span class="ident">bool</span>) {
-		<span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">user_protocol_mut</span>().<span class="ident">blocks_processed</span>(<span class="ident">hashes</span>, <span class="ident">has_error</span>)
+	<span class="kw">fn</span> <span class="ident">blocks_processed</span>(
+		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,	
+		<span class="ident">imported</span>: <span class="ident">usize</span>,
+		<span class="ident">count</span>: <span class="ident">usize</span>,
+		<span class="ident">results</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">BlockImportResult</span><span class="op">&lt;</span><span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>, <span class="ident">BlockImportError</span><span class="op">&gt;</span>, <span class="ident">B</span>::<span class="ident">Hash</span>)<span class="op">&gt;</span>
+	) {
+		<span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">user_protocol_mut</span>().<span class="ident">blocks_processed</span>(<span class="ident">imported</span>, <span class="ident">count</span>, <span class="ident">results</span>)
 	}
 	<span class="kw">fn</span> <span class="ident">justification_imported</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">who</span>: <span class="ident">PeerId</span>, <span class="ident">hash</span>: <span class="kw-2">&amp;</span><span class="ident">B</span>::<span class="ident">Hash</span>, <span class="ident">number</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">success</span>: <span class="ident">bool</span>) {
 		<span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">user_protocol_mut</span>().<span class="ident">justification_import_result</span>(<span class="ident">hash</span>.<span class="ident">clone</span>(), <span class="ident">number</span>, <span class="ident">success</span>);
@@ -1342,9 +1339,6 @@
 			<span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">user_protocol_mut</span>().<span class="ident">disconnect_peer</span>(<span class="kw-2">&amp;</span><span class="ident">who</span>);
 			<span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">user_protocol_mut</span>().<span class="ident">report_peer</span>(<span class="ident">who</span>, <span class="ident">i32</span>::<span class="ident">min_value</span>());
 		}
-	}
-	<span class="kw">fn</span> <span class="ident">clear_justification_requests</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
-		<span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">user_protocol_mut</span>().<span class="ident">clear_justification_requests</span>()
 	}
 	<span class="kw">fn</span> <span class="ident">request_justification</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">hash</span>: <span class="kw-2">&amp;</span><span class="ident">B</span>::<span class="ident">Hash</span>, <span class="ident">number</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>) {
 		<span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">user_protocol_mut</span>().<span class="ident">request_justification</span>(<span class="ident">hash</span>, <span class="ident">number</span>)
@@ -1365,12 +1359,6 @@
 			<span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">user_protocol_mut</span>().<span class="ident">disconnect_peer</span>(<span class="kw-2">&amp;</span><span class="ident">who</span>);
 			<span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">user_protocol_mut</span>().<span class="ident">report_peer</span>(<span class="ident">who</span>, <span class="ident">i32</span>::<span class="ident">min_value</span>());
 		}
-	}
-	<span class="kw">fn</span> <span class="ident">report_peer</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">who</span>: <span class="ident">PeerId</span>, <span class="ident">reputation_change</span>: <span class="ident">i32</span>) {
-		<span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">user_protocol_mut</span>().<span class="ident">report_peer</span>(<span class="ident">who</span>, <span class="ident">reputation_change</span>)
-	}
-	<span class="kw">fn</span> <span class="ident">restart</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
-		<span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">user_protocol_mut</span>().<span class="ident">restart</span>()
 	}
 }
 </pre></div>
