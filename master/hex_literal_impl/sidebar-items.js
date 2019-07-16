@@ -1,1 +1,1 @@
-initSidebarItems({"derive":[["proc_macro_hack_hex",""]]});
+initSidebarItems({"derive":[["hex_impl",""]]});

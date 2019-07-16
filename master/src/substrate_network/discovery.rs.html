@@ -408,6 +408,61 @@
 <span id="408">408</span>
 <span id="409">409</span>
 <span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
+<span id="438">438</span>
+<span id="439">439</span>
+<span id="440">440</span>
+<span id="441">441</span>
+<span id="442">442</span>
+<span id="443">443</span>
+<span id="444">444</span>
+<span id="445">445</span>
+<span id="446">446</span>
+<span id="447">447</span>
+<span id="448">448</span>
+<span id="449">449</span>
+<span id="450">450</span>
+<span id="451">451</span>
+<span id="452">452</span>
+<span id="453">453</span>
+<span id="454">454</span>
+<span id="455">455</span>
+<span id="456">456</span>
+<span id="457">457</span>
+<span id="458">458</span>
+<span id="459">459</span>
+<span id="460">460</span>
+<span id="461">461</span>
+<span id="462">462</span>
+<span id="463">463</span>
+<span id="464">464</span>
+<span id="465">465</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -435,8 +490,7 @@
 <span class="doccomment">//! - Bootstrap nodes. These are hard-coded node identities and addresses passed in the constructor</span>
 <span class="doccomment">//! of the `DiscoveryBehaviour`. You can also call `add_known_address` later to add an entry.</span>
 <span class="doccomment">//!</span>
-<span class="doccomment">//! - mDNS. As of the writing of this documentation, mDNS is handled somewhere else. It is planned</span>
-<span class="doccomment">//! to be moved here.</span>
+<span class="doccomment">//! - mDNS. Discovers nodes on the local network by broadcasting UDP packets.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! - Kademlia random walk. Once connected, we perform random Kademlia `FIND_NODE` requests in</span>
 <span class="doccomment">//! order for nodes to propagate to us their view of the network. This is performed automatically</span>
@@ -461,7 +515,11 @@
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">core</span>::{<span class="ident">Multiaddr</span>, <span class="ident">PeerId</span>, <span class="ident">ProtocolsHandler</span>, <span class="ident">PublicKey</span>};
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">core</span>::<span class="ident">swarm</span>::{<span class="ident">ConnectedPoint</span>, <span class="ident">NetworkBehaviour</span>, <span class="ident">NetworkBehaviourAction</span>};
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">core</span>::<span class="ident">swarm</span>::<span class="ident">PollParameters</span>;
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">target_os</span> <span class="op">=</span> <span class="string">&quot;unknown&quot;</span>))]</span>
+<span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">core</span>::{<span class="ident">swarm</span>::<span class="ident">toggle</span>::<span class="ident">Toggle</span>, <span class="ident">nodes</span>::<span class="ident">Substream</span>, <span class="ident">muxing</span>::<span class="ident">StreamMuxerBox</span>};
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">kad</span>::{<span class="ident">GetValueResult</span>, <span class="ident">Kademlia</span>, <span class="ident">KademliaOut</span>, <span class="ident">PutValueResult</span>};
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">target_os</span> <span class="op">=</span> <span class="string">&quot;unknown&quot;</span>))]</span>
+<span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">mdns</span>::{<span class="ident">Mdns</span>, <span class="ident">MdnsEvent</span>};
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">multihash</span>::<span class="ident">Multihash</span>;
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">multiaddr</span>::<span class="ident">Protocol</span>;
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">debug</span>, <span class="ident">info</span>, <span class="ident">trace</span>, <span class="ident">warn</span>};
@@ -476,6 +534,9 @@
 	<span class="ident">user_defined</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">PeerId</span>, <span class="ident">Multiaddr</span>)<span class="op">&gt;</span>,
 	<span class="doccomment">/// Kademlia requests and answers.</span>
 	<span class="ident">kademlia</span>: <span class="ident">Kademlia</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>,
+	<span class="doccomment">/// Discovers nodes on the local network.</span>
+	<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">target_os</span> <span class="op">=</span> <span class="string">&quot;unknown&quot;</span>))]</span>
+	<span class="ident">mdns</span>: <span class="ident">Toggle</span><span class="op">&lt;</span><span class="ident">Mdns</span><span class="op">&lt;</span><span class="ident">Substream</span><span class="op">&lt;</span><span class="ident">StreamMuxerBox</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// Stream that fires when we need to perform the next random Kademlia query.</span>
 	<span class="ident">next_kad_random_query</span>: <span class="ident">Delay</span>,
 	<span class="doccomment">/// After `next_kad_random_query` triggers, the next one triggers after this duration.</span>
@@ -494,7 +555,16 @@
 	<span class="doccomment">/// Builds a new `DiscoveryBehaviour`.</span>
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// `user_defined` is a list of known address for nodes that never expire.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">local_public_key</span>: <span class="ident">PublicKey</span>, <span class="ident">user_defined</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">PeerId</span>, <span class="ident">Multiaddr</span>)<span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
+		<span class="ident">local_public_key</span>: <span class="ident">PublicKey</span>,
+		<span class="ident">user_defined</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">PeerId</span>, <span class="ident">Multiaddr</span>)<span class="op">&gt;</span>,
+		<span class="ident">enable_mdns</span>: <span class="ident">bool</span>
+	) <span class="op">-&gt;</span> <span class="self">Self</span> {
+		<span class="kw">if</span> <span class="ident">enable_mdns</span> {
+			<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">target_os</span> <span class="op">=</span> <span class="string">&quot;unknown&quot;</span>)]</span>
+			<span class="macro">warn</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;mDNS is not available on this platform&quot;</span>);
+		}
+
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">kademlia</span> <span class="op">=</span> <span class="ident">Kademlia</span>::<span class="ident">new</span>(<span class="ident">local_public_key</span>.<span class="ident">clone</span>().<span class="ident">into_peer_id</span>());
 		<span class="kw">for</span> (<span class="ident">peer_id</span>, <span class="ident">addr</span>) <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">user_defined</span> {
 			<span class="ident">kademlia</span>.<span class="ident">add_address</span>(<span class="ident">peer_id</span>, <span class="ident">addr</span>.<span class="ident">clone</span>());
@@ -510,6 +580,18 @@
 			<span class="ident">clock</span>,
 			<span class="ident">local_peer_id</span>: <span class="ident">local_public_key</span>.<span class="ident">into_peer_id</span>(),
 			<span class="ident">num_connections</span>: <span class="number">0</span>,
+			<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">target_os</span> <span class="op">=</span> <span class="string">&quot;unknown&quot;</span>))]</span>
+			<span class="ident">mdns</span>: <span class="kw">if</span> <span class="ident">enable_mdns</span> {
+				<span class="kw">match</span> <span class="ident">Mdns</span>::<span class="ident">new</span>() {
+					<span class="prelude-val">Ok</span>(<span class="ident">mdns</span>) <span class="op">=&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">mdns</span>).<span class="ident">into</span>(),
+					<span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=&gt;</span> {
+						<span class="macro">warn</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;Failed to initialize mDNS: {:?}&quot;</span>, <span class="ident">err</span>);
+						<span class="prelude-val">None</span>.<span class="ident">into</span>()
+					}
+				}
+			} <span class="kw">else</span> {
+				<span class="prelude-val">None</span>.<span class="ident">into</span>()
+			},
 		}
 	}
 
@@ -732,6 +814,34 @@
 			}
 		}
 
+		<span class="comment">// Poll mDNS.</span>
+		<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">target_os</span> <span class="op">=</span> <span class="string">&quot;unknown&quot;</span>))]</span>
+		<span class="kw">loop</span> {
+			<span class="kw">match</span> <span class="self">self</span>.<span class="ident">mdns</span>.<span class="ident">poll</span>(<span class="ident">params</span>) {
+				<span class="ident">Async</span>::<span class="ident">NotReady</span> <span class="op">=&gt;</span> <span class="kw">break</span>,
+				<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">NetworkBehaviourAction</span>::<span class="ident">GenerateEvent</span>(<span class="ident">event</span>)) <span class="op">=&gt;</span> {
+					<span class="kw">match</span> <span class="ident">event</span> {
+						<span class="ident">MdnsEvent</span>::<span class="ident">Discovered</span>(<span class="ident">list</span>) <span class="op">=&gt;</span> {
+							<span class="self">self</span>.<span class="ident">discoveries</span>.<span class="ident">extend</span>(<span class="ident">list</span>.<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">peer_id</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">peer_id</span>));
+							<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">peer_id</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">discoveries</span>.<span class="ident">pop_front</span>() {
+								<span class="kw">let</span> <span class="ident">ev</span> <span class="op">=</span> <span class="ident">DiscoveryOut</span>::<span class="ident">Discovered</span>(<span class="ident">peer_id</span>);
+								<span class="kw">return</span> <span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">NetworkBehaviourAction</span>::<span class="ident">GenerateEvent</span>(<span class="ident">ev</span>));
+							}
+						},
+						<span class="ident">MdnsEvent</span>::<span class="ident">Expired</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> {}
+					}
+				},
+				<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">NetworkBehaviourAction</span>::<span class="ident">DialAddress</span> { <span class="ident">address</span> }) <span class="op">=&gt;</span>
+					<span class="kw">return</span> <span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">NetworkBehaviourAction</span>::<span class="ident">DialAddress</span> { <span class="ident">address</span> }),
+				<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">NetworkBehaviourAction</span>::<span class="ident">DialPeer</span> { <span class="ident">peer_id</span> }) <span class="op">=&gt;</span>
+					<span class="kw">return</span> <span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">NetworkBehaviourAction</span>::<span class="ident">DialPeer</span> { <span class="ident">peer_id</span> }),
+				<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">NetworkBehaviourAction</span>::<span class="ident">SendEvent</span> { <span class="ident">event</span>, .. }) <span class="op">=&gt;</span>
+					<span class="kw">match</span> <span class="ident">event</span> {},		<span class="comment">// `event` is an enum with no variant</span>
+				<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">NetworkBehaviourAction</span>::<span class="ident">ReportObservedAddr</span> { <span class="ident">address</span> }) <span class="op">=&gt;</span>
+					<span class="kw">return</span> <span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">NetworkBehaviourAction</span>::<span class="ident">ReportObservedAddr</span> { <span class="ident">address</span> }),
+			}
+		}
+
 		<span class="ident">Async</span>::<span class="ident">NotReady</span>
 	}
 }
@@ -766,7 +876,7 @@
 					<span class="ident">upgrade</span>::<span class="ident">apply</span>(<span class="ident">out</span>.<span class="ident">stream</span>, <span class="ident">upgrade</span>, <span class="ident">endpoint</span>)
 				});
 
-			<span class="kw">let</span> <span class="ident">behaviour</span> <span class="op">=</span> <span class="ident">DiscoveryBehaviour</span>::<span class="ident">new</span>(<span class="ident">keypair</span>.<span class="ident">public</span>(), <span class="ident">user_defined</span>.<span class="ident">clone</span>());
+			<span class="kw">let</span> <span class="ident">behaviour</span> <span class="op">=</span> <span class="ident">DiscoveryBehaviour</span>::<span class="ident">new</span>(<span class="ident">keypair</span>.<span class="ident">public</span>(), <span class="ident">user_defined</span>.<span class="ident">clone</span>(), <span class="bool-val">false</span>);
 			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">swarm</span> <span class="op">=</span> <span class="ident">Swarm</span>::<span class="ident">new</span>(<span class="ident">transport</span>, <span class="ident">behaviour</span>, <span class="ident">keypair</span>.<span class="ident">public</span>().<span class="ident">into_peer_id</span>());
 			<span class="kw">let</span> <span class="ident">listen_addr</span>: <span class="ident">Multiaddr</span> <span class="op">=</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;/memory/{}&quot;</span>, <span class="ident">rand</span>::<span class="ident">random</span>::<span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>()).<span class="ident">parse</span>().<span class="ident">unwrap</span>();
 
