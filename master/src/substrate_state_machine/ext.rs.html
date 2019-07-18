@@ -409,20 +409,6 @@
 <span id="409">409</span>
 <span id="410">410</span>
 <span id="411">411</span>
-<span id="412">412</span>
-<span id="413">413</span>
-<span id="414">414</span>
-<span id="415">415</span>
-<span id="416">416</span>
-<span id="417">417</span>
-<span id="418">418</span>
-<span id="419">419</span>
-<span id="420">420</span>
-<span id="421">421</span>
-<span id="422">422</span>
-<span id="423">423</span>
-<span id="424">424</span>
-<span id="425">425</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -445,12 +431,12 @@
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">error</span>, <span class="ident">fmt</span>, <span class="ident">cmp</span>::<span class="ident">Ord</span>};
 <span class="kw">use</span> <span class="ident">log</span>::<span class="ident">warn</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">Backend</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">changes_trie</span>::{<span class="ident">Storage</span> <span class="kw">as</span> <span class="ident">ChangesTrieStorage</span>, <span class="ident">compute_changes_trie_root</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">changes_trie</span>::{<span class="ident">Storage</span> <span class="kw">as</span> <span class="ident">ChangesTrieStorage</span>, <span class="ident">build_changes_trie</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">Externalities</span>, <span class="ident">OverlayedChanges</span>, <span class="ident">ChildStorageKey</span>};
 <span class="kw">use</span> <span class="ident">hash_db</span>::<span class="ident">Hasher</span>;
 <span class="kw">use</span> <span class="ident">primitives</span>::<span class="ident">offchain</span>;
 <span class="kw">use</span> <span class="ident">primitives</span>::<span class="ident">storage</span>::<span class="ident">well_known_keys</span>::<span class="ident">is_child_storage_key</span>;
-<span class="kw">use</span> <span class="ident">trie</span>::{<span class="ident">MemoryDB</span>, <span class="ident">TrieDBMut</span>, <span class="ident">TrieMut</span>, <span class="ident">default_child_trie_root</span>};
+<span class="kw">use</span> <span class="ident">trie</span>::{<span class="ident">MemoryDB</span>, <span class="ident">default_child_trie_root</span>};
 
 <span class="kw">const</span> <span class="ident">EXT_NOT_ALLOWED_TO_FAIL</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> <span class="op">=</span> <span class="string">&quot;Externalities not allowed to fail within runtime&quot;</span>;
 
@@ -746,27 +732,13 @@
 
 	<span class="kw">fn</span> <span class="ident">storage_changes_root</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">parent_hash</span>: <span class="ident">H</span>::<span class="ident">Out</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">H</span>::<span class="ident">Out</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">_guard</span> <span class="op">=</span> <span class="ident">panic_handler</span>::<span class="ident">AbortGuard</span>::<span class="ident">new</span>(<span class="bool-val">true</span>);
-		<span class="kw">let</span> <span class="ident">root_and_tx</span> <span class="op">=</span> <span class="ident">compute_changes_trie_root</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">T</span>, <span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span>(
+		<span class="self">self</span>.<span class="ident">changes_trie_transaction</span> <span class="op">=</span> <span class="ident">build_changes_trie</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">T</span>, <span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span>(
 			<span class="self">self</span>.<span class="ident">backend</span>,
 			<span class="self">self</span>.<span class="ident">changes_trie_storage</span>.<span class="ident">clone</span>(),
 			<span class="self">self</span>.<span class="ident">overlay</span>,
 			<span class="ident">parent_hash</span>,
 		)<span class="question-mark">?</span>;
-		<span class="kw">let</span> <span class="ident">root_and_tx</span> <span class="op">=</span> <span class="ident">root_and_tx</span>.<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">root</span>, <span class="ident">changes</span>)<span class="op">|</span> {
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">calculated_root</span> <span class="op">=</span> <span class="ident">Default</span>::<span class="ident">default</span>();
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mdb</span> <span class="op">=</span> <span class="ident">MemoryDB</span>::<span class="ident">default</span>();
-			{
-				<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">trie</span> <span class="op">=</span> <span class="ident">TrieDBMut</span>::<span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">mdb</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">calculated_root</span>);
-				<span class="kw">for</span> (<span class="ident">key</span>, <span class="ident">value</span>) <span class="kw">in</span> <span class="ident">changes</span> {
-					<span class="ident">trie</span>.<span class="ident">insert</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>, <span class="kw-2">&amp;</span><span class="ident">value</span>).<span class="ident">expect</span>(<span class="ident">EXT_NOT_ALLOWED_TO_FAIL</span>);
-				}
-			}
-
-			(<span class="ident">mdb</span>, <span class="ident">root</span>)
-		});
-		<span class="kw">let</span> <span class="ident">root</span> <span class="op">=</span> <span class="ident">root_and_tx</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">root</span>)<span class="op">|</span> <span class="ident">root</span>.<span class="ident">clone</span>());
-		<span class="self">self</span>.<span class="ident">changes_trie_transaction</span> <span class="op">=</span> <span class="ident">root_and_tx</span>;
-		<span class="prelude-val">Ok</span>(<span class="ident">root</span>)
+		<span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">changes_trie_transaction</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">root</span>)<span class="op">|</span> <span class="ident">root</span>.<span class="ident">clone</span>()))
 	}
 
 	<span class="kw">fn</span> <span class="ident">offchain</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">offchain</span>::<span class="ident">Externalities</span><span class="op">&gt;</span> {
