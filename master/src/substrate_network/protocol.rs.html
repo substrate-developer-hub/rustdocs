@@ -1633,6 +1633,7 @@
 <span id="1633">1633</span>
 <span id="1634">1634</span>
 <span id="1635">1635</span>
+<span id="1636">1636</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1653,6 +1654,7 @@
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">DiscoveryNetBehaviour</span>, <span class="ident">config</span>::<span class="ident">ProtocolId</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">custom_proto</span>::{<span class="ident">CustomProto</span>, <span class="ident">CustomProtoOut</span>};
 <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
+<span class="kw">use</span> <span class="ident">futures03</span>::{<span class="ident">StreamExt</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">TryStreamExt</span> <span class="kw">as</span> <span class="kw">_</span>};
 <span class="kw">use</span> <span class="ident">libp2p</span>::{<span class="ident">Multiaddr</span>, <span class="ident">PeerId</span>};
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">core</span>::<span class="ident">swarm</span>::{<span class="ident">ConnectedPoint</span>, <span class="ident">NetworkBehaviour</span>, <span class="ident">NetworkBehaviourAction</span>, <span class="ident">PollParameters</span>};
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">core</span>::{<span class="ident">nodes</span>::<span class="ident">Substream</span>, <span class="ident">muxing</span>::<span class="ident">StreamMuxerBox</span>};
@@ -1727,9 +1729,9 @@
 <span class="comment">// Lock must always be taken in order declared here.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Protocol</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">S</span>: <span class="ident">NetworkSpecialization</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">H</span>: <span class="ident">ExHashT</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Interval at which we call `tick`.</span>
-	<span class="ident">tick_timeout</span>: <span class="ident">tokio_timer</span>::<span class="ident">Interval</span>,
+	<span class="ident">tick_timeout</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// Interval at which we call `propagate_extrinsics`.</span>
-	<span class="ident">propagate_timeout</span>: <span class="ident">tokio_timer</span>::<span class="ident">Interval</span>,
+	<span class="ident">propagate_timeout</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span>,
 	<span class="ident">config</span>: <span class="ident">ProtocolConfig</span>,
 	<span class="doccomment">/// Handler for on-demand requests.</span>
 	<span class="ident">on_demand_core</span>: <span class="ident">OnDemandCore</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
@@ -2001,8 +2003,8 @@
 		<span class="kw">let</span> <span class="ident">behaviour</span> <span class="op">=</span> <span class="ident">CustomProto</span>::<span class="ident">new</span>(<span class="ident">protocol_id</span>, <span class="ident">versions</span>, <span class="ident">peerset</span>);
 
 		<span class="kw">let</span> <span class="ident">protocol</span> <span class="op">=</span> <span class="ident">Protocol</span> {
-			<span class="ident">tick_timeout</span>: <span class="ident">tokio_timer</span>::<span class="ident">Interval</span>::<span class="ident">new_interval</span>(<span class="ident">TICK_TIMEOUT</span>),
-			<span class="ident">propagate_timeout</span>: <span class="ident">tokio_timer</span>::<span class="ident">Interval</span>::<span class="ident">new_interval</span>(<span class="ident">PROPAGATE_TIMEOUT</span>),
+			<span class="ident">tick_timeout</span>: <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">futures_timer</span>::<span class="ident">Interval</span>::<span class="ident">new</span>(<span class="ident">TICK_TIMEOUT</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, ()<span class="op">&gt;</span>(<span class="ident">v</span>)).<span class="ident">compat</span>()),
+			<span class="ident">propagate_timeout</span>: <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">futures_timer</span>::<span class="ident">Interval</span>::<span class="ident">new</span>(<span class="ident">PROPAGATE_TIMEOUT</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, ()<span class="op">&gt;</span>(<span class="ident">v</span>)).<span class="ident">compat</span>()),
 			<span class="ident">config</span>: <span class="ident">config</span>,
 			<span class="ident">context_data</span>: <span class="ident">ContextData</span> {
 				<span class="ident">peers</span>: <span class="ident">HashMap</span>::<span class="ident">new</span>(),

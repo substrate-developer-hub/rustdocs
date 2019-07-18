@@ -1009,6 +1009,15 @@
 <span id="1009">1009</span>
 <span id="1010">1010</span>
 <span id="1011">1011</span>
+<span id="1012">1012</span>
+<span id="1013">1013</span>
+<span id="1014">1014</span>
+<span id="1015">1015</span>
+<span id="1016">1016</span>
+<span id="1017">1017</span>
+<span id="1018">1018</span>
+<span id="1019">1019</span>
+<span id="1020">1020</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1031,7 +1040,7 @@
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">custom_proto</span>::<span class="ident">upgrade</span>::{<span class="ident">CustomMessage</span>, <span class="ident">RegisteredProtocol</span>};
 <span class="kw">use</span> <span class="ident">fnv</span>::<span class="ident">FnvHashMap</span>;
 <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
-<span class="kw">use</span> <span class="ident">futures03</span>::{<span class="ident">StreamExt</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">TryStreamExt</span> <span class="kw">as</span> <span class="kw">_</span>};
+<span class="kw">use</span> <span class="ident">futures03</span>::{<span class="ident">compat</span>::<span class="ident">Compat</span>, <span class="ident">TryFutureExt</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">StreamExt</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">TryStreamExt</span> <span class="kw">as</span> <span class="kw">_</span>};
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">core</span>::<span class="ident">swarm</span>::{<span class="ident">ConnectedPoint</span>, <span class="ident">NetworkBehaviour</span>, <span class="ident">NetworkBehaviourAction</span>, <span class="ident">PollParameters</span>};
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">core</span>::{<span class="ident">Multiaddr</span>, <span class="ident">PeerId</span>};
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">debug</span>, <span class="ident">error</span>, <span class="ident">trace</span>, <span class="ident">warn</span>};
@@ -1039,7 +1048,6 @@
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">borrow</span>::<span class="ident">Cow</span>, <span class="ident">collections</span>::<span class="ident">hash_map</span>::<span class="ident">Entry</span>, <span class="ident">cmp</span>, <span class="ident">error</span>, <span class="ident">marker</span>::<span class="ident">PhantomData</span>, <span class="ident">mem</span>, <span class="ident">pin</span>::<span class="ident">Pin</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::{<span class="ident">Duration</span>, <span class="ident">Instant</span>};
 <span class="kw">use</span> <span class="ident">tokio_io</span>::{<span class="ident">AsyncRead</span>, <span class="ident">AsyncWrite</span>};
-<span class="kw">use</span> <span class="ident">tokio_timer</span>::<span class="ident">clock</span>::<span class="ident">Clock</span>;
 
 <span class="doccomment">/// Network behaviour that handles opening substreams for custom protocols with other nodes.</span>
 <span class="doccomment">///</span>
@@ -1094,9 +1102,6 @@
 
 	<span class="doccomment">/// Marker to pin the generics.</span>
 	<span class="ident">marker</span>: <span class="ident">PhantomData</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>,
-
-	<span class="doccomment">/// `Clock` instance that uses the current execution context&#39;s source of time.</span>
-	<span class="ident">clock</span>: <span class="ident">Clock</span>,
 }
 
 <span class="doccomment">/// State of a peer we&#39;re connected to.</span>
@@ -1117,7 +1122,9 @@
 	<span class="doccomment">/// The peerset requested that we connect to this peer. We are not connected to this node.</span>
 	<span class="ident">PendingRequest</span> {
 		<span class="doccomment">/// When to actually start dialing.</span>
-		<span class="ident">timer</span>: <span class="ident">tokio_timer</span>::<span class="ident">Delay</span>,
+		<span class="ident">timer</span>: <span class="ident">Compat</span><span class="op">&lt;</span><span class="ident">futures_timer</span>::<span class="ident">Delay</span><span class="op">&gt;</span>,
+		<span class="doccomment">/// When the `timer` will trigger.</span>
+		<span class="ident">timer_deadline</span>: <span class="ident">Instant</span>,
 	},
 
 	<span class="doccomment">/// The peerset requested that we connect to this peer. We are currently dialing this peer.</span>
@@ -1147,7 +1154,9 @@
 		<span class="doccomment">/// state mismatch.</span>
 		<span class="ident">open</span>: <span class="ident">bool</span>,
 		<span class="doccomment">/// When to enable this remote.</span>
-		<span class="ident">timer</span>: <span class="ident">tokio_timer</span>::<span class="ident">Delay</span>,
+		<span class="ident">timer</span>: <span class="ident">Compat</span><span class="op">&lt;</span><span class="ident">futures_timer</span>::<span class="ident">Delay</span><span class="op">&gt;</span>,
+		<span class="doccomment">/// When the `timer` will trigger.</span>
+		<span class="ident">timer_deadline</span>: <span class="ident">Instant</span>,
 	},
 
 	<span class="doccomment">/// We are connected to this peer and the peerset has accepted it. The handler is in the</span>
@@ -1252,7 +1261,6 @@
 			<span class="ident">next_incoming_index</span>: <span class="ident">peerset</span>::<span class="ident">IncomingIndex</span>(<span class="number">0</span>),
 			<span class="ident">events</span>: <span class="ident">SmallVec</span>::<span class="ident">new</span>(),
 			<span class="ident">marker</span>: <span class="ident">PhantomData</span>,
-			<span class="ident">clock</span>: <span class="ident">Clock</span>::<span class="ident">new</span>(),
 		}
 	}
 
@@ -1289,13 +1297,13 @@
 			<span class="ident">st</span> @ <span class="ident">PeerState</span>::<span class="ident">Banned</span> { .. } <span class="op">=&gt;</span> <span class="kw-2">*</span><span class="ident">entry</span>.<span class="ident">into_mut</span>() <span class="op">=</span> <span class="ident">st</span>,
 
 			<span class="comment">// DisabledPendingEnable =&gt; Disabled.</span>
-			<span class="ident">PeerState</span>::<span class="ident">DisabledPendingEnable</span> { <span class="ident">open</span>, <span class="ident">connected_point</span>, <span class="ident">timer</span> } <span class="op">=&gt;</span> {
+			<span class="ident">PeerState</span>::<span class="ident">DisabledPendingEnable</span> { <span class="ident">open</span>, <span class="ident">connected_point</span>, <span class="ident">timer_deadline</span>, .. } <span class="op">=&gt;</span> {
 				<span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;PSM &lt;= Dropped({:?})&quot;</span>, <span class="ident">peer_id</span>);
 				<span class="self">self</span>.<span class="ident">peerset</span>.<span class="ident">dropped</span>(<span class="ident">peer_id</span>.<span class="ident">clone</span>());
 				<span class="kw">let</span> <span class="ident">banned_until</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">ban</span>) <span class="op">=</span> <span class="ident">ban</span> {
-					<span class="ident">cmp</span>::<span class="ident">max</span>(<span class="ident">timer</span>.<span class="ident">deadline</span>(), <span class="self">self</span>.<span class="ident">clock</span>.<span class="ident">now</span>() <span class="op">+</span> <span class="ident">ban</span>)
+					<span class="ident">cmp</span>::<span class="ident">max</span>(<span class="ident">timer_deadline</span>, <span class="ident">Instant</span>::<span class="ident">now</span>() <span class="op">+</span> <span class="ident">ban</span>)
 				} <span class="kw">else</span> {
-					<span class="ident">timer</span>.<span class="ident">deadline</span>()
+					<span class="ident">timer_deadline</span>
 				});
 				<span class="kw-2">*</span><span class="ident">entry</span>.<span class="ident">into_mut</span>() <span class="op">=</span> <span class="ident">PeerState</span>::<span class="ident">Disabled</span> { <span class="ident">open</span>, <span class="ident">connected_point</span>, <span class="ident">banned_until</span> }
 			},
@@ -1309,8 +1317,7 @@
 					<span class="ident">peer_id</span>: <span class="ident">peer_id</span>.<span class="ident">clone</span>(),
 					<span class="ident">event</span>: <span class="ident">CustomProtoHandlerIn</span>::<span class="ident">Disable</span>,
 				});
-				<span class="kw">let</span> <span class="ident">clock</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">clock</span>;
-				<span class="kw">let</span> <span class="ident">banned_until</span> <span class="op">=</span> <span class="ident">ban</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">dur</span><span class="op">|</span> <span class="ident">clock</span>.<span class="ident">now</span>() <span class="op">+</span> <span class="ident">dur</span>);
+				<span class="kw">let</span> <span class="ident">banned_until</span> <span class="op">=</span> <span class="ident">ban</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">dur</span><span class="op">|</span> <span class="ident">Instant</span>::<span class="ident">now</span>() <span class="op">+</span> <span class="ident">dur</span>);
 				<span class="kw-2">*</span><span class="ident">entry</span>.<span class="ident">into_mut</span>() <span class="op">=</span> <span class="ident">PeerState</span>::<span class="ident">Disabled</span> { <span class="ident">open</span>, <span class="ident">connected_point</span>, <span class="ident">banned_until</span> }
 			},
 
@@ -1331,8 +1338,7 @@
 					<span class="ident">peer_id</span>: <span class="ident">peer_id</span>.<span class="ident">clone</span>(),
 					<span class="ident">event</span>: <span class="ident">CustomProtoHandlerIn</span>::<span class="ident">Disable</span>,
 				});
-				<span class="kw">let</span> <span class="ident">clock</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">clock</span>;
-				<span class="kw">let</span> <span class="ident">banned_until</span> <span class="op">=</span> <span class="ident">ban</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">dur</span><span class="op">|</span> <span class="ident">clock</span>.<span class="ident">now</span>() <span class="op">+</span> <span class="ident">dur</span>);
+				<span class="kw">let</span> <span class="ident">banned_until</span> <span class="op">=</span> <span class="ident">ban</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">dur</span><span class="op">|</span> <span class="ident">Instant</span>::<span class="ident">now</span>() <span class="op">+</span> <span class="ident">dur</span>);
 				<span class="kw-2">*</span><span class="ident">entry</span>.<span class="ident">into_mut</span>() <span class="op">=</span> <span class="ident">PeerState</span>::<span class="ident">Disabled</span> { <span class="ident">open</span>: <span class="bool-val">false</span>, <span class="ident">connected_point</span>, <span class="ident">banned_until</span> }
 			},
 
@@ -1397,11 +1403,12 @@
 		};
 
 		<span class="kw">match</span> <span class="ident">mem</span>::<span class="ident">replace</span>(<span class="ident">occ_entry</span>.<span class="ident">get_mut</span>(), <span class="ident">PeerState</span>::<span class="ident">Poisoned</span>) {
-			<span class="ident">PeerState</span>::<span class="ident">Banned</span> { <span class="kw-2">ref</span> <span class="ident">until</span> } <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">until</span> <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">clock</span>.<span class="ident">now</span>() <span class="op">=&gt;</span> {
+			<span class="ident">PeerState</span>::<span class="ident">Banned</span> { <span class="kw-2">ref</span> <span class="ident">until</span> } <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">until</span> <span class="op">&gt;</span> <span class="ident">Instant</span>::<span class="ident">now</span>() <span class="op">=&gt;</span> {
 				<span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;PSM =&gt; Connect({:?}): Will start to connect at \
 					until {:?}&quot;</span>, <span class="ident">occ_entry</span>.<span class="ident">key</span>(), <span class="ident">until</span>);
 				<span class="kw-2">*</span><span class="ident">occ_entry</span>.<span class="ident">into_mut</span>() <span class="op">=</span> <span class="ident">PeerState</span>::<span class="ident">PendingRequest</span> {
-					<span class="ident">timer</span>: <span class="ident">tokio_timer</span>::<span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">until</span>.<span class="ident">clone</span>()),
+					<span class="ident">timer</span>: <span class="ident">futures_timer</span>::<span class="ident">Delay</span>::<span class="ident">new_at</span>(<span class="ident">until</span>.<span class="ident">clone</span>()).<span class="ident">compat</span>(),
+					<span class="ident">timer_deadline</span>: <span class="ident">until</span>.<span class="ident">clone</span>(),
 				};
 			},
 
@@ -1413,13 +1420,14 @@
 			},
 
 			<span class="ident">PeerState</span>::<span class="ident">Disabled</span> { <span class="ident">open</span>, <span class="kw-2">ref</span> <span class="ident">connected_point</span>, <span class="ident">banned_until</span>: <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">banned</span>) }
-				<span class="kw">if</span> <span class="kw-2">*</span><span class="ident">banned</span> <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">clock</span>.<span class="ident">now</span>() <span class="op">=&gt;</span> {
+				<span class="kw">if</span> <span class="kw-2">*</span><span class="ident">banned</span> <span class="op">&gt;</span> <span class="ident">Instant</span>::<span class="ident">now</span>() <span class="op">=&gt;</span> {
 				<span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;PSM =&gt; Connect({:?}): Has idle connection through \
 					{:?} but node is banned until {:?}&quot;</span>, <span class="ident">occ_entry</span>.<span class="ident">key</span>(), <span class="ident">connected_point</span>, <span class="ident">banned</span>);
 				<span class="kw-2">*</span><span class="ident">occ_entry</span>.<span class="ident">into_mut</span>() <span class="op">=</span> <span class="ident">PeerState</span>::<span class="ident">DisabledPendingEnable</span> {
 					<span class="ident">connected_point</span>: <span class="ident">connected_point</span>.<span class="ident">clone</span>(),
 					<span class="ident">open</span>,
-					<span class="ident">timer</span>: <span class="ident">tokio_timer</span>::<span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">banned</span>.<span class="ident">clone</span>()),
+					<span class="ident">timer</span>: <span class="ident">futures_timer</span>::<span class="ident">Delay</span>::<span class="ident">new_at</span>(<span class="ident">banned</span>.<span class="ident">clone</span>()).<span class="ident">compat</span>(),
+					<span class="ident">timer_deadline</span>: <span class="ident">banned</span>.<span class="ident">clone</span>(),
 				};
 			},
 
@@ -1489,13 +1497,13 @@
 				<span class="kw-2">*</span><span class="ident">entry</span>.<span class="ident">into_mut</span>() <span class="op">=</span> <span class="ident">st</span>;
 			},
 
-			<span class="ident">PeerState</span>::<span class="ident">DisabledPendingEnable</span> { <span class="ident">open</span>, <span class="ident">connected_point</span>, <span class="ident">timer</span> } <span class="op">=&gt;</span> {
+			<span class="ident">PeerState</span>::<span class="ident">DisabledPendingEnable</span> { <span class="ident">open</span>, <span class="ident">connected_point</span>, <span class="ident">timer_deadline</span>, .. } <span class="op">=&gt;</span> {
 				<span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;PSM =&gt; Drop({:?}): Interrupting pending \
 					enable&quot;</span>, <span class="ident">entry</span>.<span class="ident">key</span>());
 				<span class="kw-2">*</span><span class="ident">entry</span>.<span class="ident">into_mut</span>() <span class="op">=</span> <span class="ident">PeerState</span>::<span class="ident">Disabled</span> {
 					<span class="ident">open</span>,
 					<span class="ident">connected_point</span>,
-					<span class="ident">banned_until</span>: <span class="prelude-val">Some</span>(<span class="ident">timer</span>.<span class="ident">deadline</span>()),
+					<span class="ident">banned_until</span>: <span class="prelude-val">Some</span>(<span class="ident">timer_deadline</span>),
 				};
 			},
 
@@ -1520,9 +1528,9 @@
 				<span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;PSM =&gt; Drop({:?}): Was not yet connected&quot;</span>, <span class="ident">entry</span>.<span class="ident">key</span>());
 				<span class="ident">entry</span>.<span class="ident">remove</span>();
 			},
-			<span class="ident">PeerState</span>::<span class="ident">PendingRequest</span> { <span class="ident">timer</span> } <span class="op">=&gt;</span> {
+			<span class="ident">PeerState</span>::<span class="ident">PendingRequest</span> { <span class="ident">timer_deadline</span>, .. } <span class="op">=&gt;</span> {
 				<span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;PSM =&gt; Drop({:?}): Was not yet connected&quot;</span>, <span class="ident">entry</span>.<span class="ident">key</span>());
-				<span class="kw-2">*</span><span class="ident">entry</span>.<span class="ident">into_mut</span>() <span class="op">=</span> <span class="ident">PeerState</span>::<span class="ident">Banned</span> { <span class="ident">until</span>: <span class="ident">timer</span>.<span class="ident">deadline</span>() }
+				<span class="kw-2">*</span><span class="ident">entry</span>.<span class="ident">into_mut</span>() <span class="op">=</span> <span class="ident">PeerState</span>::<span class="ident">Banned</span> { <span class="ident">until</span>: <span class="ident">timer_deadline</span> }
 			},
 
 			<span class="ident">PeerState</span>::<span class="ident">Poisoned</span> <span class="op">=&gt;</span>
@@ -1733,12 +1741,12 @@
 				}
 			}
 
-			<span class="prelude-val">Some</span>(<span class="ident">PeerState</span>::<span class="ident">DisabledPendingEnable</span> { <span class="ident">open</span>, <span class="ident">timer</span>, .. }) <span class="op">=&gt;</span> {
+			<span class="prelude-val">Some</span>(<span class="ident">PeerState</span>::<span class="ident">DisabledPendingEnable</span> { <span class="ident">open</span>, <span class="ident">timer_deadline</span>, .. }) <span class="op">=&gt;</span> {
 				<span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;Libp2p =&gt; Disconnected({:?}): Was disabled \
 					(through {:?}) but pending enable&quot;</span>, <span class="ident">peer_id</span>, <span class="ident">endpoint</span>);
 				<span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;PSM &lt;= Dropped({:?})&quot;</span>, <span class="ident">peer_id</span>);
 				<span class="self">self</span>.<span class="ident">peerset</span>.<span class="ident">dropped</span>(<span class="ident">peer_id</span>.<span class="ident">clone</span>());
-				<span class="self">self</span>.<span class="ident">peers</span>.<span class="ident">insert</span>(<span class="ident">peer_id</span>.<span class="ident">clone</span>(), <span class="ident">PeerState</span>::<span class="ident">Banned</span> { <span class="ident">until</span>: <span class="ident">timer</span>.<span class="ident">deadline</span>() });
+				<span class="self">self</span>.<span class="ident">peers</span>.<span class="ident">insert</span>(<span class="ident">peer_id</span>.<span class="ident">clone</span>(), <span class="ident">PeerState</span>::<span class="ident">Banned</span> { <span class="ident">until</span>: <span class="ident">timer_deadline</span> });
 				<span class="kw">if</span> <span class="ident">open</span> {
 					<span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;External API &lt;= Closed({:?})&quot;</span>, <span class="ident">peer_id</span>);
 					<span class="kw">let</span> <span class="ident">event</span> <span class="op">=</span> <span class="ident">CustomProtoOut</span>::<span class="ident">CustomProtocolClosed</span> {
@@ -1802,7 +1810,7 @@
 				<span class="ident">PeerState</span>::<span class="ident">Requested</span> <span class="op">|</span> <span class="ident">PeerState</span>::<span class="ident">PendingRequest</span> { .. } <span class="op">=&gt;</span> {
 					<span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;Libp2p =&gt; Dial failure for {:?}&quot;</span>, <span class="ident">peer_id</span>);
 					<span class="kw-2">*</span><span class="ident">entry</span>.<span class="ident">into_mut</span>() <span class="op">=</span> <span class="ident">PeerState</span>::<span class="ident">Banned</span> {
-						<span class="ident">until</span>: <span class="self">self</span>.<span class="ident">clock</span>.<span class="ident">now</span>() <span class="op">+</span> <span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">5</span>)
+						<span class="ident">until</span>: <span class="ident">Instant</span>::<span class="ident">now</span>() <span class="op">+</span> <span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">5</span>)
 					};
 					<span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;PSM &lt;= Dropped({:?})&quot;</span>, <span class="ident">peer_id</span>);
 					<span class="self">self</span>.<span class="ident">peerset</span>.<span class="ident">dropped</span>(<span class="ident">peer_id</span>.<span class="ident">clone</span>())
@@ -1872,9 +1880,14 @@
 						<span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">open</span>);
 						<span class="kw-2">*</span><span class="ident">entry</span>.<span class="ident">into_mut</span>() <span class="op">=</span> <span class="ident">PeerState</span>::<span class="ident">Disabled</span> { <span class="ident">open</span>: <span class="bool-val">false</span>, <span class="ident">connected_point</span>, <span class="ident">banned_until</span> };
 					},
-					<span class="ident">PeerState</span>::<span class="ident">DisabledPendingEnable</span> { <span class="ident">open</span>, <span class="ident">connected_point</span>, <span class="ident">timer</span> } <span class="op">=&gt;</span> {
+					<span class="ident">PeerState</span>::<span class="ident">DisabledPendingEnable</span> { <span class="ident">open</span>, <span class="ident">connected_point</span>, <span class="ident">timer</span>, <span class="ident">timer_deadline</span> } <span class="op">=&gt;</span> {
 						<span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">open</span>);
-						<span class="kw-2">*</span><span class="ident">entry</span>.<span class="ident">into_mut</span>() <span class="op">=</span> <span class="ident">PeerState</span>::<span class="ident">DisabledPendingEnable</span> { <span class="ident">open</span>: <span class="bool-val">false</span>, <span class="ident">connected_point</span>, <span class="ident">timer</span> };
+						<span class="kw-2">*</span><span class="ident">entry</span>.<span class="ident">into_mut</span>() <span class="op">=</span> <span class="ident">PeerState</span>::<span class="ident">DisabledPendingEnable</span> {
+							<span class="ident">open</span>: <span class="bool-val">false</span>,
+							<span class="ident">connected_point</span>,
+							<span class="ident">timer</span>,
+							<span class="ident">timer_deadline</span>
+						};
 					},
 					<span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">error</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;State mismatch in the custom protos handler&quot;</span>),
 				}
@@ -1985,9 +1998,9 @@
 
 		<span class="kw">for</span> (<span class="ident">peer_id</span>, <span class="ident">peer_state</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">peers</span>.<span class="ident">iter_mut</span>() {
 			<span class="kw">match</span> <span class="ident">mem</span>::<span class="ident">replace</span>(<span class="ident">peer_state</span>, <span class="ident">PeerState</span>::<span class="ident">Poisoned</span>) {
-				<span class="ident">PeerState</span>::<span class="ident">PendingRequest</span> { <span class="kw-2">mut</span> <span class="ident">timer</span> } <span class="op">=&gt;</span> {
+				<span class="ident">PeerState</span>::<span class="ident">PendingRequest</span> { <span class="kw-2">mut</span> <span class="ident">timer</span>, <span class="ident">timer_deadline</span> } <span class="op">=&gt;</span> {
 					<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span> <span class="ident">timer</span>.<span class="ident">poll</span>() {
-						<span class="kw-2">*</span><span class="ident">peer_state</span> <span class="op">=</span> <span class="ident">PeerState</span>::<span class="ident">PendingRequest</span> { <span class="ident">timer</span> };
+						<span class="kw-2">*</span><span class="ident">peer_state</span> <span class="op">=</span> <span class="ident">PeerState</span>::<span class="ident">PendingRequest</span> { <span class="ident">timer</span>, <span class="ident">timer_deadline</span> };
 						<span class="kw">continue</span>;
 					}
 
@@ -1996,9 +2009,14 @@
 					<span class="kw-2">*</span><span class="ident">peer_state</span> <span class="op">=</span> <span class="ident">PeerState</span>::<span class="ident">Requested</span>;
 				}
 
-				<span class="ident">PeerState</span>::<span class="ident">DisabledPendingEnable</span> { <span class="kw-2">mut</span> <span class="ident">timer</span>, <span class="ident">connected_point</span>, <span class="ident">open</span> } <span class="op">=&gt;</span> {
+				<span class="ident">PeerState</span>::<span class="ident">DisabledPendingEnable</span> { <span class="kw-2">mut</span> <span class="ident">timer</span>, <span class="ident">connected_point</span>, <span class="ident">open</span>, <span class="ident">timer_deadline</span> } <span class="op">=&gt;</span> {
 					<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span> <span class="ident">timer</span>.<span class="ident">poll</span>() {
-						<span class="kw-2">*</span><span class="ident">peer_state</span> <span class="op">=</span> <span class="ident">PeerState</span>::<span class="ident">DisabledPendingEnable</span> { <span class="ident">timer</span>, <span class="ident">connected_point</span>, <span class="ident">open</span> };
+						<span class="kw-2">*</span><span class="ident">peer_state</span> <span class="op">=</span> <span class="ident">PeerState</span>::<span class="ident">DisabledPendingEnable</span> {
+							<span class="ident">timer</span>,
+							<span class="ident">connected_point</span>,
+							<span class="ident">open</span>,
+							<span class="ident">timer_deadline</span>
+						};
 						<span class="kw">continue</span>;
 					}
 

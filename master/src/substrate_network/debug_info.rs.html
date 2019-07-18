@@ -322,6 +322,7 @@
 <span id="322">322</span>
 <span id="323">323</span>
 <span id="324">324</span>
+<span id="325">325</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -341,6 +342,7 @@
 
 <span class="kw">use</span> <span class="ident">fnv</span>::<span class="ident">FnvHashMap</span>;
 <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
+<span class="kw">use</span> <span class="ident">futures03</span>::{<span class="ident">StreamExt</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">TryStreamExt</span> <span class="kw">as</span> <span class="kw">_</span>};
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">Multiaddr</span>;
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">core</span>::{<span class="ident">either</span>::<span class="ident">EitherOutput</span>, <span class="ident">PeerId</span>, <span class="ident">PublicKey</span>};
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">core</span>::<span class="ident">protocols_handler</span>::{<span class="ident">IntoProtocolsHandler</span>, <span class="ident">IntoProtocolsHandlerSelect</span>, <span class="ident">ProtocolsHandler</span>};
@@ -352,7 +354,7 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">hash_map</span>::<span class="ident">Entry</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::{<span class="ident">Duration</span>, <span class="ident">Instant</span>};
 <span class="kw">use</span> <span class="ident">tokio_io</span>::{<span class="ident">AsyncRead</span>, <span class="ident">AsyncWrite</span>};
-<span class="kw">use</span> <span class="ident">tokio_timer</span>::<span class="ident">Interval</span>;
+<span class="kw">use</span> <span class="ident">futures_timer</span>::<span class="ident">Interval</span>;
 
 <span class="doccomment">/// Time after we disconnect from a node before we purge its information from the cache.</span>
 <span class="kw">const</span> <span class="ident">CACHE_EXPIRE</span>: <span class="ident">Duration</span> <span class="op">=</span> <span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">10</span> <span class="op">*</span> <span class="number">60</span>);
@@ -369,7 +371,7 @@
 	<span class="doccomment">/// Information that we know about all nodes.</span>
 	<span class="ident">nodes_info</span>: <span class="ident">FnvHashMap</span><span class="op">&lt;</span><span class="ident">PeerId</span>, <span class="ident">NodeInfo</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// Interval at which we perform garbage collection in `nodes_info`.</span>
-	<span class="ident">garbage_collect</span>: <span class="ident">Interval</span>,
+	<span class="ident">garbage_collect</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span>,
 }
 
 <span class="doccomment">/// Information about a node we&#39;re connected to.</span>
@@ -401,7 +403,7 @@
 			<span class="ident">ping</span>: <span class="ident">Ping</span>::<span class="ident">new</span>(<span class="ident">PingConfig</span>::<span class="ident">new</span>()),
 			<span class="ident">identify</span>,
 			<span class="ident">nodes_info</span>: <span class="ident">FnvHashMap</span>::<span class="ident">default</span>(),
-			<span class="ident">garbage_collect</span>: <span class="ident">Interval</span>::<span class="ident">new_interval</span>(<span class="ident">GARBAGE_COLLECT_INTERVAL</span>),
+			<span class="ident">garbage_collect</span>: <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">Interval</span>::<span class="ident">new</span>(<span class="ident">GARBAGE_COLLECT_INTERVAL</span>).<span class="ident">map</span>(<span class="op">|</span>()<span class="op">|</span> <span class="prelude-val">Ok</span>(())).<span class="ident">compat</span>()),
 		}
 	}
 
