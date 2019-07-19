@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["CurrencyToVoteHandler","Struct that handles the conversion of Balance -> `u64`. This is used for staking's election calculation."],["WeightMultiplierUpdateHandler","A struct that updates the weight multiplier based on the saturation level of the previous block. This should typically be called once per-block."]]});
