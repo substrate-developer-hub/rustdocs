@@ -290,6 +290,7 @@ ALIASES["srml_executive"] = {};
 ALIASES["srml_finality_tracker"] = {};
 ALIASES["srml_generic_asset"] = {};
 ALIASES["srml_grandpa"] = {};
+ALIASES["srml_im_online"] = {};
 ALIASES["srml_indices"] = {};
 ALIASES["srml_metadata"] = {};
 ALIASES["srml_session"] = {};

@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Call",""],["RawEvent","Events for this module."]],"struct":[["GenesisConfig",""],["Heartbeat","Heartbeat which is send/received."],["Module",""]],"trait":[["Trait",""]],"type":[["Event","[`RawEvent`] specialized for the configuration [`Trait`]"]]});
