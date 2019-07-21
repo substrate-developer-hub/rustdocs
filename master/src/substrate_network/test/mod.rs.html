@@ -741,7 +741,7 @@
 };
 <span class="kw">use</span> <span class="ident">consensus</span>::<span class="ident">block_import</span>::{<span class="ident">BlockImport</span>, <span class="ident">ImportResult</span>};
 <span class="kw">use</span> <span class="ident">consensus</span>::{<span class="ident">Error</span> <span class="kw">as</span> <span class="ident">ConsensusError</span>, <span class="ident">well_known_cache_keys</span>::{<span class="self">self</span>, <span class="ident">Id</span> <span class="kw">as</span> <span class="ident">CacheKeyId</span>}};
-<span class="kw">use</span> <span class="ident">consensus</span>::{<span class="ident">BlockOrigin</span>, <span class="ident">ForkChoiceStrategy</span>, <span class="ident">ImportBlock</span>, <span class="ident">JustificationImport</span>};
+<span class="kw">use</span> <span class="ident">consensus</span>::{<span class="ident">BlockOrigin</span>, <span class="ident">ForkChoiceStrategy</span>, <span class="ident">BlockImportParams</span>, <span class="ident">JustificationImport</span>};
 <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">futures03</span>::{<span class="ident">StreamExt</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">TryStreamExt</span> <span class="kw">as</span> <span class="kw">_</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">NetworkWorker</span>, <span class="ident">NetworkService</span>, <span class="ident">config</span>::<span class="ident">ProtocolId</span>};
@@ -776,14 +776,14 @@
 		<span class="ident">header</span>: <span class="ident">B</span>::<span class="ident">Header</span>,
 		<span class="ident">justification</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Justification</span><span class="op">&gt;</span>,
 		<span class="ident">body</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Extrinsic</span><span class="op">&gt;&gt;</span>
-	) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">ImportBlock</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">CacheKeyId</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>)<span class="op">&gt;&gt;</span>), <span class="ident">String</span><span class="op">&gt;</span> {
+	) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">BlockImportParams</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">CacheKeyId</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>)<span class="op">&gt;&gt;</span>), <span class="ident">String</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">maybe_keys</span> <span class="op">=</span> <span class="ident">header</span>.<span class="ident">digest</span>()
 			.<span class="ident">log</span>(<span class="op">|</span><span class="ident">l</span><span class="op">|</span> <span class="ident">l</span>.<span class="ident">try_as_raw</span>(<span class="ident">OpaqueDigestItemId</span>::<span class="ident">Consensus</span>(<span class="string">b&quot;aura&quot;</span>))
 				.<span class="ident">or_else</span>(<span class="op">||</span> <span class="ident">l</span>.<span class="ident">try_as_raw</span>(<span class="ident">OpaqueDigestItemId</span>::<span class="ident">Consensus</span>(<span class="string">b&quot;babe&quot;</span>)))
 			)
 			.<span class="ident">map</span>(<span class="op">|</span><span class="ident">blob</span><span class="op">|</span> <span class="macro">vec</span><span class="macro">!</span>[(<span class="ident">well_known_cache_keys</span>::<span class="ident">AUTHORITIES</span>, <span class="ident">blob</span>.<span class="ident">to_vec</span>())]);
 
-		<span class="prelude-val">Ok</span>((<span class="ident">ImportBlock</span> {
+		<span class="prelude-val">Ok</span>((<span class="ident">BlockImportParams</span> {
 			<span class="ident">origin</span>,
 			<span class="ident">header</span>,
 			<span class="ident">body</span>,
@@ -1091,7 +1091,7 @@
 
 	<span class="kw">fn</span> <span class="ident">import_block</span>(
 		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-		<span class="ident">block</span>: <span class="ident">ImportBlock</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
+		<span class="ident">block</span>: <span class="ident">BlockImportParams</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 		<span class="ident">cache</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">well_known_cache_keys</span>::<span class="ident">Id</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;&gt;</span>,
 	) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ImportResult</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
 		<span class="self">self</span>.<span class="number">0</span>.<span class="ident">lock</span>().<span class="ident">import_block</span>(<span class="ident">block</span>, <span class="ident">cache</span>)
