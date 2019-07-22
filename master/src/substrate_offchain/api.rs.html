@@ -668,6 +668,40 @@
 <span id="668">668</span>
 <span id="669">669</span>
 <span id="670">670</span>
+<span id="671">671</span>
+<span id="672">672</span>
+<span id="673">673</span>
+<span id="674">674</span>
+<span id="675">675</span>
+<span id="676">676</span>
+<span id="677">677</span>
+<span id="678">678</span>
+<span id="679">679</span>
+<span id="680">680</span>
+<span id="681">681</span>
+<span id="682">682</span>
+<span id="683">683</span>
+<span id="684">684</span>
+<span id="685">685</span>
+<span id="686">686</span>
+<span id="687">687</span>
+<span id="688">688</span>
+<span id="689">689</span>
+<span id="690">690</span>
+<span id="691">691</span>
+<span id="692">692</span>
+<span id="693">693</span>
+<span id="694">694</span>
+<span id="695">695</span>
+<span id="696">696</span>
+<span id="697">697</span>
+<span id="698">698</span>
+<span id="699">699</span>
+<span id="700">700</span>
+<span id="701">701</span>
+<span id="702">702</span>
+<span id="703">703</span>
+<span id="704">704</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -685,7 +719,12 @@
 <span class="comment">// You should have received a copy of the GNU General Public License</span>
 <span class="comment">// along with Substrate.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
 
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">str</span>::<span class="ident">FromStr</span>, <span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">convert</span>::<span class="ident">TryFrom</span>};
+<span class="kw">use</span> <span class="ident">std</span>::{
+	<span class="ident">str</span>::<span class="ident">FromStr</span>, 
+	<span class="ident">sync</span>::<span class="ident">Arc</span>, 
+	<span class="ident">convert</span>::{<span class="ident">TryFrom</span>, <span class="ident">TryInto</span>}, 
+	<span class="ident">time</span>::<span class="ident">SystemTime</span>
+};
 <span class="kw">use</span> <span class="ident">client</span>::<span class="ident">backend</span>::<span class="ident">OffchainStorage</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">AuthorityKeyProvider</span>;
 <span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">Stream</span>, <span class="ident">Future</span>, <span class="ident">sync</span>::<span class="ident">mpsc</span>};
@@ -979,7 +1018,20 @@
 	}
 
 	<span class="kw">fn</span> <span class="ident">timestamp</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">Timestamp</span> {
-		<span class="ident">unavailable_yet</span>(<span class="string">&quot;timestamp&quot;</span>)
+		<span class="kw">let</span> <span class="ident">now</span> <span class="op">=</span> <span class="ident">SystemTime</span>::<span class="ident">now</span>();
+		<span class="kw">let</span> <span class="ident">epoch_duration</span> <span class="op">=</span> <span class="ident">now</span>.<span class="ident">duration_since</span>(<span class="ident">SystemTime</span>::<span class="ident">UNIX_EPOCH</span>);
+		<span class="kw">match</span> <span class="ident">epoch_duration</span> {
+			<span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> {
+				<span class="comment">// Current time is earlier than UNIX_EPOCH.</span>
+				<span class="ident">Timestamp</span>::<span class="ident">from_unix_millis</span>(<span class="number">0</span>)
+			},
+			<span class="prelude-val">Ok</span>(<span class="ident">d</span>) <span class="op">=&gt;</span> {
+				<span class="kw">let</span> <span class="ident">duration</span> <span class="op">=</span> <span class="ident">d</span>.<span class="ident">as_millis</span>();
+				<span class="comment">// Assuming overflow won&#39;t happen for a few hundred years.</span>
+				<span class="ident">Timestamp</span>::<span class="ident">from_unix_millis</span>(<span class="ident">duration</span>.<span class="ident">try_into</span>()
+					.<span class="ident">expect</span>(<span class="string">&quot;epoch milliseconds won&#39;t overflow u64 for hundreds of years; qed&quot;</span>))
+			}
+		}
 	}
 
 	<span class="kw">fn</span> <span class="ident">sleep_until</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">_deadline</span>: <span class="ident">Timestamp</span>) {
@@ -1243,6 +1295,22 @@
 
 		<span class="kw">let</span> <span class="ident">mock</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">MockNetworkStateInfo</span>());
 		<span class="ident">AsyncApi</span>::<span class="ident">new</span>(<span class="ident">pool</span>, <span class="ident">db</span>, <span class="string">&quot;pass&quot;</span>.<span class="ident">to_owned</span>().<span class="ident">into</span>(), <span class="ident">TestProvider</span>::<span class="ident">default</span>(), <span class="ident">BlockId</span>::<span class="ident">Number</span>(<span class="ident">Zero</span>::<span class="ident">zero</span>()), <span class="ident">mock</span>)
+	}
+
+	<span class="attribute">#[<span class="ident">test</span>]</span>
+	<span class="kw">fn</span> <span class="ident">should_get_timestamp</span>() {
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">api</span> <span class="op">=</span> <span class="ident">offchain_api</span>().<span class="number">0</span>;
+		
+		<span class="comment">// Get timestamp from std.</span>
+		<span class="kw">let</span> <span class="ident">now</span> <span class="op">=</span> <span class="ident">SystemTime</span>::<span class="ident">now</span>();
+		<span class="kw">let</span> <span class="ident">d</span>: <span class="ident">u64</span> <span class="op">=</span> <span class="ident">now</span>.<span class="ident">duration_since</span>(<span class="ident">SystemTime</span>::<span class="ident">UNIX_EPOCH</span>).<span class="ident">unwrap</span>().<span class="ident">as_millis</span>().<span class="ident">try_into</span>().<span class="ident">unwrap</span>();
+
+		<span class="comment">// Get timestamp from offchain api.</span>
+		<span class="kw">let</span> <span class="ident">timestamp</span> <span class="op">=</span> <span class="ident">api</span>.<span class="ident">timestamp</span>();
+		
+		<span class="comment">// Compare.</span>
+		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">timestamp</span>.<span class="ident">unix_millis</span>() <span class="op">&gt;</span> <span class="number">0</span>);
+		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">timestamp</span>.<span class="ident">unix_millis</span>(), <span class="ident">d</span>);
 	}
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
