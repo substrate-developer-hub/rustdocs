@@ -1196,6 +1196,20 @@
 <span id="1196">1196</span>
 <span id="1197">1197</span>
 <span id="1198">1198</span>
+<span id="1199">1199</span>
+<span id="1200">1200</span>
+<span id="1201">1201</span>
+<span id="1202">1202</span>
+<span id="1203">1203</span>
+<span id="1204">1204</span>
+<span id="1205">1205</span>
+<span id="1206">1206</span>
+<span id="1207">1207</span>
+<span id="1208">1208</span>
+<span id="1209">1209</span>
+<span id="1210">1210</span>
+<span id="1211">1211</span>
+<span id="1212">1212</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1228,7 +1242,7 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">marker</span>::<span class="ident">PhantomData</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">net</span>::<span class="ident">SocketAddr</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::{<span class="ident">Duration</span>, <span class="ident">Instant</span>};
 <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">sync</span>::<span class="ident">mpsc</span>;
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">Mutex</span>;
 
@@ -1238,7 +1252,7 @@
 <span class="kw">use</span> <span class="ident">futures03</span>::<span class="ident">stream</span>::{<span class="ident">StreamExt</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">TryStreamExt</span> <span class="kw">as</span> <span class="kw">_</span>};
 <span class="kw">use</span> <span class="ident">keystore</span>::<span class="ident">Store</span> <span class="kw">as</span> <span class="ident">Keystore</span>;
 <span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">NetworkState</span>, <span class="ident">NetworkStateInfo</span>};
-<span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">info</span>, <span class="ident">warn</span>, <span class="ident">debug</span>, <span class="ident">error</span>};
+<span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">log</span>, <span class="ident">info</span>, <span class="ident">warn</span>, <span class="ident">debug</span>, <span class="ident">error</span>, <span class="ident">Level</span>};
 <span class="kw">use</span> <span class="ident">parity_codec</span>::{<span class="ident">Encode</span>, <span class="ident">Decode</span>};
 <span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">Pair</span>, <span class="ident">ed25519</span>, <span class="ident">crypto</span>};
 <span class="kw">use</span> <span class="ident">runtime_primitives</span>::<span class="ident">generic</span>::<span class="ident">BlockId</span>;
@@ -1846,6 +1860,8 @@
 		.<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, ()<span class="op">&gt;</span>(<span class="ident">v</span>)).<span class="ident">compat</span>();
 
 	<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">poll_fn</span>(<span class="kw">move</span> <span class="op">||</span> {
+		<span class="kw">let</span> <span class="ident">before_polling</span> <span class="op">=</span> <span class="ident">Instant</span>::<span class="ident">now</span>();
+
 		<span class="comment">// We poll `imported_blocks_stream`.</span>
 		<span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">notification</span>))) <span class="op">=</span> <span class="ident">imported_blocks_stream</span>.<span class="ident">poll</span>() {
 			<span class="ident">network</span>.<span class="ident">on_block_imported</span>(<span class="ident">notification</span>.<span class="ident">hash</span>, <span class="ident">notification</span>.<span class="ident">header</span>);
@@ -1904,10 +1920,22 @@
 		}
 
 		<span class="comment">// Main network polling.</span>
-		<span class="ident">network</span>.<span class="ident">poll</span>()
-			.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> {
-				<span class="macro">warn</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;service&quot;</span>, <span class="string">&quot;Error in network: {:?}&quot;</span>, <span class="ident">err</span>);
-			})
+		<span class="kw">match</span> <span class="ident">network</span>.<span class="ident">poll</span>() {
+			<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=&gt;</span> {}
+			<span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=&gt;</span> <span class="macro">warn</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;service&quot;</span>, <span class="string">&quot;Error in network: {:?}&quot;</span>, <span class="ident">err</span>),
+			<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(())) <span class="op">=&gt;</span> <span class="macro">warn</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;service&quot;</span>, <span class="string">&quot;Network service finished&quot;</span>),
+		}
+
+		<span class="comment">// Now some diagnostic for performances.</span>
+		<span class="kw">let</span> <span class="ident">polling_dur</span> <span class="op">=</span> <span class="ident">before_polling</span>.<span class="ident">elapsed</span>();
+		<span class="macro">log</span><span class="macro">!</span>(
+			<span class="ident">target</span>: <span class="string">&quot;service&quot;</span>,
+			<span class="kw">if</span> <span class="ident">polling_dur</span> <span class="op">&gt;=</span> <span class="ident">Duration</span>::<span class="ident">from_millis</span>(<span class="number">50</span>) { <span class="ident">Level</span>::<span class="ident">Warn</span> } <span class="kw">else</span> { <span class="ident">Level</span>::<span class="ident">Trace</span> },
+			<span class="string">&quot;Polling the network future took {:?}&quot;</span>,
+			<span class="ident">polling_dur</span>
+		);
+		
+		<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>)
 	})
 }
 
