@@ -215,6 +215,27 @@
 <span id="215">215</span>
 <span id="216">216</span>
 <span id="217">217</span>
+<span id="218">218</span>
+<span id="219">219</span>
+<span id="220">220</span>
+<span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -278,9 +299,17 @@
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">offchain_primitives</span>::<span class="ident">OffchainWorkerApi</span>;
 
 <span class="doccomment">/// Provides currently configured authority key.</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">AuthorityKeyProvider</span>: <span class="ident">Clone</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> {
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">AuthorityKeyProvider</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">traits</span>::<span class="ident">Block</span><span class="op">&gt;</span>: <span class="ident">Clone</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> {
+	<span class="doccomment">/// The crypto used by the block authoring algorithm.</span>
+	<span class="kw">type</span> <span class="ident">ConsensusPair</span>: <span class="ident">crypto</span>::<span class="ident">Pair</span>;
+	<span class="doccomment">/// The crypto used by the finality gadget.</span>
+	<span class="kw">type</span> <span class="ident">FinalityPair</span>: <span class="ident">crypto</span>::<span class="ident">Pair</span>;
+
 	<span class="doccomment">/// Returns currently configured authority key.</span>
-	<span class="kw">fn</span> <span class="ident">authority_key</span><span class="op">&lt;</span><span class="ident">TPair</span>: <span class="ident">crypto</span>::<span class="ident">Pair</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">TPair</span><span class="op">&gt;</span>;
+	<span class="kw">fn</span> <span class="ident">authority_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block_id</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">ConsensusPair</span><span class="op">&gt;</span>;
+
+	<span class="doccomment">/// Returns currently configured finality gadget authority key.</span>
+	<span class="kw">fn</span> <span class="ident">fg_authority_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block_id</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">FinalityPair</span><span class="op">&gt;</span>;
 }
 
 <span class="doccomment">/// An offchain workers manager.</span>
@@ -340,7 +369,7 @@
 	<span class="ident">Block</span>: <span class="ident">traits</span>::<span class="ident">Block</span>,
 	<span class="ident">Client</span>: <span class="ident">ProvideRuntimeApi</span>,
 	<span class="ident">Client</span>::<span class="ident">Api</span>: <span class="ident">OffchainWorkerApi</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
-	<span class="ident">KeyProvider</span>: <span class="ident">AuthorityKeyProvider</span>,
+	<span class="ident">KeyProvider</span>: <span class="ident">AuthorityKeyProvider</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 	<span class="ident">Storage</span>: <span class="ident">client</span>::<span class="ident">backend</span>::<span class="ident">OffchainStorage</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 {
 	<span class="doccomment">/// Start the offchain workers after given block.</span>
@@ -381,8 +410,7 @@
 <span class="kw">mod</span> <span class="ident">tests</span> {
 	<span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 	<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">Future</span>;
-	<span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">ed25519</span>, <span class="ident">sr25519</span>, <span class="ident">crypto</span>::{<span class="ident">TypedKey</span>, <span class="ident">Pair</span>}};
-	<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashSet</span>;
+	<span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">ed25519</span>, <span class="ident">sr25519</span>};
 	<span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">Multiaddr</span>, <span class="ident">PeerId</span>};
 
 	<span class="kw">struct</span> <span class="ident">MockNetworkStateInfo</span>();
@@ -397,19 +425,33 @@
 		}
 	}
 
-	<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Default</span>)]</span>
-	<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">TestProvider</span> {
+	<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
+	<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">TestProvider</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> {
+		<span class="ident">_marker</span>: <span class="ident">PhantomData</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 		<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">sr_key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">sr25519</span>::<span class="ident">Pair</span><span class="op">&gt;</span>,
 		<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">ed_key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ed25519</span>::<span class="ident">Pair</span><span class="op">&gt;</span>,
 	}
 
-	<span class="kw">impl</span> <span class="ident">AuthorityKeyProvider</span> <span class="kw">for</span> <span class="ident">TestProvider</span> {
-		<span class="kw">fn</span> <span class="ident">authority_key</span><span class="op">&lt;</span><span class="ident">TPair</span>: <span class="ident">crypto</span>::<span class="ident">Pair</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">TPair</span><span class="op">&gt;</span> {
-			<span class="ident">TPair</span>::<span class="ident">from_seed_slice</span>(<span class="kw-2">&amp;</span><span class="kw">match</span> <span class="ident">TPair</span>::<span class="ident">KEY_TYPE</span> {
-				<span class="ident">sr25519</span>::<span class="ident">Pair</span>::<span class="ident">KEY_TYPE</span> <span class="op">=&gt;</span> <span class="self">self</span>.<span class="ident">sr_key</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">key</span><span class="op">|</span> <span class="ident">key</span>.<span class="ident">to_raw_vec</span>()),
-				<span class="ident">ed25519</span>::<span class="ident">Pair</span>::<span class="ident">KEY_TYPE</span> <span class="op">=&gt;</span> <span class="self">self</span>.<span class="ident">ed_key</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">key</span><span class="op">|</span> <span class="ident">key</span>.<span class="ident">to_raw_vec</span>()),
-				<span class="kw">_</span> <span class="op">=&gt;</span> <span class="prelude-val">None</span>,
-			}<span class="question-mark">?</span>).<span class="ident">ok</span>()
+	<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">traits</span>::<span class="ident">Block</span><span class="op">&gt;</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">TestProvider</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> {
+		<span class="kw">fn</span> <span class="ident">default</span>() <span class="op">-&gt;</span> <span class="self">Self</span> {
+			<span class="self">Self</span> {
+				<span class="ident">_marker</span>: <span class="ident">PhantomData</span>,
+				<span class="ident">sr_key</span>: <span class="prelude-val">None</span>,
+				<span class="ident">ed_key</span>: <span class="prelude-val">None</span>,
+			}
+		}
+	}
+
+	<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">traits</span>::<span class="ident">Block</span><span class="op">&gt;</span> <span class="ident">AuthorityKeyProvider</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">TestProvider</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> {
+		<span class="kw">type</span> <span class="ident">ConsensusPair</span> <span class="op">=</span> <span class="ident">ed25519</span>::<span class="ident">Pair</span>;
+		<span class="kw">type</span> <span class="ident">FinalityPair</span> <span class="op">=</span> <span class="ident">sr25519</span>::<span class="ident">Pair</span>;
+
+		<span class="kw">fn</span> <span class="ident">authority_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">ConsensusPair</span><span class="op">&gt;</span> {
+			<span class="self">self</span>.<span class="ident">ed_key</span>.<span class="ident">clone</span>()
+		}
+
+		<span class="kw">fn</span> <span class="ident">fg_authority_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">FinalityPair</span><span class="op">&gt;</span> {
+			<span class="self">self</span>.<span class="ident">sr_key</span>.<span class="ident">clone</span>()
 		}
 	}
 

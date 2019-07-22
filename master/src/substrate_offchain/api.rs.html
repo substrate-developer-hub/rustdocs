@@ -581,6 +581,93 @@
 <span id="581">581</span>
 <span id="582">582</span>
 <span id="583">583</span>
+<span id="584">584</span>
+<span id="585">585</span>
+<span id="586">586</span>
+<span id="587">587</span>
+<span id="588">588</span>
+<span id="589">589</span>
+<span id="590">590</span>
+<span id="591">591</span>
+<span id="592">592</span>
+<span id="593">593</span>
+<span id="594">594</span>
+<span id="595">595</span>
+<span id="596">596</span>
+<span id="597">597</span>
+<span id="598">598</span>
+<span id="599">599</span>
+<span id="600">600</span>
+<span id="601">601</span>
+<span id="602">602</span>
+<span id="603">603</span>
+<span id="604">604</span>
+<span id="605">605</span>
+<span id="606">606</span>
+<span id="607">607</span>
+<span id="608">608</span>
+<span id="609">609</span>
+<span id="610">610</span>
+<span id="611">611</span>
+<span id="612">612</span>
+<span id="613">613</span>
+<span id="614">614</span>
+<span id="615">615</span>
+<span id="616">616</span>
+<span id="617">617</span>
+<span id="618">618</span>
+<span id="619">619</span>
+<span id="620">620</span>
+<span id="621">621</span>
+<span id="622">622</span>
+<span id="623">623</span>
+<span id="624">624</span>
+<span id="625">625</span>
+<span id="626">626</span>
+<span id="627">627</span>
+<span id="628">628</span>
+<span id="629">629</span>
+<span id="630">630</span>
+<span id="631">631</span>
+<span id="632">632</span>
+<span id="633">633</span>
+<span id="634">634</span>
+<span id="635">635</span>
+<span id="636">636</span>
+<span id="637">637</span>
+<span id="638">638</span>
+<span id="639">639</span>
+<span id="640">640</span>
+<span id="641">641</span>
+<span id="642">642</span>
+<span id="643">643</span>
+<span id="644">644</span>
+<span id="645">645</span>
+<span id="646">646</span>
+<span id="647">647</span>
+<span id="648">648</span>
+<span id="649">649</span>
+<span id="650">650</span>
+<span id="651">651</span>
+<span id="652">652</span>
+<span id="653">653</span>
+<span id="654">654</span>
+<span id="655">655</span>
+<span id="656">656</span>
+<span id="657">657</span>
+<span id="658">658</span>
+<span id="659">659</span>
+<span id="660">660</span>
+<span id="661">661</span>
+<span id="662">662</span>
+<span id="663">663</span>
+<span id="664">664</span>
+<span id="665">665</span>
+<span id="666">666</span>
+<span id="667">667</span>
+<span id="668">668</span>
+<span id="669">669</span>
+<span id="670">670</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -607,11 +694,11 @@
 <span class="kw">use</span> <span class="ident">primitives</span>::<span class="ident">offchain</span>::{
 	<span class="ident">Timestamp</span>, <span class="ident">HttpRequestId</span>, <span class="ident">HttpRequestStatus</span>, <span class="ident">HttpError</span>,
 	<span class="ident">Externalities</span> <span class="kw">as</span> <span class="ident">OffchainExt</span>,
-	<span class="ident">CryptoKind</span>, <span class="ident">CryptoKeyId</span>,
+	<span class="ident">CryptoKind</span>, <span class="ident">CryptoKey</span>,
 	<span class="ident">StorageKind</span>,
 	<span class="ident">OpaqueNetworkState</span>, <span class="ident">OpaquePeerId</span>, <span class="ident">OpaqueMultiaddr</span>,
 };
-<span class="kw">use</span> <span class="ident">primitives</span>::<span class="ident">crypto</span>::{<span class="ident">Pair</span>, <span class="ident">Protected</span>};
+<span class="kw">use</span> <span class="ident">primitives</span>::<span class="ident">crypto</span>::{<span class="ident">Pair</span>, <span class="ident">Public</span>, <span class="ident">Protected</span>};
 <span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">ed25519</span>, <span class="ident">sr25519</span>};
 <span class="kw">use</span> <span class="ident">runtime_primitives</span>::{
 	<span class="ident">generic</span>::<span class="ident">BlockId</span>,
@@ -628,25 +715,144 @@
 
 <span class="doccomment">/// A persisted key seed.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Encode</span>, <span class="ident">Decode</span>)]</span>
-<span class="kw">struct</span> <span class="ident">CryptoKey</span> {
+<span class="kw">struct</span> <span class="ident">StoredKey</span> {
 	<span class="ident">kind</span>: <span class="ident">CryptoKind</span>,
 	<span class="ident">phrase</span>: <span class="ident">String</span>,
 }
 
-<span class="kw">enum</span> <span class="ident">Key</span> {
-	<span class="ident">Sr25519</span>(<span class="ident">sr25519</span>::<span class="ident">Pair</span>),
+<span class="kw">impl</span> <span class="ident">StoredKey</span> {
+	<span class="kw">fn</span> <span class="ident">generate_with_phrase</span>(<span class="ident">kind</span>: <span class="ident">CryptoKind</span>, <span class="ident">password</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
+		<span class="kw">match</span> <span class="ident">kind</span> {
+			<span class="ident">CryptoKind</span>::<span class="ident">Ed25519</span> <span class="op">=&gt;</span> {
+				<span class="kw">let</span> <span class="ident">phrase</span> <span class="op">=</span> <span class="ident">ed25519</span>::<span class="ident">Pair</span>::<span class="ident">generate_with_phrase</span>(<span class="ident">password</span>).<span class="number">1</span>;
+				<span class="self">Self</span> { <span class="ident">kind</span>, <span class="ident">phrase</span> }
+			}
+			<span class="ident">CryptoKind</span>::<span class="ident">Sr25519</span> <span class="op">=&gt;</span> {
+				<span class="kw">let</span> <span class="ident">phrase</span> <span class="op">=</span> <span class="ident">sr25519</span>::<span class="ident">Pair</span>::<span class="ident">generate_with_phrase</span>(<span class="ident">password</span>).<span class="number">1</span>;
+				<span class="self">Self</span> { <span class="ident">kind</span>, <span class="ident">phrase</span> }
+			}
+		}
+	}
+
+	<span class="kw">fn</span> <span class="ident">to_local_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">password</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">LocalKey</span>, ()<span class="op">&gt;</span> {
+		<span class="kw">match</span> <span class="self">self</span>.<span class="ident">kind</span> {
+			<span class="ident">CryptoKind</span>::<span class="ident">Ed25519</span> <span class="op">=&gt;</span> {
+				<span class="ident">ed25519</span>::<span class="ident">Pair</span>::<span class="ident">from_phrase</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">phrase</span>, <span class="ident">password</span>)
+					.<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">LocalKey</span>::<span class="ident">Ed25519</span>(<span class="ident">x</span>.<span class="number">0</span>))
+			}
+			<span class="ident">CryptoKind</span>::<span class="ident">Sr25519</span> <span class="op">=&gt;</span> {
+				<span class="ident">sr25519</span>::<span class="ident">Pair</span>::<span class="ident">from_phrase</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">phrase</span>, <span class="ident">password</span>)
+					.<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">LocalKey</span>::<span class="ident">Sr25519</span>(<span class="ident">x</span>.<span class="number">0</span>))
+			}
+		}
+		.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
+			<span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;Error recovering Offchain Worker key. Password invalid? {:?}&quot;</span>, <span class="ident">e</span>);
+			()
+		})
+	}
+}
+
+<span class="kw">enum</span> <span class="ident">LocalKey</span> {
 	<span class="ident">Ed25519</span>(<span class="ident">ed25519</span>::<span class="ident">Pair</span>),
+	<span class="ident">Sr25519</span>(<span class="ident">sr25519</span>::<span class="ident">Pair</span>),
+}
+
+<span class="kw">impl</span> <span class="ident">LocalKey</span> {
+	<span class="kw">fn</span> <span class="ident">public</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
+		<span class="kw">match</span> <span class="self">self</span> {
+			<span class="ident">LocalKey</span>::<span class="ident">Ed25519</span>(<span class="ident">pair</span>) <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">pair</span>.<span class="ident">public</span>().<span class="ident">to_raw_vec</span>()),
+			<span class="ident">LocalKey</span>::<span class="ident">Sr25519</span>(<span class="ident">pair</span>) <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">pair</span>.<span class="ident">public</span>().<span class="ident">to_raw_vec</span>()),
+		}
+	}
+
+	<span class="kw">fn</span> <span class="ident">sign</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
+		<span class="kw">match</span> <span class="self">self</span> {
+			<span class="ident">LocalKey</span>::<span class="ident">Ed25519</span>(<span class="ident">pair</span>) <span class="op">=&gt;</span> {
+				<span class="kw">let</span> <span class="ident">sig</span> <span class="op">=</span> <span class="ident">pair</span>.<span class="ident">sign</span>(<span class="ident">data</span>);
+				<span class="kw">let</span> <span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="ident">sig</span>.<span class="ident">as_ref</span>();
+				<span class="prelude-val">Ok</span>(<span class="ident">bytes</span>.<span class="ident">to_vec</span>())
+			}
+			<span class="ident">LocalKey</span>::<span class="ident">Sr25519</span>(<span class="ident">pair</span>) <span class="op">=&gt;</span> {
+				<span class="kw">let</span> <span class="ident">sig</span> <span class="op">=</span> <span class="ident">pair</span>.<span class="ident">sign</span>(<span class="ident">data</span>);
+				<span class="kw">let</span> <span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="ident">sig</span>.<span class="ident">as_ref</span>();
+				<span class="prelude-val">Ok</span>(<span class="ident">bytes</span>.<span class="ident">to_vec</span>())
+			}
+		}
+	}
+
+	<span class="kw">fn</span> <span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">signature</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span>, ()<span class="op">&gt;</span> {
+		<span class="kw">match</span> <span class="self">self</span> {
+			<span class="ident">LocalKey</span>::<span class="ident">Ed25519</span>(<span class="ident">pair</span>) <span class="op">=&gt;</span> {
+				<span class="prelude-val">Ok</span>(<span class="ident">ed25519</span>::<span class="ident">Pair</span>::<span class="ident">verify_weak</span>(<span class="ident">signature</span>, <span class="ident">msg</span>, <span class="ident">pair</span>.<span class="ident">public</span>()))
+			}
+			<span class="ident">LocalKey</span>::<span class="ident">Sr25519</span>(<span class="ident">pair</span>) <span class="op">=&gt;</span> {
+				<span class="prelude-val">Ok</span>(<span class="ident">sr25519</span>::<span class="ident">Pair</span>::<span class="ident">verify_weak</span>(<span class="ident">signature</span>, <span class="ident">msg</span>, <span class="ident">pair</span>.<span class="ident">public</span>()))
+			}
+		}
+	}
+}
+
+<span class="doccomment">/// A key.</span>
+<span class="kw">enum</span> <span class="ident">Key</span><span class="op">&lt;</span><span class="ident">ConsensusPair</span>, <span class="ident">FinalityPair</span><span class="op">&gt;</span> {
+	<span class="ident">LocalKey</span>(<span class="ident">LocalKey</span>),
+	<span class="ident">AuthorityKey</span>(<span class="ident">ConsensusPair</span>),
+	<span class="ident">FgAuthorityKey</span>(<span class="ident">FinalityPair</span>),
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">ConsensusPair</span>: <span class="ident">Pair</span>, <span class="ident">FinalityPair</span>: <span class="ident">Pair</span><span class="op">&gt;</span> <span class="ident">Key</span><span class="op">&lt;</span><span class="ident">ConsensusPair</span>, <span class="ident">FinalityPair</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">public</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
+		<span class="kw">match</span> <span class="self">self</span> {
+			<span class="ident">Key</span>::<span class="ident">LocalKey</span>(<span class="ident">local</span>) <span class="op">=&gt;</span> {
+				<span class="ident">local</span>.<span class="ident">public</span>()
+			}
+			<span class="ident">Key</span>::<span class="ident">AuthorityKey</span>(<span class="ident">pair</span>) <span class="op">=&gt;</span> {
+				<span class="prelude-val">Ok</span>(<span class="ident">pair</span>.<span class="ident">public</span>().<span class="ident">to_raw_vec</span>())
+			}
+			<span class="ident">Key</span>::<span class="ident">FgAuthorityKey</span>(<span class="ident">pair</span>) <span class="op">=&gt;</span> {
+				<span class="prelude-val">Ok</span>(<span class="ident">pair</span>.<span class="ident">public</span>().<span class="ident">to_raw_vec</span>())
+			}
+		}
+	}
+
+	<span class="kw">fn</span> <span class="ident">sign</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
+		<span class="kw">match</span> <span class="self">self</span> {
+			<span class="ident">Key</span>::<span class="ident">LocalKey</span>(<span class="ident">local</span>) <span class="op">=&gt;</span> {
+				<span class="ident">local</span>.<span class="ident">sign</span>(<span class="ident">data</span>)
+			}
+			<span class="ident">Key</span>::<span class="ident">AuthorityKey</span>(<span class="ident">pair</span>) <span class="op">=&gt;</span> {
+				<span class="prelude-val">Ok</span>(<span class="ident">pair</span>.<span class="ident">sign</span>(<span class="ident">data</span>).<span class="ident">as_ref</span>().<span class="ident">to_vec</span>())
+			}
+			<span class="ident">Key</span>::<span class="ident">FgAuthorityKey</span>(<span class="ident">pair</span>) <span class="op">=&gt;</span> {
+				<span class="prelude-val">Ok</span>(<span class="ident">pair</span>.<span class="ident">sign</span>(<span class="ident">data</span>).<span class="ident">as_ref</span>().<span class="ident">to_vec</span>())
+			}
+		}
+	}
+
+	<span class="kw">fn</span> <span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">signature</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span>, ()<span class="op">&gt;</span> {
+		<span class="kw">match</span> <span class="self">self</span> {
+			<span class="ident">Key</span>::<span class="ident">LocalKey</span>(<span class="ident">local</span>) <span class="op">=&gt;</span> {
+				<span class="ident">local</span>.<span class="ident">verify</span>(<span class="ident">msg</span>, <span class="ident">signature</span>)
+			}
+			<span class="ident">Key</span>::<span class="ident">AuthorityKey</span>(<span class="ident">pair</span>) <span class="op">=&gt;</span> {
+				<span class="prelude-val">Ok</span>(<span class="ident">ConsensusPair</span>::<span class="ident">verify_weak</span>(<span class="ident">signature</span>, <span class="ident">msg</span>, <span class="ident">pair</span>.<span class="ident">public</span>()))
+			}
+			<span class="ident">Key</span>::<span class="ident">FgAuthorityKey</span>(<span class="ident">pair</span>) <span class="op">=&gt;</span> {
+				<span class="prelude-val">Ok</span>(<span class="ident">FinalityPair</span>::<span class="ident">verify_weak</span>(<span class="ident">signature</span>, <span class="ident">msg</span>, <span class="ident">pair</span>.<span class="ident">public</span>()))
+			}
+		}
+	}
 }
 
 <span class="doccomment">/// Asynchronous offchain API.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// NOTE this is done to prevent recursive calls into the runtime (which are not supported currently).</span>
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">Api</span><span class="op">&lt;</span><span class="ident">Storage</span>, <span class="ident">KeyProvider</span><span class="op">&gt;</span> {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">Api</span><span class="op">&lt;</span><span class="ident">Storage</span>, <span class="ident">KeyProvider</span>, <span class="ident">Block</span>: <span class="ident">traits</span>::<span class="ident">Block</span><span class="op">&gt;</span> {
 	<span class="ident">sender</span>: <span class="ident">mpsc</span>::<span class="ident">UnboundedSender</span><span class="op">&lt;</span><span class="ident">ExtMessage</span><span class="op">&gt;</span>,
 	<span class="ident">db</span>: <span class="ident">Storage</span>,
 	<span class="ident">keys_password</span>: <span class="ident">Protected</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>,
 	<span class="ident">key_provider</span>: <span class="ident">KeyProvider</span>,
 	<span class="ident">network_state</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">NetworkStateInfo</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span><span class="op">&gt;</span>,
+	<span class="ident">at</span>: <span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">fn</span> <span class="ident">unavailable_yet</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">Default</span><span class="op">&gt;</span>(<span class="ident">name</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="ident">R</span> {
@@ -661,55 +867,56 @@
 
 <span class="kw">const</span> <span class="ident">NEXT_ID</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="string">b&quot;crypto_key_id&quot;</span>;
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Storage</span>, <span class="ident">KeyProvider</span><span class="op">&gt;</span> <span class="ident">Api</span><span class="op">&lt;</span><span class="ident">Storage</span>, <span class="ident">KeyProvider</span><span class="op">&gt;</span> <span class="kw">where</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Storage</span>, <span class="ident">KeyProvider</span>, <span class="ident">Block</span><span class="op">&gt;</span> <span class="ident">Api</span><span class="op">&lt;</span><span class="ident">Storage</span>, <span class="ident">KeyProvider</span>, <span class="ident">Block</span><span class="op">&gt;</span> <span class="kw">where</span>
 	<span class="ident">Storage</span>: <span class="ident">OffchainStorage</span>,
-	<span class="ident">KeyProvider</span>: <span class="ident">AuthorityKeyProvider</span>,
+	<span class="ident">KeyProvider</span>: <span class="ident">AuthorityKeyProvider</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
+	<span class="ident">Block</span>: <span class="ident">traits</span>::<span class="ident">Block</span>,
 {
-	<span class="kw">fn</span> <span class="ident">keypair</span><span class="op">&lt;</span><span class="ident">P</span>: <span class="ident">Pair</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">phrase</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">P</span>, ()<span class="op">&gt;</span> {
-		<span class="ident">P</span>::<span class="ident">from_phrase</span>(<span class="ident">phrase</span>, <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">keys_password</span>.<span class="ident">as_ref</span>()))
-			.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
-				<span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;Error recovering Offchain Worker key. Password invalid? {:?}&quot;</span>, <span class="ident">e</span>);
-				()
-			})
-			.<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="number">0</span>)
+	<span class="kw">fn</span> <span class="ident">password</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span> {
+		<span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">keys_password</span>.<span class="ident">as_ref</span>().<span class="ident">as_str</span>())
 	}
 
-	<span class="kw">fn</span> <span class="ident">read_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">CryptoKeyId</span><span class="op">&gt;</span>, <span class="ident">kind</span>: <span class="ident">CryptoKind</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Key</span>, ()<span class="op">&gt;</span> {
-		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">id</span>) <span class="op">=</span> <span class="ident">id</span> {
-			<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">db</span>.<span class="ident">get</span>(<span class="ident">KEYS_PREFIX</span>, <span class="kw-2">&amp;</span><span class="ident">id</span>.<span class="number">0</span>.<span class="ident">encode</span>())
-				.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">key</span><span class="op">|</span> <span class="ident">CryptoKey</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">key</span>))
-				.<span class="ident">ok_or</span>(())<span class="question-mark">?</span>;
-			<span class="kw">if</span> <span class="ident">key</span>.<span class="ident">kind</span> <span class="op">!=</span> <span class="ident">kind</span> {
-				<span class="macro">warn</span><span class="macro">!</span>(
-					<span class="string">&quot;Invalid crypto kind (got: {:?}, expected: {:?}), when requesting key {:?}&quot;</span>,
-					<span class="ident">key</span>.<span class="ident">kind</span>,
-					<span class="ident">kind</span>,
-					<span class="ident">id</span>
-				);
-				<span class="kw">return</span> <span class="prelude-val">Err</span>(())
+	<span class="kw">fn</span> <span class="ident">read_key</span>(
+		<span class="kw-2">&amp;</span><span class="self">self</span>,
+		<span class="ident">key</span>: <span class="ident">CryptoKey</span>,
+	) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Key</span><span class="op">&lt;</span><span class="ident">KeyProvider</span>::<span class="ident">ConsensusPair</span>, <span class="ident">KeyProvider</span>::<span class="ident">FinalityPair</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
+		<span class="kw">match</span> <span class="ident">key</span> {
+			<span class="ident">CryptoKey</span>::<span class="ident">LocalKey</span> { <span class="ident">id</span>, <span class="ident">kind</span> } <span class="op">=&gt;</span> {
+				<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">db</span>.<span class="ident">get</span>(<span class="ident">KEYS_PREFIX</span>, <span class="kw-2">&amp;</span><span class="ident">id</span>.<span class="ident">encode</span>())
+					.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">key</span><span class="op">|</span> <span class="ident">StoredKey</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">key</span>))
+					.<span class="ident">ok_or</span>(())<span class="question-mark">?</span>;
+				<span class="kw">if</span> <span class="ident">key</span>.<span class="ident">kind</span> <span class="op">!=</span> <span class="ident">kind</span> {
+					<span class="macro">warn</span><span class="macro">!</span>(
+						<span class="string">&quot;Invalid crypto kind (got: {:?}, expected: {:?}), when requesting key {:?}&quot;</span>,
+						<span class="ident">key</span>.<span class="ident">kind</span>,
+						<span class="ident">kind</span>,
+						<span class="ident">id</span>
+					);
+					<span class="kw">return</span> <span class="prelude-val">Err</span>(())
+				}
+				<span class="prelude-val">Ok</span>(<span class="ident">Key</span>::<span class="ident">LocalKey</span>(<span class="ident">key</span>.<span class="ident">to_local_key</span>(<span class="self">self</span>.<span class="ident">password</span>())<span class="question-mark">?</span>))
 			}
-
-			<span class="prelude-val">Ok</span>(<span class="kw">match</span> <span class="ident">key</span>.<span class="ident">kind</span> {
-				<span class="ident">CryptoKind</span>::<span class="ident">Sr25519</span> <span class="op">=&gt;</span> <span class="ident">Key</span>::<span class="ident">Sr25519</span>(<span class="self">self</span>.<span class="ident">keypair</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>.<span class="ident">phrase</span>)<span class="question-mark">?</span>),
-				<span class="ident">CryptoKind</span>::<span class="ident">Ed25519</span> <span class="op">=&gt;</span> <span class="ident">Key</span>::<span class="ident">Ed25519</span>(<span class="self">self</span>.<span class="ident">keypair</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>.<span class="ident">phrase</span>)<span class="question-mark">?</span>),
-			})
-		} <span class="kw">else</span> {
-			<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">kind</span> {
-				<span class="ident">CryptoKind</span>::<span class="ident">Sr25519</span> <span class="op">=&gt;</span> <span class="self">self</span>.<span class="ident">key_provider</span>.<span class="ident">authority_key</span>().<span class="ident">map</span>(<span class="ident">Key</span>::<span class="ident">Sr25519</span>),
-				<span class="ident">CryptoKind</span>::<span class="ident">Ed25519</span> <span class="op">=&gt;</span> <span class="self">self</span>.<span class="ident">key_provider</span>.<span class="ident">authority_key</span>().<span class="ident">map</span>(<span class="ident">Key</span>::<span class="ident">Ed25519</span>),
-			};
-
-			<span class="ident">key</span>.<span class="ident">ok_or_else</span>(<span class="op">||</span> {
-				<span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;AuthorityKey is not configured, yet offchain worker tried to access it.&quot;</span>);
-				()
-			})
+			<span class="ident">CryptoKey</span>::<span class="ident">AuthorityKey</span> <span class="op">=&gt;</span> {
+				<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">key_provider</span>
+					.<span class="ident">authority_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">at</span>)
+					.<span class="ident">ok_or</span>(())<span class="question-mark">?</span>;
+				<span class="prelude-val">Ok</span>(<span class="ident">Key</span>::<span class="ident">AuthorityKey</span>(<span class="ident">key</span>))
+			}
+			<span class="ident">CryptoKey</span>::<span class="ident">FgAuthorityKey</span> <span class="op">=&gt;</span> {
+				<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">key_provider</span>
+					.<span class="ident">fg_authority_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">at</span>)
+					.<span class="ident">ok_or</span>(())<span class="question-mark">?</span>;
+				<span class="prelude-val">Ok</span>(<span class="ident">Key</span>::<span class="ident">FgAuthorityKey</span>(<span class="ident">key</span>))
+			}
 		}
 	}
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Storage</span>, <span class="ident">KeyProvider</span><span class="op">&gt;</span> <span class="ident">OffchainExt</span> <span class="kw">for</span> <span class="ident">Api</span><span class="op">&lt;</span><span class="ident">Storage</span>, <span class="ident">KeyProvider</span><span class="op">&gt;</span> <span class="kw">where</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Storage</span>, <span class="ident">KeyProvider</span>, <span class="ident">Block</span><span class="op">&gt;</span> <span class="ident">OffchainExt</span> <span class="kw">for</span> <span class="ident">Api</span><span class="op">&lt;</span><span class="ident">Storage</span>, <span class="ident">KeyProvider</span>, <span class="ident">Block</span><span class="op">&gt;</span>
+<span class="kw">where</span>
 	<span class="ident">Storage</span>: <span class="ident">OffchainStorage</span>,
-	<span class="ident">KeyProvider</span>: <span class="ident">AuthorityKeyProvider</span>,
+	<span class="ident">KeyProvider</span>: <span class="ident">AuthorityKeyProvider</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
+	<span class="ident">Block</span>: <span class="ident">traits</span>::<span class="ident">Block</span>,
 {
 	<span class="kw">fn</span> <span class="ident">submit_transaction</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">ext</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), ()<span class="op">&gt;</span> {
 		<span class="self">self</span>.<span class="ident">sender</span>
@@ -718,16 +925,8 @@
 			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
 	}
 
-	<span class="kw">fn</span> <span class="ident">new_crypto_key</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">kind</span>: <span class="ident">CryptoKind</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">CryptoKeyId</span>, ()<span class="op">&gt;</span> {
-		<span class="kw">let</span> <span class="ident">phrase</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">kind</span> {
-			<span class="ident">CryptoKind</span>::<span class="ident">Ed25519</span> <span class="op">=&gt;</span> {
-				<span class="ident">ed25519</span>::<span class="ident">Pair</span>::<span class="ident">generate_with_phrase</span>(<span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">keys_password</span>.<span class="ident">as_ref</span>())).<span class="number">1</span>
-			},
-			<span class="ident">CryptoKind</span>::<span class="ident">Sr25519</span> <span class="op">=&gt;</span> {
-				<span class="ident">sr25519</span>::<span class="ident">Pair</span>::<span class="ident">generate_with_phrase</span>(<span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">keys_password</span>.<span class="ident">as_ref</span>())).<span class="number">1</span>
-			},
-		};
-
+	<span class="kw">fn</span> <span class="ident">new_crypto_key</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">kind</span>: <span class="ident">CryptoKind</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">CryptoKey</span>, ()<span class="op">&gt;</span> {
+		<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">StoredKey</span>::<span class="ident">generate_with_phrase</span>(<span class="ident">kind</span>, <span class="self">self</span>.<span class="ident">password</span>());
 		<span class="kw">let</span> (<span class="ident">id</span>, <span class="ident">id_encoded</span>) <span class="op">=</span> <span class="kw">loop</span> {
 			<span class="kw">let</span> <span class="ident">encoded</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">db</span>.<span class="ident">get</span>(<span class="ident">KEYS_PREFIX</span>, <span class="ident">NEXT_ID</span>);
 			<span class="kw">let</span> <span class="ident">encoded_slice</span> <span class="op">=</span> <span class="ident">encoded</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">as_slice</span>());
@@ -741,19 +940,13 @@
 			}
 		};
 
-		<span class="self">self</span>.<span class="ident">db</span>.<span class="ident">set</span>(<span class="ident">KEYS_PREFIX</span>, <span class="kw-2">&amp;</span><span class="ident">id_encoded</span>, <span class="kw-2">&amp;</span><span class="ident">CryptoKey</span> { <span class="ident">phrase</span>, <span class="ident">kind</span> } .<span class="ident">encode</span>());
+		<span class="self">self</span>.<span class="ident">db</span>.<span class="ident">set</span>(<span class="ident">KEYS_PREFIX</span>, <span class="kw-2">&amp;</span><span class="ident">id_encoded</span>, <span class="kw-2">&amp;</span><span class="ident">key</span>.<span class="ident">encode</span>());
 
-		<span class="prelude-val">Ok</span>(<span class="ident">CryptoKeyId</span>(<span class="ident">id</span>))
+		<span class="prelude-val">Ok</span>(<span class="ident">CryptoKey</span>::<span class="ident">LocalKey</span> { <span class="ident">id</span>, <span class="ident">kind</span> })
 	}
 
-	<span class="kw">fn</span> <span class="ident">authority_pubkey</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">kind</span>: <span class="ident">CryptoKind</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
-		<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">read_key</span>(<span class="prelude-val">None</span>, <span class="ident">kind</span>)<span class="question-mark">?</span>;
-		<span class="kw">let</span> <span class="ident">public</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">key</span> {
-			<span class="ident">Key</span>::<span class="ident">Sr25519</span>(<span class="ident">pair</span>) <span class="op">=&gt;</span> <span class="ident">pair</span>.<span class="ident">public</span>().<span class="ident">encode</span>(),
-			<span class="ident">Key</span>::<span class="ident">Ed25519</span>(<span class="ident">pair</span>) <span class="op">=&gt;</span> <span class="ident">pair</span>.<span class="ident">public</span>().<span class="ident">encode</span>(),
-		};
-
-		<span class="prelude-val">Ok</span>(<span class="ident">public</span>)
+	<span class="kw">fn</span> <span class="ident">pubkey</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">key</span>: <span class="ident">CryptoKey</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
+		<span class="self">self</span>.<span class="ident">read_key</span>(<span class="ident">key</span>)<span class="question-mark">?</span>.<span class="ident">public</span>()
 	}
 
 	<span class="kw">fn</span> <span class="ident">network_state</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">OpaqueNetworkState</span>, ()<span class="op">&gt;</span> {
@@ -766,33 +959,23 @@
 		<span class="prelude-val">Ok</span>(<span class="ident">OpaqueNetworkState</span>::<span class="ident">from</span>(<span class="ident">state</span>))
 	}
 
-	<span class="kw">fn</span> <span class="ident">encrypt</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">_key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">CryptoKeyId</span><span class="op">&gt;</span>, <span class="ident">_kind</span>: <span class="ident">CryptoKind</span>, <span class="ident">_data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">encrypt</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">_key</span>: <span class="ident">CryptoKey</span>, <span class="ident">_data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
 		<span class="ident">unavailable_yet</span>::<span class="op">&lt;</span>()<span class="op">&gt;</span>(<span class="string">&quot;encrypt&quot;</span>);
 		<span class="prelude-val">Err</span>(())
 	}
 
-	<span class="kw">fn</span> <span class="ident">decrypt</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">_key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">CryptoKeyId</span><span class="op">&gt;</span>, <span class="ident">_kind</span>: <span class="ident">CryptoKind</span>, <span class="ident">_data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">decrypt</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">_key</span>: <span class="ident">CryptoKey</span>, <span class="ident">_data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
 		<span class="ident">unavailable_yet</span>::<span class="op">&lt;</span>()<span class="op">&gt;</span>(<span class="string">&quot;decrypt&quot;</span>);
 		<span class="prelude-val">Err</span>(())
 
 	}
 
-	<span class="kw">fn</span> <span class="ident">sign</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">CryptoKeyId</span><span class="op">&gt;</span>, <span class="ident">kind</span>: <span class="ident">CryptoKind</span>, <span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
-		<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">read_key</span>(<span class="ident">key</span>, <span class="ident">kind</span>)<span class="question-mark">?</span>;
-
-		<span class="prelude-val">Ok</span>(<span class="kw">match</span> <span class="ident">key</span> {
-			<span class="ident">Key</span>::<span class="ident">Sr25519</span>(<span class="ident">pair</span>) <span class="op">=&gt;</span> <span class="ident">pair</span>.<span class="ident">sign</span>(<span class="ident">data</span>).<span class="number">0</span>.<span class="ident">to_vec</span>(),
-			<span class="ident">Key</span>::<span class="ident">Ed25519</span>(<span class="ident">pair</span>) <span class="op">=&gt;</span> <span class="ident">pair</span>.<span class="ident">sign</span>(<span class="ident">data</span>).<span class="number">0</span>.<span class="ident">to_vec</span>(),
-		})
+	<span class="kw">fn</span> <span class="ident">sign</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">key</span>: <span class="ident">CryptoKey</span>, <span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
+		<span class="self">self</span>.<span class="ident">read_key</span>(<span class="ident">key</span>)<span class="question-mark">?</span>.<span class="ident">sign</span>(<span class="ident">data</span>)
 	}
 
-	<span class="kw">fn</span> <span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">CryptoKeyId</span><span class="op">&gt;</span>, <span class="ident">kind</span>: <span class="ident">CryptoKind</span>, <span class="ident">msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">signature</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span>, ()<span class="op">&gt;</span> {
-		<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">read_key</span>(<span class="ident">key</span>, <span class="ident">kind</span>)<span class="question-mark">?</span>;
-
-		<span class="prelude-val">Ok</span>(<span class="kw">match</span> <span class="ident">key</span> {
-			<span class="ident">Key</span>::<span class="ident">Sr25519</span>(<span class="ident">pair</span>) <span class="op">=&gt;</span> <span class="ident">sr25519</span>::<span class="ident">Pair</span>::<span class="ident">verify_weak</span>(<span class="ident">signature</span>, <span class="ident">msg</span>, <span class="ident">pair</span>.<span class="ident">public</span>()),
-			<span class="ident">Key</span>::<span class="ident">Ed25519</span>(<span class="ident">pair</span>) <span class="op">=&gt;</span> <span class="ident">ed25519</span>::<span class="ident">Pair</span>::<span class="ident">verify_weak</span>(<span class="ident">signature</span>, <span class="ident">msg</span>, <span class="ident">pair</span>.<span class="ident">public</span>()),
-		})
+	<span class="kw">fn</span> <span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">key</span>: <span class="ident">CryptoKey</span>, <span class="ident">msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">signature</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span>, ()<span class="op">&gt;</span> {
+		<span class="self">self</span>.<span class="ident">read_key</span>(<span class="ident">key</span>)<span class="question-mark">?</span>.<span class="ident">verify</span>(<span class="ident">msg</span>, <span class="ident">signature</span>)
 	}
 
 	<span class="kw">fn</span> <span class="ident">timestamp</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">Timestamp</span> {
@@ -969,14 +1152,14 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">ChainApi</span><span class="op">&gt;</span> <span class="ident">AsyncApi</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Creates new Offchain extensions API implementation  an the asynchronous processing part.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">OffchainStorage</span>, <span class="ident">P</span>: <span class="ident">AuthorityKeyProvider</span><span class="op">&gt;</span>(
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">OffchainStorage</span>, <span class="ident">P</span>: <span class="ident">AuthorityKeyProvider</span><span class="op">&lt;</span><span class="ident">A</span>::<span class="ident">Block</span><span class="op">&gt;&gt;</span>(
 		<span class="ident">transaction_pool</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Pool</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;&gt;</span>,
 		<span class="ident">db</span>: <span class="ident">S</span>,
 		<span class="ident">keys_password</span>: <span class="ident">Protected</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>,
 		<span class="ident">key_provider</span>: <span class="ident">P</span>,
 		<span class="ident">at</span>: <span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">A</span>::<span class="ident">Block</span><span class="op">&gt;</span>,
 		<span class="ident">network_state</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">NetworkStateInfo</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span><span class="op">&gt;</span>,
-	) <span class="op">-&gt;</span> (<span class="ident">Api</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">P</span><span class="op">&gt;</span>, <span class="ident">AsyncApi</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>) {
+	) <span class="op">-&gt;</span> (<span class="ident">Api</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">P</span>, <span class="ident">A</span>::<span class="ident">Block</span><span class="op">&gt;</span>, <span class="ident">AsyncApi</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>) {
 		<span class="kw">let</span> (<span class="ident">sender</span>, <span class="ident">rx</span>) <span class="op">=</span> <span class="ident">mpsc</span>::<span class="ident">unbounded</span>();
 
 		<span class="kw">let</span> <span class="ident">api</span> <span class="op">=</span> <span class="ident">Api</span> {
@@ -985,6 +1168,7 @@
 			<span class="ident">keys_password</span>,
 			<span class="ident">key_provider</span>,
 			<span class="ident">network_state</span>,
+			<span class="ident">at</span>,
 		};
 
 		<span class="kw">let</span> <span class="ident">async_api</span> <span class="op">=</span> <span class="ident">AsyncApi</span> {
@@ -1030,10 +1214,12 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span> {
 	<span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-	<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">collections</span>::<span class="ident">HashSet</span>, <span class="ident">convert</span>::<span class="ident">TryFrom</span>};
+	<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">convert</span>::<span class="ident">TryFrom</span>;
+	<span class="kw">use</span> <span class="ident">runtime_primitives</span>::<span class="ident">traits</span>::<span class="ident">Zero</span>;
 	<span class="kw">use</span> <span class="ident">client_db</span>::<span class="ident">offchain</span>::<span class="ident">LocalStorage</span>;
 	<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">tests</span>::<span class="ident">TestProvider</span>;
 	<span class="kw">use</span> <span class="ident">network</span>::<span class="ident">PeerId</span>;
+	<span class="kw">use</span> <span class="ident">test_client</span>::<span class="ident">runtime</span>::<span class="ident">Block</span>;
 
 	<span class="kw">struct</span> <span class="ident">MockNetworkStateInfo</span>();
 
@@ -1047,7 +1233,7 @@
 		}
 	}
 
-	<span class="kw">fn</span> <span class="ident">offchain_api</span>() <span class="op">-&gt;</span> (<span class="ident">Api</span><span class="op">&lt;</span><span class="ident">LocalStorage</span>, <span class="ident">TestProvider</span><span class="op">&gt;</span>, <span class="ident">AsyncApi</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">ChainApi</span><span class="op">&gt;</span>) {
+	<span class="kw">fn</span> <span class="ident">offchain_api</span>() <span class="op">-&gt;</span> (<span class="ident">Api</span><span class="op">&lt;</span><span class="ident">LocalStorage</span>, <span class="ident">TestProvider</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>, <span class="ident">Block</span><span class="op">&gt;</span>, <span class="ident">AsyncApi</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">ChainApi</span><span class="op">&gt;</span>) {
 		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">env_logger</span>::<span class="ident">try_init</span>();
 		<span class="kw">let</span> <span class="ident">db</span> <span class="op">=</span> <span class="ident">LocalStorage</span>::<span class="ident">new_test</span>();
 		<span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">test_client</span>::<span class="ident">new</span>());
@@ -1056,7 +1242,7 @@
 		);
 
 		<span class="kw">let</span> <span class="ident">mock</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">MockNetworkStateInfo</span>());
-		<span class="ident">AsyncApi</span>::<span class="ident">new</span>(<span class="ident">pool</span>, <span class="ident">db</span>, <span class="string">&quot;pass&quot;</span>.<span class="ident">to_owned</span>().<span class="ident">into</span>(), <span class="ident">TestProvider</span>::<span class="ident">default</span>(), <span class="ident">BlockId</span>::<span class="ident">Number</span>(<span class="number">0</span>), <span class="ident">mock</span>)
+		<span class="ident">AsyncApi</span>::<span class="ident">new</span>(<span class="ident">pool</span>, <span class="ident">db</span>, <span class="string">&quot;pass&quot;</span>.<span class="ident">to_owned</span>().<span class="ident">into</span>(), <span class="ident">TestProvider</span>::<span class="ident">default</span>(), <span class="ident">BlockId</span>::<span class="ident">Number</span>(<span class="ident">Zero</span>::<span class="ident">zero</span>()), <span class="ident">mock</span>)
 	}
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
@@ -1099,22 +1285,16 @@
 			<span class="kw">let</span> <span class="ident">msg</span> <span class="op">=</span> <span class="string">b&quot;Hello world!&quot;</span>;
 
 			<span class="comment">// when</span>
-			<span class="kw">let</span> <span class="ident">key_id</span> <span class="op">=</span> <span class="ident">api</span>.<span class="ident">new_crypto_key</span>(<span class="ident">kind</span>).<span class="ident">unwrap</span>();
-			<span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span> <span class="ident">api</span>.<span class="ident">sign</span>(<span class="prelude-val">Some</span>(<span class="ident">key_id</span>), <span class="ident">kind</span>, <span class="ident">msg</span>).<span class="ident">unwrap</span>();
+			<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">api</span>.<span class="ident">new_crypto_key</span>(<span class="ident">kind</span>).<span class="ident">unwrap</span>();
+			<span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span> <span class="ident">api</span>.<span class="ident">sign</span>(<span class="ident">key</span>, <span class="ident">msg</span>).<span class="ident">unwrap</span>();
 
 			<span class="comment">// then</span>
-			<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">api</span>.<span class="ident">verify</span>(<span class="prelude-val">Some</span>(<span class="ident">key_id</span>), <span class="ident">kind</span>, <span class="ident">msg</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>).<span class="ident">unwrap</span>();
+			<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">api</span>.<span class="ident">verify</span>(<span class="ident">key</span>, <span class="ident">msg</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>).<span class="ident">unwrap</span>();
 			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">res</span>, <span class="bool-val">true</span>);
-			<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">api</span>.<span class="ident">verify</span>(<span class="prelude-val">Some</span>(<span class="ident">key_id</span>), <span class="ident">kind</span>, <span class="ident">msg</span>, <span class="kw-2">&amp;</span>[]).<span class="ident">unwrap</span>();
+			<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">api</span>.<span class="ident">verify</span>(<span class="ident">key</span>, <span class="ident">msg</span>, <span class="kw-2">&amp;</span>[]).<span class="ident">unwrap</span>();
 			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">res</span>, <span class="bool-val">false</span>);
-			<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">api</span>.<span class="ident">verify</span>(<span class="prelude-val">Some</span>(<span class="ident">key_id</span>), <span class="ident">kind</span>, <span class="string">b&quot;Different msg&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>).<span class="ident">unwrap</span>();
+			<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">api</span>.<span class="ident">verify</span>(<span class="ident">key</span>, <span class="string">b&quot;Different msg&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>).<span class="ident">unwrap</span>();
 			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">res</span>, <span class="bool-val">false</span>);
-
-			<span class="macro">assert_eq</span><span class="macro">!</span>(
-				<span class="ident">api</span>.<span class="ident">verify</span>(<span class="prelude-val">Some</span>(<span class="ident">key_id</span>), <span class="ident">CryptoKind</span>::<span class="ident">Sr25519</span>, <span class="ident">msg</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>).<span class="ident">is_err</span>(),
-				<span class="ident">kind</span> <span class="op">!=</span> <span class="ident">CryptoKind</span>::<span class="ident">Sr25519</span>
-			);
-
 		};
 
 		<span class="ident">test</span>(<span class="ident">CryptoKind</span>::<span class="ident">Ed25519</span>);
@@ -1127,23 +1307,17 @@
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">api</span> <span class="op">=</span> <span class="ident">offchain_api</span>().<span class="number">0</span>;
 		<span class="ident">api</span>.<span class="ident">key_provider</span>.<span class="ident">ed_key</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">ed25519</span>::<span class="ident">Pair</span>::<span class="ident">generate</span>().<span class="number">0</span>);
 		<span class="kw">let</span> <span class="ident">msg</span> <span class="op">=</span> <span class="string">b&quot;Hello world!&quot;</span>;
-		<span class="kw">let</span> <span class="ident">kind</span> <span class="op">=</span> <span class="ident">CryptoKind</span>::<span class="ident">Ed25519</span>;
 
 		<span class="comment">// when</span>
-		<span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span> <span class="ident">api</span>.<span class="ident">sign</span>(<span class="prelude-val">None</span>, <span class="ident">kind</span>, <span class="ident">msg</span>).<span class="ident">unwrap</span>();
+		<span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span> <span class="ident">api</span>.<span class="ident">sign</span>(<span class="ident">CryptoKey</span>::<span class="ident">AuthorityKey</span>, <span class="ident">msg</span>).<span class="ident">unwrap</span>();
 
 		<span class="comment">// then</span>
-		<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">api</span>.<span class="ident">verify</span>(<span class="prelude-val">None</span>, <span class="ident">kind</span>, <span class="ident">msg</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>).<span class="ident">unwrap</span>();
+		<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">api</span>.<span class="ident">verify</span>(<span class="ident">CryptoKey</span>::<span class="ident">AuthorityKey</span>, <span class="ident">msg</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>).<span class="ident">unwrap</span>();
 		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">res</span>, <span class="bool-val">true</span>);
-		<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">api</span>.<span class="ident">verify</span>(<span class="prelude-val">None</span>, <span class="ident">kind</span>, <span class="ident">msg</span>, <span class="kw-2">&amp;</span>[]).<span class="ident">unwrap</span>();
+		<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">api</span>.<span class="ident">verify</span>(<span class="ident">CryptoKey</span>::<span class="ident">AuthorityKey</span>, <span class="ident">msg</span>, <span class="kw-2">&amp;</span>[]).<span class="ident">unwrap</span>();
 		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">res</span>, <span class="bool-val">false</span>);
-		<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">api</span>.<span class="ident">verify</span>(<span class="prelude-val">None</span>, <span class="ident">kind</span>, <span class="string">b&quot;Different msg&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>).<span class="ident">unwrap</span>();
+		<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">api</span>.<span class="ident">verify</span>(<span class="ident">CryptoKey</span>::<span class="ident">AuthorityKey</span>, <span class="string">b&quot;Different msg&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>).<span class="ident">unwrap</span>();
 		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">res</span>, <span class="bool-val">false</span>);
-
-		<span class="macro">assert</span><span class="macro">!</span>(
-			<span class="ident">api</span>.<span class="ident">verify</span>(<span class="prelude-val">None</span>, <span class="ident">CryptoKind</span>::<span class="ident">Sr25519</span>, <span class="ident">msg</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>).<span class="ident">is_err</span>(),
-			<span class="string">&quot;Invalid kind should trigger a missing key error.&quot;</span>
-		);
 	}
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
