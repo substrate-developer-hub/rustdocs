@@ -399,6 +399,11 @@
 <span id="399">399</span>
 <span id="400">400</span>
 <span id="401">401</span>
+<span id="402">402</span>
+<span id="403">403</span>
+<span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -622,7 +627,7 @@
 	<span class="kw">use</span> <span class="ident">consensus_common</span>::{<span class="ident">Environment</span>, <span class="ident">Proposer</span>, <span class="ident">BlockImportParams</span>, <span class="ident">BlockOrigin</span>, <span class="ident">ForkChoiceStrategy</span>};
 	<span class="kw">use</span> <span class="ident">node_primitives</span>::<span class="ident">DigestItem</span>;
 	<span class="kw">use</span> <span class="ident">node_runtime</span>::{<span class="ident">BalancesCall</span>, <span class="ident">Call</span>, <span class="ident">CENTS</span>, <span class="ident">SECS_PER_BLOCK</span>, <span class="ident">UncheckedExtrinsic</span>};
-	<span class="kw">use</span> <span class="ident">parity_codec</span>::{<span class="ident">Compact</span>, <span class="ident">Encode</span>, <span class="ident">Decode</span>};
+	<span class="kw">use</span> <span class="ident">parity_codec</span>::{<span class="ident">Encode</span>, <span class="ident">Decode</span>};
 	<span class="kw">use</span> <span class="ident">primitives</span>::{
 		<span class="ident">crypto</span>::<span class="ident">Pair</span> <span class="kw">as</span> <span class="ident">CryptoPair</span>, <span class="ident">ed25519</span>::<span class="ident">Pair</span>, <span class="ident">blake2_256</span>,
 		<span class="ident">sr25519</span>::<span class="ident">Public</span> <span class="kw">as</span> <span class="ident">AddressPublic</span>, <span class="ident">H256</span>,
@@ -760,19 +765,24 @@
 			<span class="kw">let</span> <span class="ident">signer</span> <span class="op">=</span> <span class="ident">charlie</span>.<span class="ident">clone</span>();
 
 			<span class="kw">let</span> <span class="ident">function</span> <span class="op">=</span> <span class="ident">Call</span>::<span class="ident">Balances</span>(<span class="ident">BalancesCall</span>::<span class="ident">transfer</span>(<span class="ident">to</span>.<span class="ident">into</span>(), <span class="ident">amount</span>));
-			<span class="kw">let</span> <span class="ident">era</span> <span class="op">=</span> <span class="ident">Era</span>::<span class="ident">immortal</span>();
-			<span class="kw">let</span> <span class="ident">raw_payload</span> <span class="op">=</span> (<span class="ident">Compact</span>(<span class="ident">index</span>), <span class="ident">function</span>, <span class="ident">era</span>, <span class="ident">genesis_hash</span>);
+
+			<span class="kw">let</span> <span class="ident">check_era</span> <span class="op">=</span> <span class="ident">system</span>::<span class="ident">CheckEra</span>::<span class="ident">from</span>(<span class="ident">Era</span>::<span class="ident">Immortal</span>);
+			<span class="kw">let</span> <span class="ident">check_nonce</span> <span class="op">=</span> <span class="ident">system</span>::<span class="ident">CheckNonce</span>::<span class="ident">from</span>(<span class="ident">index</span>);
+			<span class="kw">let</span> <span class="ident">check_weight</span> <span class="op">=</span> <span class="ident">system</span>::<span class="ident">CheckWeight</span>::<span class="ident">from</span>();
+			<span class="kw">let</span> <span class="ident">take_fees</span> <span class="op">=</span> <span class="ident">balances</span>::<span class="ident">TakeFees</span>::<span class="ident">from</span>(<span class="number">0</span>);
+			<span class="kw">let</span> <span class="ident">extra</span> <span class="op">=</span> (<span class="ident">check_era</span>, <span class="ident">check_nonce</span>, <span class="ident">check_weight</span>, <span class="ident">take_fees</span>);
+
+			<span class="kw">let</span> <span class="ident">raw_payload</span> <span class="op">=</span> (<span class="ident">function</span>, <span class="ident">extra</span>.<span class="ident">clone</span>(), <span class="ident">genesis_hash</span>);
 			<span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span> <span class="ident">raw_payload</span>.<span class="ident">using_encoded</span>(<span class="op">|</span><span class="ident">payload</span><span class="op">|</span> <span class="kw">if</span> <span class="ident">payload</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="number">256</span> {
 				<span class="ident">signer</span>.<span class="ident">sign</span>(<span class="kw-2">&amp;</span><span class="ident">blake2_256</span>(<span class="ident">payload</span>)[..])
 			} <span class="kw">else</span> {
 				<span class="ident">signer</span>.<span class="ident">sign</span>(<span class="ident">payload</span>)
 			});
 			<span class="kw">let</span> <span class="ident">xt</span> <span class="op">=</span> <span class="ident">UncheckedExtrinsic</span>::<span class="ident">new_signed</span>(
-				<span class="ident">index</span>,
-				<span class="ident">raw_payload</span>.<span class="number">1</span>,
+				<span class="ident">raw_payload</span>.<span class="number">0</span>,
 				<span class="ident">from</span>.<span class="ident">into</span>(),
 				<span class="ident">signature</span>.<span class="ident">into</span>(),
-				<span class="ident">era</span>,
+				<span class="ident">extra</span>,
 			).<span class="ident">encode</span>();
 			<span class="kw">let</span> <span class="ident">v</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Decode</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">xt</span>.<span class="ident">as_slice</span>()).<span class="ident">unwrap</span>();
 

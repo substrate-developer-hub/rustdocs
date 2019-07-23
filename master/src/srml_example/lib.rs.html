@@ -610,6 +610,9 @@
 <span id="610">610</span>
 <span id="611">611</span>
 <span id="612">612</span>
+<span id="613">613</span>
+<span id="614">614</span>
+<span id="615">615</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -868,7 +871,7 @@
 
 <span class="kw">use</span> <span class="ident">srml_support</span>::{<span class="ident">StorageValue</span>, <span class="ident">dispatch</span>::<span class="prelude-ty">Result</span>, <span class="ident">decl_module</span>, <span class="ident">decl_storage</span>, <span class="ident">decl_event</span>};
 <span class="kw">use</span> <span class="ident">system</span>::{<span class="ident">ensure_signed</span>, <span class="ident">ensure_root</span>};
-<span class="kw">use</span> <span class="ident">sr_primitives</span>::<span class="ident">weights</span>::<span class="ident">TransactionWeight</span>;
+<span class="kw">use</span> <span class="ident">sr_primitives</span>::<span class="ident">weights</span>::<span class="ident">SimpleDispatchInfo</span>;
 
 <span class="doccomment">/// Our module&#39;s configuration trait. All our types and consts go in here. If the</span>
 <span class="doccomment">/// module is dependent on specific other modules, then their configuration traits</span>
@@ -1009,19 +1012,18 @@
 		<span class="comment">//</span>
 		<span class="comment">// If you don&#39;t respect these rules, it is likely that your chain will be attackable.</span>
 		<span class="comment">//</span>
-		<span class="comment">// Each transaction can optionally indicate a weight. The weight is passed in as a</span>
-		<span class="comment">// custom attribute and the value can be anything that implements the `Weighable`</span>
-		<span class="comment">// trait. Most often using substrate&#39;s default `TransactionWeight` is enough for you.</span>
+		<span class="comment">// Each transaction can define an optional `#[weight]` attribute to convey a set of static</span>
+		<span class="comment">// information about its dispatch. The `system` and `executive` module then use this</span>
+		<span class="comment">// information to properly execute the transaction, whilst keeping the total load of the</span>
+		<span class="comment">// chain in a moderate rate.</span>
 		<span class="comment">//</span>
-		<span class="comment">// A basic weight is a tuple of `(base_weight, byte_weight)`. Upon including each transaction</span>
-		<span class="comment">// in a block, the final weight is calculated as `base_weight + byte_weight * tx_size`.</span>
-		<span class="comment">// If this value, added to the weight of all included transactions, exceeds `MAX_TRANSACTION_WEIGHT`,</span>
-		<span class="comment">// the transaction is not included. If no weight attribute is provided, the `::default()`</span>
-		<span class="comment">// implementation of `TransactionWeight` is used.</span>
-		<span class="comment">//</span>
-		<span class="comment">// The example below showcases a transaction which is relatively costly, but less dependent on</span>
-		<span class="comment">// the input, hence `byte_weight` is configured smaller.</span>
-		<span class="attribute">#[<span class="ident">weight</span> <span class="op">=</span> <span class="ident">TransactionWeight</span>::<span class="ident">Basic</span>(<span class="number">100_000</span>, <span class="number">10</span>)]</span>
+		<span class="comment">// The _right-hand-side_ value of the `#[weight]` attribute can be any type that implements</span>
+		<span class="comment">// a set of traits, namely [`WeighData`] and [`ClassifyDispatch`]. The former conveys the</span>
+		<span class="comment">// weight (a numeric representation of pure execution time and difficulty) of the</span>
+		<span class="comment">// transaction and the latter demonstrates the `DispatchClass` of the call. A higher weight</span>
+		<span class="comment">//  means a larger transaction (less of which can be placed in a single block). See the</span>
+		<span class="comment">// `CheckWeight` signed extension struct in the `system` module for more information.</span>
+		<span class="attribute">#[<span class="ident">weight</span> <span class="op">=</span> <span class="ident">SimpleDispatchInfo</span>::<span class="ident">FixedNormal</span>(<span class="number">10_000</span>)]</span>
 		<span class="kw">fn</span> <span class="ident">accumulate_dummy</span>(<span class="ident">origin</span>, <span class="ident">increase_by</span>: <span class="ident">T</span>::<span class="ident">Balance</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span> {
 			<span class="comment">// This is a public call, so we ensure that the origin is some signed account.</span>
 			<span class="kw">let</span> <span class="ident">_sender</span> <span class="op">=</span> <span class="ident">ensure_signed</span>(<span class="ident">origin</span>)<span class="question-mark">?</span>;
@@ -1138,6 +1140,8 @@
 	<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Test</span>;
 	<span class="macro">parameter_types</span><span class="macro">!</span> {
 		<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">BlockHashCount</span>: <span class="ident">u64</span> <span class="op">=</span> <span class="number">250</span>;
+		<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">MaximumBlockWeight</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="number">1024</span>;
+		<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">MaximumBlockLength</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="number">2</span> <span class="op">*</span> <span class="number">1024</span>;
 	}
 	<span class="kw">impl</span> <span class="ident">system</span>::<span class="ident">Trait</span> <span class="kw">for</span> <span class="ident">Test</span> {
 		<span class="kw">type</span> <span class="ident">Origin</span> <span class="op">=</span> <span class="ident">Origin</span>;
@@ -1151,6 +1155,8 @@
 		<span class="kw">type</span> <span class="ident">WeightMultiplierUpdate</span> <span class="op">=</span> ();
 		<span class="kw">type</span> <span class="ident">Event</span> <span class="op">=</span> ();
 		<span class="kw">type</span> <span class="ident">BlockHashCount</span> <span class="op">=</span> <span class="ident">BlockHashCount</span>;
+		<span class="kw">type</span> <span class="ident">MaximumBlockWeight</span> <span class="op">=</span> <span class="ident">MaximumBlockWeight</span>;
+		<span class="kw">type</span> <span class="ident">MaximumBlockLength</span> <span class="op">=</span> <span class="ident">MaximumBlockLength</span>;
 	}
 	<span class="macro">parameter_types</span><span class="macro">!</span> {
 		<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">ExistentialDeposit</span>: <span class="ident">u64</span> <span class="op">=</span> <span class="number">0</span>;

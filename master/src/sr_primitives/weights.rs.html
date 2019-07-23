@@ -154,6 +154,94 @@
 <span id="154">154</span>
 <span id="155">155</span>
 <span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
+<span id="197">197</span>
+<span id="198">198</span>
+<span id="199">199</span>
+<span id="200">200</span>
+<span id="201">201</span>
+<span id="202">202</span>
+<span id="203">203</span>
+<span id="204">204</span>
+<span id="205">205</span>
+<span id="206">206</span>
+<span id="207">207</span>
+<span id="208">208</span>
+<span id="209">209</span>
+<span id="210">210</span>
+<span id="211">211</span>
+<span id="212">212</span>
+<span id="213">213</span>
+<span id="214">214</span>
+<span id="215">215</span>
+<span id="216">216</span>
+<span id="217">217</span>
+<span id="218">218</span>
+<span id="219">219</span>
+<span id="220">220</span>
+<span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -174,8 +262,8 @@
 <span class="doccomment">//! Primitives for transaction weighting.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Each dispatch function within `decl_module!` can have an optional `#[weight = $x]` attribute.</span>
-<span class="doccomment">//!  $x can be any object that implements the `Weighable` trait. By default, All transactions are</span>
-<span class="doccomment">//! annotated by `#[weight = TransactionWeight::default()]`.</span>
+<span class="doccomment">//! `$x` can be any type that implements the `ClassifyDispatch&lt;T&gt;` and `WeighData&lt;T&gt;` traits. By</span>
+<span class="doccomment">//! default, All transactions are annotated with `#[weight = SimpleDispatchInfo::default()]`.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Note that the decl_module macro _cannot_ enforce this and will simply fail if an invalid struct</span>
 <span class="doccomment">//! (something that does not  implement `Weighable`) is passed in.</span>
@@ -183,59 +271,147 @@
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">Fixed64</span>, <span class="ident">traits</span>::<span class="ident">Saturating</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">codec</span>::{<span class="ident">Encode</span>, <span class="ident">Decode</span>};
 
-<span class="doccomment">/// The final type that each `#[weight = $x:expr]`&#39;s</span>
-<span class="doccomment">/// expression must evaluate to.</span>
+<span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">transaction_validity</span>::<span class="ident">TransactionPriority</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">traits</span>::<span class="ident">Bounded</span>;
+
+<span class="doccomment">/// Numeric range of a transaction weight.</span>
 <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">Weight</span> <span class="op">=</span> <span class="ident">u32</span>;
 
-<span class="doccomment">/// Maximum block saturation: 4mb</span>
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">MAX_TRANSACTIONS_WEIGHT</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="number">4</span> <span class="op">*</span> <span class="number">1024</span> <span class="op">*</span> <span class="number">1024</span>;
-<span class="doccomment">/// Target block saturation: 25% of max block saturation = 1mb</span>
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">IDEAL_TRANSACTIONS_WEIGHT</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">MAX_TRANSACTIONS_WEIGHT</span> <span class="op">/</span> <span class="number">4</span>;
-
-<span class="doccomment">/// A `Call` enum (aka transaction) that can be weighted using the custom weight attribute of</span>
-<span class="doccomment">/// its dispatchable functions. Is implemented by default in the `decl_module!`.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// Both the outer Call enum and the per-module individual ones will implement this.</span>
-<span class="doccomment">/// The outer enum simply calls the inner ones based on call type.</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Weighable</span> {
-	<span class="doccomment">/// Return the weight of this call.</span>
-	<span class="doccomment">/// The `len` argument is the encoded length of the transaction/call.</span>
-	<span class="kw">fn</span> <span class="ident">weight</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">len</span>: <span class="ident">usize</span>) <span class="op">-&gt;</span> <span class="ident">Weight</span>;
+<span class="doccomment">/// A generalized group of dispatch types. This is only distinguishing normal, user-triggered transactions</span>
+<span class="doccomment">/// (`Normal`) and anything beyond which serves a higher purpose to the system (`Operational`).</span>
+<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>, <span class="ident">derive</span>(<span class="ident">Debug</span>))]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Clone</span>, <span class="ident">Copy</span>)]</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">DispatchClass</span> {
+	<span class="doccomment">/// A normal dispatch.</span>
+	<span class="ident">Normal</span>,
+	<span class="doccomment">/// An operational dispatch.</span>
+	<span class="ident">Operational</span>,
 }
 
-<span class="doccomment">/// Default type used as the weight representative in a `#[weight = x]` attribute.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// A user may pass in any other type that implements [`Weighable`]. If not, the `Default`</span>
-<span class="doccomment">/// implementation of [`TransactionWeight`] is used.</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">TransactionWeight</span> {
-	<span class="doccomment">/// Basic weight (base, byte).</span>
-	<span class="doccomment">/// The values contained are the base weight and byte weight respectively.</span>
-	<span class="ident">Basic</span>(<span class="ident">Weight</span>, <span class="ident">Weight</span>),
-	<span class="doccomment">/// Maximum fee. This implies that this transaction _might_ get included but</span>
-	<span class="doccomment">/// no more transaction can be added. This can be done by setting the</span>
-	<span class="doccomment">/// implementation to _maximum block weight_.</span>
-	<span class="ident">Max</span>,
-	<span class="doccomment">/// Free. The transaction does not increase the total weight</span>
-	<span class="doccomment">/// (i.e. is not included in weight calculation).</span>
-	<span class="ident">Free</span>,
+<span class="kw">impl</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">DispatchClass</span> {
+	<span class="kw">fn</span> <span class="ident">default</span>() <span class="op">-&gt;</span> <span class="self">Self</span> {
+		<span class="ident">DispatchClass</span>::<span class="ident">Normal</span>
+	}
 }
 
-<span class="kw">impl</span> <span class="ident">Weighable</span> <span class="kw">for</span> <span class="ident">TransactionWeight</span> {
-	<span class="kw">fn</span> <span class="ident">weight</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">len</span>: <span class="ident">usize</span>) <span class="op">-&gt;</span> <span class="ident">Weight</span> {
-		<span class="kw">match</span> <span class="self">self</span> {
-			<span class="ident">TransactionWeight</span>::<span class="ident">Basic</span>(<span class="ident">base</span>, <span class="ident">byte</span>) <span class="op">=&gt;</span> <span class="ident">base</span> <span class="op">+</span> <span class="ident">byte</span> <span class="op">*</span> <span class="ident">len</span> <span class="kw">as</span> <span class="ident">Weight</span>,
-			<span class="ident">TransactionWeight</span>::<span class="ident">Max</span> <span class="op">=&gt;</span> <span class="number">3</span> <span class="op">*</span> <span class="number">1024</span> <span class="op">*</span> <span class="number">1024</span>,
-			<span class="ident">TransactionWeight</span>::<span class="ident">Free</span> <span class="op">=&gt;</span> <span class="number">0</span>,
+<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">SimpleDispatchInfo</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">DispatchClass</span> {
+	<span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">tx</span>: <span class="ident">SimpleDispatchInfo</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
+		<span class="kw">match</span> <span class="ident">tx</span> {
+			<span class="ident">SimpleDispatchInfo</span>::<span class="ident">FixedOperational</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="ident">DispatchClass</span>::<span class="ident">Operational</span>,
+			<span class="ident">SimpleDispatchInfo</span>::<span class="ident">MaxOperational</span> <span class="op">=&gt;</span> <span class="ident">DispatchClass</span>::<span class="ident">Operational</span>,
+			<span class="ident">SimpleDispatchInfo</span>::<span class="ident">FreeOperational</span> <span class="op">=&gt;</span> <span class="ident">DispatchClass</span>::<span class="ident">Operational</span>,
+
+			<span class="ident">SimpleDispatchInfo</span>::<span class="ident">FixedNormal</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="ident">DispatchClass</span>::<span class="ident">Normal</span>,
+			<span class="ident">SimpleDispatchInfo</span>::<span class="ident">MaxNormal</span> <span class="op">=&gt;</span> <span class="ident">DispatchClass</span>::<span class="ident">Normal</span>,
+			<span class="ident">SimpleDispatchInfo</span>::<span class="ident">FreeNormal</span> <span class="op">=&gt;</span> <span class="ident">DispatchClass</span>::<span class="ident">Normal</span>,
 		}
 	}
 }
 
-<span class="kw">impl</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">TransactionWeight</span> {
+<span class="doccomment">/// A bundle of static information collected from the `#[weight = $x]` attributes.</span>
+<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>, <span class="ident">derive</span>(<span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Debug</span>))]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Copy</span>, <span class="ident">Default</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">DispatchInfo</span> {
+	<span class="doccomment">/// Weight of this transaction.</span>
+	<span class="kw">pub</span> <span class="ident">weight</span>: <span class="ident">Weight</span>,
+	<span class="doccomment">/// Class of this transaction.</span>
+	<span class="kw">pub</span> <span class="ident">class</span>: <span class="ident">DispatchClass</span>,
+}
+
+<span class="kw">impl</span> <span class="ident">DispatchInfo</span> {
+	<span class="doccomment">/// Determine if this dispatch should pay the base length-related fee or not.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">pay_length_fee</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
+		<span class="kw">match</span> <span class="self">self</span>.<span class="ident">class</span> {
+			<span class="ident">DispatchClass</span>::<span class="ident">Normal</span> <span class="op">=&gt;</span> <span class="bool-val">true</span>,
+			<span class="comment">// For now we assume all operational transactions don&#39;t pay the length fee.</span>
+			<span class="ident">DispatchClass</span>::<span class="ident">Operational</span> <span class="op">=&gt;</span> <span class="bool-val">false</span>,
+		}
+	}
+}
+
+<span class="doccomment">/// A `Dispatchable` function (aka transaction) that can carry some static information along with it, using the</span>
+<span class="doccomment">/// `#[weight]` attribute.</span>
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">GetDispatchInfo</span> {
+	<span class="doccomment">/// Return a `DispatchInfo`, containing relevant information of this dispatch.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// This is done independently of its encoded size.</span>
+	<span class="kw">fn</span> <span class="ident">get_dispatch_info</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">DispatchInfo</span>;
+}
+
+<span class="doccomment">/// Means of weighing some particular kind of data (`T`).</span>
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">WeighData</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+	<span class="doccomment">/// Weigh the data `T` given by `target`.</span>
+	<span class="kw">fn</span> <span class="ident">weigh_data</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">target</span>: <span class="ident">T</span>) <span class="op">-&gt;</span> <span class="ident">Weight</span>;
+}
+
+<span class="doccomment">/// Means of classifying a dispatchable function.</span>
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">ClassifyDispatch</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+	<span class="doccomment">/// Classify the dispatch function based on input data `target` of type `T`.</span>
+	<span class="kw">fn</span> <span class="ident">classify_dispatch</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">target</span>: <span class="ident">T</span>) <span class="op">-&gt;</span> <span class="ident">DispatchClass</span>;
+}
+
+<span class="doccomment">/// Default type used with the `#[weight = x]` attribute in a substrate chain.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// A user may pass in any other type that implements the correct traits. If not, the `Default`</span>
+<span class="doccomment">/// implementation of [`SimpleDispatchInfo`] is used.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// For each generalized group (`Normal` and `Operation`):</span>
+<span class="doccomment">///   - A `Fixed` variant means weight fee is charged normally and the weight is the number</span>
+<span class="doccomment">///      specified in the inner value of the variant.</span>
+<span class="doccomment">///   - A `Free` variant is equal to `::Fixed(0)`. Note that this does not guarantee inclusion.</span>
+<span class="doccomment">///   - A `Max` variant is equal to `::Fixed(Weight::max_value())`.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// Based on the final weight value, based on the above variants:</span>
+<span class="doccomment">///   - A _weight-fee_  is deducted.</span>
+<span class="doccomment">///   - The block weight is consumed proportionally.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// As for the generalized groups themselves:</span>
+<span class="doccomment">///   - `Normal` variants will be assigned a priority proportional to their weight. They can only</span>
+<span class="doccomment">///     consume a portion (1/4) of the maximum block resource limits.</span>
+<span class="doccomment">///   - `Operational` variants will be assigned the maximum priority. They can potentially consume</span>
+<span class="doccomment">///     the entire block resource limit.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Copy</span>)]</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">SimpleDispatchInfo</span> {
+	<span class="doccomment">/// A normal dispatch with fixed weight.</span>
+	<span class="ident">FixedNormal</span>(<span class="ident">Weight</span>),
+	<span class="doccomment">/// A normal dispatch with the maximum weight.</span>
+	<span class="ident">MaxNormal</span>,
+	<span class="doccomment">/// A normal dispatch with no weight.</span>
+	<span class="ident">FreeNormal</span>,
+	<span class="doccomment">/// An operational dispatch with fixed weight.</span>
+	<span class="ident">FixedOperational</span>(<span class="ident">Weight</span>),
+	<span class="doccomment">/// An operational dispatch with the maximum weight.</span>
+	<span class="ident">MaxOperational</span>,
+	<span class="doccomment">/// An operational dispatch with no weight.</span>
+	<span class="ident">FreeOperational</span>,
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">WeighData</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">SimpleDispatchInfo</span> {
+	<span class="kw">fn</span> <span class="ident">weigh_data</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: <span class="ident">T</span>) <span class="op">-&gt;</span> <span class="ident">Weight</span> {
+		<span class="kw">match</span> <span class="self">self</span> {
+			<span class="ident">SimpleDispatchInfo</span>::<span class="ident">FixedNormal</span>(<span class="ident">w</span>) <span class="op">=&gt;</span> <span class="kw-2">*</span><span class="ident">w</span>,
+			<span class="ident">SimpleDispatchInfo</span>::<span class="ident">MaxNormal</span> <span class="op">=&gt;</span> <span class="ident">Bounded</span>::<span class="ident">max_value</span>(),
+			<span class="ident">SimpleDispatchInfo</span>::<span class="ident">FreeNormal</span> <span class="op">=&gt;</span> <span class="ident">Bounded</span>::<span class="ident">min_value</span>(),
+
+			<span class="ident">SimpleDispatchInfo</span>::<span class="ident">FixedOperational</span>(<span class="ident">w</span>) <span class="op">=&gt;</span> <span class="kw-2">*</span><span class="ident">w</span>,
+			<span class="ident">SimpleDispatchInfo</span>::<span class="ident">MaxOperational</span> <span class="op">=&gt;</span> <span class="ident">Bounded</span>::<span class="ident">max_value</span>(),
+			<span class="ident">SimpleDispatchInfo</span>::<span class="ident">FreeOperational</span> <span class="op">=&gt;</span> <span class="ident">Bounded</span>::<span class="ident">min_value</span>(),
+		}
+	}
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">ClassifyDispatch</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">SimpleDispatchInfo</span> {
+	<span class="kw">fn</span> <span class="ident">classify_dispatch</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: <span class="ident">T</span>) <span class="op">-&gt;</span> <span class="ident">DispatchClass</span> {
+		<span class="ident">DispatchClass</span>::<span class="ident">from</span>(<span class="kw-2">*</span><span class="self">self</span>)
+	}
+}
+
+<span class="kw">impl</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">SimpleDispatchInfo</span> {
 	<span class="kw">fn</span> <span class="ident">default</span>() <span class="op">-&gt;</span> <span class="self">Self</span> {
-		<span class="comment">// This implies that the weight is currently equal to tx-size, nothing more</span>
+		<span class="comment">// This implies that the weight is currently equal to 100, nothing more</span>
 		<span class="comment">// for all substrate transactions that do NOT explicitly annotate weight.</span>
 		<span class="comment">// TODO #2431 needs to be updated with proper max values.</span>
-		<span class="ident">TransactionWeight</span>::<span class="ident">Basic</span>(<span class="number">0</span>, <span class="number">1</span>)
+		<span class="ident">SimpleDispatchInfo</span>::<span class="ident">FixedNormal</span>(<span class="number">100</span>)
 	}
 }
 

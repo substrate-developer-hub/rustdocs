@@ -285,6 +285,11 @@
 <span id="285">285</span>
 <span id="286">286</span>
 <span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -311,8 +316,8 @@
 <span class="kw">use</span> <span class="ident">clap</span>::<span class="ident">load_yaml</span>;
 <span class="kw">use</span> <span class="ident">bip39</span>::{<span class="ident">Mnemonic</span>, <span class="ident">Language</span>, <span class="ident">MnemonicType</span>};
 <span class="kw">use</span> <span class="ident">substrate_primitives</span>::{
-	<span class="ident">ed25519</span>, <span class="ident">sr25519</span>, <span class="ident">hexdisplay</span>::<span class="ident">HexDisplay</span>, <span class="ident">Pair</span>, <span class="ident">Public</span>,
-	<span class="ident">crypto</span>::{<span class="ident">Ss58Codec</span>, <span class="ident">set_default_ss58_version</span>, <span class="ident">Ss58AddressFormat</span>}, <span class="ident">blake2_256</span>
+	<span class="ident">ed25519</span>, <span class="ident">sr25519</span>, <span class="ident">hexdisplay</span>::<span class="ident">HexDisplay</span>, <span class="ident">Pair</span>, <span class="ident">Public</span>, <span class="ident">blake2_256</span>,
+	<span class="ident">crypto</span>::{<span class="ident">Ss58Codec</span>, <span class="ident">set_default_ss58_version</span>, <span class="ident">Ss58AddressFormat</span>}
 };
 <span class="kw">use</span> <span class="ident">parity_codec</span>::{<span class="ident">Encode</span>, <span class="ident">Decode</span>, <span class="ident">Compact</span>};
 <span class="kw">use</span> <span class="ident">sr_primitives</span>::<span class="ident">generic</span>::<span class="ident">Era</span>;
@@ -378,6 +383,14 @@
 	<span class="op">&lt;&lt;</span><span class="ident">C</span> <span class="kw">as</span> <span class="ident">Crypto</span><span class="op">&gt;</span>::<span class="ident">Pair</span> <span class="kw">as</span> <span class="ident">Pair</span><span class="op">&gt;</span>::<span class="ident">Signature</span>: <span class="ident">AsRef</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">AsMut</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Default</span>,
 	<span class="op">&lt;&lt;</span><span class="ident">C</span> <span class="kw">as</span> <span class="ident">Crypto</span><span class="op">&gt;</span>::<span class="ident">Pair</span> <span class="kw">as</span> <span class="ident">Pair</span><span class="op">&gt;</span>::<span class="ident">Public</span>: <span class="ident">Sized</span> <span class="op">+</span> <span class="ident">AsRef</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Ss58Codec</span> <span class="op">+</span> <span class="ident">AsRef</span><span class="op">&lt;&lt;</span><span class="op">&lt;</span><span class="ident">C</span> <span class="kw">as</span> <span class="ident">Crypto</span><span class="op">&gt;</span>::<span class="ident">Pair</span> <span class="kw">as</span> <span class="ident">Pair</span><span class="op">&gt;</span>::<span class="ident">Public</span><span class="op">&gt;</span>,
 {
+	<span class="comment">// let extra = |i: Index, f: Balance| {</span>
+	<span class="comment">// 	(</span>
+	<span class="comment">// 		system::CheckEra::&lt;Runtime&gt;::from(Era::Immortal),</span>
+	<span class="comment">// 		system::CheckNonce::&lt;Runtime&gt;::from(i),</span>
+	<span class="comment">// 		system::CheckWeight::&lt;Runtime&gt;::from(),</span>
+	<span class="comment">// 		balances::TakeFees::&lt;Runtime&gt;::from(f),</span>
+	<span class="comment">// 	)</span>
+	<span class="comment">// };</span>
 	<span class="kw">let</span> <span class="ident">password</span> <span class="op">=</span> <span class="ident">matches</span>.<span class="ident">value_of</span>(<span class="string">&quot;password&quot;</span>);
 	<span class="kw">let</span> <span class="ident">maybe_network</span> <span class="op">=</span> <span class="ident">matches</span>.<span class="ident">value_of</span>(<span class="string">&quot;network&quot;</span>);
 	<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">network</span>) <span class="op">=</span> <span class="ident">maybe_network</span> {
@@ -450,8 +463,7 @@
 
 			println!(&quot;Using a genesis hash of {}&quot;, HexDisplay::from(&amp;genesis_hash.as_ref()));
 
-			let era = Era::immortal();
-			let raw_payload = (Compact(index), function, era, genesis_hash);
+			let raw_payload = (function, extra(index, 0), genesis_hash);
 			let signature = raw_payload.using_encoded(|payload| if payload.len() &gt; 256 {
 				signer.sign(&amp;blake2_256(payload)[..])
 			} else {
@@ -459,11 +471,10 @@
 				signer.sign(payload)
 			});
 			let extrinsic = UncheckedExtrinsic::new_signed(
-				raw_payload.1,
+				raw_payload.0,
 				signer.public().into(),
 				signature.into(),
-				era,
-				(CheckNonce(index), TakeFees(0)),
+				extra(index, 0),
 			);
 			println!(&quot;0x{}&quot;, hex::encode(&amp;extrinsic.encode()));
 		}
@@ -490,7 +501,7 @@
 
 			let era = Era::immortal();
 
-			let raw_payload = (Compact(index), function, era, prior_block_hash);
+			let raw_payload = (function, era, prior_block_hash, extra(index, 0));
 			let signature = raw_payload.using_encoded(|payload|
 				if payload.len() &gt; 256 {
 					signer.sign(&amp;blake2_256(payload)[..])
@@ -500,11 +511,10 @@
 			);
 
 			let extrinsic = UncheckedExtrinsic::new_signed(
-				raw_payload.1,
+				raw_payload.0,
 				signer.public().into(),
 				signature.into(),
-				era,
-				(CheckNonce(index), TakeFees(0)),
+				extra(index, 0),
 			);
 
 			println!(&quot;0x{}&quot;, hex::encode(&amp;extrinsic.encode()));

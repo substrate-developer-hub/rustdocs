@@ -120,6 +120,33 @@
 <span id="120">120</span>
 <span id="121">121</span>
 <span id="122">122</span>
+<span id="123">123</span>
+<span id="124">124</span>
+<span id="125">125</span>
+<span id="126">126</span>
+<span id="127">127</span>
+<span id="128">128</span>
+<span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+<span id="132">132</span>
+<span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -138,14 +165,21 @@
 <span class="comment">// along with Substrate.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
 
 <span class="doccomment">//! Primitives for BABE.</span>
-<span class="attribute">#![<span class="ident">deny</span>(<span class="ident">warnings</span>, <span class="ident">unsafe_code</span>, <span class="ident">missing_docs</span>)]</span>
+<span class="attribute">#![<span class="ident">deny</span>(<span class="ident">warnings</span>)]</span>
+<span class="attribute">#![<span class="ident">forbid</span>(<span class="ident">unsafe_code</span>, <span class="ident">missing_docs</span>, <span class="ident">unused_variables</span>, <span class="ident">unused_imports</span>)]</span>
 <span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>), <span class="ident">no_std</span>)]</span>
+
+<span class="kw">mod</span> <span class="ident">digest</span>;
 
 <span class="kw">use</span> <span class="ident">parity_codec</span>::{<span class="ident">Encode</span>, <span class="ident">Decode</span>};
 <span class="kw">use</span> <span class="ident">rstd</span>::<span class="ident">vec</span>::<span class="ident">Vec</span>;
 <span class="kw">use</span> <span class="ident">runtime_primitives</span>::<span class="ident">ConsensusEngineId</span>;
 <span class="kw">use</span> <span class="ident">substrate_primitives</span>::<span class="ident">sr25519</span>::<span class="ident">Public</span>;
 <span class="kw">use</span> <span class="ident">substrate_client</span>::<span class="ident">decl_runtime_apis</span>;
+
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>)]</span>
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">digest</span>::{<span class="ident">BabePreDigest</span>, <span class="ident">CompatibleDigestItem</span>};
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">digest</span>::{<span class="ident">BABE_VRF_PREFIX</span>, <span class="ident">RawBabePreDigest</span>};
 
 <span class="doccomment">/// A Babe authority identifier. Necessarily equivalent to the schnorrkel public key used in</span>
 <span class="doccomment">/// the main Babe module. If that ever changes, then this must, too.</span>
@@ -172,15 +206,29 @@
 <span class="doccomment">/// The weight of an authority.</span>
 <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">Weight</span> <span class="op">=</span> <span class="ident">u64</span>;
 
+<span class="doccomment">/// BABE epoch information</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Decode</span>, <span class="ident">Encode</span>, <span class="ident">Default</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Clone</span>)]</span>
+<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">any</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>, <span class="ident">test</span>), <span class="ident">derive</span>(<span class="ident">Debug</span>))]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Epoch</span> {
+	<span class="doccomment">/// The authorities and their weights</span>
+	<span class="kw">pub</span> <span class="ident">authorities</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">Weight</span>)<span class="op">&gt;</span>,
+	<span class="doccomment">/// The epoch index</span>
+	<span class="kw">pub</span> <span class="ident">epoch_index</span>: <span class="ident">u64</span>,
+	<span class="doccomment">/// Randomness for this epoch</span>
+	<span class="kw">pub</span> <span class="ident">randomness</span>: [<span class="ident">u8</span>; <span class="ident">VRF_OUTPUT_LENGTH</span>],
+	<span class="doccomment">/// The duration of this epoch</span>
+	<span class="kw">pub</span> <span class="ident">duration</span>: <span class="ident">SlotNumber</span>,
+}
+
 <span class="doccomment">/// An consensus log item for BABE.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Decode</span>, <span class="ident">Encode</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Decode</span>, <span class="ident">Encode</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">ConsensusLog</span> {
 	<span class="doccomment">/// The epoch has changed. This provides information about the</span>
 	<span class="doccomment">/// epoch _after_ next: what slot number it will start at, who are the authorities (and their weights)</span>
 	<span class="doccomment">/// and the next epoch randomness. The information for the _next_ epoch should already</span>
 	<span class="doccomment">/// be available.</span>
 	<span class="attribute">#[<span class="ident">codec</span>(<span class="ident">index</span> <span class="op">=</span> <span class="string">&quot;1&quot;</span>)]</span>
-	<span class="ident">NextEpochData</span>(<span class="ident">SlotNumber</span>, <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">Weight</span>)<span class="op">&gt;</span>, [<span class="ident">u8</span>; <span class="ident">VRF_OUTPUT_LENGTH</span>]),
+	<span class="ident">NextEpochData</span>(<span class="ident">Epoch</span>),
 	<span class="doccomment">/// Disable the authority with given index.</span>
 	<span class="attribute">#[<span class="ident">codec</span>(<span class="ident">index</span> <span class="op">=</span> <span class="string">&quot;2&quot;</span>)]</span>
 	<span class="ident">OnDisabled</span>(<span class="ident">AuthorityIndex</span>),
@@ -194,6 +242,12 @@
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// Dynamic slot duration may be supported in the future.</span>
 	<span class="kw">pub</span> <span class="ident">slot_duration</span>: <span class="ident">u64</span>,
+
+	<span class="doccomment">/// The number of slots per BABE epoch. Currently, only</span>
+	<span class="doccomment">/// the value provided by this type at genesis will be used.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// Dynamic slot duration may be supported in the future.</span>
+	<span class="kw">pub</span> <span class="ident">slots_per_epoch</span>: <span class="ident">u64</span>,
 
 	<span class="doccomment">/// The expected block time in milliseconds for BABE. Currently,</span>
 	<span class="doccomment">/// only the value provided by this type at genesis will be used.</span>
@@ -239,8 +293,8 @@
 		<span class="doccomment">/// Dynamic configuration may be supported in the future.</span>
 		<span class="kw">fn</span> <span class="ident">startup_data</span>() <span class="op">-&gt;</span> <span class="ident">BabeConfiguration</span>;
 
-		<span class="doccomment">/// Get the current authorites for Babe.</span>
-		<span class="kw">fn</span> <span class="ident">authorities</span>() <span class="op">-&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">AuthorityId</span><span class="op">&gt;</span>;
+		<span class="doccomment">/// Get the current epoch data for Babe.</span>
+		<span class="kw">fn</span> <span class="ident">epoch</span>() <span class="op">-&gt;</span> <span class="ident">Epoch</span>;
 	}
 }
 </pre></div>
