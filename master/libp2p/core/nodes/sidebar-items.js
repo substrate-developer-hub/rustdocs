@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["collection",""],["handled_node",""],["handled_node_tasks",""],["listeners","Manage listening on multiple multiaddresses at once."],["node",""],["raw_swarm",""]]});
+initSidebarItems({"mod":[["collection",""],["handled_node",""],["listeners","Manage listening on multiple multiaddresses at once."],["network",""],["node",""],["tasks","Management of tasks handling nodes."]]});

@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["RecordStorageError","The error record store may return"]],"struct":[["MemoryRecordStorage","In-memory implementation of the record store."],["Record","The records that are kept in the dht."]],"trait":[["RecordStore","Trait for a record store."]]});
+initSidebarItems({"mod":[["store",""]],"struct":[["ProviderRecord","A record stored in the DHT whose value is the ID of a peer who can provide the value on-demand."],["Record","A record stored in the DHT."]]});

@@ -151,6 +151,7 @@ ALIASES["libp2p_ping"] = {};
 ALIASES["libp2p_plaintext"] = {};
 ALIASES["libp2p_ratelimit"] = {};
 ALIASES["libp2p_secio"] = {};
+ALIASES["libp2p_swarm"] = {};
 ALIASES["libp2p_tcp"] = {};
 ALIASES["libp2p_uds"] = {};
 ALIASES["libp2p_wasm_ext"] = {};
