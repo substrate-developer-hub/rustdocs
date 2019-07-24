@@ -518,9 +518,6 @@
 <span id="518">518</span>
 <span id="519">519</span>
 <span id="520">520</span>
-<span id="521">521</span>
-<span id="522">522</span>
-<span id="523">523</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -539,16 +536,42 @@
 <span class="comment">// along with Substrate.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">srml_metadata</span>::{
-	<span class="ident">DecodeDifferent</span>, <span class="ident">FnEncode</span>, <span class="ident">RuntimeMetadata</span>, <span class="ident">ModuleMetadata</span>, <span class="ident">RuntimeMetadataV6</span>,
-	<span class="ident">DefaultByteGetter</span>, <span class="ident">RuntimeMetadataPrefixed</span>, <span class="ident">StorageEntryMetadata</span>,
+	<span class="ident">DecodeDifferent</span>, <span class="ident">FnEncode</span>, <span class="ident">RuntimeMetadata</span>, <span class="ident">ModuleMetadata</span>, <span class="ident">RuntimeMetadataLastVersion</span>,
+	<span class="ident">DefaultByteGetter</span>, <span class="ident">RuntimeMetadataPrefixed</span>, <span class="ident">StorageEntryMetadata</span>, <span class="ident">StorageMetadata</span>,
 	<span class="ident">StorageEntryType</span>, <span class="ident">StorageEntryModifier</span>, <span class="ident">DefaultByte</span>, <span class="ident">StorageHasher</span>
 };
 
 <span class="doccomment">/// Implements the metadata support for the given runtime and all its modules.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// Example:</span>
-<span class="doccomment">/// ```compile_fail</span>
-<span class="doccomment">/// impl_runtime_metadata!(for RUNTIME_NAME with modules MODULE0, MODULE2, MODULE3 with Storage);</span>
+<span class="doccomment">/// ```</span>
+<span class="doccomment">///# mod module0 {</span>
+<span class="doccomment">///#    pub trait Trait {</span>
+<span class="doccomment">///#        type Origin;</span>
+<span class="doccomment">///#        type BlockNumber;</span>
+<span class="doccomment">///#    }</span>
+<span class="doccomment">///#    srml_support::decl_module! {</span>
+<span class="doccomment">///#        pub struct Module&lt;T: Trait&gt; for enum Call where origin: T::Origin {}</span>
+<span class="doccomment">///#    }</span>
+<span class="doccomment">///#</span>
+<span class="doccomment">///#    srml_support::decl_storage! {</span>
+<span class="doccomment">///#        trait Store for Module&lt;T: Trait&gt; as TestStorage {}</span>
+<span class="doccomment">///#    }</span>
+<span class="doccomment">///# }</span>
+<span class="doccomment">///# use module0 as module1;</span>
+<span class="doccomment">///# use module0 as module2;</span>
+<span class="doccomment">///# impl module0::Trait for Runtime {</span>
+<span class="doccomment">///#     type Origin = u32;</span>
+<span class="doccomment">///#     type BlockNumber = u32;</span>
+<span class="doccomment">///# }</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// struct Runtime;</span>
+<span class="doccomment">/// srml_support::impl_runtime_metadata! {</span>
+<span class="doccomment">///     for Runtime with modules</span>
+<span class="doccomment">///         module0::Module as Module0 with,</span>
+<span class="doccomment">///         module1::Module as Module1 with,</span>
+<span class="doccomment">///         module2::Module as Module2 with Storage,</span>
+<span class="doccomment">/// };</span>
 <span class="doccomment">/// ```</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// In this example, just `MODULE3` implements the `Storage` trait.</span>
@@ -560,11 +583,9 @@
 	) <span class="op">=&gt;</span> {
 		<span class="kw">impl</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">runtime</span> {
 			<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">metadata</span>() <span class="op">-&gt;</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">metadata</span>::<span class="ident">RuntimeMetadataPrefixed</span> {
-				<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">metadata</span>::<span class="ident">RuntimeMetadata</span>::<span class="ident">V6</span> (
-					<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">metadata</span>::<span class="ident">RuntimeMetadataV6</span> {
+				<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">metadata</span>::<span class="ident">RuntimeMetadataLastVersion</span> {
 						<span class="ident">modules</span>: <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">__runtime_modules_to_metadata</span><span class="op">!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">runtime</span>;; $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">rest</span> )<span class="kw-2">*</span>),
-					}
-				).<span class="ident">into</span>()
+				}.<span class="ident">into</span>()
 			}
 		}
 	}
@@ -576,17 +597,22 @@
 	(
 		<span class="macro-nonterminal">$</span><span class="macro-nonterminal">runtime</span>: <span class="ident">ident</span>;
 		$( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">metadata</span>:<span class="ident">expr</span> ),<span class="kw-2">*</span>;
-		<span class="macro-nonterminal">$</span><span class="kw">mod</span>:<span class="macro-nonterminal">ident</span>::<span class="macro-nonterminal">$</span><span class="macro-nonterminal">module</span>:<span class="ident">ident</span> $( <span class="op">&lt;</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">instance</span>:<span class="ident">ident</span> <span class="op">&gt;</span> )<span class="question-mark">?</span> $(<span class="ident">with</span>)<span class="op">+</span> $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">kw</span>:<span class="ident">ident</span>)<span class="kw-2">*</span>,
+		<span class="macro-nonterminal">$</span><span class="kw">mod</span>:<span class="macro-nonterminal">ident</span>::<span class="macro-nonterminal">$</span><span class="macro-nonterminal">module</span>:<span class="ident">ident</span> $( <span class="op">&lt;</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">instance</span>:<span class="ident">ident</span> <span class="op">&gt;</span> )<span class="question-mark">?</span> <span class="kw">as</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">name</span>:<span class="ident">ident</span> $(<span class="ident">with</span>)<span class="op">+</span> $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">kw</span>:<span class="ident">ident</span>)<span class="kw-2">*</span>,
 		$( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">rest</span>:<span class="ident">tt</span> )<span class="op">*</span>
 	) <span class="op">=&gt;</span> {
 		<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">__runtime_modules_to_metadata</span><span class="op">!</span>(
 			<span class="macro-nonterminal">$</span><span class="macro-nonterminal">runtime</span>;
 			$( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">metadata</span>, )<span class="op">*</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">metadata</span>::<span class="ident">ModuleMetadata</span> {
-				<span class="ident">name</span>: <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">metadata</span>::<span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="macro">stringify</span><span class="macro">!</span>(<span class="macro-nonterminal">$</span><span class="kw">mod</span>)),
-				<span class="macro-nonterminal">prefix</span>: <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">__runtime_modules_to_metadata_calls_storagename</span><span class="op">!</span>(<span class="macro-nonterminal">$</span><span class="kw">mod</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">module</span> $( <span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">instance</span><span class="op">&gt;</span> )<span class="question-mark">?</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">runtime</span>, $(<span class="ident">with</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">kw</span>)<span class="kw-2">*</span>),
-				<span class="ident">storage</span>: <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">__runtime_modules_to_metadata_calls_storage</span><span class="op">!</span>(<span class="macro-nonterminal">$</span><span class="kw">mod</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">module</span> $( <span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">instance</span><span class="op">&gt;</span> )<span class="question-mark">?</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">runtime</span>, $(<span class="ident">with</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">kw</span>)<span class="kw-2">*</span>),
-				<span class="ident">calls</span>: <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">__runtime_modules_to_metadata_calls_call</span><span class="op">!</span>(<span class="macro-nonterminal">$</span><span class="kw">mod</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">module</span> $( <span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">instance</span><span class="op">&gt;</span> )<span class="question-mark">?</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">runtime</span>, $(<span class="ident">with</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">kw</span>)<span class="kw-2">*</span>),
-				<span class="ident">event</span>: <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">__runtime_modules_to_metadata_calls_event</span><span class="op">!</span>(<span class="macro-nonterminal">$</span><span class="kw">mod</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">module</span> $( <span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">instance</span><span class="op">&gt;</span> )<span class="question-mark">?</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">runtime</span>, $(<span class="ident">with</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">kw</span>)<span class="kw-2">*</span>),
+				<span class="ident">name</span>: <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">metadata</span>::<span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="macro">stringify</span><span class="macro">!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">name</span>)),
+				<span class="ident">storage</span>: <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">__runtime_modules_to_metadata_calls_storage</span><span class="op">!</span>(
+					<span class="macro-nonterminal">$</span><span class="kw">mod</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">module</span> $( <span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">instance</span><span class="op">&gt;</span> )<span class="question-mark">?</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">runtime</span>, $(<span class="ident">with</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">kw</span>)<span class="op">*</span>
+				),
+				<span class="ident">calls</span>: <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">__runtime_modules_to_metadata_calls_call</span><span class="op">!</span>(
+					<span class="macro-nonterminal">$</span><span class="kw">mod</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">module</span> $( <span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">instance</span><span class="op">&gt;</span> )<span class="question-mark">?</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">runtime</span>, $(<span class="ident">with</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">kw</span>)<span class="op">*</span>
+				),
+				<span class="ident">event</span>: <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">__runtime_modules_to_metadata_calls_event</span><span class="op">!</span>(
+					<span class="macro-nonterminal">$</span><span class="kw">mod</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">module</span> $( <span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">instance</span><span class="op">&gt;</span> )<span class="question-mark">?</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">runtime</span>, $(<span class="ident">with</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">kw</span>)<span class="op">*</span>
+				),
 				<span class="ident">constants</span>: <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">metadata</span>::<span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(
 					<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">metadata</span>::<span class="ident">FnEncode</span>(
 						<span class="macro-nonterminal">$</span><span class="kw">mod</span>::<span class="macro-nonterminal">$</span><span class="macro-nonterminal">module</span>::<span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">runtime</span> $(, <span class="macro-nonterminal">$</span><span class="kw">mod</span>::<span class="macro-nonterminal">$</span><span class="macro-nonterminal">instance</span> )<span class="question-mark">?</span><span class="op">&gt;</span>::<span class="ident">module_constants_metadata</span>
@@ -627,7 +653,9 @@
 		<span class="ident">with</span> <span class="macro-nonterminal">$</span><span class="kw">_</span>:<span class="macro-nonterminal">ident</span>
 		$(<span class="ident">with</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">kws</span>:<span class="ident">ident</span>)<span class="op">*</span>
 	) <span class="op">=&gt;</span> {
-		<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">__runtime_modules_to_metadata_calls_call</span><span class="op">!</span>( <span class="macro-nonterminal">$</span><span class="kw">mod</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">module</span> $( <span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">instance</span><span class="op">&gt;</span> )<span class="question-mark">?</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">runtime</span>, $(<span class="ident">with</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">kws</span>)<span class="op">*</span> );
+		<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">__runtime_modules_to_metadata_calls_call</span><span class="op">!</span> {
+			<span class="macro-nonterminal">$</span><span class="kw">mod</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">module</span> $( <span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">instance</span><span class="op">&gt;</span> )<span class="question-mark">?</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">runtime</span>, $(<span class="ident">with</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">kws</span>)<span class="op">*</span>
+		};
 	};
 	(
 		<span class="macro-nonterminal">$</span><span class="kw">mod</span>: <span class="macro-nonterminal">ident</span>,
@@ -677,42 +705,6 @@
 
 <span class="attribute">#[<span class="ident">macro_export</span>]</span>
 <span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
-<span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">__runtime_modules_to_metadata_calls_storagename</span> {
-	(
-		<span class="macro-nonterminal">$</span><span class="kw">mod</span>: <span class="macro-nonterminal">ident</span>,
-		<span class="macro-nonterminal">$</span><span class="macro-nonterminal">module</span>: <span class="ident">ident</span> $( <span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">instance</span>:<span class="ident">ident</span><span class="op">&gt;</span> )<span class="question-mark">?</span>,
-		<span class="macro-nonterminal">$</span><span class="macro-nonterminal">runtime</span>: <span class="ident">ident</span>,
-		<span class="ident">with</span> <span class="ident">Storage</span>
-		$(<span class="ident">with</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">kws</span>:<span class="ident">ident</span>)<span class="op">*</span>
-	) <span class="op">=&gt;</span> {
-		<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">metadata</span>::<span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(
-			<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">metadata</span>::<span class="ident">FnEncode</span>(
-				<span class="macro-nonterminal">$</span><span class="kw">mod</span>::<span class="macro-nonterminal">$</span><span class="macro-nonterminal">module</span>::<span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">runtime</span> $(, <span class="macro-nonterminal">$</span><span class="kw">mod</span>::<span class="macro-nonterminal">$</span><span class="macro-nonterminal">instance</span> )<span class="question-mark">?</span><span class="op">&gt;</span>::<span class="ident">store_metadata_name</span>
-			)
-		)
-	};
-	(
-		<span class="macro-nonterminal">$</span><span class="kw">mod</span>: <span class="macro-nonterminal">ident</span>,
-		<span class="macro-nonterminal">$</span><span class="macro-nonterminal">module</span>: <span class="ident">ident</span> $( <span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">instance</span>:<span class="ident">ident</span><span class="op">&gt;</span> )<span class="question-mark">?</span>,
-		<span class="macro-nonterminal">$</span><span class="macro-nonterminal">runtime</span>: <span class="ident">ident</span>,
-		<span class="ident">with</span> <span class="macro-nonterminal">$</span><span class="kw">_</span>:<span class="macro-nonterminal">ident</span>
-		$(<span class="ident">with</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">kws</span>:<span class="ident">ident</span>)<span class="op">*</span>
-	) <span class="op">=&gt;</span> {
-		<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">__runtime_modules_to_metadata_calls_storagename</span><span class="op">!</span>( <span class="macro-nonterminal">$</span><span class="kw">mod</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">module</span> $( <span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">instance</span><span class="op">&gt;</span> )<span class="question-mark">?</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">runtime</span>, $(<span class="ident">with</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">kws</span>)<span class="op">*</span> );
-	};
-	(
-		<span class="macro-nonterminal">$</span><span class="kw">mod</span>: <span class="macro-nonterminal">ident</span>,
-		<span class="macro-nonterminal">$</span><span class="macro-nonterminal">module</span>: <span class="ident">ident</span> $( <span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">instance</span>:<span class="ident">ident</span><span class="op">&gt;</span> )<span class="question-mark">?</span>,
-		<span class="macro-nonterminal">$</span><span class="macro-nonterminal">runtime</span>: <span class="ident">ident</span>,
-	) <span class="op">=&gt;</span> {
-		<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">metadata</span>::<span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(
-			<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">metadata</span>::<span class="ident">FnEncode</span>(<span class="op">||</span> <span class="string">&quot;&quot;</span>)
-		)
-	};
-}
-
-<span class="attribute">#[<span class="ident">macro_export</span>]</span>
-<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
 <span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">__runtime_modules_to_metadata_calls_storage</span> {
 	(
 		<span class="macro-nonterminal">$</span><span class="kw">mod</span>: <span class="macro-nonterminal">ident</span>,
@@ -723,7 +715,7 @@
 	) <span class="op">=&gt;</span> {
 		<span class="prelude-val">Some</span>(<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">metadata</span>::<span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(
 			<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">metadata</span>::<span class="ident">FnEncode</span>(
-				<span class="macro-nonterminal">$</span><span class="kw">mod</span>::<span class="macro-nonterminal">$</span><span class="macro-nonterminal">module</span>::<span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">runtime</span> $(, <span class="macro-nonterminal">$</span><span class="kw">mod</span>::<span class="macro-nonterminal">$</span><span class="macro-nonterminal">instance</span> )<span class="question-mark">?</span><span class="op">&gt;</span>::<span class="ident">store_metadata_functions</span>
+				<span class="macro-nonterminal">$</span><span class="kw">mod</span>::<span class="macro-nonterminal">$</span><span class="macro-nonterminal">module</span>::<span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">runtime</span> $(, <span class="macro-nonterminal">$</span><span class="kw">mod</span>::<span class="macro-nonterminal">$</span><span class="macro-nonterminal">instance</span> )<span class="question-mark">?</span><span class="op">&gt;</span>::<span class="ident">storage_metadata</span>
 			)
 		))
 	};
@@ -734,7 +726,9 @@
 		<span class="ident">with</span> <span class="macro-nonterminal">$</span><span class="kw">_</span>:<span class="macro-nonterminal">ident</span>
 		$(<span class="ident">with</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">kws</span>:<span class="ident">ident</span>)<span class="op">*</span>
 	) <span class="op">=&gt;</span> {
-		<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">__runtime_modules_to_metadata_calls_storage</span><span class="op">!</span>( <span class="macro-nonterminal">$</span><span class="kw">mod</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">module</span> $( <span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">instance</span><span class="op">&gt;</span> )<span class="question-mark">?</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">runtime</span>, $(<span class="ident">with</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">kws</span>)<span class="op">*</span> );
+		<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">__runtime_modules_to_metadata_calls_storage</span><span class="op">!</span> {
+			<span class="macro-nonterminal">$</span><span class="kw">mod</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">module</span> $( <span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">instance</span><span class="op">&gt;</span> )<span class="question-mark">?</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">runtime</span>, $(<span class="ident">with</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">kws</span>)<span class="op">*</span>
+		};
 	};
 	(
 		<span class="macro-nonterminal">$</span><span class="kw">mod</span>: <span class="macro-nonterminal">ident</span>,
@@ -905,9 +899,9 @@
 
 	<span class="macro">impl_runtime_metadata</span><span class="macro">!</span>(
 		<span class="kw">for</span> <span class="ident">TestRuntime</span> <span class="ident">with</span> <span class="ident">modules</span>
-			<span class="ident">system</span>::<span class="ident">Module</span> <span class="ident">with</span> <span class="ident">Event</span>,
-			<span class="ident">event_module</span>::<span class="ident">Module</span> <span class="ident">with</span> <span class="ident">Event</span> <span class="ident">Call</span>,
-			<span class="ident">event_module2</span>::<span class="ident">Module</span> <span class="ident">with</span> <span class="ident">Event</span> <span class="ident">Storage</span> <span class="ident">Call</span>,
+			<span class="ident">system</span>::<span class="ident">Module</span> <span class="kw">as</span> <span class="ident">System</span> <span class="ident">with</span> <span class="ident">Event</span>,
+			<span class="ident">event_module</span>::<span class="ident">Module</span> <span class="kw">as</span> <span class="ident">Module</span> <span class="ident">with</span> <span class="ident">Event</span> <span class="ident">Call</span>,
+			<span class="ident">event_module2</span>::<span class="ident">Module</span> <span class="kw">as</span> <span class="ident">Module2</span> <span class="ident">with</span> <span class="ident">Event</span> <span class="ident">Storage</span> <span class="ident">Call</span>,
 	);
 
 	<span class="kw">struct</span> <span class="ident">ConstantBlockNumberByteGetter</span>;
@@ -931,110 +925,110 @@
 		}
 	}
 
-	<span class="kw">const</span> <span class="ident">EXPECTED_METADATA</span>: <span class="ident">RuntimeMetadata</span> <span class="op">=</span> <span class="ident">RuntimeMetadata</span>::<span class="ident">V6</span>(
-		<span class="ident">RuntimeMetadataV6</span> {
-			<span class="ident">modules</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[
-				<span class="ident">ModuleMetadata</span> {
-					<span class="ident">name</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;system&quot;</span>),
-					<span class="ident">prefix</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="ident">FnEncode</span>(<span class="op">||</span> <span class="string">&quot;&quot;</span>)),
-					<span class="ident">storage</span>: <span class="prelude-val">None</span>,
-					<span class="ident">calls</span>: <span class="prelude-val">None</span>,
-					<span class="ident">event</span>: <span class="prelude-val">Some</span>(<span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(
-						<span class="ident">FnEncode</span>(<span class="op">||</span><span class="kw-2">&amp;</span>[
-							<span class="ident">EventMetadata</span> {
-								<span class="ident">name</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;SystemEvent&quot;</span>),
-								<span class="ident">arguments</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[]),
-								<span class="ident">documentation</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[])
-							}
-						])
-					)),
-					<span class="ident">constants</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(
-						<span class="ident">FnEncode</span>(<span class="op">||</span> <span class="kw-2">&amp;</span>[
-							<span class="ident">ModuleConstantMetadata</span> {
-								<span class="ident">name</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;BlockNumber&quot;</span>),
-								<span class="ident">ty</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;T::BlockNumber&quot;</span>),
-								<span class="ident">value</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(
-									<span class="ident">DefaultByteGetter</span>(<span class="kw-2">&amp;</span><span class="ident">ConstantBlockNumberByteGetter</span>)
-								),
-								<span class="ident">documentation</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[<span class="string">&quot; Hi, I am a comment.&quot;</span>]),
-							},
-							<span class="ident">ModuleConstantMetadata</span> {
-								<span class="ident">name</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;GetType&quot;</span>),
-								<span class="ident">ty</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;T::AccountId&quot;</span>),
-								<span class="ident">value</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(
-									<span class="ident">DefaultByteGetter</span>(<span class="kw-2">&amp;</span><span class="ident">ConstantGetTypeByteGetter</span>)
-								),
-								<span class="ident">documentation</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[]),
-							},
-							<span class="ident">ModuleConstantMetadata</span> {
-								<span class="ident">name</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;ASSOCIATED_CONST&quot;</span>),
-								<span class="ident">ty</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;u64&quot;</span>),
-								<span class="ident">value</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(
-									<span class="ident">DefaultByteGetter</span>(<span class="kw-2">&amp;</span><span class="ident">ConstantAssociatedConstByteGetter</span>)
-								),
-								<span class="ident">documentation</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[]),
-							}
-						])
-					),
-				},
-				<span class="ident">ModuleMetadata</span> {
-					<span class="ident">name</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;event_module&quot;</span>),
-					<span class="ident">prefix</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="ident">FnEncode</span>(<span class="op">||</span> <span class="string">&quot;&quot;</span>)),
-					<span class="ident">storage</span>: <span class="prelude-val">None</span>,
-					<span class="ident">calls</span>: <span class="prelude-val">Some</span>(
-						<span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="ident">FnEncode</span>(<span class="op">||</span> <span class="kw-2">&amp;</span>[
-							<span class="ident">FunctionMetadata</span> {
-								<span class="ident">name</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;aux_0&quot;</span>),
-								<span class="ident">arguments</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[]),
-								<span class="ident">documentation</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[]),
-							}
-						]))),
-					<span class="ident">event</span>: <span class="prelude-val">Some</span>(<span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(
-						<span class="ident">FnEncode</span>(<span class="op">||</span><span class="kw-2">&amp;</span>[
-							<span class="ident">EventMetadata</span> {
-								<span class="ident">name</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;TestEvent&quot;</span>),
-								<span class="ident">arguments</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[<span class="string">&quot;Balance&quot;</span>]),
-								<span class="ident">documentation</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[<span class="string">&quot; Hi, I am a comment.&quot;</span>])
-							}
-						])
-					)),
-					<span class="ident">constants</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="ident">FnEncode</span>(<span class="op">||</span> <span class="kw-2">&amp;</span>[])),
-				},
-				<span class="ident">ModuleMetadata</span> {
-					<span class="ident">name</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;event_module2&quot;</span>),
-					<span class="ident">prefix</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="ident">FnEncode</span>(<span class="op">||</span><span class="string">&quot;TestStorage&quot;</span>)),
-					<span class="ident">storage</span>: <span class="prelude-val">Some</span>(<span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(
-						<span class="ident">FnEncode</span>(<span class="op">||</span><span class="kw-2">&amp;</span>[
-							<span class="ident">StorageEntryMetadata</span> {
-								<span class="ident">name</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;StorageMethod&quot;</span>),
-								<span class="ident">modifier</span>: <span class="ident">StorageEntryModifier</span>::<span class="ident">Optional</span>,
-								<span class="ident">ty</span>: <span class="ident">StorageEntryType</span>::<span class="ident">Plain</span>(<span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;u32&quot;</span>)),
-								<span class="ident">default</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(
-									<span class="ident">DefaultByteGetter</span>(
-										<span class="kw-2">&amp;</span><span class="ident">event_module2</span>::<span class="ident">__GetByteStructStorageMethod</span>(
-											<span class="ident">std</span>::<span class="ident">marker</span>::<span class="ident">PhantomData</span>::<span class="op">&lt;</span><span class="ident">TestRuntime</span><span class="op">&gt;</span>
+	<span class="kw">const</span> <span class="ident">EXPECTED_METADATA</span>: <span class="ident">RuntimeMetadataLastVersion</span> <span class="op">=</span> <span class="ident">RuntimeMetadataLastVersion</span> {
+		<span class="ident">modules</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[
+			<span class="ident">ModuleMetadata</span> {
+				<span class="ident">name</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;System&quot;</span>),
+				<span class="ident">storage</span>: <span class="prelude-val">None</span>,
+				<span class="ident">calls</span>: <span class="prelude-val">None</span>,
+				<span class="ident">event</span>: <span class="prelude-val">Some</span>(<span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(
+					<span class="ident">FnEncode</span>(<span class="op">||</span><span class="kw-2">&amp;</span>[
+						<span class="ident">EventMetadata</span> {
+							<span class="ident">name</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;SystemEvent&quot;</span>),
+							<span class="ident">arguments</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[]),
+							<span class="ident">documentation</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[])
+						}
+					])
+				)),
+				<span class="ident">constants</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(
+					<span class="ident">FnEncode</span>(<span class="op">||</span> <span class="kw-2">&amp;</span>[
+						<span class="ident">ModuleConstantMetadata</span> {
+							<span class="ident">name</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;BlockNumber&quot;</span>),
+							<span class="ident">ty</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;T::BlockNumber&quot;</span>),
+							<span class="ident">value</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(
+								<span class="ident">DefaultByteGetter</span>(<span class="kw-2">&amp;</span><span class="ident">ConstantBlockNumberByteGetter</span>)
+							),
+							<span class="ident">documentation</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[<span class="string">&quot; Hi, I am a comment.&quot;</span>]),
+						},
+						<span class="ident">ModuleConstantMetadata</span> {
+							<span class="ident">name</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;GetType&quot;</span>),
+							<span class="ident">ty</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;T::AccountId&quot;</span>),
+							<span class="ident">value</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(
+								<span class="ident">DefaultByteGetter</span>(<span class="kw-2">&amp;</span><span class="ident">ConstantGetTypeByteGetter</span>)
+							),
+							<span class="ident">documentation</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[]),
+						},
+						<span class="ident">ModuleConstantMetadata</span> {
+							<span class="ident">name</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;ASSOCIATED_CONST&quot;</span>),
+							<span class="ident">ty</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;u64&quot;</span>),
+							<span class="ident">value</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(
+								<span class="ident">DefaultByteGetter</span>(<span class="kw-2">&amp;</span><span class="ident">ConstantAssociatedConstByteGetter</span>)
+							),
+							<span class="ident">documentation</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[]),
+						}
+					])
+				),
+			},
+			<span class="ident">ModuleMetadata</span> {
+				<span class="ident">name</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;Module&quot;</span>),
+				<span class="ident">storage</span>: <span class="prelude-val">None</span>,
+				<span class="ident">calls</span>: <span class="prelude-val">Some</span>(
+					<span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="ident">FnEncode</span>(<span class="op">||</span> <span class="kw-2">&amp;</span>[
+						<span class="ident">FunctionMetadata</span> {
+							<span class="ident">name</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;aux_0&quot;</span>),
+							<span class="ident">arguments</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[]),
+							<span class="ident">documentation</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[]),
+						}
+					]))),
+				<span class="ident">event</span>: <span class="prelude-val">Some</span>(<span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(
+					<span class="ident">FnEncode</span>(<span class="op">||</span><span class="kw-2">&amp;</span>[
+						<span class="ident">EventMetadata</span> {
+							<span class="ident">name</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;TestEvent&quot;</span>),
+							<span class="ident">arguments</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[<span class="string">&quot;Balance&quot;</span>]),
+							<span class="ident">documentation</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[<span class="string">&quot; Hi, I am a comment.&quot;</span>])
+						}
+					])
+				)),
+				<span class="ident">constants</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="ident">FnEncode</span>(<span class="op">||</span> <span class="kw-2">&amp;</span>[])),
+			},
+			<span class="ident">ModuleMetadata</span> {
+				<span class="ident">name</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;Module2&quot;</span>),
+				<span class="ident">storage</span>: <span class="prelude-val">Some</span>(<span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(
+					<span class="ident">FnEncode</span>(<span class="op">||</span> <span class="ident">StorageMetadata</span> {
+						<span class="ident">prefix</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;TestStorage&quot;</span>),
+						<span class="ident">entries</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(
+							<span class="kw-2">&amp;</span>[
+								<span class="ident">StorageEntryMetadata</span> {
+									<span class="ident">name</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;StorageMethod&quot;</span>),
+									<span class="ident">modifier</span>: <span class="ident">StorageEntryModifier</span>::<span class="ident">Optional</span>,
+									<span class="ident">ty</span>: <span class="ident">StorageEntryType</span>::<span class="ident">Plain</span>(<span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;u32&quot;</span>)),
+									<span class="ident">default</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(
+										<span class="ident">DefaultByteGetter</span>(
+											<span class="kw-2">&amp;</span><span class="ident">event_module2</span>::<span class="ident">__GetByteStructStorageMethod</span>(
+												<span class="ident">std</span>::<span class="ident">marker</span>::<span class="ident">PhantomData</span>::<span class="op">&lt;</span><span class="ident">TestRuntime</span><span class="op">&gt;</span>
+											)
 										)
-									)
-								),
-								<span class="ident">documentation</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[]),
-							}
-						])
-					)),
-					<span class="ident">calls</span>: <span class="prelude-val">Some</span>(<span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="ident">FnEncode</span>(<span class="op">||</span> <span class="kw-2">&amp;</span>[]))),
-					<span class="ident">event</span>: <span class="prelude-val">Some</span>(<span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(
-						<span class="ident">FnEncode</span>(<span class="op">||</span><span class="kw-2">&amp;</span>[
-							<span class="ident">EventMetadata</span> {
-								<span class="ident">name</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;TestEvent&quot;</span>),
-								<span class="ident">arguments</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[<span class="string">&quot;Balance&quot;</span>]),
-								<span class="ident">documentation</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[])
-							}
-						])
-					)),
-					<span class="ident">constants</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="ident">FnEncode</span>(<span class="op">||</span> <span class="kw-2">&amp;</span>[])),
-				},
-			])
-		}
-	);
+									),
+									<span class="ident">documentation</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[]),
+								}
+							]
+						)
+					}),
+				)),
+				<span class="ident">calls</span>: <span class="prelude-val">Some</span>(<span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="ident">FnEncode</span>(<span class="op">||</span> <span class="kw-2">&amp;</span>[]))),
+				<span class="ident">event</span>: <span class="prelude-val">Some</span>(<span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(
+					<span class="ident">FnEncode</span>(<span class="op">||</span><span class="kw-2">&amp;</span>[
+						<span class="ident">EventMetadata</span> {
+							<span class="ident">name</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="string">&quot;TestEvent&quot;</span>),
+							<span class="ident">arguments</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[<span class="string">&quot;Balance&quot;</span>]),
+							<span class="ident">documentation</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="kw-2">&amp;</span>[])
+						}
+					])
+				)),
+				<span class="ident">constants</span>: <span class="ident">DecodeDifferent</span>::<span class="ident">Encode</span>(<span class="ident">FnEncode</span>(<span class="op">||</span> <span class="kw-2">&amp;</span>[])),
+			},
+		])
+	};
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
 	<span class="kw">fn</span> <span class="ident">runtime_metadata</span>() {
