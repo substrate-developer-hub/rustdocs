@@ -313,6 +313,11 @@
 <span id="313">313</span>
 <span id="314">314</span>
 <span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -330,8 +335,8 @@
 <span class="comment">// You should have received a copy of the GNU General Public License</span>
 <span class="comment">// along with Substrate.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
 
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
-<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">future</span>::<span class="ident">Executor</span>, <span class="ident">sync</span>::<span class="ident">mpsc</span>};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">pin</span>::<span class="ident">Pin</span>, <span class="ident">sync</span>::<span class="ident">Arc</span>};
+<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">channel</span>::<span class="ident">mpsc</span>, <span class="ident">task</span>::<span class="ident">SpawnExt</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">task</span>::<span class="ident">Context</span>, <span class="ident">task</span>::<span class="ident">Poll</span>};
 <span class="kw">use</span> <span class="ident">runtime_primitives</span>::{<span class="ident">Justification</span>, <span class="ident">traits</span>::{<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">Header</span> <span class="kw">as</span> <span class="ident">HeaderT</span>, <span class="ident">NumberFor</span>}};
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">error</span>::<span class="ident">Error</span> <span class="kw">as</span> <span class="ident">ConsensusError</span>;
@@ -350,15 +355,12 @@
 	<span class="ident">sender</span>: <span class="ident">mpsc</span>::<span class="ident">UnboundedSender</span><span class="op">&lt;</span><span class="ident">ToWorkerMsg</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>,
 	<span class="doccomment">/// Results coming from the worker task.</span>
 	<span class="ident">result_port</span>: <span class="ident">BufferedLinkReceiver</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
-	<span class="doccomment">/// Since we have to be in a tokio context in order to spawn background tasks, we first store</span>
-	<span class="doccomment">/// the task to spawn here, then extract it as soon as we are in a tokio context.</span>
-	<span class="doccomment">/// If `Some`, contains the task to spawn in the background. If `None`, the future has already</span>
-	<span class="doccomment">/// been spawned.</span>
-	<span class="ident">future_to_spawn</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;&gt;</span>,
 	<span class="doccomment">/// If it isn&#39;t possible to spawn the future in `future_to_spawn` (which is notably the case in</span>
 	<span class="doccomment">/// &quot;no std&quot; environment), we instead put it in `manual_poll`. It is then polled manually from</span>
 	<span class="doccomment">/// `poll_actions`.</span>
-	<span class="ident">manual_poll</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;&gt;</span>,
+	<span class="ident">manual_poll</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Pin</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>,
+	<span class="doccomment">/// A thread pool where the background worker is being run.</span>
+	<span class="ident">pool</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">ThreadPool</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> <span class="ident">BasicQueue</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> {
@@ -381,11 +383,27 @@
 			<span class="ident">finality_proof_import</span>,
 		);
 
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pool</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">ThreadPool</span>::<span class="ident">builder</span>()
+			.<span class="ident">name_prefix</span>(<span class="string">&quot;import-queue-worker-&quot;</span>)
+			.<span class="ident">pool_size</span>(<span class="number">1</span>)
+			.<span class="ident">create</span>()
+			.<span class="ident">ok</span>();
+
+		<span class="kw">let</span> <span class="ident">manual_poll</span>;
+		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">pool</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">pool</span> {
+			<span class="comment">// TODO: this expect() can be removed once</span>
+			<span class="comment">// https://github.com/rust-lang-nursery/futures-rs/pull/1750 is merged and deployed</span>
+			<span class="ident">pool</span>.<span class="ident">spawn</span>(<span class="ident">future</span>).<span class="ident">expect</span>(<span class="string">&quot;ThreadPool can never fail to spawn tasks; QED&quot;</span>);
+			<span class="ident">manual_poll</span> <span class="op">=</span> <span class="prelude-val">None</span>;
+		} <span class="kw">else</span> {
+			<span class="ident">manual_poll</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">future</span>) <span class="kw">as</span> <span class="ident">Pin</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;&gt;</span>);
+		}
+
 		<span class="self">Self</span> {
 			<span class="ident">sender</span>: <span class="ident">worker_sender</span>,
 			<span class="ident">result_port</span>,
-			<span class="ident">future_to_spawn</span>: <span class="prelude-val">Some</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">future</span>)),
-			<span class="ident">manual_poll</span>: <span class="prelude-val">None</span>,
+			<span class="ident">manual_poll</span>,
+			<span class="ident">pool</span>,
 		}
 	}
 }
@@ -415,25 +433,17 @@
 		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">unbounded_send</span>(<span class="ident">ToWorkerMsg</span>::<span class="ident">ImportFinalityProof</span>(<span class="ident">who</span>, <span class="ident">hash</span>, <span class="ident">number</span>, <span class="ident">finality_proof</span>));
 	}
 
-	<span class="kw">fn</span> <span class="ident">poll_actions</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">link</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">Link</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>) {
-		<span class="comment">// Try to spawn the future in `future_to_spawn`.</span>
-		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">future</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">future_to_spawn</span>.<span class="ident">take</span>() {
-			<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="ident">tokio_executor</span>::<span class="ident">DefaultExecutor</span>::<span class="ident">current</span>().<span class="ident">execute</span>(<span class="ident">future</span>) {
-				<span class="macro">debug_assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">manual_poll</span>.<span class="ident">is_none</span>());
-				<span class="self">self</span>.<span class="ident">manual_poll</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">err</span>.<span class="ident">into_future</span>());
-			}
-		}
-
+	<span class="kw">fn</span> <span class="ident">poll_actions</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>, <span class="ident">link</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">Link</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>) {
 		<span class="comment">// As a backup mechanism, if we failed to spawn the `future_to_spawn`, we instead poll</span>
 		<span class="comment">// manually here.</span>
 		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">manual_poll</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">manual_poll</span>.<span class="ident">as_mut</span>() {
-			<span class="kw">match</span> <span class="ident">manual_poll</span>.<span class="ident">poll</span>() {
-				<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=&gt;</span> {}
+			<span class="kw">match</span> <span class="ident">Future</span>::<span class="ident">poll</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="ident">manual_poll</span>), <span class="ident">cx</span>) {
+				<span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=&gt;</span> {}
 				<span class="kw">_</span> <span class="op">=&gt;</span> <span class="self">self</span>.<span class="ident">manual_poll</span> <span class="op">=</span> <span class="prelude-val">None</span>,
 			}
 		}
 
-		<span class="self">self</span>.<span class="ident">result_port</span>.<span class="ident">poll_actions</span>(<span class="ident">link</span>);
+		<span class="self">self</span>.<span class="ident">result_port</span>.<span class="ident">poll_actions</span>(<span class="ident">cx</span>, <span class="ident">link</span>);
 	}
 }
 
@@ -460,7 +470,7 @@
 		<span class="ident">block_import</span>: <span class="ident">BoxBlockImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 		<span class="ident">justification_import</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">BoxJustificationImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>,
 		<span class="ident">finality_proof_import</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">BoxFinalityProofImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>,
-	) <span class="op">-&gt;</span> (<span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span>, <span class="ident">mpsc</span>::<span class="ident">UnboundedSender</span><span class="op">&lt;</span><span class="ident">ToWorkerMsg</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>) {
+	) <span class="op">-&gt;</span> (<span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span>, <span class="ident">mpsc</span>::<span class="ident">UnboundedSender</span><span class="op">&lt;</span><span class="ident">ToWorkerMsg</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>) {
 		<span class="kw">let</span> (<span class="ident">sender</span>, <span class="kw-2">mut</span> <span class="ident">port</span>) <span class="op">=</span> <span class="ident">mpsc</span>::<span class="ident">unbounded</span>();
 
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">worker</span> <span class="op">=</span> <span class="ident">BlockImportWorker</span> {
@@ -483,12 +493,12 @@
 			}
 		}
 
-		<span class="kw">let</span> <span class="ident">future</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">poll_fn</span>(<span class="kw">move</span> <span class="op">||</span> {
+		<span class="kw">let</span> <span class="ident">future</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">poll_fn</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">cx</span><span class="op">|</span> {
 			<span class="kw">loop</span> {
-				<span class="kw">let</span> <span class="ident">msg</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">port</span>.<span class="ident">poll</span>() {
-					<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">msg</span>))) <span class="op">=&gt;</span> <span class="ident">msg</span>,
-					<span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>)) <span class="op">=&gt;</span> <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(())),
-					<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=&gt;</span> <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>),
+				<span class="kw">let</span> <span class="ident">msg</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">Stream</span>::<span class="ident">poll_next</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">port</span>), <span class="ident">cx</span>) {
+					<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">msg</span>)) <span class="op">=&gt;</span> <span class="ident">msg</span>,
+					<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>) <span class="op">=&gt;</span> <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(()),
+					<span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=&gt;</span> <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Pending</span>,
 				};
 
 				<span class="kw">match</span> <span class="ident">msg</span> {

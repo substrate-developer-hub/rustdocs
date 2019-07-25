@@ -888,6 +888,10 @@
 <span id="888">888</span>
 <span id="889">889</span>
 <span id="890">890</span>
+<span id="891">891</span>
+<span id="892">892</span>
+<span id="893">893</span>
+<span id="894">894</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -919,7 +923,7 @@
 <span class="doccomment">//!</span>
 <span class="doccomment">//! NOTE: Aura itself is designed to be generic over the crypto used.</span>
 <span class="attribute">#![<span class="ident">forbid</span>(<span class="ident">missing_docs</span>, <span class="ident">unsafe_code</span>)]</span>
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">time</span>::<span class="ident">Duration</span>, <span class="ident">thread</span>, <span class="ident">marker</span>::<span class="ident">PhantomData</span>, <span class="ident">hash</span>::<span class="ident">Hash</span>, <span class="ident">fmt</span>::<span class="ident">Debug</span>};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">time</span>::<span class="ident">Duration</span>, <span class="ident">thread</span>, <span class="ident">marker</span>::<span class="ident">PhantomData</span>, <span class="ident">hash</span>::<span class="ident">Hash</span>, <span class="ident">fmt</span>::<span class="ident">Debug</span>, <span class="ident">pin</span>::<span class="ident">Pin</span>};
 
 <span class="kw">use</span> <span class="ident">parity_codec</span>::{<span class="ident">Encode</span>, <span class="ident">Decode</span>, <span class="ident">Codec</span>};
 <span class="kw">use</span> <span class="ident">consensus_common</span>::{<span class="self">self</span>, <span class="ident">BlockImport</span>, <span class="ident">Environment</span>, <span class="ident">Proposer</span>,
@@ -943,9 +947,9 @@
 <span class="kw">use</span> <span class="ident">primitives</span>::<span class="ident">Pair</span>;
 <span class="kw">use</span> <span class="ident">inherents</span>::{<span class="ident">InherentDataProviders</span>, <span class="ident">InherentData</span>};
 
-<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">Future</span>, <span class="ident">IntoFuture</span>, <span class="ident">future</span>};
+<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">future</span>};
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">Mutex</span>;
-<span class="kw">use</span> <span class="ident">tokio_timer</span>::<span class="ident">Timeout</span>;
+<span class="kw">use</span> <span class="ident">futures_timer</span>::<span class="ident">Delay</span>;
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">error</span>, <span class="ident">warn</span>, <span class="ident">debug</span>, <span class="ident">info</span>, <span class="ident">trace</span>};
 
 <span class="kw">use</span> <span class="ident">srml_aura</span>::{
@@ -1019,7 +1023,7 @@
 	}
 }
 
-<span class="doccomment">/// Start the aura worker. The returned future should be run in a tokio runtime.</span>
+<span class="doccomment">/// Start the aura worker. The returned future should be run in a futures executor.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">start_aura</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">C</span>, <span class="ident">SC</span>, <span class="ident">E</span>, <span class="ident">I</span>, <span class="ident">P</span>, <span class="ident">SO</span>, <span class="ident">Error</span>, <span class="ident">H</span><span class="op">&gt;</span>(
 	<span class="ident">slot_duration</span>: <span class="ident">SlotDuration</span>,
 	<span class="ident">local_key</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>,
@@ -1030,13 +1034,13 @@
 	<span class="ident">sync_oracle</span>: <span class="ident">SO</span>,
 	<span class="ident">inherent_data_providers</span>: <span class="ident">InherentDataProviders</span>,
 	<span class="ident">force_authoring</span>: <span class="ident">bool</span>,
-) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span>(), <span class="ident">Error</span><span class="op">=</span>()<span class="op">&gt;</span>, <span class="ident">consensus_common</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="kw">where</span>
+) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">futures01</span>::<span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span>, <span class="ident">consensus_common</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="kw">where</span>
 	<span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">=</span><span class="ident">H</span><span class="op">&gt;</span>,
 	<span class="ident">C</span>: <span class="ident">ProvideRuntimeApi</span> <span class="op">+</span> <span class="ident">ProvideCache</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">AuxStore</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
 	<span class="ident">C</span>::<span class="ident">Api</span>: <span class="ident">AuraApi</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">AuthorityId</span><span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;&gt;</span>,
 	<span class="ident">SC</span>: <span class="ident">SelectChain</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 	<span class="ident">E</span>::<span class="ident">Proposer</span>: <span class="ident">Proposer</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Error</span><span class="op">=</span><span class="ident">Error</span><span class="op">&gt;</span>,
-	<span class="op">&lt;&lt;</span><span class="ident">E</span>::<span class="ident">Proposer</span> <span class="kw">as</span> <span class="ident">Proposer</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>::<span class="ident">Create</span> <span class="kw">as</span> <span class="ident">IntoFuture</span><span class="op">&gt;</span>::<span class="ident">Future</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+	<span class="op">&lt;</span><span class="ident">E</span>::<span class="ident">Proposer</span> <span class="kw">as</span> <span class="ident">Proposer</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>::<span class="ident">Create</span>: <span class="ident">Unpin</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">P</span>: <span class="ident">Pair</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">P</span>::<span class="ident">Public</span>: <span class="ident">Hash</span> <span class="op">+</span> <span class="ident">Member</span> <span class="op">+</span> <span class="ident">Encode</span> <span class="op">+</span> <span class="ident">Decode</span>,
 	<span class="ident">P</span>::<span class="ident">Signature</span>: <span class="ident">Hash</span> <span class="op">+</span> <span class="ident">Member</span> <span class="op">+</span> <span class="ident">Encode</span> <span class="op">+</span> <span class="ident">Decode</span>,
@@ -1065,7 +1069,7 @@
 		<span class="ident">sync_oracle</span>,
 		<span class="ident">inherent_data_providers</span>,
 		<span class="ident">AuraSlotCompatible</span>,
-	))
+	).<span class="ident">map</span>(<span class="op">|</span>()<span class="op">|</span> <span class="prelude-val">Ok</span>::<span class="op">&lt;</span>(), ()<span class="op">&gt;</span>(())).<span class="ident">compat</span>())
 }
 
 <span class="kw">struct</span> <span class="ident">AuraWorker</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">E</span>, <span class="ident">I</span>, <span class="ident">P</span>, <span class="ident">SO</span><span class="op">&gt;</span> {
@@ -1083,7 +1087,7 @@
 	<span class="ident">C</span>::<span class="ident">Api</span>: <span class="ident">AuraApi</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">AuthorityId</span><span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;&gt;</span>,
 	<span class="ident">E</span>: <span class="ident">Environment</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Error</span><span class="op">=</span><span class="ident">Error</span><span class="op">&gt;</span>,
 	<span class="ident">E</span>::<span class="ident">Proposer</span>: <span class="ident">Proposer</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Error</span><span class="op">=</span><span class="ident">Error</span><span class="op">&gt;</span>,
-	<span class="op">&lt;&lt;</span><span class="ident">E</span>::<span class="ident">Proposer</span> <span class="kw">as</span> <span class="ident">Proposer</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>::<span class="ident">Create</span> <span class="kw">as</span> <span class="ident">IntoFuture</span><span class="op">&gt;</span>::<span class="ident">Future</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+	<span class="op">&lt;</span><span class="ident">E</span>::<span class="ident">Proposer</span> <span class="kw">as</span> <span class="ident">Proposer</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>::<span class="ident">Create</span>: <span class="ident">Unpin</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">H</span>: <span class="ident">Header</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">B</span>::<span class="ident">Hash</span><span class="op">&gt;</span>,
 	<span class="ident">I</span>: <span class="ident">BlockImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">P</span>: <span class="ident">Pair</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
@@ -1092,7 +1096,7 @@
 	<span class="ident">SO</span>: <span class="ident">SyncOracle</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Clone</span>,
 	<span class="ident">Error</span>: ::<span class="ident">std</span>::<span class="ident">error</span>::<span class="ident">Error</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">From</span><span class="op">&lt;</span>::<span class="ident">consensus_common</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">I</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 {
-	<span class="kw">type</span> <span class="ident">OnSlot</span> <span class="op">=</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span>(), <span class="ident">Error</span><span class="op">=</span><span class="ident">consensus_common</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span>;
+	<span class="kw">type</span> <span class="ident">OnSlot</span> <span class="op">=</span> <span class="ident">Pin</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">consensus_common</span>::<span class="ident">Error</span><span class="op">&gt;&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;&gt;</span>;
 
 	<span class="kw">fn</span> <span class="ident">on_slot</span>(
 		<span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -1119,7 +1123,7 @@
 				<span class="macro">telemetry</span><span class="macro">!</span>(<span class="ident">CONSENSUS_WARN</span>; <span class="string">&quot;aura.unable_fetching_authorities&quot;</span>;
 					<span class="string">&quot;slot&quot;</span> <span class="op">=&gt;</span> <span class="question-mark">?</span><span class="ident">chain_head</span>.<span class="ident">hash</span>(), <span class="string">&quot;err&quot;</span> <span class="op">=&gt;</span> <span class="question-mark">?</span><span class="ident">e</span>
 				);
-				<span class="kw">return</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">future</span>::<span class="ident">ok</span>(()));
+				<span class="kw">return</span> <span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">future</span>::<span class="ident">ready</span>(<span class="prelude-val">Ok</span>(())));
 			}
 		};
 
@@ -1128,11 +1132,11 @@
 			<span class="macro">telemetry</span><span class="macro">!</span>(<span class="ident">CONSENSUS_DEBUG</span>; <span class="string">&quot;aura.skipping_proposal_slot&quot;</span>;
 				<span class="string">&quot;authorities_len&quot;</span> <span class="op">=&gt;</span> <span class="ident">authorities</span>.<span class="ident">len</span>()
 			);
-			<span class="kw">return</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">future</span>::<span class="ident">ok</span>(()));
+			<span class="kw">return</span> <span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">future</span>::<span class="ident">ready</span>(<span class="prelude-val">Ok</span>(())));
 		}
 		<span class="kw">let</span> <span class="ident">maybe_author</span> <span class="op">=</span> <span class="ident">slot_author</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>(<span class="ident">slot_num</span>, <span class="kw-2">&amp;</span><span class="ident">authorities</span>);
 		<span class="kw">let</span> <span class="ident">proposal_work</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">maybe_author</span> {
-			<span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="kw">return</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">future</span>::<span class="ident">ok</span>(())),
+			<span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="kw">return</span> <span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">future</span>::<span class="ident">ready</span>(<span class="prelude-val">Ok</span>(()))),
 			<span class="prelude-val">Some</span>(<span class="ident">author</span>) <span class="op">=&gt;</span> <span class="kw">if</span> <span class="ident">author</span> <span class="op">==</span> <span class="kw-2">&amp;</span><span class="ident">public_key</span> {
 				<span class="macro">debug</span><span class="macro">!</span>(
 					<span class="ident">target</span>: <span class="string">&quot;aura&quot;</span>, <span class="string">&quot;Starting authorship at slot {}; timestamp = {}&quot;</span>,
@@ -1151,14 +1155,14 @@
 						<span class="macro">telemetry</span><span class="macro">!</span>(<span class="ident">CONSENSUS_WARN</span>; <span class="string">&quot;aura.unable_authoring_block&quot;</span>;
 							<span class="string">&quot;slot&quot;</span> <span class="op">=&gt;</span> <span class="ident">slot_num</span>, <span class="string">&quot;err&quot;</span> <span class="op">=&gt;</span> <span class="question-mark">?</span><span class="ident">e</span>
 						);
-						<span class="kw">return</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">future</span>::<span class="ident">ok</span>(()))
+						<span class="kw">return</span> <span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">future</span>::<span class="ident">ready</span>(<span class="prelude-val">Ok</span>(())))
 					}
 				};
 
 				<span class="kw">let</span> <span class="ident">remaining_duration</span> <span class="op">=</span> <span class="ident">slot_info</span>.<span class="ident">remaining_duration</span>();
 				<span class="comment">// deadline our production to approx. the end of the</span>
 				<span class="comment">// slot</span>
-				<span class="ident">Timeout</span>::<span class="ident">new</span>(
+				<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">select</span>(
 					<span class="ident">proposer</span>.<span class="ident">propose</span>(
 						<span class="ident">slot_info</span>.<span class="ident">inherent_data</span>,
 						<span class="ident">generic</span>::<span class="ident">Digest</span> {
@@ -1167,15 +1171,21 @@
 							],
 						},
 						<span class="ident">remaining_duration</span>,
-					).<span class="ident">into_future</span>(),
-					<span class="ident">remaining_duration</span>,
-				)
+					).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">consensus_common</span>::<span class="ident">Error</span>::<span class="ident">ClientImport</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">e</span>)).<span class="ident">into</span>()),
+					<span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">remaining_duration</span>)
+						.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> <span class="ident">consensus_common</span>::<span class="ident">Error</span>::<span class="ident">FaultyTimer</span>(<span class="ident">err</span>).<span class="ident">into</span>())
+				).<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">v</span> {
+					<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">Either</span>::<span class="ident">Left</span>((<span class="ident">v</span>, <span class="kw">_</span>)) <span class="op">=&gt;</span> <span class="ident">v</span>,
+					<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">Either</span>::<span class="ident">Right</span>((<span class="prelude-val">Ok</span>(<span class="kw">_</span>), <span class="kw">_</span>)) <span class="op">=&gt;</span>
+						<span class="prelude-val">Err</span>(<span class="ident">consensus_common</span>::<span class="ident">Error</span>::<span class="ident">ClientImport</span>(<span class="string">&quot;Timeout in the AuRa proposer&quot;</span>.<span class="ident">into</span>())),
+					<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">Either</span>::<span class="ident">Right</span>((<span class="prelude-val">Err</span>(<span class="ident">err</span>), <span class="kw">_</span>)) <span class="op">=&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>),
+				})
 			} <span class="kw">else</span> {
-				<span class="kw">return</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">future</span>::<span class="ident">ok</span>(()));
+				<span class="kw">return</span> <span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">future</span>::<span class="ident">ready</span>(<span class="prelude-val">Ok</span>(())));
 			}
 		};
 
-		<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">proposal_work</span>.<span class="ident">map</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">b</span><span class="op">|</span> {
+		<span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">proposal_work</span>.<span class="ident">map_ok</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">b</span><span class="op">|</span> {
 			<span class="comment">// minor hack since we don&#39;t have access to the timestamp</span>
 			<span class="comment">// that is actually set by the proposer.</span>
 			<span class="kw">let</span> <span class="ident">slot_after_building</span> <span class="op">=</span> <span class="ident">SignedDuration</span>::<span class="ident">default</span>().<span class="ident">slot_now</span>(<span class="ident">slot_duration</span>);
@@ -1237,7 +1247,7 @@
 					<span class="string">&quot;hash&quot;</span> <span class="op">=&gt;</span> <span class="question-mark">?</span><span class="ident">parent_hash</span>, <span class="string">&quot;err&quot;</span> <span class="op">=&gt;</span> <span class="question-mark">?</span><span class="ident">e</span>
 				);
 			}
-		}).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">consensus_common</span>::<span class="ident">Error</span>::<span class="ident">ClientImport</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">e</span>)).<span class="ident">into</span>()))
+		}))
 	}
 }
 
@@ -1599,8 +1609,6 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span> {
 	<span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-	<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">Async</span>, <span class="ident">stream</span>::<span class="ident">Stream</span> <span class="kw">as</span> <span class="kw">_</span>};
-	<span class="kw">use</span> <span class="ident">futures03</span>::{<span class="ident">StreamExt</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">TryStreamExt</span> <span class="kw">as</span> <span class="kw">_</span>};
 	<span class="kw">use</span> <span class="ident">consensus_common</span>::<span class="ident">NoNetwork</span> <span class="kw">as</span> <span class="ident">DummyOracle</span>;
 	<span class="kw">use</span> <span class="ident">network</span>::<span class="ident">test</span>::<span class="kw-2">*</span>;
 	<span class="kw">use</span> <span class="ident">network</span>::<span class="ident">test</span>::{<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">TestBlock</span>, <span class="ident">PeersClient</span>, <span class="ident">PeersFullClient</span>};
@@ -1638,15 +1646,16 @@
 
 	<span class="kw">impl</span> <span class="ident">Proposer</span><span class="op">&lt;</span><span class="ident">TestBlock</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">DummyProposer</span> {
 		<span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span>;
-		<span class="kw">type</span> <span class="ident">Create</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">TestBlock</span>, <span class="ident">Error</span><span class="op">&gt;</span>;
+		<span class="kw">type</span> <span class="ident">Create</span> <span class="op">=</span> <span class="ident">future</span>::<span class="ident">Ready</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">TestBlock</span>, <span class="ident">Error</span><span class="op">&gt;&gt;</span>;
 
 		<span class="kw">fn</span> <span class="ident">propose</span>(
 			<span class="kw-2">&amp;</span><span class="self">self</span>,
 			<span class="kw">_</span>: <span class="ident">InherentData</span>,
 			<span class="ident">digests</span>: <span class="ident">DigestFor</span><span class="op">&lt;</span><span class="ident">TestBlock</span><span class="op">&gt;</span>,
 			<span class="kw">_</span>: <span class="ident">Duration</span>,
-		) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">TestBlock</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
-			<span class="self">self</span>.<span class="number">1</span>.<span class="ident">new_block</span>(<span class="ident">digests</span>).<span class="ident">unwrap</span>().<span class="ident">bake</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">into</span>())
+		) <span class="op">-&gt;</span> <span class="self">Self</span>::<span class="ident">Create</span> {
+			<span class="kw">let</span> <span class="ident">r</span> <span class="op">=</span> <span class="self">self</span>.<span class="number">1</span>.<span class="ident">new_block</span>(<span class="ident">digests</span>).<span class="ident">unwrap</span>().<span class="ident">bake</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">into</span>());
+			<span class="ident">future</span>::<span class="ident">ready</span>(<span class="ident">r</span>)
 		}
 	}
 
@@ -1730,9 +1739,8 @@
 			<span class="kw">let</span> <span class="ident">environ</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">DummyFactory</span>(<span class="ident">client</span>.<span class="ident">clone</span>()));
 			<span class="ident">import_notifications</span>.<span class="ident">push</span>(
 				<span class="ident">client</span>.<span class="ident">import_notification_stream</span>()
-					.<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, ()<span class="op">&gt;</span>(<span class="ident">v</span>)).<span class="ident">compat</span>()
-					.<span class="ident">take_while</span>(<span class="op">|</span><span class="ident">n</span><span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="op">!</span>(<span class="ident">n</span>.<span class="ident">origin</span> <span class="op">!=</span> <span class="ident">BlockOrigin</span>::<span class="ident">Own</span> <span class="op">&amp;&amp;</span> <span class="ident">n</span>.<span class="ident">header</span>.<span class="ident">number</span>() <span class="op">&lt;</span> <span class="kw-2">&amp;</span><span class="number">5</span>)))
-					.<span class="ident">for_each</span>(<span class="kw">move</span> <span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()))
+					.<span class="ident">take_while</span>(<span class="op">|</span><span class="ident">n</span><span class="op">|</span> <span class="ident">future</span>::<span class="ident">ready</span>(<span class="op">!</span>(<span class="ident">n</span>.<span class="ident">origin</span> <span class="op">!=</span> <span class="ident">BlockOrigin</span>::<span class="ident">Own</span> <span class="op">&amp;&amp;</span> <span class="ident">n</span>.<span class="ident">header</span>.<span class="ident">number</span>() <span class="op">&lt;</span> <span class="kw-2">&amp;</span><span class="number">5</span>)))
+					.<span class="ident">for_each</span>(<span class="kw">move</span> <span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">future</span>::<span class="ident">ready</span>(()))
 			);
 
 			<span class="kw">let</span> <span class="ident">slot_duration</span> <span class="op">=</span> <span class="ident">SlotDuration</span>::<span class="ident">get_or_compute</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">client</span>)
@@ -1758,13 +1766,13 @@
 			<span class="ident">runtime</span>.<span class="ident">spawn</span>(<span class="ident">aura</span>);
 		}
 
-		<span class="comment">// wait for all finalized on each.</span>
-		<span class="kw">let</span> <span class="ident">wait_for</span> <span class="op">=</span> ::<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">join_all</span>(<span class="ident">import_notifications</span>)
-			.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
-			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ());
+		<span class="ident">runtime</span>.<span class="ident">spawn</span>(<span class="ident">futures01</span>::<span class="ident">future</span>::<span class="ident">poll_fn</span>(<span class="kw">move</span> <span class="op">||</span> {
+			<span class="ident">net</span>.<span class="ident">lock</span>().<span class="ident">poll</span>();
+			<span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, ()<span class="op">&gt;</span>(<span class="ident">futures01</span>::<span class="ident">Async</span>::<span class="ident">NotReady</span>::<span class="op">&lt;</span>()<span class="op">&gt;</span>)
+		}));
 
-		<span class="kw">let</span> <span class="ident">drive_to_completion</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">poll_fn</span>(<span class="op">||</span> { <span class="ident">net</span>.<span class="ident">lock</span>().<span class="ident">poll</span>(); <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) });
-		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">runtime</span>.<span class="ident">block_on</span>(<span class="ident">wait_for</span>.<span class="ident">select</span>(<span class="ident">drive_to_completion</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())).<span class="ident">unwrap</span>();
+		<span class="ident">runtime</span>.<span class="ident">block_on</span>(<span class="ident">future</span>::<span class="ident">join_all</span>(<span class="ident">import_notifications</span>)
+			.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>::<span class="op">&lt;</span>(), ()<span class="op">&gt;</span>(())).<span class="ident">compat</span>()).<span class="ident">unwrap</span>();
 	}
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>

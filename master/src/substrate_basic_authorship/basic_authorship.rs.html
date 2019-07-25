@@ -510,7 +510,7 @@
 	<span class="ident">A</span>: <span class="ident">txpool</span>::<span class="ident">ChainApi</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">=</span><span class="ident">Block</span><span class="op">&gt;</span>,
 	<span class="ident">client</span>::<span class="ident">error</span>::<span class="ident">Error</span>: <span class="ident">From</span><span class="op">&lt;&lt;</span><span class="ident">C</span> <span class="kw">as</span> <span class="ident">AuthoringApi</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span>
 {
-	<span class="kw">type</span> <span class="ident">Create</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;&lt;</span><span class="ident">C</span> <span class="kw">as</span> <span class="ident">AuthoringApi</span><span class="op">&gt;</span>::<span class="ident">Block</span>, <span class="ident">error</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
+	<span class="kw">type</span> <span class="ident">Create</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">Ready</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;&lt;</span><span class="ident">C</span> <span class="kw">as</span> <span class="ident">AuthoringApi</span><span class="op">&gt;</span>::<span class="ident">Block</span>, <span class="ident">error</span>::<span class="ident">Error</span><span class="op">&gt;&gt;</span>;
 	<span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">error</span>::<span class="ident">Error</span>;
 
 	<span class="kw">fn</span> <span class="ident">propose</span>(
@@ -518,11 +518,10 @@
 		<span class="ident">inherent_data</span>: <span class="ident">InherentData</span>,
 		<span class="ident">inherent_digests</span>: <span class="ident">DigestFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 		<span class="ident">max_duration</span>: <span class="ident">time</span>::<span class="ident">Duration</span>,
-	) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;&lt;</span><span class="ident">C</span> <span class="kw">as</span> <span class="ident">AuthoringApi</span><span class="op">&gt;</span>::<span class="ident">Block</span>, <span class="ident">error</span>::<span class="ident">Error</span><span class="op">&gt;</span>
-	{
+	) <span class="op">-&gt;</span> <span class="self">Self</span>::<span class="ident">Create</span> {
 		<span class="comment">// leave some time for evaluation and block finalization (33%)</span>
 		<span class="kw">let</span> <span class="ident">deadline</span> <span class="op">=</span> (<span class="self">self</span>.<span class="ident">now</span>)() <span class="op">+</span> <span class="ident">max_duration</span> <span class="op">-</span> <span class="ident">max_duration</span> <span class="op">/</span> <span class="number">3</span>;
-		<span class="self">self</span>.<span class="ident">propose_with</span>(<span class="ident">inherent_data</span>, <span class="ident">inherent_digests</span>, <span class="ident">deadline</span>)
+		<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">ready</span>(<span class="self">self</span>.<span class="ident">propose_with</span>(<span class="ident">inherent_data</span>, <span class="ident">inherent_digests</span>, <span class="ident">deadline</span>))
 	}
 }
 
@@ -667,7 +666,8 @@
 			<span class="ident">cell</span>.<span class="ident">replace</span>(<span class="ident">new</span>)
 		});
 		<span class="kw">let</span> <span class="ident">deadline</span> <span class="op">=</span> <span class="ident">time</span>::<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">3</span>);
-		<span class="kw">let</span> <span class="ident">block</span> <span class="op">=</span> <span class="ident">proposer</span>.<span class="ident">propose</span>(<span class="ident">Default</span>::<span class="ident">default</span>(), <span class="ident">Default</span>::<span class="ident">default</span>(), <span class="ident">deadline</span>).<span class="ident">unwrap</span>();
+		<span class="kw">let</span> <span class="ident">block</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on</span>(<span class="ident">proposer</span>.<span class="ident">propose</span>(<span class="ident">Default</span>::<span class="ident">default</span>(), <span class="ident">Default</span>::<span class="ident">default</span>(), <span class="ident">deadline</span>))
+			.<span class="ident">unwrap</span>();
 
 		<span class="comment">// then</span>
 		<span class="comment">// block should have some extrinsics although we have some more in the pool.</span>
