@@ -148,7 +148,7 @@
 <span id="148">148</span>
 <span id="149">149</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
+<span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
 
 <span class="comment">// Substrate is free software: you can redistribute it and/or modify</span>
@@ -168,9 +168,9 @@
 <span class="kw">use</span> <span class="ident">client</span>::<span class="ident">ClientInfo</span>;
 <span class="kw">use</span> <span class="ident">log</span>::<span class="ident">info</span>;
 <span class="kw">use</span> <span class="ident">network</span>::<span class="ident">SyncState</span>;
-<span class="kw">use</span> <span class="ident">runtime_primitives</span>::<span class="ident">traits</span>::{<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">SaturatedConversion</span>, <span class="ident">CheckedDiv</span>, <span class="ident">NumberFor</span>, <span class="ident">One</span>, <span class="ident">Zero</span>, <span class="ident">Saturating</span>};
+<span class="kw">use</span> <span class="ident">runtime_primitives</span>::<span class="ident">traits</span>::{<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">CheckedDiv</span>, <span class="ident">NumberFor</span>, <span class="ident">Zero</span>, <span class="ident">Saturating</span>};
 <span class="kw">use</span> <span class="ident">service</span>::<span class="ident">NetworkStatus</span>;
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">convert</span>::<span class="ident">TryInto</span>, <span class="ident">fmt</span>, <span class="ident">time</span>};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">convert</span>::{<span class="ident">TryFrom</span>, <span class="ident">TryInto</span>}, <span class="ident">fmt</span>, <span class="ident">time</span>};
 
 <span class="doccomment">/// State of the informant display system.</span>
 <span class="doccomment">///</span>
@@ -216,8 +216,6 @@
 			(<span class="ident">SyncState</span>::<span class="ident">Downloading</span>, <span class="prelude-val">Some</span>(<span class="ident">n</span>)) <span class="op">=&gt;</span> (<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Syncing{}&quot;</span>, <span class="ident">speed</span>), <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;, target=#{}&quot;</span>, <span class="ident">n</span>)),
 		};
 
-		<span class="kw">let</span> <span class="ident">finalized_number</span>: <span class="ident">u64</span> <span class="op">=</span> <span class="ident">info</span>.<span class="ident">chain</span>.<span class="ident">finalized_number</span>.<span class="ident">saturated_into</span>::<span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>();
-
 		<span class="macro">info</span><span class="macro">!</span>(
 			<span class="ident">target</span>: <span class="string">&quot;substrate&quot;</span>,
 			<span class="string">&quot;{}{} ({} peers), best: #{} ({}), finalized #{} ({}), ⬇ {} ⬆ {}&quot;</span>,
@@ -226,7 +224,7 @@
 			<span class="ident">Colour</span>::<span class="ident">White</span>.<span class="ident">bold</span>().<span class="ident">paint</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">net_status</span>.<span class="ident">num_connected_peers</span>)),
 			<span class="ident">Colour</span>::<span class="ident">White</span>.<span class="ident">paint</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">best_number</span>)),
 			<span class="ident">best_hash</span>,
-			<span class="ident">Colour</span>::<span class="ident">White</span>.<span class="ident">paint</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">finalized_number</span>)),
+			<span class="ident">Colour</span>::<span class="ident">White</span>.<span class="ident">paint</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">info</span>.<span class="ident">chain</span>.<span class="ident">finalized_number</span>)),
 			<span class="ident">info</span>.<span class="ident">chain</span>.<span class="ident">finalized_hash</span>,
 			<span class="ident">TransferRateFormat</span>(<span class="ident">net_status</span>.<span class="ident">average_download_per_sec</span>),
 			<span class="ident">TransferRateFormat</span>(<span class="ident">net_status</span>.<span class="ident">average_upload_per_sec</span>),
@@ -241,10 +239,13 @@
 	<span class="ident">last_number</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>,
 	<span class="ident">last_update</span>: <span class="ident">time</span>::<span class="ident">Instant</span>
 ) <span class="op">-&gt;</span> <span class="ident">String</span> {
-	<span class="kw">let</span> <span class="ident">elapsed</span> <span class="op">=</span> <span class="ident">last_update</span>.<span class="ident">elapsed</span>();
-	<span class="kw">let</span> <span class="ident">since_last_millis</span> <span class="op">=</span> <span class="ident">elapsed</span>.<span class="ident">as_secs</span>() <span class="op">*</span> <span class="number">1000</span>;
-	<span class="kw">let</span> <span class="ident">since_last_subsec_millis</span> <span class="op">=</span> <span class="ident">elapsed</span>.<span class="ident">subsec_millis</span>() <span class="kw">as</span> <span class="ident">u64</span>;
-	<span class="kw">let</span> <span class="ident">elapsed_ms</span> <span class="op">=</span> <span class="ident">since_last_millis</span> <span class="op">+</span> <span class="ident">since_last_subsec_millis</span>;
+	<span class="comment">// Number of milliseconds elapsed since last time.</span>
+	<span class="kw">let</span> <span class="ident">elapsed_ms</span> <span class="op">=</span> {
+		<span class="kw">let</span> <span class="ident">elapsed</span> <span class="op">=</span> <span class="ident">last_update</span>.<span class="ident">elapsed</span>();
+		<span class="kw">let</span> <span class="ident">since_last_millis</span> <span class="op">=</span> <span class="ident">elapsed</span>.<span class="ident">as_secs</span>() <span class="op">*</span> <span class="number">1000</span>;
+		<span class="kw">let</span> <span class="ident">since_last_subsec_millis</span> <span class="op">=</span> <span class="ident">elapsed</span>.<span class="ident">subsec_millis</span>() <span class="kw">as</span> <span class="ident">u64</span>;
+		<span class="ident">since_last_millis</span> <span class="op">+</span> <span class="ident">since_last_subsec_millis</span>
+	};
 
 	<span class="comment">// Number of blocks that have been imported since last time.</span>
 	<span class="kw">let</span> <span class="ident">diff</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">last_number</span> {
@@ -262,11 +263,10 @@
 	} <span class="kw">else</span> {
 		<span class="comment">// If the number of blocks can&#39;t be converted to a regular integer, then we need a more</span>
 		<span class="comment">// algebraic approach and we stay within the realm of integers.</span>
-		<span class="kw">let</span> <span class="ident">ten</span> <span class="op">=</span> (<span class="number">0</span>..<span class="number">10</span>)
-			.<span class="ident">fold</span>(<span class="op">&lt;</span><span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="kw">as</span> <span class="ident">Zero</span><span class="op">&gt;</span>::<span class="ident">zero</span>(), <span class="op">|</span><span class="ident">a</span>, <span class="kw">_</span><span class="op">|</span> <span class="ident">a</span>.<span class="ident">saturating_add</span>(<span class="ident">One</span>::<span class="ident">one</span>()));
-		<span class="kw">let</span> <span class="ident">one_thousand</span> <span class="op">=</span> <span class="ident">ten</span> <span class="op">*</span> <span class="ident">ten</span> <span class="op">*</span> <span class="ident">ten</span>;
-		<span class="kw">let</span> <span class="ident">elapsed</span> <span class="op">=</span> (<span class="number">0</span>..<span class="ident">elapsed_ms</span>)
-			.<span class="ident">fold</span>(<span class="op">&lt;</span><span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="kw">as</span> <span class="ident">Zero</span><span class="op">&gt;</span>::<span class="ident">zero</span>(), <span class="op">|</span><span class="ident">a</span>, <span class="kw">_</span><span class="op">|</span> <span class="ident">a</span>.<span class="ident">saturating_add</span>(<span class="ident">One</span>::<span class="ident">one</span>()));
+		<span class="kw">let</span> <span class="ident">one_thousand</span> <span class="op">=</span> <span class="ident">NumberFor</span>::<span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>::<span class="ident">from</span>(<span class="number">1_000</span>);
+		<span class="kw">let</span> <span class="ident">elapsed</span> <span class="op">=</span> <span class="ident">NumberFor</span>::<span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>::<span class="ident">from</span>(
+			<span class="op">&lt;</span><span class="ident">u32</span> <span class="kw">as</span> <span class="ident">TryFrom</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;&gt;</span>::<span class="ident">try_from</span>(<span class="ident">elapsed_ms</span>).<span class="ident">unwrap_or</span>(<span class="ident">u32</span>::<span class="ident">max_value</span>())
+		);
 
 		<span class="kw">let</span> <span class="ident">speed</span> <span class="op">=</span> <span class="ident">diff</span>.<span class="ident">saturating_mul</span>(<span class="ident">one_thousand</span>).<span class="ident">checked_div</span>(<span class="kw-2">&amp;</span><span class="ident">elapsed</span>)
 			.<span class="ident">unwrap_or_else</span>(<span class="ident">Zero</span>::<span class="ident">zero</span>);
