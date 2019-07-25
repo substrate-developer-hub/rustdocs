@@ -226,6 +226,80 @@
 <span id="226">226</span>
 <span id="227">227</span>
 <span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -249,8 +323,16 @@
 <span class="kw">use</span> <span class="ident">runtime_primitives</span>::<span class="ident">weights</span>::{<span class="ident">Weight</span>, <span class="ident">WeightMultiplier</span>};
 <span class="kw">use</span> <span class="ident">runtime_primitives</span>::<span class="ident">traits</span>::{<span class="ident">Convert</span>, <span class="ident">Saturating</span>};
 <span class="kw">use</span> <span class="ident">runtime_primitives</span>::<span class="ident">Fixed64</span>;
-<span class="kw">use</span> <span class="ident">support</span>::<span class="ident">traits</span>::<span class="ident">Get</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">Balances</span>, <span class="ident">MaximumBlockWeight</span>};
+<span class="kw">use</span> <span class="ident">support</span>::<span class="ident">traits</span>::{<span class="ident">OnUnbalanced</span>, <span class="ident">Currency</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">Balances</span>, <span class="ident">Authorship</span>, <span class="ident">MaximumBlockWeight</span>, <span class="ident">NegativeImbalance</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">constants</span>::<span class="ident">fee</span>::<span class="ident">TARGET_BLOCK_FULLNESS</span>;
+
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Author</span>;
+<span class="kw">impl</span> <span class="ident">OnUnbalanced</span><span class="op">&lt;</span><span class="ident">NegativeImbalance</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Author</span> {
+	<span class="kw">fn</span> <span class="ident">on_unbalanced</span>(<span class="ident">amount</span>: <span class="ident">NegativeImbalance</span>) {
+		<span class="ident">Balances</span>::<span class="ident">resolve_creating</span>(<span class="kw-2">&amp;</span><span class="ident">Authorship</span>::<span class="ident">author</span>(), <span class="ident">amount</span>);
+	}
+}
 
 <span class="doccomment">/// Struct that handles the conversion of Balance -&gt; `u64`. This is used for staking&#39;s election</span>
 <span class="doccomment">/// calculation.</span>
@@ -268,32 +350,53 @@
 	<span class="kw">fn</span> <span class="ident">convert</span>(<span class="ident">x</span>: <span class="ident">u128</span>) <span class="op">-&gt;</span> <span class="ident">Balance</span> { <span class="ident">x</span> <span class="op">*</span> <span class="self">Self</span>::<span class="ident">factor</span>() }
 }
 
+<span class="doccomment">/// Handles converting a weight scalar to a fee value, based on the scale and granularity of the</span>
+<span class="doccomment">/// node&#39;s balance type.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// This should typically create a mapping between the following ranges:</span>
+<span class="doccomment">///   - [0, system::MaximumBlockWeight]</span>
+<span class="doccomment">///   - [Balance::min, Balance::max]</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// Yet, it can be used for any other sort of change to weight-fee. Some examples being:</span>
+<span class="doccomment">///   - Setting it to `0` will essentially disable the weight fee.</span>
+<span class="doccomment">///   - Setting it to `1` will cause the literal `#[weight = x]` values to be charged.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// By default, substrate node will have a weight range of [0, 1_000_000_000].</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">WeightToFee</span>;
+<span class="kw">impl</span> <span class="ident">Convert</span><span class="op">&lt;</span><span class="ident">Weight</span>, <span class="ident">Balance</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">WeightToFee</span> {
+	<span class="kw">fn</span> <span class="ident">convert</span>(<span class="ident">x</span>: <span class="ident">Weight</span>) <span class="op">-&gt;</span> <span class="ident">Balance</span> {
+		<span class="comment">// substrate-node a weight of 10_000 (smallest non-zero weight) to be mapped to 10^7 units of</span>
+		<span class="comment">// fees, hence:</span>
+		<span class="ident">Balance</span>::<span class="ident">from</span>(<span class="ident">x</span>).<span class="ident">saturating_mul</span>(<span class="number">1_000</span>)
+	}
+}
+
 <span class="doccomment">/// A struct that updates the weight multiplier based on the saturation level of the previous block.</span>
 <span class="doccomment">/// This should typically be called once per-block.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// This assumes that weight is a numeric value in the u32 range.</span>
 <span class="doccomment">///</span>
+<span class="doccomment">/// Given `TARGET_BLOCK_FULLNESS = 1/2`, a block saturation greater than 1/2 will cause the system</span>
+<span class="doccomment">/// fees to slightly grow and the opposite for block saturations less than 1/2.</span>
+<span class="doccomment">///</span>
 <span class="doccomment">/// Formula:</span>
-<span class="doccomment">///   diff = (ideal_weight - current_block_weight)</span>
+<span class="doccomment">///   diff = (target_weight - current_block_weight)</span>
 <span class="doccomment">///   v = 0.00004</span>
 <span class="doccomment">///   next_weight = weight * (1 + (v . diff) + (v . diff)^2 / 2)</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// https://research.web3.foundation/en/latest/polkadot/Token%20Economics/#relay-chain-transaction-fees</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">WeightMultiplierUpdateHandler</span>;
+
 <span class="kw">impl</span> <span class="ident">Convert</span><span class="op">&lt;</span>(<span class="ident">Weight</span>, <span class="ident">WeightMultiplier</span>), <span class="ident">WeightMultiplier</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">WeightMultiplierUpdateHandler</span> {
 	<span class="kw">fn</span> <span class="ident">convert</span>(<span class="ident">previous_state</span>: (<span class="ident">Weight</span>, <span class="ident">WeightMultiplier</span>)) <span class="op">-&gt;</span> <span class="ident">WeightMultiplier</span> {
 		<span class="kw">let</span> (<span class="ident">block_weight</span>, <span class="ident">multiplier</span>) <span class="op">=</span> <span class="ident">previous_state</span>;
-		<span class="comment">// CRITICAL NOTE: what the system module interprets as maximum block weight, and a portion</span>
-		<span class="comment">// of it (1/4 usually) as ideal weight demonstrate the gap in block weights for operational</span>
-		<span class="comment">// transactions. What this weight multiplier interprets as the maximum, is actually the</span>
-		<span class="comment">// maximum that is available to normal transactions. Hence,</span>
-		<span class="kw">let</span> <span class="ident">max_weight</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">MaximumBlockWeight</span> <span class="kw">as</span> <span class="ident">Get</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;&gt;</span>::<span class="ident">get</span>() <span class="op">/</span> <span class="number">4</span>;
-		<span class="kw">let</span> <span class="ident">ideal_weight</span> <span class="op">=</span> (<span class="ident">max_weight</span> <span class="op">/</span> <span class="number">4</span>) <span class="kw">as</span> <span class="ident">u128</span>;
+		<span class="kw">let</span> <span class="ident">max_weight</span> <span class="op">=</span> <span class="ident">MaximumBlockWeight</span>::<span class="ident">get</span>();
+		<span class="kw">let</span> <span class="ident">target_weight</span> <span class="op">=</span> (<span class="ident">TARGET_BLOCK_FULLNESS</span> <span class="op">*</span> <span class="ident">max_weight</span>) <span class="kw">as</span> <span class="ident">u128</span>;
 		<span class="kw">let</span> <span class="ident">block_weight</span> <span class="op">=</span> <span class="ident">block_weight</span> <span class="kw">as</span> <span class="ident">u128</span>;
 
 		<span class="comment">// determines if the first_term is positive</span>
-		<span class="kw">let</span> <span class="ident">positive</span> <span class="op">=</span> <span class="ident">block_weight</span> <span class="op">&gt;=</span> <span class="ident">ideal_weight</span>;
-		<span class="kw">let</span> <span class="ident">diff_abs</span> <span class="op">=</span> <span class="ident">block_weight</span>.<span class="ident">max</span>(<span class="ident">ideal_weight</span>) <span class="op">-</span> <span class="ident">block_weight</span>.<span class="ident">min</span>(<span class="ident">ideal_weight</span>);
+		<span class="kw">let</span> <span class="ident">positive</span> <span class="op">=</span> <span class="ident">block_weight</span> <span class="op">&gt;=</span> <span class="ident">target_weight</span>;
+		<span class="kw">let</span> <span class="ident">diff_abs</span> <span class="op">=</span> <span class="ident">block_weight</span>.<span class="ident">max</span>(<span class="ident">target_weight</span>) <span class="op">-</span> <span class="ident">block_weight</span>.<span class="ident">min</span>(<span class="ident">target_weight</span>);
 		<span class="comment">// diff is within u32, safe.</span>
 		<span class="kw">let</span> <span class="ident">diff</span> <span class="op">=</span> <span class="ident">Fixed64</span>::<span class="ident">from_rational</span>(<span class="ident">diff_abs</span> <span class="kw">as</span> <span class="ident">i64</span>, <span class="ident">max_weight</span> <span class="kw">as</span> <span class="ident">u64</span>);
 		<span class="kw">let</span> <span class="ident">diff_squared</span> <span class="op">=</span> <span class="ident">diff</span>.<span class="ident">saturating_mul</span>(<span class="ident">diff</span>);
@@ -310,6 +413,8 @@
 		<span class="kw">let</span> <span class="ident">second_term</span> <span class="op">=</span> <span class="ident">v_squared_2</span>.<span class="ident">saturating_mul</span>(<span class="ident">diff_squared</span>);
 
 		<span class="kw">if</span> <span class="ident">positive</span> {
+			<span class="comment">// Note: this is merely bounded by how big the multiplier and the inner value can go,</span>
+			<span class="comment">// not by any economical reasoning.</span>
 			<span class="kw">let</span> <span class="ident">excess</span> <span class="op">=</span> <span class="ident">first_term</span>.<span class="ident">saturating_add</span>(<span class="ident">second_term</span>);
 			<span class="ident">multiplier</span>.<span class="ident">saturating_add</span>(<span class="ident">WeightMultiplier</span>::<span class="ident">from_fixed</span>(<span class="ident">excess</span>))
 		} <span class="kw">else</span> {
@@ -319,7 +424,7 @@
 				<span class="comment">// despite the fact that apply_to saturates weight (final fee cannot go below 0)</span>
 				<span class="comment">// it is crucially important to stop here and don&#39;t further reduce the weight fee</span>
 				<span class="comment">// multiplier. While at -1, it means that the network is so un-congested that all</span>
-				<span class="comment">// transactions are practically free. We stop here and only increase if the network</span>
+				<span class="comment">// transactions have no weight fee. We stop here and only increase if the network</span>
 				<span class="comment">// became more busy.</span>
 				.<span class="ident">max</span>(<span class="ident">WeightMultiplier</span>::<span class="ident">from_rational</span>(<span class="op">-</span><span class="number">1</span>, <span class="number">1</span>))
 		}
@@ -331,13 +436,15 @@
 	<span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 	<span class="kw">use</span> <span class="ident">runtime_primitives</span>::<span class="ident">weights</span>::<span class="ident">Weight</span>;
 	<span class="kw">use</span> <span class="ident">runtime_primitives</span>::<span class="ident">Perbill</span>;
+	<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">MaximumBlockWeight</span>, <span class="ident">AvailableBlockRatio</span>, <span class="ident">Runtime</span>};
+	<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">constants</span>::<span class="ident">currency</span>::<span class="kw-2">*</span>;
 
 	<span class="kw">fn</span> <span class="ident">max</span>() <span class="op">-&gt;</span> <span class="ident">Weight</span> {
-		<span class="op">&lt;</span><span class="ident">MaximumBlockWeight</span> <span class="kw">as</span> <span class="ident">Get</span><span class="op">&lt;</span><span class="ident">Weight</span><span class="op">&gt;&gt;</span>::<span class="ident">get</span>()
+		<span class="ident">MaximumBlockWeight</span>::<span class="ident">get</span>()
 	}
 
-	<span class="kw">fn</span> <span class="ident">ideal</span>() <span class="op">-&gt;</span> <span class="ident">Weight</span> {
-		<span class="ident">max</span>() <span class="op">/</span> <span class="number">4</span> <span class="op">/</span> <span class="number">4</span>
+	<span class="kw">fn</span> <span class="ident">target</span>() <span class="op">-&gt;</span> <span class="ident">Weight</span> {
+		<span class="ident">TARGET_BLOCK_FULLNESS</span> <span class="op">*</span> <span class="ident">max</span>()
 	}
 
 	<span class="comment">// poc reference implementation.</span>
@@ -349,7 +456,7 @@
 		<span class="comment">// maximum tx weight</span>
 		<span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">max</span>() <span class="kw">as</span> <span class="ident">f32</span>;
 		<span class="comment">// Ideal saturation in terms of weight</span>
-		<span class="kw">let</span> <span class="ident">ss</span> <span class="op">=</span> <span class="ident">ideal</span>() <span class="kw">as</span> <span class="ident">f32</span>;
+		<span class="kw">let</span> <span class="ident">ss</span> <span class="op">=</span> <span class="ident">target</span>() <span class="kw">as</span> <span class="ident">f32</span>;
 		<span class="comment">// Current saturation in terms of weight</span>
 		<span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">block_weight</span>;
 
@@ -359,52 +466,93 @@
 		<span class="ident">Perbill</span>::<span class="ident">from_parts</span>((<span class="ident">fm</span> <span class="op">*</span> <span class="number">1_000_000_000_f32</span>) <span class="kw">as</span> <span class="ident">u32</span>)
 	}
 
-	<span class="kw">fn</span> <span class="ident">fm</span>(<span class="ident">parts</span>: <span class="ident">i64</span>) <span class="op">-&gt;</span> <span class="ident">WeightMultiplier</span> {
+	<span class="kw">fn</span> <span class="ident">wm</span>(<span class="ident">parts</span>: <span class="ident">i64</span>) <span class="op">-&gt;</span> <span class="ident">WeightMultiplier</span> {
 		<span class="ident">WeightMultiplier</span>::<span class="ident">from_parts</span>(<span class="ident">parts</span>)
+	}
+
+	<span class="attribute">#[<span class="ident">test</span>]</span>
+	<span class="kw">fn</span> <span class="ident">empty_chain_simulation</span>() {
+		<span class="comment">// just a few txs per_block.</span>
+		<span class="kw">let</span> <span class="ident">block_weight</span> <span class="op">=</span> <span class="number">1000</span>;
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">wm</span> <span class="op">=</span> <span class="ident">WeightMultiplier</span>::<span class="ident">default</span>();
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">iterations</span>: <span class="ident">u64</span> <span class="op">=</span> <span class="number">0</span>;
+		<span class="kw">loop</span> {
+			<span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> <span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((<span class="ident">block_weight</span>, <span class="ident">wm</span>));
+			<span class="ident">wm</span> <span class="op">=</span> <span class="ident">next</span>;
+			<span class="kw">if</span> <span class="ident">wm</span> <span class="op">==</span> <span class="ident">WeightMultiplier</span>::<span class="ident">from_rational</span>(<span class="op">-</span><span class="number">1</span>, <span class="number">1</span>) { <span class="kw">break</span>; }
+			<span class="ident">iterations</span> <span class="op">+=</span> <span class="number">1</span>;
+		}
+		<span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;iteration {}, new wm = {:?}. Weight fee is now zero&quot;</span>, <span class="ident">iterations</span>, <span class="ident">wm</span>);
+	}
+
+	<span class="attribute">#[<span class="ident">test</span>]</span>
+	<span class="attribute">#[<span class="ident">ignore</span>]</span>
+	<span class="kw">fn</span> <span class="ident">congested_chain_simulation</span>() {
+		<span class="comment">// `cargo test congested_chain_simulation -- --nocapture` to get some insight.</span>
+		<span class="comment">// almost full. The entire quota of normal transactions is taken.</span>
+		<span class="kw">let</span> <span class="ident">block_weight</span> <span class="op">=</span> <span class="ident">AvailableBlockRatio</span>::<span class="ident">get</span>() <span class="op">*</span> <span class="ident">max</span>();
+		<span class="kw">let</span> <span class="ident">tx_weight</span> <span class="op">=</span> <span class="number">1000</span>;
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">wm</span> <span class="op">=</span> <span class="ident">WeightMultiplier</span>::<span class="ident">default</span>();
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">iterations</span>: <span class="ident">u64</span> <span class="op">=</span> <span class="number">0</span>;
+		<span class="kw">loop</span> {
+			<span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> <span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((<span class="ident">block_weight</span>, <span class="ident">wm</span>));
+			<span class="kw">if</span> <span class="ident">wm</span> <span class="op">==</span> <span class="ident">next</span> { <span class="kw">break</span>; }
+			<span class="ident">wm</span> <span class="op">=</span> <span class="ident">next</span>;
+			<span class="ident">iterations</span> <span class="op">+=</span> <span class="number">1</span>;
+			<span class="kw">let</span> <span class="ident">fee</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">Runtime</span> <span class="kw">as</span> <span class="ident">balances</span>::<span class="ident">Trait</span><span class="op">&gt;</span>::<span class="ident">WeightToFee</span>::<span class="ident">convert</span>(<span class="ident">wm</span>.<span class="ident">apply_to</span>(<span class="ident">tx_weight</span>));
+			<span class="macro">println</span><span class="macro">!</span>(
+				<span class="string">&quot;iteration {}, new wm = {:?}. Fee at this point is: {} millicents, {} cents, {} dollars&quot;</span>,
+				<span class="ident">iterations</span>,
+				<span class="ident">wm</span>,
+				<span class="ident">fee</span> <span class="op">/</span> <span class="ident">MILLICENTS</span>,
+				<span class="ident">fee</span> <span class="op">/</span> <span class="ident">CENTS</span>,
+				<span class="ident">fee</span> <span class="op">/</span> <span class="ident">DOLLARS</span>
+			);
+		}
 	}
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
 	<span class="kw">fn</span> <span class="ident">stateless_weight_mul</span>() {
 		<span class="comment">// Light block. Fee is reduced a little.</span>
 		<span class="macro">assert_eq</span><span class="macro">!</span>(
-			<span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((<span class="ident">ideal</span>() <span class="op">/</span> <span class="number">4</span>, <span class="ident">WeightMultiplier</span>::<span class="ident">default</span>())),
-			<span class="ident">fm</span>(<span class="op">-</span><span class="number">7500</span>)
+			<span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((<span class="ident">target</span>() <span class="op">/</span> <span class="number">4</span>, <span class="ident">WeightMultiplier</span>::<span class="ident">default</span>())),
+			<span class="ident">wm</span>(<span class="op">-</span><span class="number">7500</span>)
 		);
 		<span class="comment">// a bit more. Fee is decreased less, meaning that the fee increases as the block grows.</span>
 		<span class="macro">assert_eq</span><span class="macro">!</span>(
-			<span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((<span class="ident">ideal</span>() <span class="op">/</span> <span class="number">2</span>, <span class="ident">WeightMultiplier</span>::<span class="ident">default</span>())),
-			<span class="ident">fm</span>(<span class="op">-</span><span class="number">5000</span>)
+			<span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((<span class="ident">target</span>() <span class="op">/</span> <span class="number">2</span>, <span class="ident">WeightMultiplier</span>::<span class="ident">default</span>())),
+			<span class="ident">wm</span>(<span class="op">-</span><span class="number">5000</span>)
 		);
 		<span class="comment">// ideal. Original fee. No changes.</span>
 		<span class="macro">assert_eq</span><span class="macro">!</span>(
-			<span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((<span class="ident">ideal</span>() <span class="kw">as</span> <span class="ident">u32</span>, <span class="ident">WeightMultiplier</span>::<span class="ident">default</span>())),
-			<span class="ident">fm</span>(<span class="number">0</span>)
+			<span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((<span class="ident">target</span>(), <span class="ident">WeightMultiplier</span>::<span class="ident">default</span>())),
+			<span class="ident">wm</span>(<span class="number">0</span>)
 		);
 		<span class="comment">// // More than ideal. Fee is increased.</span>
 		<span class="macro">assert_eq</span><span class="macro">!</span>(
-			<span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>(((<span class="ident">ideal</span>() <span class="op">*</span> <span class="number">2</span>) <span class="kw">as</span> <span class="ident">u32</span>, <span class="ident">WeightMultiplier</span>::<span class="ident">default</span>())),
-			<span class="ident">fm</span>(<span class="number">10000</span>)
+			<span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>(((<span class="ident">target</span>() <span class="op">*</span> <span class="number">2</span>), <span class="ident">WeightMultiplier</span>::<span class="ident">default</span>())),
+			<span class="ident">wm</span>(<span class="number">10000</span>)
 		);
 	}
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
 	<span class="kw">fn</span> <span class="ident">stateful_weight_mul_grow_to_infinity</span>() {
 		<span class="macro">assert_eq</span><span class="macro">!</span>(
-			<span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((<span class="ident">ideal</span>() <span class="op">*</span> <span class="number">2</span>, <span class="ident">WeightMultiplier</span>::<span class="ident">default</span>())),
-			<span class="ident">fm</span>(<span class="number">10000</span>)
+			<span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((<span class="ident">target</span>() <span class="op">*</span> <span class="number">2</span>, <span class="ident">WeightMultiplier</span>::<span class="ident">default</span>())),
+			<span class="ident">wm</span>(<span class="number">10000</span>)
 		);
 		<span class="macro">assert_eq</span><span class="macro">!</span>(
-			<span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((<span class="ident">ideal</span>() <span class="op">*</span> <span class="number">2</span>, <span class="ident">fm</span>(<span class="number">10000</span>))),
-			<span class="ident">fm</span>(<span class="number">20000</span>)
+			<span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((<span class="ident">target</span>() <span class="op">*</span> <span class="number">2</span>, <span class="ident">wm</span>(<span class="number">10000</span>))),
+			<span class="ident">wm</span>(<span class="number">20000</span>)
 		);
 		<span class="macro">assert_eq</span><span class="macro">!</span>(
-			<span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((<span class="ident">ideal</span>() <span class="op">*</span> <span class="number">2</span>, <span class="ident">fm</span>(<span class="number">20000</span>))),
-			<span class="ident">fm</span>(<span class="number">30000</span>)
+			<span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((<span class="ident">target</span>() <span class="op">*</span> <span class="number">2</span>, <span class="ident">wm</span>(<span class="number">20000</span>))),
+			<span class="ident">wm</span>(<span class="number">30000</span>)
 		);
 		<span class="comment">// ...</span>
 		<span class="macro">assert_eq</span><span class="macro">!</span>(
-			<span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((<span class="ident">ideal</span>() <span class="op">*</span> <span class="number">2</span>, <span class="ident">fm</span>(<span class="number">1_000_000_000</span>))),
-			<span class="ident">fm</span>(<span class="number">1_000_000_000</span> <span class="op">+</span> <span class="number">10000</span>)
+			<span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((<span class="ident">target</span>() <span class="op">*</span> <span class="number">2</span>, <span class="ident">wm</span>(<span class="number">1_000_000_000</span>))),
+			<span class="ident">wm</span>(<span class="number">1_000_000_000</span> <span class="op">+</span> <span class="number">10000</span>)
 		);
 	}
 
@@ -412,28 +560,26 @@
 	<span class="kw">fn</span> <span class="ident">stateful_weight_mil_collapse_to_minus_one</span>() {
 		<span class="macro">assert_eq</span><span class="macro">!</span>(
 			<span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((<span class="number">0</span>, <span class="ident">WeightMultiplier</span>::<span class="ident">default</span>())),
-			<span class="ident">fm</span>(<span class="op">-</span><span class="number">10000</span>)
+			<span class="ident">wm</span>(<span class="op">-</span><span class="number">10000</span>)
 		);
 		<span class="macro">assert_eq</span><span class="macro">!</span>(
-			<span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((<span class="number">0</span>, <span class="ident">fm</span>(<span class="op">-</span><span class="number">10000</span>))),
-			<span class="ident">fm</span>(<span class="op">-</span><span class="number">20000</span>)
+			<span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((<span class="number">0</span>, <span class="ident">wm</span>(<span class="op">-</span><span class="number">10000</span>))),
+			<span class="ident">wm</span>(<span class="op">-</span><span class="number">20000</span>)
 		);
 		<span class="macro">assert_eq</span><span class="macro">!</span>(
-			<span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((<span class="number">0</span>, <span class="ident">fm</span>(<span class="op">-</span><span class="number">20000</span>))),
-			<span class="ident">fm</span>(<span class="op">-</span><span class="number">30000</span>)
+			<span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((<span class="number">0</span>, <span class="ident">wm</span>(<span class="op">-</span><span class="number">20000</span>))),
+			<span class="ident">wm</span>(<span class="op">-</span><span class="number">30000</span>)
 		);
 		<span class="comment">// ...</span>
 		<span class="macro">assert_eq</span><span class="macro">!</span>(
-			<span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((<span class="number">0</span>, <span class="ident">fm</span>(<span class="number">1_000_000_000</span> <span class="op">*</span> <span class="op">-</span><span class="number">1</span>))),
-			<span class="ident">fm</span>(<span class="op">-</span><span class="number">1_000_000_000</span>)
+			<span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((<span class="number">0</span>, <span class="ident">wm</span>(<span class="number">1_000_000_000</span> <span class="op">*</span> <span class="op">-</span><span class="number">1</span>))),
+			<span class="ident">wm</span>(<span class="op">-</span><span class="number">1_000_000_000</span>)
 		);
 	}
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
 	<span class="kw">fn</span> <span class="ident">weight_to_fee_should_not_overflow_on_large_weights</span>() {
-		<span class="comment">// defensive-only test. at the moment we are not allowing any weight more than</span>
-		<span class="comment">// 4 * 1024 * 1024 in a block.</span>
-		<span class="kw">let</span> <span class="ident">kb</span> <span class="op">=</span> <span class="number">1024_u32</span>;
+		<span class="kw">let</span> <span class="ident">kb</span> <span class="op">=</span> <span class="number">1024</span> <span class="kw">as</span> <span class="ident">Weight</span>;
 		<span class="kw">let</span> <span class="ident">mb</span> <span class="op">=</span> <span class="ident">kb</span> <span class="op">*</span> <span class="ident">kb</span>;
 		<span class="kw">let</span> <span class="ident">max_fm</span> <span class="op">=</span> <span class="ident">WeightMultiplier</span>::<span class="ident">from_fixed</span>(<span class="ident">Fixed64</span>::<span class="ident">from_natural</span>(<span class="ident">i64</span>::<span class="ident">max_value</span>()));
 
@@ -443,7 +589,9 @@
 				<span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((<span class="ident">i</span>, <span class="ident">WeightMultiplier</span>::<span class="ident">default</span>()));
 			});
 
-		<span class="macro">vec</span><span class="macro">!</span>[<span class="number">10</span> <span class="op">*</span> <span class="ident">mb</span>, <span class="ident">Weight</span>::<span class="ident">max_value</span>() <span class="op">/</span> <span class="number">2</span>, <span class="ident">Weight</span>::<span class="ident">max_value</span>()]
+		<span class="comment">// Some values that are all above the target and will cause an increase.</span>
+		<span class="kw">let</span> <span class="ident">t</span> <span class="op">=</span> <span class="ident">target</span>();
+		<span class="macro">vec</span><span class="macro">!</span>[<span class="ident">t</span> <span class="op">+</span> <span class="number">100</span>, <span class="ident">t</span> <span class="op">*</span> <span class="number">2</span>, <span class="ident">t</span> <span class="op">*</span> <span class="number">4</span>]
 			.<span class="ident">into_iter</span>()
 			.<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
 				<span class="kw">let</span> <span class="ident">fm</span> <span class="op">=</span> <span class="ident">WeightMultiplierUpdateHandler</span>::<span class="ident">convert</span>((
