@@ -652,6 +652,7 @@
 <span id="652">652</span>
 <span id="653">653</span>
 <span id="654">654</span>
+<span id="655">655</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -669,8 +670,8 @@
 <span class="comment">// You should have received a copy of the GNU General Public License</span>
 <span class="comment">// along with Substrate.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
 
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">custom_proto</span>::<span class="ident">upgrade</span>::{<span class="ident">CustomMessage</span>, <span class="ident">RegisteredProtocol</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">custom_proto</span>::<span class="ident">upgrade</span>::{<span class="ident">RegisteredProtocolEvent</span>, <span class="ident">RegisteredProtocolSubstream</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">custom_proto</span>::<span class="ident">upgrade</span>::{<span class="ident">RegisteredProtocol</span>, <span class="ident">RegisteredProtocolEvent</span>, <span class="ident">RegisteredProtocolSubstream</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">protocol</span>::<span class="ident">message</span>::<span class="ident">Message</span>;
 <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">futures03</span>::{<span class="ident">compat</span>::<span class="ident">Compat</span>, <span class="ident">TryFutureExt</span> <span class="kw">as</span> <span class="kw">_</span>};
 <span class="kw">use</span> <span class="ident">futures_timer</span>::<span class="ident">Delay</span>;
@@ -684,6 +685,7 @@
 	<span class="ident">SubstreamProtocol</span>,
 };
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">debug</span>, <span class="ident">error</span>};
+<span class="kw">use</span> <span class="ident">runtime_primitives</span>::<span class="ident">traits</span>::<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>;
 <span class="kw">use</span> <span class="ident">smallvec</span>::{<span class="ident">smallvec</span>, <span class="ident">SmallVec</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">borrow</span>::<span class="ident">Cow</span>, <span class="ident">error</span>, <span class="ident">fmt</span>, <span class="ident">io</span>, <span class="ident">marker</span>::<span class="ident">PhantomData</span>, <span class="ident">mem</span>, <span class="ident">time</span>::<span class="ident">Duration</span>};
 <span class="kw">use</span> <span class="ident">tokio_io</span>::{<span class="ident">AsyncRead</span>, <span class="ident">AsyncWrite</span>};
@@ -742,21 +744,21 @@
 <span class="doccomment">/// We consider that we are now &quot;closed&quot; if the remote closes all the existing substreams.</span>
 <span class="doccomment">/// Re-opening it can then be performed by closing all active substream and re-opening one.</span>
 <span class="doccomment">///</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">CustomProtoHandlerProto</span><span class="op">&lt;</span><span class="ident">TMessage</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">CustomProtoHandlerProto</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Configuration for the protocol upgrade to negotiate.</span>
-	<span class="ident">protocol</span>: <span class="ident">RegisteredProtocol</span><span class="op">&lt;</span><span class="ident">TMessage</span><span class="op">&gt;</span>,
+	<span class="ident">protocol</span>: <span class="ident">RegisteredProtocol</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 
 	<span class="doccomment">/// Marker to pin the generic type.</span>
 	<span class="ident">marker</span>: <span class="ident">PhantomData</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">TMessage</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span> <span class="ident">CustomProtoHandlerProto</span><span class="op">&lt;</span><span class="ident">TMessage</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span> <span class="ident">CustomProtoHandlerProto</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>
 <span class="kw">where</span>
 	<span class="ident">TSubstream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span>,
-	<span class="ident">TMessage</span>: <span class="ident">CustomMessage</span>,
+	<span class="ident">B</span>: <span class="ident">BlockT</span>,
 {
 	<span class="doccomment">/// Builds a new `CustomProtoHandlerProto`.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">protocol</span>: <span class="ident">RegisteredProtocol</span><span class="op">&lt;</span><span class="ident">TMessage</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">protocol</span>: <span class="ident">RegisteredProtocol</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
 		<span class="ident">CustomProtoHandlerProto</span> {
 			<span class="ident">protocol</span>,
 			<span class="ident">marker</span>: <span class="ident">PhantomData</span>,
@@ -764,14 +766,14 @@
 	}
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">TMessage</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span> <span class="ident">IntoProtocolsHandler</span> <span class="kw">for</span> <span class="ident">CustomProtoHandlerProto</span><span class="op">&lt;</span><span class="ident">TMessage</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span> <span class="ident">IntoProtocolsHandler</span> <span class="kw">for</span> <span class="ident">CustomProtoHandlerProto</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>
 <span class="kw">where</span>
 	<span class="ident">TSubstream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span>,
-	<span class="ident">TMessage</span>: <span class="ident">CustomMessage</span>,
+	<span class="ident">B</span>: <span class="ident">BlockT</span>,
 {
-	<span class="kw">type</span> <span class="ident">Handler</span> <span class="op">=</span> <span class="ident">CustomProtoHandler</span><span class="op">&lt;</span><span class="ident">TMessage</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>;
+	<span class="kw">type</span> <span class="ident">Handler</span> <span class="op">=</span> <span class="ident">CustomProtoHandler</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>;
 
-	<span class="kw">fn</span> <span class="ident">inbound_protocol</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">RegisteredProtocol</span><span class="op">&lt;</span><span class="ident">TMessage</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">inbound_protocol</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">RegisteredProtocol</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> {
 		<span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">clone</span>()
 	}
 
@@ -790,12 +792,12 @@
 }
 
 <span class="doccomment">/// The actual handler once the connection has been established.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">CustomProtoHandler</span><span class="op">&lt;</span><span class="ident">TMessage</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">CustomProtoHandler</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Configuration for the protocol upgrade to negotiate.</span>
-	<span class="ident">protocol</span>: <span class="ident">RegisteredProtocol</span><span class="op">&lt;</span><span class="ident">TMessage</span><span class="op">&gt;</span>,
+	<span class="ident">protocol</span>: <span class="ident">RegisteredProtocol</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 
 	<span class="doccomment">/// State of the communications with the remote.</span>
-	<span class="ident">state</span>: <span class="ident">ProtocolState</span><span class="op">&lt;</span><span class="ident">TMessage</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>,
+	<span class="ident">state</span>: <span class="ident">ProtocolState</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>,
 
 	<span class="doccomment">/// Identifier of the node we&#39;re talking to. Used only for logging purposes and shouldn&#39;t have</span>
 	<span class="doccomment">/// any influence on the behaviour.</span>
@@ -809,15 +811,15 @@
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// This queue must only ever be modified to insert elements at the back, or remove the first</span>
 	<span class="doccomment">/// element.</span>
-	<span class="ident">events_queue</span>: <span class="ident">SmallVec</span><span class="op">&lt;</span>[<span class="ident">ProtocolsHandlerEvent</span><span class="op">&lt;</span><span class="ident">RegisteredProtocol</span><span class="op">&lt;</span><span class="ident">TMessage</span><span class="op">&gt;</span>, (), <span class="ident">CustomProtoHandlerOut</span><span class="op">&lt;</span><span class="ident">TMessage</span><span class="op">&gt;&gt;</span>; <span class="number">16</span>]<span class="op">&gt;</span>,
+	<span class="ident">events_queue</span>: <span class="ident">SmallVec</span><span class="op">&lt;</span>[<span class="ident">ProtocolsHandlerEvent</span><span class="op">&lt;</span><span class="ident">RegisteredProtocol</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, (), <span class="ident">CustomProtoHandlerOut</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>; <span class="number">16</span>]<span class="op">&gt;</span>,
 }
 
 <span class="doccomment">/// State of the handler.</span>
-<span class="kw">enum</span> <span class="ident">ProtocolState</span><span class="op">&lt;</span><span class="ident">TMessage</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span> {
+<span class="kw">enum</span> <span class="ident">ProtocolState</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Waiting for the behaviour to tell the handler whether it is enabled or disabled.</span>
 	<span class="ident">Init</span> {
 		<span class="doccomment">/// List of substreams opened by the remote but that haven&#39;t been processed yet.</span>
-		<span class="ident">substreams</span>: <span class="ident">SmallVec</span><span class="op">&lt;</span>[<span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">TMessage</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>; <span class="number">6</span>]<span class="op">&gt;</span>,
+		<span class="ident">substreams</span>: <span class="ident">SmallVec</span><span class="op">&lt;</span>[<span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>; <span class="number">6</span>]<span class="op">&gt;</span>,
 		<span class="doccomment">/// Deadline after which the initialization is abnormally long.</span>
 		<span class="ident">init_deadline</span>: <span class="ident">Compat</span><span class="op">&lt;</span><span class="ident">Delay</span><span class="op">&gt;</span>,
 	},
@@ -833,9 +835,9 @@
 	<span class="doccomment">/// If we are in this state, we have sent a `CustomProtocolOpen` message to the outside.</span>
 	<span class="ident">Normal</span> {
 		<span class="doccomment">/// The substreams where bidirectional communications happen.</span>
-		<span class="ident">substreams</span>: <span class="ident">SmallVec</span><span class="op">&lt;</span>[<span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">TMessage</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>; <span class="number">4</span>]<span class="op">&gt;</span>,
+		<span class="ident">substreams</span>: <span class="ident">SmallVec</span><span class="op">&lt;</span>[<span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>; <span class="number">4</span>]<span class="op">&gt;</span>,
 		<span class="doccomment">/// Contains substreams which are being shut down.</span>
-		<span class="ident">shutdown</span>: <span class="ident">SmallVec</span><span class="op">&lt;</span>[<span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">TMessage</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>; <span class="number">4</span>]<span class="op">&gt;</span>,
+		<span class="ident">shutdown</span>: <span class="ident">SmallVec</span><span class="op">&lt;</span>[<span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>; <span class="number">4</span>]<span class="op">&gt;</span>,
 	},
 
 	<span class="doccomment">/// We are disabled. Contains substreams that are being closed.</span>
@@ -843,7 +845,7 @@
 	<span class="doccomment">/// outside or we have never sent any `CustomProtocolOpen` in the first place.</span>
 	<span class="ident">Disabled</span> {
 		<span class="doccomment">/// List of substreams to shut down.</span>
-		<span class="ident">shutdown</span>: <span class="ident">SmallVec</span><span class="op">&lt;</span>[<span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">TMessage</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>; <span class="number">6</span>]<span class="op">&gt;</span>,
+		<span class="ident">shutdown</span>: <span class="ident">SmallVec</span><span class="op">&lt;</span>[<span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>; <span class="number">6</span>]<span class="op">&gt;</span>,
 
 		<span class="doccomment">/// If true, we should reactivate the handler after all the substreams in `shutdown` have</span>
 		<span class="doccomment">/// been closed.</span>
@@ -864,7 +866,7 @@
 
 <span class="doccomment">/// Event that can be received by a `CustomProtoHandler`.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">CustomProtoHandlerIn</span><span class="op">&lt;</span><span class="ident">TMessage</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">CustomProtoHandlerIn</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// The node should start using custom protocols.</span>
 	<span class="ident">Enable</span>,
 
@@ -874,13 +876,13 @@
 	<span class="doccomment">/// Sends a message through a custom protocol substream.</span>
 	<span class="ident">SendCustomMessage</span> {
 		<span class="doccomment">/// The message to send.</span>
-		<span class="ident">message</span>: <span class="ident">TMessage</span>,
+		<span class="ident">message</span>: <span class="ident">Message</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 	},
 }
 
 <span class="doccomment">/// Event that can be emitted by a `CustomProtoHandler`.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">CustomProtoHandlerOut</span><span class="op">&lt;</span><span class="ident">TMessage</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">CustomProtoHandlerOut</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Opened a custom protocol with the remote.</span>
 	<span class="ident">CustomProtocolOpen</span> {
 		<span class="doccomment">/// Version of the protocol that has been opened.</span>
@@ -896,14 +898,14 @@
 	<span class="doccomment">/// Receives a message on a custom protocol substream.</span>
 	<span class="ident">CustomMessage</span> {
 		<span class="doccomment">/// Message that has been received.</span>
-		<span class="ident">message</span>: <span class="ident">TMessage</span>,
+		<span class="ident">message</span>: <span class="ident">Message</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 	},
 
 	<span class="doccomment">/// A substream to the remote is clogged. The send buffer is very large, and we should print</span>
 	<span class="doccomment">/// a diagnostic message and/or avoid sending more data.</span>
 	<span class="ident">Clogged</span> {
 		<span class="doccomment">/// Copy of the messages that are within the buffer, for further diagnostic.</span>
-		<span class="ident">messages</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">TMessage</span><span class="op">&gt;</span>,
+		<span class="ident">messages</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Message</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>,
 	},
 
 	<span class="doccomment">/// An error has happened on the protocol level with this node.</span>
@@ -915,10 +917,10 @@
 	},
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">TMessage</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span> <span class="ident">CustomProtoHandler</span><span class="op">&lt;</span><span class="ident">TMessage</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span> <span class="ident">CustomProtoHandler</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>
 <span class="kw">where</span>
 	<span class="ident">TSubstream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span>,
-	<span class="ident">TMessage</span>: <span class="ident">CustomMessage</span>,
+	<span class="ident">B</span>: <span class="ident">BlockT</span>,
 {
 	<span class="doccomment">/// Enables the handler.</span>
 	<span class="kw">fn</span> <span class="ident">enable</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
@@ -996,7 +998,7 @@
 	<span class="doccomment">/// Polls the state for events. Optionally returns an event to produce.</span>
 	<span class="attribute">#[<span class="ident">must_use</span>]</span>
 	<span class="kw">fn</span> <span class="ident">poll_state</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>)
-		<span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ProtocolsHandlerEvent</span><span class="op">&lt;</span><span class="ident">RegisteredProtocol</span><span class="op">&lt;</span><span class="ident">TMessage</span><span class="op">&gt;</span>, (), <span class="ident">CustomProtoHandlerOut</span><span class="op">&lt;</span><span class="ident">TMessage</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span> {
+		<span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ProtocolsHandlerEvent</span><span class="op">&lt;</span><span class="ident">RegisteredProtocol</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, (), <span class="ident">CustomProtoHandlerOut</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span> {
 		<span class="kw">match</span> <span class="ident">mem</span>::<span class="ident">replace</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">state</span>, <span class="ident">ProtocolState</span>::<span class="ident">Poisoned</span>) {
 			<span class="ident">ProtocolState</span>::<span class="ident">Poisoned</span> <span class="op">=&gt;</span> {
 				<span class="macro">error</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;Handler with {:?} is in poisoned state&quot;</span>,
@@ -1125,7 +1127,7 @@
 	<span class="doccomment">/// Called by `inject_fully_negotiated_inbound` and `inject_fully_negotiated_outbound`.</span>
 	<span class="kw">fn</span> <span class="ident">inject_fully_negotiated</span>(
 		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-		<span class="kw-2">mut</span> <span class="ident">substream</span>: <span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">TMessage</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>
+		<span class="kw-2">mut</span> <span class="ident">substream</span>: <span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>
 	) {
 		<span class="self">self</span>.<span class="ident">state</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">mem</span>::<span class="ident">replace</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">state</span>, <span class="ident">ProtocolState</span>::<span class="ident">Poisoned</span>) {
 			<span class="ident">ProtocolState</span>::<span class="ident">Poisoned</span> <span class="op">=&gt;</span> {
@@ -1170,7 +1172,7 @@
 	}
 
 	<span class="doccomment">/// Sends a message to the remote.</span>
-	<span class="kw">fn</span> <span class="ident">send_message</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">message</span>: <span class="ident">TMessage</span>) {
+	<span class="kw">fn</span> <span class="ident">send_message</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">message</span>: <span class="ident">Message</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>) {
 		<span class="kw">match</span> <span class="self">self</span>.<span class="ident">state</span> {
 			<span class="ident">ProtocolState</span>::<span class="ident">Normal</span> { <span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">substreams</span>, .. } <span class="op">=&gt;</span>
 				<span class="ident">substreams</span>[<span class="number">0</span>].<span class="ident">send_message</span>(<span class="ident">message</span>),
@@ -1181,14 +1183,14 @@
 	}
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">TMessage</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span> <span class="ident">ProtocolsHandler</span> <span class="kw">for</span> <span class="ident">CustomProtoHandler</span><span class="op">&lt;</span><span class="ident">TMessage</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>
-<span class="kw">where</span> <span class="ident">TSubstream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span>, <span class="ident">TMessage</span>: <span class="ident">CustomMessage</span> {
-	<span class="kw">type</span> <span class="ident">InEvent</span> <span class="op">=</span> <span class="ident">CustomProtoHandlerIn</span><span class="op">&lt;</span><span class="ident">TMessage</span><span class="op">&gt;</span>;
-	<span class="kw">type</span> <span class="ident">OutEvent</span> <span class="op">=</span> <span class="ident">CustomProtoHandlerOut</span><span class="op">&lt;</span><span class="ident">TMessage</span><span class="op">&gt;</span>;
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span> <span class="ident">ProtocolsHandler</span> <span class="kw">for</span> <span class="ident">CustomProtoHandler</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>
+<span class="kw">where</span> <span class="ident">TSubstream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span>, <span class="ident">B</span>: <span class="ident">BlockT</span> {
+	<span class="kw">type</span> <span class="ident">InEvent</span> <span class="op">=</span> <span class="ident">CustomProtoHandlerIn</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>;
+	<span class="kw">type</span> <span class="ident">OutEvent</span> <span class="op">=</span> <span class="ident">CustomProtoHandlerOut</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>;
 	<span class="kw">type</span> <span class="ident">Substream</span> <span class="op">=</span> <span class="ident">TSubstream</span>;
 	<span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ConnectionKillError</span>;
-	<span class="kw">type</span> <span class="ident">InboundProtocol</span> <span class="op">=</span> <span class="ident">RegisteredProtocol</span><span class="op">&lt;</span><span class="ident">TMessage</span><span class="op">&gt;</span>;
-	<span class="kw">type</span> <span class="ident">OutboundProtocol</span> <span class="op">=</span> <span class="ident">RegisteredProtocol</span><span class="op">&lt;</span><span class="ident">TMessage</span><span class="op">&gt;</span>;
+	<span class="kw">type</span> <span class="ident">InboundProtocol</span> <span class="op">=</span> <span class="ident">RegisteredProtocol</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>;
+	<span class="kw">type</span> <span class="ident">OutboundProtocol</span> <span class="op">=</span> <span class="ident">RegisteredProtocol</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>;
 	<span class="kw">type</span> <span class="ident">OutboundOpenInfo</span> <span class="op">=</span> ();
 
 	<span class="kw">fn</span> <span class="ident">listen_protocol</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">SubstreamProtocol</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">InboundProtocol</span><span class="op">&gt;</span> {
@@ -1210,7 +1212,7 @@
 		<span class="self">self</span>.<span class="ident">inject_fully_negotiated</span>(<span class="ident">proto</span>);
 	}
 
-	<span class="kw">fn</span> <span class="ident">inject_event</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">message</span>: <span class="ident">CustomProtoHandlerIn</span><span class="op">&lt;</span><span class="ident">TMessage</span><span class="op">&gt;</span>) {
+	<span class="kw">fn</span> <span class="ident">inject_event</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">message</span>: <span class="ident">CustomProtoHandlerIn</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>) {
 		<span class="kw">match</span> <span class="ident">message</span> {
 			<span class="ident">CustomProtoHandlerIn</span>::<span class="ident">Disable</span> <span class="op">=&gt;</span> <span class="self">self</span>.<span class="ident">disable</span>(),
 			<span class="ident">CustomProtoHandlerIn</span>::<span class="ident">Enable</span> <span class="op">=&gt;</span> <span class="self">self</span>.<span class="ident">enable</span>(),
@@ -1267,7 +1269,7 @@
 	}
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">TMessage</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">CustomProtoHandler</span><span class="op">&lt;</span><span class="ident">TMessage</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">CustomProtoHandler</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>
 <span class="kw">where</span>
 	<span class="ident">TSubstream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span>,
 {
@@ -1279,9 +1281,9 @@
 
 <span class="doccomment">/// Given a list of substreams, tries to shut them down. The substreams that have been successfully</span>
 <span class="doccomment">/// shut down are removed from the list.</span>
-<span class="kw">fn</span> <span class="ident">shutdown_list</span><span class="op">&lt;</span><span class="ident">TMessage</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>
-	(<span class="ident">list</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">SmallVec</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">smallvec</span>::<span class="ident">Array</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">TMessage</span>, <span class="ident">TSubstream</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>)
-<span class="kw">where</span> <span class="ident">TSubstream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span>, <span class="ident">TMessage</span>: <span class="ident">CustomMessage</span> {
+<span class="kw">fn</span> <span class="ident">shutdown_list</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">TSubstream</span><span class="op">&gt;</span>
+	(<span class="ident">list</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">SmallVec</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">smallvec</span>::<span class="ident">Array</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">TSubstream</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>)
+<span class="kw">where</span> <span class="ident">TSubstream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span>, <span class="ident">B</span>: <span class="ident">BlockT</span> {
 	<span class="lifetime">&#39;outer</span>: <span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> (<span class="number">0</span>..<span class="ident">list</span>.<span class="ident">len</span>()).<span class="ident">rev</span>() {
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">substream</span> <span class="op">=</span> <span class="ident">list</span>.<span class="ident">swap_remove</span>(<span class="ident">n</span>);
 		<span class="kw">loop</span> {
