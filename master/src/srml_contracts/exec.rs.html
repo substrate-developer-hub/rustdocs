@@ -1469,6 +1469,13 @@
 <span id="1469">1469</span>
 <span id="1470">1470</span>
 <span id="1471">1471</span>
+<span id="1472">1472</span>
+<span id="1473">1473</span>
+<span id="1474">1474</span>
+<span id="1475">1475</span>
+<span id="1476">1476</span>
+<span id="1477">1477</span>
+<span id="1478">1478</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1699,7 +1706,7 @@
 	<span class="kw">fn</span> <span class="ident">execute</span><span class="op">&lt;</span><span class="ident">E</span>: <span class="ident">Ext</span><span class="op">&lt;</span><span class="ident">T</span> <span class="op">=</span> <span class="ident">T</span><span class="op">&gt;&gt;</span>(
 		<span class="kw-2">&amp;</span><span class="self">self</span>,
 		<span class="ident">exec</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Executable</span>,
-		<span class="ident">ext</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">E</span>,
+		<span class="ident">ext</span>: <span class="ident">E</span>,
 		<span class="ident">input_data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
 		<span class="ident">empty_output_buf</span>: <span class="ident">EmptyOutputBuf</span>,
 		<span class="ident">gas_meter</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">GasMeter</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
@@ -1766,13 +1773,13 @@
 		}
 	}
 
-	<span class="kw">fn</span> <span class="ident">nested</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">overlay</span>: <span class="ident">OverlayAccountDb</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">dest</span>: <span class="ident">T</span>::<span class="ident">AccountId</span>, <span class="ident">trie_id</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">TrieId</span><span class="op">&gt;</span>)
-		<span class="op">-&gt;</span> <span class="self">Self</span>
+	<span class="kw">fn</span> <span class="ident">nested</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span>, <span class="lifetime">&#39;c</span>: <span class="lifetime">&#39;b</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;c</span> <span class="self">self</span>, <span class="ident">dest</span>: <span class="ident">T</span>::<span class="ident">AccountId</span>, <span class="ident">trie_id</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">TrieId</span><span class="op">&gt;</span>)
+		<span class="op">-&gt;</span> <span class="ident">ExecutionContext</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span>, <span class="ident">T</span>, <span class="ident">V</span>, <span class="ident">L</span><span class="op">&gt;</span>
 	{
 		<span class="ident">ExecutionContext</span> {
 			<span class="ident">self_trie_id</span>: <span class="ident">trie_id</span>,
 			<span class="ident">self_account</span>: <span class="ident">dest</span>,
-			<span class="ident">overlay</span>,
+			<span class="ident">overlay</span>: <span class="ident">OverlayAccountDb</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">overlay</span>),
 			<span class="ident">depth</span>: <span class="self">self</span>.<span class="ident">depth</span> <span class="op">+</span> <span class="number">1</span>,
 			<span class="ident">events</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
 			<span class="ident">calls</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
@@ -1814,54 +1821,41 @@
 			<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="string">&quot;contract has been evicted&quot;</span>);
 		};
 
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">output_data</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+		<span class="kw">let</span> <span class="ident">caller</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">self_account</span>.<span class="ident">clone</span>();
+		<span class="kw">let</span> <span class="ident">dest_trie_id</span> <span class="op">=</span> <span class="ident">contract_info</span>.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">i</span>.<span class="ident">as_alive</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">i</span>.<span class="ident">trie_id</span>.<span class="ident">clone</span>()));
 
-		<span class="kw">let</span> (<span class="ident">change_set</span>, <span class="ident">events</span>, <span class="ident">calls</span>) <span class="op">=</span> {
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">nested</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">nested</span>(
-				<span class="ident">OverlayAccountDb</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">overlay</span>),
-				<span class="ident">dest</span>.<span class="ident">clone</span>(),
-				<span class="ident">contract_info</span>.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">i</span>.<span class="ident">as_alive</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">i</span>.<span class="ident">trie_id</span>.<span class="ident">clone</span>()))
-			);
-
+		<span class="kw">let</span> <span class="ident">output_data</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">with_nested_context</span>(<span class="ident">dest</span>.<span class="ident">clone</span>(), <span class="ident">dest_trie_id</span>, <span class="op">|</span><span class="ident">nested</span><span class="op">|</span> {
 			<span class="kw">if</span> <span class="ident">value</span> <span class="op">&gt;</span> <span class="ident">BalanceOf</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>::<span class="ident">zero</span>() {
 				<span class="ident">transfer</span>(
 					<span class="ident">gas_meter</span>,
 					<span class="ident">TransferCause</span>::<span class="ident">Call</span>,
-					<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">self_account</span>,
+					<span class="kw-2">&amp;</span><span class="ident">caller</span>,
 					<span class="kw-2">&amp;</span><span class="ident">dest</span>,
 					<span class="ident">value</span>,
-					<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">nested</span>,
+					<span class="ident">nested</span>,
 				)<span class="question-mark">?</span>;
 			}
 
 			<span class="comment">// If code_hash is not none, then the destination account is a live contract, otherwise</span>
 			<span class="comment">// it is a regular account since tombstone accounts have already been rejected.</span>
-			<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dest_code_hash</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">overlay</span>.<span class="ident">get_code_hash</span>(<span class="kw-2">&amp;</span><span class="ident">dest</span>) {
-				<span class="kw">let</span> <span class="ident">executable</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">loader</span>.<span class="ident">load_main</span>(<span class="kw-2">&amp;</span><span class="ident">dest_code_hash</span>)<span class="question-mark">?</span>;
-				<span class="ident">output_data</span> <span class="op">=</span> <span class="self">self</span>
-					.<span class="ident">vm</span>
-					.<span class="ident">execute</span>(
-						<span class="kw-2">&amp;</span><span class="ident">executable</span>,
-						<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">CallContext</span> {
-							<span class="ident">ctx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">nested</span>,
-							<span class="ident">caller</span>: <span class="self">self</span>.<span class="ident">self_account</span>.<span class="ident">clone</span>(),
-							<span class="ident">value_transferred</span>: <span class="ident">value</span>,
-							<span class="ident">timestamp</span>: <span class="self">self</span>.<span class="ident">timestamp</span>.<span class="ident">clone</span>(),
-							<span class="ident">block_number</span>: <span class="self">self</span>.<span class="ident">block_number</span>.<span class="ident">clone</span>(),
-						},
-						<span class="ident">input_data</span>,
-						<span class="ident">empty_output_buf</span>,
-						<span class="ident">gas_meter</span>,
-					)
-					.<span class="ident">into_result</span>()<span class="question-mark">?</span>;
-			}
+			<span class="kw">let</span> <span class="ident">output_data</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">nested</span>.<span class="ident">overlay</span>.<span class="ident">get_code_hash</span>(<span class="kw-2">&amp;</span><span class="ident">dest</span>) {
+				<span class="prelude-val">Some</span>(<span class="ident">dest_code_hash</span>) <span class="op">=&gt;</span> {
+					<span class="kw">let</span> <span class="ident">executable</span> <span class="op">=</span> <span class="ident">nested</span>.<span class="ident">loader</span>.<span class="ident">load_main</span>(<span class="kw-2">&amp;</span><span class="ident">dest_code_hash</span>)<span class="question-mark">?</span>;
+					<span class="ident">nested</span>.<span class="ident">vm</span>
+						.<span class="ident">execute</span>(
+							<span class="kw-2">&amp;</span><span class="ident">executable</span>,
+							<span class="ident">nested</span>.<span class="ident">new_call_context</span>(<span class="ident">caller</span>, <span class="ident">value</span>),
+							<span class="ident">input_data</span>,
+							<span class="ident">empty_output_buf</span>,
+							<span class="ident">gas_meter</span>,
+						)
+						.<span class="ident">into_result</span>()<span class="question-mark">?</span>
+				}
+				<span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="ident">Vec</span>::<span class="ident">new</span>(),
+			};
 
-			(<span class="ident">nested</span>.<span class="ident">overlay</span>.<span class="ident">into_change_set</span>(), <span class="ident">nested</span>.<span class="ident">events</span>, <span class="ident">nested</span>.<span class="ident">calls</span>)
-		};
-
-		<span class="self">self</span>.<span class="ident">overlay</span>.<span class="ident">commit</span>(<span class="ident">change_set</span>);
-		<span class="self">self</span>.<span class="ident">events</span>.<span class="ident">extend</span>(<span class="ident">events</span>);
-		<span class="self">self</span>.<span class="ident">calls</span>.<span class="ident">extend</span>(<span class="ident">calls</span>);
+			<span class="prelude-val">Ok</span>(<span class="ident">output_data</span>)
+		})<span class="question-mark">?</span>;
 
 		<span class="prelude-val">Ok</span>(<span class="ident">CallReceipt</span> { <span class="ident">output_data</span> })
 	}
@@ -1884,42 +1878,35 @@
 			<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="string">&quot;not enough gas to pay base instantiate fee&quot;</span>);
 		}
 
+		<span class="kw">let</span> <span class="ident">caller</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">self_account</span>.<span class="ident">clone</span>();
 		<span class="kw">let</span> <span class="ident">dest</span> <span class="op">=</span> <span class="ident">T</span>::<span class="ident">DetermineContractAddress</span>::<span class="ident">contract_address_for</span>(
 			<span class="ident">code_hash</span>,
 			<span class="ident">input_data</span>,
-			<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">self_account</span>,
+			<span class="kw-2">&amp;</span><span class="ident">caller</span>,
 		);
 
-		<span class="kw">let</span> (<span class="ident">change_set</span>, <span class="ident">events</span>, <span class="ident">calls</span>) <span class="op">=</span> {
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">overlay</span> <span class="op">=</span> <span class="ident">OverlayAccountDb</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">overlay</span>);
+		<span class="comment">// TrieId has not been generated yet and storage is empty since contract is new.</span>
+		<span class="kw">let</span> <span class="ident">dest_trie_id</span> <span class="op">=</span> <span class="prelude-val">None</span>;
 
-			<span class="ident">overlay</span>.<span class="ident">create_contract</span>(<span class="kw-2">&amp;</span><span class="ident">dest</span>, <span class="ident">code_hash</span>.<span class="ident">clone</span>())<span class="question-mark">?</span>;
-
-			<span class="comment">// TrieId has not been generated yet and storage is empty since contract is new.</span>
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">nested</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">nested</span>(<span class="ident">overlay</span>, <span class="ident">dest</span>.<span class="ident">clone</span>(), <span class="prelude-val">None</span>);
+		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">with_nested_context</span>(<span class="ident">dest</span>.<span class="ident">clone</span>(), <span class="ident">dest_trie_id</span>, <span class="op">|</span><span class="ident">nested</span><span class="op">|</span> {
+			<span class="ident">nested</span>.<span class="ident">overlay</span>.<span class="ident">create_contract</span>(<span class="kw-2">&amp;</span><span class="ident">dest</span>, <span class="ident">code_hash</span>.<span class="ident">clone</span>())<span class="question-mark">?</span>;
 
 			<span class="comment">// Send funds unconditionally here. If the `endowment` is below existential_deposit</span>
 			<span class="comment">// then error will be returned here.</span>
 			<span class="ident">transfer</span>(
 				<span class="ident">gas_meter</span>,
 				<span class="ident">TransferCause</span>::<span class="ident">Instantiate</span>,
-				<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">self_account</span>,
+				<span class="kw-2">&amp;</span><span class="ident">caller</span>,
 				<span class="kw-2">&amp;</span><span class="ident">dest</span>,
 				<span class="ident">endowment</span>,
-				<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">nested</span>,
+				<span class="ident">nested</span>,
 			)<span class="question-mark">?</span>;
 
-			<span class="kw">let</span> <span class="ident">executable</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">loader</span>.<span class="ident">load_init</span>(<span class="kw-2">&amp;</span><span class="ident">code_hash</span>)<span class="question-mark">?</span>;
-			<span class="self">self</span>.<span class="ident">vm</span>
+			<span class="kw">let</span> <span class="ident">executable</span> <span class="op">=</span> <span class="ident">nested</span>.<span class="ident">loader</span>.<span class="ident">load_init</span>(<span class="kw-2">&amp;</span><span class="ident">code_hash</span>)<span class="question-mark">?</span>;
+			<span class="ident">nested</span>.<span class="ident">vm</span>
 				.<span class="ident">execute</span>(
 					<span class="kw-2">&amp;</span><span class="ident">executable</span>,
-					<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">CallContext</span> {
-						<span class="ident">ctx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">nested</span>,
-						<span class="ident">caller</span>: <span class="self">self</span>.<span class="ident">self_account</span>.<span class="ident">clone</span>(),
-						<span class="ident">value_transferred</span>: <span class="ident">endowment</span>,
-						<span class="ident">timestamp</span>: <span class="self">self</span>.<span class="ident">timestamp</span>.<span class="ident">clone</span>(),
-						<span class="ident">block_number</span>: <span class="self">self</span>.<span class="ident">block_number</span>.<span class="ident">clone</span>(),
-					},
+					<span class="ident">nested</span>.<span class="ident">new_call_context</span>(<span class="ident">caller</span>.<span class="ident">clone</span>(), <span class="ident">endowment</span>),
 					<span class="ident">input_data</span>,
 					<span class="ident">EmptyOutputBuf</span>::<span class="ident">new</span>(),
 					<span class="ident">gas_meter</span>,
@@ -1928,18 +1915,45 @@
 
 			<span class="comment">// Deposit an instantiation event.</span>
 			<span class="ident">nested</span>.<span class="ident">events</span>.<span class="ident">push</span>(<span class="ident">IndexedEvent</span> {
-				<span class="ident">event</span>: <span class="ident">RawEvent</span>::<span class="ident">Instantiated</span>(<span class="self">self</span>.<span class="ident">self_account</span>.<span class="ident">clone</span>(), <span class="ident">dest</span>.<span class="ident">clone</span>()),
+				<span class="ident">event</span>: <span class="ident">RawEvent</span>::<span class="ident">Instantiated</span>(<span class="ident">caller</span>.<span class="ident">clone</span>(), <span class="ident">dest</span>.<span class="ident">clone</span>()),
 				<span class="ident">topics</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
 			});
 
-			(<span class="ident">nested</span>.<span class="ident">overlay</span>.<span class="ident">into_change_set</span>(), <span class="ident">nested</span>.<span class="ident">events</span>, <span class="ident">nested</span>.<span class="ident">calls</span>)
+			<span class="prelude-val">Ok</span>(<span class="ident">Vec</span>::<span class="ident">new</span>())
+		})<span class="question-mark">?</span>;
+
+		<span class="prelude-val">Ok</span>(<span class="ident">InstantiateReceipt</span> { <span class="ident">address</span>: <span class="ident">dest</span> })
+	}
+
+	<span class="kw">fn</span> <span class="ident">new_call_context</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;b</span> <span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">caller</span>: <span class="ident">T</span>::<span class="ident">AccountId</span>, <span class="ident">value</span>: <span class="ident">BalanceOf</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>)
+		<span class="op">-&gt;</span> <span class="ident">CallContext</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span>, <span class="lifetime">&#39;a</span>, <span class="ident">T</span>, <span class="ident">V</span>, <span class="ident">L</span><span class="op">&gt;</span>
+	{
+		<span class="kw">let</span> <span class="ident">timestamp</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">timestamp</span>.<span class="ident">clone</span>();
+		<span class="kw">let</span> <span class="ident">block_number</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">block_number</span>.<span class="ident">clone</span>();
+		<span class="ident">CallContext</span> {
+			<span class="ident">ctx</span>: <span class="self">self</span>,
+			<span class="ident">caller</span>,
+			<span class="ident">value_transferred</span>: <span class="ident">value</span>,
+			<span class="ident">timestamp</span>,
+			<span class="ident">block_number</span>,
+		}
+	}
+
+	<span class="kw">fn</span> <span class="ident">with_nested_context</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">dest</span>: <span class="ident">T</span>::<span class="ident">AccountId</span>, <span class="ident">trie_id</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">TrieId</span><span class="op">&gt;</span>, <span class="ident">func</span>: <span class="ident">F</span>)
+		<span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span>
+		<span class="kw">where</span> <span class="ident">F</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ExecutionContext</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">V</span>, <span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span>
+	{
+		<span class="kw">let</span> (<span class="ident">output_data</span>, <span class="ident">change_set</span>, <span class="ident">events</span>, <span class="ident">calls</span>) <span class="op">=</span> {
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">nested</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">nested</span>(<span class="ident">dest</span>, <span class="ident">trie_id</span>);
+			<span class="kw">let</span> <span class="ident">output_data</span> <span class="op">=</span> <span class="ident">func</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">nested</span>)<span class="question-mark">?</span>;
+			(<span class="ident">output_data</span>, <span class="ident">nested</span>.<span class="ident">overlay</span>.<span class="ident">into_change_set</span>(), <span class="ident">nested</span>.<span class="ident">events</span>, <span class="ident">nested</span>.<span class="ident">calls</span>)
 		};
 
 		<span class="self">self</span>.<span class="ident">overlay</span>.<span class="ident">commit</span>(<span class="ident">change_set</span>);
 		<span class="self">self</span>.<span class="ident">events</span>.<span class="ident">extend</span>(<span class="ident">events</span>);
 		<span class="self">self</span>.<span class="ident">calls</span>.<span class="ident">extend</span>(<span class="ident">calls</span>);
 
-		<span class="prelude-val">Ok</span>(<span class="ident">InstantiateReceipt</span> { <span class="ident">address</span>: <span class="ident">dest</span> })
+		<span class="prelude-val">Ok</span>(<span class="ident">output_data</span>)
 	}
 }
 
@@ -2278,13 +2292,13 @@
 		<span class="kw">fn</span> <span class="ident">execute</span><span class="op">&lt;</span><span class="ident">E</span>: <span class="ident">Ext</span><span class="op">&lt;</span><span class="ident">T</span> <span class="op">=</span> <span class="ident">Test</span><span class="op">&gt;&gt;</span>(
 			<span class="kw-2">&amp;</span><span class="self">self</span>,
 			<span class="ident">exec</span>: <span class="kw-2">&amp;</span><span class="ident">MockExecutable</span>,
-			<span class="ident">ext</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">E</span>,
+			<span class="kw-2">mut</span> <span class="ident">ext</span>: <span class="ident">E</span>,
 			<span class="ident">input_data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
 			<span class="ident">empty_output_buf</span>: <span class="ident">EmptyOutputBuf</span>,
 			<span class="ident">gas_meter</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">GasMeter</span><span class="op">&lt;</span><span class="ident">Test</span><span class="op">&gt;</span>,
 		) <span class="op">-&gt;</span> <span class="ident">VmExecResult</span> {
 			(<span class="ident">exec</span>.<span class="number">0</span>)(<span class="ident">MockCtx</span> {
-				<span class="ident">ext</span>,
+				<span class="ident">ext</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ext</span>,
 				<span class="ident">input_data</span>,
 				<span class="ident">empty_output_buf</span>: <span class="prelude-val">Some</span>(<span class="ident">empty_output_buf</span>),
 				<span class="ident">gas_meter</span>,

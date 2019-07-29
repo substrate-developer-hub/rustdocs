@@ -924,28 +924,6 @@
 <span id="924">924</span>
 <span id="925">925</span>
 <span id="926">926</span>
-<span id="927">927</span>
-<span id="928">928</span>
-<span id="929">929</span>
-<span id="930">930</span>
-<span id="931">931</span>
-<span id="932">932</span>
-<span id="933">933</span>
-<span id="934">934</span>
-<span id="935">935</span>
-<span id="936">936</span>
-<span id="937">937</span>
-<span id="938">938</span>
-<span id="939">939</span>
-<span id="940">940</span>
-<span id="941">941</span>
-<span id="942">942</span>
-<span id="943">943</span>
-<span id="944">944</span>
-<span id="945">945</span>
-<span id="946">946</span>
-<span id="947">947</span>
-<span id="948">948</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1040,7 +1018,8 @@
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">exec</span>::<span class="ident">ExecutionContext</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">account_db</span>::{<span class="ident">AccountDb</span>, <span class="ident">DirectAccountDb</span>};
-<span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">gas</span>::<span class="ident">Gas</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">gas</span>::{<span class="ident">Gas</span>, <span class="ident">GasMeter</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">wasm</span>::{<span class="ident">WasmLoader</span>, <span class="ident">WasmVm</span>};
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Serialize</span>, <span class="ident">Deserialize</span>};
@@ -1507,45 +1486,9 @@
 			<span class="kw">let</span> <span class="ident">origin</span> <span class="op">=</span> <span class="ident">ensure_signed</span>(<span class="ident">origin</span>)<span class="question-mark">?</span>;
 			<span class="kw">let</span> <span class="ident">dest</span> <span class="op">=</span> <span class="ident">T</span>::<span class="ident">Lookup</span>::<span class="ident">lookup</span>(<span class="ident">dest</span>)<span class="question-mark">?</span>;
 
-			<span class="comment">// Pay for the gas upfront.</span>
-			<span class="comment">//</span>
-			<span class="comment">// NOTE: it is very important to avoid any state changes before</span>
-			<span class="comment">// paying for the gas.</span>
-			<span class="kw">let</span> (<span class="kw-2">mut</span> <span class="ident">gas_meter</span>, <span class="ident">imbalance</span>) <span class="op">=</span> <span class="ident">gas</span>::<span class="ident">buy_gas</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="ident">origin</span>, <span class="ident">gas_limit</span>)<span class="question-mark">?</span>;
-
-			<span class="kw">let</span> <span class="ident">cfg</span> <span class="op">=</span> <span class="ident">Config</span>::<span class="ident">preload</span>();
-			<span class="kw">let</span> <span class="ident">vm</span> <span class="op">=</span> <span class="kw">crate</span>::<span class="ident">wasm</span>::<span class="ident">WasmVm</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">cfg</span>.<span class="ident">schedule</span>);
-			<span class="kw">let</span> <span class="ident">loader</span> <span class="op">=</span> <span class="kw">crate</span>::<span class="ident">wasm</span>::<span class="ident">WasmLoader</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">cfg</span>.<span class="ident">schedule</span>);
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ctx</span> <span class="op">=</span> <span class="ident">ExecutionContext</span>::<span class="ident">top_level</span>(<span class="ident">origin</span>.<span class="ident">clone</span>(), <span class="kw-2">&amp;</span><span class="ident">cfg</span>, <span class="kw-2">&amp;</span><span class="ident">vm</span>, <span class="kw-2">&amp;</span><span class="ident">loader</span>);
-
-			<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">ctx</span>.<span class="ident">call</span>(<span class="ident">dest</span>, <span class="ident">value</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">gas_meter</span>, <span class="kw-2">&amp;</span><span class="ident">data</span>, <span class="ident">exec</span>::<span class="ident">EmptyOutputBuf</span>::<span class="ident">new</span>());
-
-			<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="kw">_</span>) <span class="op">=</span> <span class="ident">result</span> {
-				<span class="comment">// Commit all changes that made it thus far into the persistent storage.</span>
-				<span class="ident">DirectAccountDb</span>.<span class="ident">commit</span>(<span class="ident">ctx</span>.<span class="ident">overlay</span>.<span class="ident">into_change_set</span>());
-
-				<span class="comment">// Then deposit all events produced.</span>
-				<span class="ident">ctx</span>.<span class="ident">events</span>.<span class="ident">into_iter</span>().<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">indexed_event</span><span class="op">|</span> {
-					<span class="op">&lt;</span><span class="ident">system</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;&gt;</span>::<span class="ident">deposit_event_indexed</span>(
-						<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">indexed_event</span>.<span class="ident">topics</span>,
-						<span class="op">&lt;</span><span class="ident">T</span> <span class="kw">as</span> <span class="ident">Trait</span><span class="op">&gt;</span>::<span class="ident">Event</span>::<span class="ident">from</span>(<span class="ident">indexed_event</span>.<span class="ident">event</span>).<span class="ident">into</span>(),
-					);
-				});
-			}
-
-			<span class="comment">// Refund cost of the unused gas.</span>
-			<span class="comment">//</span>
-			<span class="comment">// NOTE: This should go after the commit to the storage, since the storage changes</span>
-			<span class="comment">// can alter the balance of the caller.</span>
-			<span class="ident">gas</span>::<span class="ident">refund_unused_gas</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="ident">origin</span>, <span class="ident">gas_meter</span>, <span class="ident">imbalance</span>);
-
-			<span class="comment">// Dispatch every recorded call with an appropriate origin.</span>
-			<span class="ident">ctx</span>.<span class="ident">calls</span>.<span class="ident">into_iter</span>().<span class="ident">for_each</span>(<span class="op">|</span>(<span class="ident">who</span>, <span class="ident">call</span>)<span class="op">|</span> {
-				<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">call</span>.<span class="ident">dispatch</span>(<span class="ident">RawOrigin</span>::<span class="ident">Signed</span>(<span class="ident">who</span>.<span class="ident">clone</span>()).<span class="ident">into</span>());
-				<span class="self">Self</span>::<span class="ident">deposit_event</span>(<span class="ident">RawEvent</span>::<span class="ident">Dispatched</span>(<span class="ident">who</span>, <span class="ident">result</span>.<span class="ident">is_ok</span>()));
-			});
-
-			<span class="ident">result</span>.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
+			<span class="self">Self</span>::<span class="ident">execute_wasm</span>(<span class="ident">origin</span>, <span class="ident">gas_limit</span>, <span class="op">|</span><span class="ident">ctx</span>, <span class="ident">gas_meter</span><span class="op">|</span> {
+				<span class="ident">ctx</span>.<span class="ident">call</span>(<span class="ident">dest</span>, <span class="ident">value</span>, <span class="ident">gas_meter</span>, <span class="kw-2">&amp;</span><span class="ident">data</span>, <span class="ident">exec</span>::<span class="ident">EmptyOutputBuf</span>::<span class="ident">new</span>()).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
+			})
 		}
 
 		<span class="doccomment">/// Creates a new contract from the `codehash` generated by `put_code`, optionally transferring some balance.</span>
@@ -1567,44 +1510,9 @@
 		) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span> {
 			<span class="kw">let</span> <span class="ident">origin</span> <span class="op">=</span> <span class="ident">ensure_signed</span>(<span class="ident">origin</span>)<span class="question-mark">?</span>;
 
-			<span class="comment">// Commit the gas upfront.</span>
-			<span class="comment">//</span>
-			<span class="comment">// NOTE: It is very important to avoid any state changes before</span>
-			<span class="comment">// paying for the gas.</span>
-			<span class="kw">let</span> (<span class="kw-2">mut</span> <span class="ident">gas_meter</span>, <span class="ident">imbalance</span>) <span class="op">=</span> <span class="ident">gas</span>::<span class="ident">buy_gas</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="ident">origin</span>, <span class="ident">gas_limit</span>)<span class="question-mark">?</span>;
-
-			<span class="kw">let</span> <span class="ident">cfg</span> <span class="op">=</span> <span class="ident">Config</span>::<span class="ident">preload</span>();
-			<span class="kw">let</span> <span class="ident">vm</span> <span class="op">=</span> <span class="kw">crate</span>::<span class="ident">wasm</span>::<span class="ident">WasmVm</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">cfg</span>.<span class="ident">schedule</span>);
-			<span class="kw">let</span> <span class="ident">loader</span> <span class="op">=</span> <span class="kw">crate</span>::<span class="ident">wasm</span>::<span class="ident">WasmLoader</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">cfg</span>.<span class="ident">schedule</span>);
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ctx</span> <span class="op">=</span> <span class="ident">ExecutionContext</span>::<span class="ident">top_level</span>(<span class="ident">origin</span>.<span class="ident">clone</span>(), <span class="kw-2">&amp;</span><span class="ident">cfg</span>, <span class="kw-2">&amp;</span><span class="ident">vm</span>, <span class="kw-2">&amp;</span><span class="ident">loader</span>);
-			<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">ctx</span>.<span class="ident">instantiate</span>(<span class="ident">endowment</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">gas_meter</span>, <span class="kw-2">&amp;</span><span class="ident">code_hash</span>, <span class="kw-2">&amp;</span><span class="ident">data</span>);
-
-			<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="kw">_</span>) <span class="op">=</span> <span class="ident">result</span> {
-				<span class="comment">// Commit all changes that made it thus far into the persistent storage.</span>
-				<span class="ident">DirectAccountDb</span>.<span class="ident">commit</span>(<span class="ident">ctx</span>.<span class="ident">overlay</span>.<span class="ident">into_change_set</span>());
-
-				<span class="comment">// Then deposit all events produced.</span>
-				<span class="ident">ctx</span>.<span class="ident">events</span>.<span class="ident">into_iter</span>().<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">indexed_event</span><span class="op">|</span> {
-					<span class="op">&lt;</span><span class="ident">system</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;&gt;</span>::<span class="ident">deposit_event_indexed</span>(
-						<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">indexed_event</span>.<span class="ident">topics</span>,
-						<span class="op">&lt;</span><span class="ident">T</span> <span class="kw">as</span> <span class="ident">Trait</span><span class="op">&gt;</span>::<span class="ident">Event</span>::<span class="ident">from</span>(<span class="ident">indexed_event</span>.<span class="ident">event</span>).<span class="ident">into</span>(),
-					);
-				});
-			}
-
-			<span class="comment">// Refund cost of the unused gas.</span>
-			<span class="comment">//</span>
-			<span class="comment">// NOTE: This should go after the commit to the storage, since the storage changes</span>
-			<span class="comment">// can alter the balance of the caller.</span>
-			<span class="ident">gas</span>::<span class="ident">refund_unused_gas</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="ident">origin</span>, <span class="ident">gas_meter</span>, <span class="ident">imbalance</span>);
-
-			<span class="comment">// Dispatch every recorded call with an appropriate origin.</span>
-			<span class="ident">ctx</span>.<span class="ident">calls</span>.<span class="ident">into_iter</span>().<span class="ident">for_each</span>(<span class="op">|</span>(<span class="ident">who</span>, <span class="ident">call</span>)<span class="op">|</span> {
-				<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">call</span>.<span class="ident">dispatch</span>(<span class="ident">RawOrigin</span>::<span class="ident">Signed</span>(<span class="ident">who</span>.<span class="ident">clone</span>()).<span class="ident">into</span>());
-				<span class="self">Self</span>::<span class="ident">deposit_event</span>(<span class="ident">RawEvent</span>::<span class="ident">Dispatched</span>(<span class="ident">who</span>, <span class="ident">result</span>.<span class="ident">is_ok</span>()));
-			});
-
-			<span class="ident">result</span>.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
+			<span class="self">Self</span>::<span class="ident">execute_wasm</span>(<span class="ident">origin</span>, <span class="ident">gas_limit</span>, <span class="op">|</span><span class="ident">ctx</span>, <span class="ident">gas_meter</span><span class="op">|</span> {
+				<span class="ident">ctx</span>.<span class="ident">instantiate</span>(<span class="ident">endowment</span>, <span class="ident">gas_meter</span>, <span class="kw-2">&amp;</span><span class="ident">code_hash</span>, <span class="kw-2">&amp;</span><span class="ident">data</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
+			})
 		}
 
 		<span class="doccomment">/// Allows block producers to claim a small reward for evicting a contract. If a block producer</span>
@@ -1721,6 +1629,54 @@
 		<span class="kw">fn</span> <span class="ident">on_finalize</span>() {
 			<span class="ident">GasSpent</span>::<span class="ident">kill</span>();
 		}
+	}
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Trait</span><span class="op">&gt;</span> <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">execute_wasm</span>(
+		<span class="ident">origin</span>: <span class="ident">T</span>::<span class="ident">AccountId</span>,
+		<span class="ident">gas_limit</span>: <span class="ident">Gas</span>,
+		<span class="ident">func</span>: <span class="kw">impl</span> <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ExecutionContext</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">WasmVm</span>, <span class="ident">WasmLoader</span><span class="op">&gt;</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">GasMeter</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span>
+	) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span> {
+		<span class="comment">// Pay for the gas upfront.</span>
+		<span class="comment">//</span>
+		<span class="comment">// NOTE: it is very important to avoid any state changes before</span>
+		<span class="comment">// paying for the gas.</span>
+		<span class="kw">let</span> (<span class="kw-2">mut</span> <span class="ident">gas_meter</span>, <span class="ident">imbalance</span>) <span class="op">=</span> <span class="ident">gas</span>::<span class="ident">buy_gas</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="ident">origin</span>, <span class="ident">gas_limit</span>)<span class="question-mark">?</span>;
+
+		<span class="kw">let</span> <span class="ident">cfg</span> <span class="op">=</span> <span class="ident">Config</span>::<span class="ident">preload</span>();
+		<span class="kw">let</span> <span class="ident">vm</span> <span class="op">=</span> <span class="ident">WasmVm</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">cfg</span>.<span class="ident">schedule</span>);
+		<span class="kw">let</span> <span class="ident">loader</span> <span class="op">=</span> <span class="ident">WasmLoader</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">cfg</span>.<span class="ident">schedule</span>);
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ctx</span> <span class="op">=</span> <span class="ident">ExecutionContext</span>::<span class="ident">top_level</span>(<span class="ident">origin</span>.<span class="ident">clone</span>(), <span class="kw-2">&amp;</span><span class="ident">cfg</span>, <span class="kw-2">&amp;</span><span class="ident">vm</span>, <span class="kw-2">&amp;</span><span class="ident">loader</span>);
+
+		<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">func</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ctx</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">gas_meter</span>);
+
+		<span class="kw">if</span> <span class="ident">result</span>.<span class="ident">is_ok</span>() {
+			<span class="comment">// Commit all changes that made it thus far into the persistent storage.</span>
+			<span class="ident">DirectAccountDb</span>.<span class="ident">commit</span>(<span class="ident">ctx</span>.<span class="ident">overlay</span>.<span class="ident">into_change_set</span>());
+
+			<span class="comment">// Then deposit all events produced.</span>
+			<span class="ident">ctx</span>.<span class="ident">events</span>.<span class="ident">into_iter</span>().<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">indexed_event</span><span class="op">|</span> {
+				<span class="op">&lt;</span><span class="ident">system</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;&gt;</span>::<span class="ident">deposit_event_indexed</span>(
+					<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">indexed_event</span>.<span class="ident">topics</span>,
+					<span class="op">&lt;</span><span class="ident">T</span> <span class="kw">as</span> <span class="ident">Trait</span><span class="op">&gt;</span>::<span class="ident">Event</span>::<span class="ident">from</span>(<span class="ident">indexed_event</span>.<span class="ident">event</span>).<span class="ident">into</span>(),
+				);
+			});
+		}
+
+		<span class="comment">// Refund cost of the unused gas.</span>
+		<span class="comment">//</span>
+		<span class="comment">// NOTE: This should go after the commit to the storage, since the storage changes</span>
+		<span class="comment">// can alter the balance of the caller.</span>
+		<span class="ident">gas</span>::<span class="ident">refund_unused_gas</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="ident">origin</span>, <span class="ident">gas_meter</span>, <span class="ident">imbalance</span>);
+
+		<span class="comment">// Dispatch every recorded call with an appropriate origin.</span>
+		<span class="ident">ctx</span>.<span class="ident">calls</span>.<span class="ident">into_iter</span>().<span class="ident">for_each</span>(<span class="op">|</span>(<span class="ident">who</span>, <span class="ident">call</span>)<span class="op">|</span> {
+			<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">call</span>.<span class="ident">dispatch</span>(<span class="ident">RawOrigin</span>::<span class="ident">Signed</span>(<span class="ident">who</span>.<span class="ident">clone</span>()).<span class="ident">into</span>());
+			<span class="self">Self</span>::<span class="ident">deposit_event</span>(<span class="ident">RawEvent</span>::<span class="ident">Dispatched</span>(<span class="ident">who</span>, <span class="ident">result</span>.<span class="ident">is_ok</span>()));
+		});
+
+		<span class="ident">result</span>
 	}
 }
 
