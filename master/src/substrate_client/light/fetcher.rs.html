@@ -900,6 +900,7 @@
 <span id="900">900</span>
 <span id="901">901</span>
 <span id="902">902</span>
+<span id="903">903</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -924,7 +925,7 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">marker</span>::<span class="ident">PhantomData</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">future</span>::<span class="ident">Future</span>;
 
-<span class="kw">use</span> <span class="ident">hash_db</span>::{<span class="ident">HashDB</span>, <span class="ident">Hasher</span>};
+<span class="kw">use</span> <span class="ident">hash_db</span>::{<span class="ident">HashDB</span>, <span class="ident">Hasher</span>, <span class="ident">EMPTY_PREFIX</span>};
 <span class="kw">use</span> <span class="ident">parity_codec</span>::{<span class="ident">Decode</span>, <span class="ident">Encode</span>};
 <span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">ChangesTrieConfiguration</span>, <span class="ident">convert_hash</span>};
 <span class="kw">use</span> <span class="ident">sr_primitives</span>::<span class="ident">traits</span>::{
@@ -1236,7 +1237,7 @@
 				<span class="comment">// we share the storage for multiple checks, do it here</span>
 				<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cht_root</span> <span class="op">=</span> <span class="ident">H</span>::<span class="ident">Out</span>::<span class="ident">default</span>();
 				<span class="ident">cht_root</span>.<span class="ident">as_mut</span>().<span class="ident">copy_from_slice</span>(<span class="ident">local_cht_root</span>.<span class="ident">as_ref</span>());
-				<span class="kw">if</span> <span class="op">!</span><span class="ident">storage</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">cht_root</span>, <span class="kw-2">&amp;</span>[]) {
+				<span class="kw">if</span> <span class="op">!</span><span class="ident">storage</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">cht_root</span>, <span class="ident">EMPTY_PREFIX</span>) {
 					<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">ClientError</span>::<span class="ident">InvalidCHTProof</span>.<span class="ident">into</span>());
 				}
 
@@ -1513,8 +1514,9 @@
 	}
 
 	<span class="kw">fn</span> <span class="ident">header_with_computed_extrinsics_root</span>(<span class="ident">extrinsics</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Extrinsic</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">Header</span> {
-		<span class="kw">let</span> <span class="ident">extrinsics_root</span> <span class="op">=</span>
-			<span class="ident">trie</span>::<span class="ident">ordered_trie_root</span>::<span class="op">&lt;</span><span class="ident">Blake2Hasher</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="ident">extrinsics</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="ident">Encode</span>::<span class="ident">encode</span>));
+		<span class="kw">use</span> <span class="ident">trie</span>::{<span class="ident">TrieConfiguration</span>, <span class="ident">trie_types</span>::<span class="ident">Layout</span>};
+		<span class="kw">let</span> <span class="ident">iter</span> <span class="op">=</span> <span class="ident">extrinsics</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="ident">Encode</span>::<span class="ident">encode</span>);
+		<span class="kw">let</span> <span class="ident">extrinsics_root</span> <span class="op">=</span> <span class="ident">Layout</span>::<span class="op">&lt;</span><span class="ident">Blake2Hasher</span><span class="op">&gt;</span>::<span class="ident">ordered_trie_root</span>(<span class="ident">iter</span>);
 
 		<span class="comment">// only care about `extrinsics_root`</span>
 		<span class="ident">Header</span>::<span class="ident">new</span>(<span class="number">0</span>, <span class="ident">extrinsics_root</span>, <span class="ident">H256</span>::<span class="ident">zero</span>(), <span class="ident">H256</span>::<span class="ident">zero</span>(), <span class="ident">Default</span>::<span class="ident">default</span>())

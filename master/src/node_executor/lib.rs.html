@@ -1265,6 +1265,7 @@
 <span id="1265">1265</span>
 <span id="1266">1266</span>
 <span id="1267">1267</span>
+<span id="1268">1268</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1390,7 +1391,7 @@
 	<span class="kw">fn</span> <span class="ident">sign</span>(<span class="ident">xt</span>: <span class="ident">CheckedExtrinsic</span>) <span class="op">-&gt;</span> <span class="ident">UncheckedExtrinsic</span> {
 		<span class="kw">match</span> <span class="ident">xt</span>.<span class="ident">signed</span> {
 			<span class="prelude-val">Some</span>((<span class="ident">signed</span>, <span class="ident">extra</span>)) <span class="op">=&gt;</span> {
-				<span class="kw">let</span> <span class="ident">payload</span> <span class="op">=</span> (<span class="ident">xt</span>.<span class="ident">function</span>, <span class="ident">extra</span>.<span class="ident">clone</span>(), <span class="ident">GENESIS_HASH</span>);
+				<span class="kw">let</span> <span class="ident">payload</span> <span class="op">=</span> (<span class="ident">xt</span>.<span class="ident">function</span>, <span class="ident">extra</span>.<span class="ident">clone</span>(), <span class="ident">GENESIS_HASH</span>, <span class="ident">GENESIS_HASH</span>);
 				<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">AccountKeyring</span>::<span class="ident">from_public</span>(<span class="kw-2">&amp;</span><span class="ident">signed</span>).<span class="ident">unwrap</span>();
 				<span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span> <span class="ident">payload</span>.<span class="ident">using_encoded</span>(<span class="op">|</span><span class="ident">b</span><span class="op">|</span> {
 					<span class="kw">if</span> <span class="ident">b</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="number">256</span> {
@@ -1413,9 +1414,10 @@
 
 	<span class="kw">fn</span> <span class="ident">signed_extra</span>(<span class="ident">nonce</span>: <span class="ident">Index</span>, <span class="ident">extra_fee</span>: <span class="ident">Balance</span>) <span class="op">-&gt;</span> <span class="ident">SignedExtra</span> {
 		(
+			<span class="ident">system</span>::<span class="ident">CheckGenesis</span>::<span class="ident">new</span>(),
 			<span class="ident">system</span>::<span class="ident">CheckEra</span>::<span class="ident">from</span>(<span class="ident">Era</span>::<span class="ident">mortal</span>(<span class="number">256</span>, <span class="number">0</span>)),
 			<span class="ident">system</span>::<span class="ident">CheckNonce</span>::<span class="ident">from</span>(<span class="ident">nonce</span>),
-			<span class="ident">system</span>::<span class="ident">CheckWeight</span>::<span class="ident">from</span>(),
+			<span class="ident">system</span>::<span class="ident">CheckWeight</span>::<span class="ident">new</span>(),
 			<span class="ident">balances</span>::<span class="ident">TakeFees</span>::<span class="ident">from</span>(<span class="ident">extra_fee</span>)
 		)
 	}
@@ -1670,13 +1672,13 @@
 		<span class="ident">parent_hash</span>: <span class="ident">Hash</span>,
 		<span class="ident">extrinsics</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CheckedExtrinsic</span><span class="op">&gt;</span>,
 	) <span class="op">-&gt;</span> (<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">Hash</span>) {
-		<span class="kw">use</span> <span class="ident">trie</span>::<span class="ident">ordered_trie_root</span>;
+		<span class="kw">use</span> <span class="ident">trie</span>::{<span class="ident">TrieConfiguration</span>, <span class="ident">trie_types</span>::<span class="ident">Layout</span>};
 
 		<span class="comment">// sign extrinsics.</span>
 		<span class="kw">let</span> <span class="ident">extrinsics</span> <span class="op">=</span> <span class="ident">extrinsics</span>.<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="ident">sign</span>).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;&gt;</span>();
 
 		<span class="comment">// calculate the header fields that we can.</span>
-		<span class="kw">let</span> <span class="ident">extrinsics_root</span> <span class="op">=</span> <span class="ident">ordered_trie_root</span>::<span class="op">&lt;</span><span class="ident">Blake2Hasher</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(
+		<span class="kw">let</span> <span class="ident">extrinsics_root</span> <span class="op">=</span> <span class="ident">Layout</span>::<span class="op">&lt;</span><span class="ident">Blake2Hasher</span><span class="op">&gt;</span>::<span class="ident">ordered_trie_root</span>(
 				<span class="ident">extrinsics</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="ident">Encode</span>::<span class="ident">encode</span>)
 			).<span class="ident">to_fixed_bytes</span>()
 			.<span class="ident">into</span>();
