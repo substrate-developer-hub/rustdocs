@@ -329,6 +329,61 @@
 <span id="329">329</span>
 <span id="330">330</span>
 <span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
+<span id="361">361</span>
+<span id="362">362</span>
+<span id="363">363</span>
+<span id="364">364</span>
+<span id="365">365</span>
+<span id="366">366</span>
+<span id="367">367</span>
+<span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
+<span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -346,21 +401,61 @@
 <span class="comment">// You should have received a copy of the GNU General Public License</span>
 <span class="comment">// along with Substrate.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
 
-<span class="doccomment">//! http://research.web3.foundation/en/latest/polkadot/Token%20Economics/#inflation-model</span>
+<span class="doccomment">//! This module expose one function `P_NPoS` (Payout NPoS) or `compute_total_payout` which returns</span>
+<span class="doccomment">//! the total payout for the era given the era duration and the staking rate in NPoS.</span>
+<span class="doccomment">//! The staking rate in NPoS is the total amount of tokens staked by nominators and validators,</span>
+<span class="doccomment">//! divided by the total token supply.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! This payout is computed from the desired yearly inflation `I_NPoS`.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! `I_NPoS` is defined as such:</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! let&#39;s introduce some constant:</span>
+<span class="doccomment">//! * `I0` represents a tight upper-bound on our estimate of the operational costs of all</span>
+<span class="doccomment">//!    validators, expressed as a fraction of the total token supply. I_NPoS must be always</span>
+<span class="doccomment">//!    superior or equal to this value.</span>
+<span class="doccomment">//! * `x_ideal` the ideal staking rate in NPoS.</span>
+<span class="doccomment">//! * `i_ideal` the ideal yearly interest rate: the ideal total yearly amount of tokens minted to</span>
+<span class="doccomment">//!    pay all validators and nominators for NPoS, divided by the total amount of tokens staked by</span>
+<span class="doccomment">//!    them. `i(x) = I(x)/x` and `i(x_ideal) = i_deal`</span>
+<span class="doccomment">//! * `d` decay rate.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! We define I_NPoS as a linear function from 0 to `x_ideal` and an exponential decrease after</span>
+<span class="doccomment">//! `x_ideal` to 1. We choose exponential decrease for `I_NPoS` because this implies an exponential</span>
+<span class="doccomment">//! decrease for the yearly interest rate as well, and we want the interest rate to fall sharply</span>
+<span class="doccomment">//! beyond `x_ideal` to avoid illiquidity.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Function is defined as such:</span>
+<span class="doccomment">//! ```nocompile</span>
+<span class="doccomment">//! for 0 &lt; x &lt; x_ideal: I_NPoS(x) = I0 + x*(i_ideal - I0/x_ideal)</span>
+<span class="doccomment">//! for x_ideal &lt; x &lt; 1: I_NPoS(x) = I0 + (i_ideal*x_ideal - I0)*2^((x_ideal-x)/d)</span>
+<span class="doccomment">//! ```</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Thus we have the following properties:</span>
+<span class="doccomment">//! * `I_NPoS &gt; I0`</span>
+<span class="doccomment">//! * `I_NPoS(0) = I0`</span>
+<span class="doccomment">//! * `I_NPoS(x_ideal) = max(I_NPoS) = x_ideal*i_ideal`</span>
+<span class="doccomment">//! * `i(x)` is monotone decreasing</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! More details can be found [here](http://research.web3.foundation/en/latest/polkadot/Token%20Eco</span>
+<span class="doccomment">//! nomics/#inflation-model)</span>
+
 
 <span class="kw">use</span> <span class="ident">sr_primitives</span>::{<span class="ident">Perbill</span>, <span class="ident">traits</span>::<span class="ident">SimpleArithmetic</span>};
 
-<span class="doccomment">/// Linear function truncated to positive part `y = max(0, b [+ or -] a*x)` for PNPoS usage</span>
+<span class="doccomment">/// Linear function truncated to positive part `y = max(0, b [+ or -] a*x)` for `P_NPoS` usage.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Clone</span>, <span class="ident">Copy</span>)]</span>
 <span class="kw">struct</span> <span class="ident">Linear</span> {
+	<span class="comment">// Negate the `a*x` term.</span>
 	<span class="ident">negative_a</span>: <span class="ident">bool</span>,
-	<span class="comment">// Perbill</span>
+	<span class="comment">// Per-billion representation of `a`, the x coefficient.</span>
 	<span class="ident">a</span>: <span class="ident">u32</span>,
-	<span class="comment">// Perbill</span>
+	<span class="comment">// Per-billion representation of `b`, the intercept.</span>
 	<span class="ident">b</span>: <span class="ident">u32</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">Linear</span> {
+	<span class="doccomment">/// Compute `f(n/d)*d`. This is useful to avoid loss of precision.</span>
 	<span class="kw">fn</span> <span class="ident">calculate_for_fraction_times_denominator</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">n</span>: <span class="ident">N</span>, <span class="ident">d</span>: <span class="ident">N</span>) <span class="op">-&gt;</span> <span class="ident">N</span>
 	<span class="kw">where</span>
 		<span class="ident">N</span>: <span class="ident">SimpleArithmetic</span> <span class="op">+</span> <span class="ident">Clone</span>
@@ -373,22 +468,28 @@
 	}
 }
 
-<span class="doccomment">/// Piecewise Linear function for PNPoS usage</span>
+<span class="doccomment">/// Piecewise Linear function for `P_NPoS` usage</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>)]</span>
 <span class="kw">struct</span> <span class="ident">PiecewiseLinear</span> {
-	<span class="doccomment">/// Array of tuple of Abscisse in Perbill and Linear.</span>
+	<span class="doccomment">/// Array of tuples of an abscissa in a per-billion representation and a linear function.</span>
 	<span class="doccomment">///</span>
-	<span class="doccomment">/// Each piece start with at the abscisse up to the abscisse of the next piece.</span>
+	<span class="doccomment">/// Abscissas in the array must be in order from the lowest to the highest.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// The array defines a piecewise linear function as such:</span>
+	<span class="doccomment">/// * the n-th segment starts at the abscissa of the n-th element until the abscissa of the</span>
+	<span class="doccomment">///     n-th + 1 element, and is defined by the linear function of the n-th element</span>
+	<span class="doccomment">/// * last segment doesn&#39;t end</span>
 	<span class="ident">pieces</span>: [(<span class="ident">u32</span>, <span class="ident">Linear</span>); <span class="number">20</span>],
 }
 
 <span class="kw">impl</span> <span class="ident">PiecewiseLinear</span> {
+	<span class="doccomment">/// Compute `f(n/d)*d`. This is useful to avoid loss of precision.</span>
 	<span class="kw">fn</span> <span class="ident">calculate_for_fraction_times_denominator</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">n</span>: <span class="ident">N</span>, <span class="ident">d</span>: <span class="ident">N</span>) <span class="op">-&gt;</span> <span class="ident">N</span>
 	<span class="kw">where</span>
 		<span class="ident">N</span>: <span class="ident">SimpleArithmetic</span> <span class="op">+</span> <span class="ident">Clone</span>
 	{
 		<span class="kw">let</span> <span class="ident">part</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">pieces</span>.<span class="ident">iter</span>()
-			.<span class="ident">take_while</span>(<span class="op">|</span>(<span class="ident">abscisse</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">n</span> <span class="op">&gt;</span> <span class="ident">Perbill</span>::<span class="ident">from_parts</span>(<span class="kw-2">*</span><span class="ident">abscisse</span>) <span class="op">*</span> <span class="ident">d</span>.<span class="ident">clone</span>())
+			.<span class="ident">take_while</span>(<span class="op">|</span>(<span class="ident">abscissa</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">n</span> <span class="op">&gt;</span> <span class="ident">Perbill</span>::<span class="ident">from_parts</span>(<span class="kw-2">*</span><span class="ident">abscissa</span>) <span class="op">*</span> <span class="ident">d</span>.<span class="ident">clone</span>())
 			.<span class="ident">last</span>()
 			.<span class="ident">unwrap_or</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">pieces</span>[<span class="number">0</span>]);
 
@@ -396,7 +497,16 @@
 	}
 }
 
-<span class="comment">// Piecewise linear approximation of I_NPoS.</span>
+<span class="doccomment">/// Piecewise linear approximation of `I_NPoS`.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// Using the constants:</span>
+<span class="doccomment">/// * `I_0` = 0.025;</span>
+<span class="doccomment">/// * `i_ideal` = 0.2;</span>
+<span class="doccomment">/// * `x_ideal` = 0.5;</span>
+<span class="doccomment">/// * `d` = 0.05;</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// This approximation is tested to be close to real one by an error less than 1% see</span>
+<span class="doccomment">/// `i_npos_precision` test.</span>
 <span class="kw">const</span> <span class="ident">I_NPOS</span>: <span class="ident">PiecewiseLinear</span> <span class="op">=</span> <span class="ident">PiecewiseLinear</span> {
 	<span class="ident">pieces</span>: [
 		(<span class="number">0</span>, <span class="ident">Linear</span> { <span class="ident">negative_a</span>: <span class="bool-val">false</span>, <span class="ident">a</span>: <span class="number">150000000</span>, <span class="ident">b</span>: <span class="number">25000000</span> }),
@@ -422,7 +532,7 @@
 	]
 };
 
-<span class="doccomment">/// Second per year for the Julian year (365.25 days)</span>
+<span class="doccomment">/// Second per year for the Julian year (365.25 days).</span>
 <span class="kw">const</span> <span class="ident">SECOND_PER_YEAR</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="number">3600</span><span class="kw-2">*</span><span class="number">24</span><span class="kw-2">*</span><span class="number">36525</span><span class="op">/</span><span class="number">100</span>;
 
 <span class="doccomment">/// The total payout to all validators (and their nominators) per era.</span>
@@ -479,19 +589,19 @@
 	<span class="kw">const</span> <span class="ident">x_ideal</span>: <span class="ident">f64</span> <span class="op">=</span> <span class="number">0.5</span>;
 	<span class="kw">const</span> <span class="ident">d</span>: <span class="ident">f64</span> <span class="op">=</span> <span class="number">0.05</span>;
 
-	<span class="comment">// Part left to 0.5</span>
+	<span class="comment">// Left part from `x_ideal`</span>
 	<span class="kw">fn</span> <span class="ident">I_left</span>(<span class="ident">x</span>: <span class="ident">f64</span>) <span class="op">-&gt;</span> <span class="ident">f64</span> {
 		<span class="ident">I_0</span> <span class="op">+</span> <span class="ident">x</span> <span class="op">*</span> (<span class="ident">i_ideal</span> <span class="op">-</span> <span class="ident">I_0</span><span class="op">/</span><span class="ident">x_ideal</span>)
 	}
 
-	<span class="comment">// Part right to 0.5</span>
+	<span class="comment">// Right part from `x_ideal`</span>
 	<span class="kw">fn</span> <span class="ident">I_right</span>(<span class="ident">x</span>: <span class="ident">f64</span>) <span class="op">-&gt;</span> <span class="ident">f64</span> {
 		<span class="ident">I_0</span> <span class="op">+</span> (<span class="ident">i_ideal</span><span class="kw-2">*</span><span class="ident">x_ideal</span> <span class="op">-</span> <span class="ident">I_0</span>) <span class="op">*</span> <span class="number">2_f64</span>.<span class="ident">powf</span>((<span class="ident">x_ideal</span><span class="op">-</span><span class="ident">x</span>)<span class="op">/</span><span class="ident">d</span>)
 	}
 
 	<span class="comment">// Definition of I_NPoS in float</span>
 	<span class="kw">fn</span> <span class="ident">I_full</span>(<span class="ident">x</span>: <span class="ident">f64</span>) <span class="op">-&gt;</span> <span class="ident">f64</span> {
-		<span class="kw">if</span> <span class="ident">x</span> <span class="op">&lt;=</span> <span class="number">0.5</span> {
+		<span class="kw">if</span> <span class="ident">x</span> <span class="op">&lt;=</span> <span class="ident">x_ideal</span> {
 			<span class="ident">I_left</span>(<span class="ident">x</span>)
 		} <span class="kw">else</span> {
 			<span class="ident">I_right</span>(<span class="ident">x</span>)
@@ -504,11 +614,11 @@
 
 		<span class="comment">// Points for left part</span>
 		<span class="ident">points</span>.<span class="ident">push</span>((<span class="number">0.0</span>, <span class="ident">I_0</span>));
-		<span class="ident">points</span>.<span class="ident">push</span>((<span class="number">0.5</span>, <span class="ident">I_left</span>(<span class="number">0.5</span>)));
+		<span class="ident">points</span>.<span class="ident">push</span>((<span class="ident">x_ideal</span>, <span class="ident">I_left</span>(<span class="ident">x_ideal</span>)));
 
 		<span class="comment">// Approximation for right part.</span>
 		<span class="comment">//</span>
-		<span class="comment">// We start from 0.5 (x0) and we try to find the next point (x1) for which the linear</span>
+		<span class="comment">// We start from x_ideal (x0) and we try to find the next point (x1) for which the linear</span>
 		<span class="comment">// approximation of (x0, x1) doesn&#39;t deviate from float definition by an error of</span>
 		<span class="comment">// GEN_ERROR.</span>
 
@@ -518,7 +628,7 @@
 		<span class="comment">// Max error used for generating points.</span>
 		<span class="kw">const</span> <span class="ident">GEN_ERROR</span>: <span class="ident">f64</span> <span class="op">=</span> <span class="number">0.000_1</span>;
 
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">x0</span>: <span class="ident">f64</span> <span class="op">=</span> <span class="number">0.5</span>;
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">x0</span>: <span class="ident">f64</span> <span class="op">=</span> <span class="ident">x_ideal</span>;
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">x1</span>: <span class="ident">f64</span> <span class="op">=</span> <span class="ident">x0</span>;
 
 		<span class="comment">// This is just a step used to find next x1:</span>
