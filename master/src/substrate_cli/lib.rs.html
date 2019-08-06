@@ -941,6 +941,15 @@
 <span id="941">941</span>
 <span id="942">942</span>
 <span id="943">943</span>
+<span id="944">944</span>
+<span id="945">945</span>
+<span id="946">946</span>
+<span id="947">947</span>
+<span id="948">948</span>
+<span id="949">949</span>
+<span id="950">950</span>
+<span id="951">951</span>
+<span id="952">952</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -981,8 +990,8 @@
 <span class="kw">use</span> <span class="ident">primitives</span>::<span class="ident">H256</span>;
 
 <span class="kw">use</span> <span class="ident">std</span>::{
-	<span class="ident">io</span>::{<span class="ident">Write</span>, <span class="ident">Read</span>, <span class="ident">stdin</span>, <span class="ident">stdout</span>, <span class="ident">ErrorKind</span>}, <span class="ident">iter</span>, <span class="ident">fs</span>::{<span class="self">self</span>, <span class="ident">File</span>}, <span class="ident">net</span>::{<span class="ident">Ipv4Addr</span>, <span class="ident">SocketAddr</span>},
-	<span class="ident">path</span>::{<span class="ident">Path</span>, <span class="ident">PathBuf</span>}, <span class="ident">str</span>::<span class="ident">FromStr</span>,
+	<span class="ident">io</span>::{<span class="ident">Write</span>, <span class="ident">Read</span>, <span class="ident">Seek</span>, <span class="ident">Cursor</span>, <span class="ident">stdin</span>, <span class="ident">stdout</span>, <span class="ident">ErrorKind</span>}, <span class="ident">iter</span>, <span class="ident">fs</span>::{<span class="self">self</span>, <span class="ident">File</span>},
+	<span class="ident">net</span>::{<span class="ident">Ipv4Addr</span>, <span class="ident">SocketAddr</span>}, <span class="ident">path</span>::{<span class="ident">Path</span>, <span class="ident">PathBuf</span>}, <span class="ident">str</span>::<span class="ident">FromStr</span>,
 };
 
 <span class="kw">use</span> <span class="ident">names</span>::{<span class="ident">Generator</span>, <span class="ident">Name</span>};
@@ -1572,6 +1581,11 @@
 	).<span class="ident">map_err</span>(<span class="ident">Into</span>::<span class="ident">into</span>)
 }
 
+<span class="doccomment">/// Internal trait used to cast to a dynamic type that implements Read and Seek.</span>
+<span class="kw">trait</span> <span class="ident">ReadPlusSeek</span>: <span class="ident">Read</span> <span class="op">+</span> <span class="ident">Seek</span> {}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Read</span> <span class="op">+</span> <span class="ident">Seek</span><span class="op">&gt;</span> <span class="ident">ReadPlusSeek</span> <span class="kw">for</span> <span class="ident">T</span> {}
+
 <span class="kw">fn</span> <span class="ident">import_blocks</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">E</span>, <span class="ident">S</span><span class="op">&gt;</span>(
 	<span class="ident">cli</span>: <span class="ident">ImportBlocksCmd</span>,
 	<span class="ident">spec_factory</span>: <span class="ident">S</span>,
@@ -1590,9 +1604,13 @@
 		..<span class="ident">Default</span>::<span class="ident">default</span>()
 	};
 
-	<span class="kw">let</span> <span class="ident">file</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Read</span><span class="op">&gt;</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">cli</span>.<span class="ident">input</span> {
+	<span class="kw">let</span> <span class="ident">file</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">ReadPlusSeek</span><span class="op">&gt;</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">cli</span>.<span class="ident">input</span> {
 		<span class="prelude-val">Some</span>(<span class="ident">filename</span>) <span class="op">=&gt;</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">File</span>::<span class="ident">open</span>(<span class="ident">filename</span>)<span class="question-mark">?</span>),
-		<span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">stdin</span>()),
+		<span class="prelude-val">None</span> <span class="op">=&gt;</span> {
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buffer</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+			<span class="ident">stdin</span>().<span class="ident">read_to_end</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">buffer</span>)<span class="question-mark">?</span>;
+			<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">Cursor</span>::<span class="ident">new</span>(<span class="ident">buffer</span>))
+		},
 	};
 
 	<span class="kw">let</span> <span class="ident">fut</span> <span class="op">=</span> <span class="ident">service</span>::<span class="ident">chain_ops</span>::<span class="ident">import_blocks</span>::<span class="op">&lt;</span><span class="ident">F</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="ident">config</span>, <span class="ident">exit</span>.<span class="ident">into_exit</span>(), <span class="ident">file</span>)<span class="question-mark">?</span>;
