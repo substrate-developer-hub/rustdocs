@@ -300,6 +300,24 @@
 <span id="300">300</span>
 <span id="301">301</span>
 <span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! The Substrate Node Template runtime. This can be compiled with `#[no_std]`, ready for Wasm.</span>
 
@@ -312,8 +330,11 @@
 <span class="macro">include</span><span class="macro">!</span>(<span class="macro">concat</span><span class="macro">!</span>(<span class="macro">env</span><span class="macro">!</span>(<span class="string">&quot;OUT_DIR&quot;</span>), <span class="string">&quot;/wasm_binary.rs&quot;</span>));
 
 <span class="kw">use</span> <span class="ident">rstd</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
-<span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">ed25519</span>, <span class="ident">sr25519</span>, <span class="ident">OpaqueMetadata</span>};
-<span class="kw">use</span> <span class="ident">sr_primitives</span>::{<span class="ident">ApplyResult</span>, <span class="ident">transaction_validity</span>::<span class="ident">TransactionValidity</span>, <span class="ident">generic</span>, <span class="ident">create_runtime_str</span>};
+<span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">sr25519</span>, <span class="ident">OpaqueMetadata</span>, <span class="ident">crypto</span>::<span class="ident">key_types</span>};
+<span class="kw">use</span> <span class="ident">sr_primitives</span>::{
+	<span class="ident">ApplyResult</span>, <span class="ident">transaction_validity</span>::<span class="ident">TransactionValidity</span>, <span class="ident">generic</span>, <span class="ident">create_runtime_str</span>,
+	<span class="ident">impl_opaque_keys</span>,
+};
 <span class="kw">use</span> <span class="ident">sr_primitives</span>::<span class="ident">traits</span>::{<span class="ident">NumberFor</span>, <span class="ident">BlakeTwo256</span>, <span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">StaticLookup</span>, <span class="ident">Verify</span>, <span class="ident">ConvertInto</span>};
 <span class="kw">use</span> <span class="ident">sr_primitives</span>::<span class="ident">weights</span>::<span class="ident">Weight</span>;
 <span class="kw">use</span> <span class="ident">client</span>::{
@@ -333,10 +354,10 @@
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">support</span>::{<span class="ident">StorageValue</span>, <span class="ident">construct_runtime</span>, <span class="ident">parameter_types</span>};
 
 <span class="doccomment">/// Alias to the signature scheme used for Aura authority signatures.</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">AuraSignature</span> <span class="op">=</span> <span class="ident">ed25519</span>::<span class="ident">Signature</span>;
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">AuraSignature</span> <span class="op">=</span> <span class="ident">consensus_aura</span>::<span class="ident">sr25519</span>::<span class="ident">AuthoritySignature</span>;
 
 <span class="doccomment">/// The Ed25519 pub key of an session that belongs to an Aura authority of the chain.</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">AuraId</span> <span class="op">=</span> <span class="ident">ed25519</span>::<span class="ident">Public</span>;
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">AuraId</span> <span class="op">=</span> <span class="ident">consensus_aura</span>::<span class="ident">sr25519</span>::<span class="ident">AuthorityId</span>;
 
 <span class="doccomment">/// Alias to pubkey that identifies an account on the chain.</span>
 <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">AccountId</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">AccountSignature</span> <span class="kw">as</span> <span class="ident">Verify</span><span class="op">&gt;</span>::<span class="ident">Signer</span>;
@@ -374,8 +395,13 @@
 	<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">Block</span> <span class="op">=</span> <span class="ident">generic</span>::<span class="ident">Block</span><span class="op">&lt;</span><span class="ident">Header</span>, <span class="ident">UncheckedExtrinsic</span><span class="op">&gt;</span>;
 	<span class="doccomment">/// Opaque block identifier type.</span>
 	<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">BlockId</span> <span class="op">=</span> <span class="ident">generic</span>::<span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>;
-	<span class="doccomment">/// Opaque session key type.</span>
-	<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">SessionKey</span> <span class="op">=</span> <span class="ident">AuraId</span>;
+
+	<span class="macro">impl_opaque_keys</span><span class="macro">!</span> {
+		<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SessionKeys</span> {
+			<span class="attribute">#[<span class="ident">id</span>(<span class="ident">key_types</span>::<span class="ident">AURA</span>)]</span>
+			<span class="kw">pub</span> <span class="ident">aura</span>: <span class="ident">AuraId</span>,
+		}
+	}
 }
 
 <span class="doccomment">/// This runtime version.</span>
@@ -407,6 +433,8 @@
 <span class="kw">impl</span> <span class="ident">system</span>::<span class="ident">Trait</span> <span class="kw">for</span> <span class="ident">Runtime</span> {
 	<span class="doccomment">/// The identifier used to distinguish between accounts.</span>
 	<span class="kw">type</span> <span class="ident">AccountId</span> <span class="op">=</span> <span class="ident">AccountId</span>;
+	<span class="doccomment">/// The aggregated dispatch type that is available for extrinsics.</span>
+	<span class="kw">type</span> <span class="ident">Call</span> <span class="op">=</span> <span class="ident">Call</span>;
 	<span class="doccomment">/// The lookup mechanism to get account ID from whatever is passed in dispatchers.</span>
 	<span class="kw">type</span> <span class="ident">Lookup</span> <span class="op">=</span> <span class="ident">Indices</span>;
 	<span class="doccomment">/// The index type for storing how many extrinsics an account has signed.</span>
@@ -455,6 +483,7 @@
 <span class="macro">parameter_types</span><span class="macro">!</span> {
 	<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">MinimumPeriod</span>: <span class="ident">u64</span> <span class="op">=</span> <span class="number">5000</span>;
 }
+
 <span class="kw">impl</span> <span class="ident">timestamp</span>::<span class="ident">Trait</span> <span class="kw">for</span> <span class="ident">Runtime</span> {
 	<span class="doccomment">/// A timestamp: milliseconds since the unix epoch.</span>
 	<span class="kw">type</span> <span class="ident">Moment</span> <span class="op">=</span> <span class="ident">u64</span>;
@@ -600,6 +629,13 @@
 	<span class="kw">impl</span> <span class="ident">offchain_primitives</span>::<span class="ident">OffchainWorkerApi</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Runtime</span> {
 		<span class="kw">fn</span> <span class="ident">offchain_worker</span>(<span class="ident">n</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) {
 			<span class="ident">Executive</span>::<span class="ident">offchain_worker</span>(<span class="ident">n</span>)
+		}
+	}
+
+	<span class="kw">impl</span> <span class="ident">substrate_session</span>::<span class="ident">SessionKeys</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Runtime</span> {
+		<span class="kw">fn</span> <span class="ident">generate_session_keys</span>(<span class="ident">seed</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;&gt;</span>) <span class="op">-&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> {
+			<span class="kw">let</span> <span class="ident">seed</span> <span class="op">=</span> <span class="ident">seed</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">rstd</span>::<span class="ident">str</span>::<span class="ident">from_utf8</span>(<span class="kw-2">&amp;</span><span class="ident">s</span>).<span class="ident">expect</span>(<span class="string">&quot;Seed is an utf8 string&quot;</span>));
+			<span class="ident">opaque</span>::<span class="ident">SessionKeys</span>::<span class="ident">generate</span>(<span class="ident">seed</span>)
 		}
 	}
 }

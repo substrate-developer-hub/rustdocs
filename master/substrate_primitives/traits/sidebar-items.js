@@ -1,0 +1,1 @@
+initSidebarItems({"trait":[["BareCryptoStore","Something that generates, stores and provides access to keys."]],"type":[["BareCryptoStorePtr","A pointer to the key store."]]});

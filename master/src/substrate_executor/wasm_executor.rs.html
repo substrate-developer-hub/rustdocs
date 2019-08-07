@@ -1678,6 +1678,15 @@
 <span id="1678">1678</span>
 <span id="1679">1679</span>
 <span id="1680">1680</span>
+<span id="1681">1681</span>
+<span id="1682">1682</span>
+<span id="1683">1683</span>
+<span id="1684">1684</span>
+<span id="1685">1685</span>
+<span id="1686">1686</span>
+<span id="1687">1687</span>
+<span id="1688">1688</span>
+<span id="1689">1689</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1708,11 +1717,10 @@
 <span class="kw">use</span> <span class="ident">state_machine</span>::{<span class="ident">Externalities</span>, <span class="ident">ChildStorageKey</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">error</span>::{<span class="ident">Error</span>, <span class="prelude-ty">Result</span>};
 <span class="kw">use</span> <span class="ident">codec</span>::<span class="ident">Encode</span>;
-<span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">blake2_128</span>, <span class="ident">blake2_256</span>, <span class="ident">twox_64</span>, <span class="ident">twox_128</span>, <span class="ident">twox_256</span>, <span class="ident">ed25519</span>, <span class="ident">sr25519</span>, <span class="ident">Pair</span>};
-<span class="kw">use</span> <span class="ident">primitives</span>::<span class="ident">offchain</span>;
-<span class="kw">use</span> <span class="ident">primitives</span>::<span class="ident">hexdisplay</span>::<span class="ident">HexDisplay</span>;
-<span class="kw">use</span> <span class="ident">primitives</span>::<span class="ident">sandbox</span> <span class="kw">as</span> <span class="ident">sandbox_primitives</span>;
-<span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">H256</span>, <span class="ident">Blake2Hasher</span>};
+<span class="kw">use</span> <span class="ident">primitives</span>::{
+	<span class="ident">blake2_128</span>, <span class="ident">blake2_256</span>, <span class="ident">twox_64</span>, <span class="ident">twox_128</span>, <span class="ident">twox_256</span>, <span class="ident">ed25519</span>, <span class="ident">sr25519</span>, <span class="ident">Pair</span>, <span class="ident">crypto</span>::<span class="ident">KeyTypeId</span>,
+	<span class="ident">offchain</span>, <span class="ident">hexdisplay</span>::<span class="ident">HexDisplay</span>, <span class="ident">sandbox</span> <span class="kw">as</span> <span class="ident">sandbox_primitives</span>, <span class="ident">H256</span>, <span class="ident">Blake2Hasher</span>,
+};
 <span class="kw">use</span> <span class="ident">trie</span>::{<span class="ident">TrieConfiguration</span>, <span class="ident">trie_types</span>::<span class="ident">Layout</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sandbox</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">allocator</span>;
@@ -2322,7 +2330,30 @@
 		<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">set</span>(<span class="ident">out</span>, <span class="kw-2">&amp;</span><span class="ident">result</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to set result in ext_keccak_256&quot;</span>)<span class="question-mark">?</span>;
 		<span class="prelude-val">Ok</span>(())
 	},
-	<span class="ident">ext_ed25519_verify</span>(<span class="ident">msg_data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>, <span class="ident">msg_len</span>: <span class="ident">u32</span>, <span class="ident">sig_data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>, <span class="ident">pubkey_data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>) <span class="op">-&gt;</span> <span class="ident">u32</span> <span class="op">=&gt;</span> {
+	<span class="ident">ext_ed25519_public_keys</span>(<span class="ident">id_data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>, <span class="ident">result_len</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u32</span>) <span class="op">-&gt;</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span> <span class="op">=&gt;</span> {
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">id</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="number">4</span>];
+		<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">get_into</span>(<span class="ident">id_data</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">id</span>[..])
+			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to get id in ext_ed25519_public_keys&quot;</span>)<span class="question-mark">?</span>;
+		<span class="kw">let</span> <span class="ident">key_type</span> <span class="op">=</span> <span class="ident">KeyTypeId</span>(<span class="ident">id</span>);
+
+		<span class="kw">let</span> <span class="ident">keys</span> <span class="op">=</span> <span class="ident">runtime_io</span>::<span class="ident">ed25519_public_keys</span>(<span class="ident">key_type</span>).<span class="ident">encode</span>();
+
+		<span class="kw">let</span> <span class="ident">len</span> <span class="op">=</span> <span class="ident">keys</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>;
+		<span class="kw">let</span> <span class="ident">offset</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">heap</span>.<span class="ident">allocate</span>(<span class="ident">len</span>)<span class="question-mark">?</span> <span class="kw">as</span> <span class="ident">u32</span>;
+
+		<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">set</span>(<span class="ident">offset</span>, <span class="ident">keys</span>.<span class="ident">as_ref</span>())
+			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to set memory in ext_ed25519_public_keys&quot;</span>)<span class="question-mark">?</span>;
+		<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">write_primitive</span>(<span class="ident">result_len</span>, <span class="ident">len</span>)
+			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to write result_len in ext_ed25519_public_keys&quot;</span>)<span class="question-mark">?</span>;
+
+		<span class="prelude-val">Ok</span>(<span class="ident">offset</span>)
+	},
+	<span class="ident">ext_ed25519_verify</span>(
+		<span class="ident">msg_data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
+		<span class="ident">msg_len</span>: <span class="ident">u32</span>,
+		<span class="ident">sig_data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
+		<span class="ident">pubkey_data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
+	) <span class="op">-&gt;</span> <span class="ident">u32</span> <span class="op">=&gt;</span> {
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sig</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="number">64</span>];
 		<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">get_into</span>(<span class="ident">sig_data</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">sig</span>[..])
 			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to get signature in ext_ed25519_verify&quot;</span>)<span class="question-mark">?</span>;
@@ -2338,7 +2369,87 @@
 			<span class="number">5</span>
 		})
 	},
-	<span class="ident">ext_sr25519_verify</span>(<span class="ident">msg_data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>, <span class="ident">msg_len</span>: <span class="ident">u32</span>, <span class="ident">sig_data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>, <span class="ident">pubkey_data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>) <span class="op">-&gt;</span> <span class="ident">u32</span> <span class="op">=&gt;</span> {
+	<span class="ident">ext_ed25519_generate</span>(<span class="ident">id_data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>, <span class="ident">seed</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>, <span class="ident">seed_len</span>: <span class="ident">u32</span>, <span class="ident">out</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>) <span class="op">=&gt;</span> {
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">id</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="number">4</span>];
+		<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">get_into</span>(<span class="ident">id_data</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">id</span>[..])
+			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to get id in ext_ed25519_generate&quot;</span>)<span class="question-mark">?</span>;
+		<span class="kw">let</span> <span class="ident">key_type</span> <span class="op">=</span> <span class="ident">KeyTypeId</span>(<span class="ident">id</span>);
+
+		<span class="kw">let</span> <span class="ident">seed</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">seed_len</span> <span class="op">==</span> <span class="number">0</span> {
+			<span class="prelude-val">None</span>
+		} <span class="kw">else</span> {
+			<span class="prelude-val">Some</span>(
+				<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">get</span>(<span class="ident">seed</span>, <span class="ident">seed_len</span> <span class="kw">as</span> <span class="ident">usize</span>)
+					.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to get seed in ext_ed25519_generate&quot;</span>)<span class="question-mark">?</span>
+			)
+		};
+
+		<span class="kw">let</span> <span class="ident">seed</span> <span class="op">=</span> <span class="ident">seed</span>.<span class="ident">as_ref</span>()
+			.<span class="ident">map</span>(<span class="op">|</span><span class="ident">seed</span><span class="op">|</span>
+				<span class="ident">std</span>::<span class="ident">str</span>::<span class="ident">from_utf8</span>(<span class="kw-2">&amp;</span><span class="ident">seed</span>)
+					.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Seed not a valid utf8 string in ext_sr25119_generate&quot;</span>)
+			).<span class="ident">transpose</span>()<span class="question-mark">?</span>;
+
+		<span class="kw">let</span> <span class="ident">pubkey</span> <span class="op">=</span> <span class="ident">runtime_io</span>::<span class="ident">ed25519_generate</span>(<span class="ident">key_type</span>, <span class="ident">seed</span>);
+
+		<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">set</span>(<span class="ident">out</span>, <span class="ident">pubkey</span>.<span class="ident">as_ref</span>())
+			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to set out in ext_ed25519_generate&quot;</span>.<span class="ident">into</span>())
+	},
+	<span class="ident">ext_ed25519_sign</span>(
+		<span class="ident">id_data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
+		<span class="ident">pubkey_data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
+		<span class="ident">msg_data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
+		<span class="ident">msg_len</span>: <span class="ident">u32</span>,
+		<span class="ident">out</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
+	) <span class="op">-&gt;</span> <span class="ident">u32</span> <span class="op">=&gt;</span> {
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">id</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="number">4</span>];
+		<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">get_into</span>(<span class="ident">id_data</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">id</span>[..])
+			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to get id in ext_ed25519_sign&quot;</span>)<span class="question-mark">?</span>;
+		<span class="kw">let</span> <span class="ident">key_type</span> <span class="op">=</span> <span class="ident">KeyTypeId</span>(<span class="ident">id</span>);
+
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pubkey</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="number">32</span>];
+		<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">get_into</span>(<span class="ident">pubkey_data</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">pubkey</span>[..])
+			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to get pubkey in ext_ed25519_sign&quot;</span>)<span class="question-mark">?</span>;
+
+		<span class="kw">let</span> <span class="ident">msg</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">get</span>(<span class="ident">msg_data</span>, <span class="ident">msg_len</span> <span class="kw">as</span> <span class="ident">usize</span>)
+			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to get message in ext_ed25519_sign&quot;</span>)<span class="question-mark">?</span>;
+
+		<span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span> <span class="ident">runtime_io</span>::<span class="ident">ed25519_sign</span>(<span class="ident">key_type</span>, <span class="kw-2">&amp;</span><span class="ident">ed25519</span>::<span class="ident">Public</span>(<span class="ident">pubkey</span>), <span class="kw-2">&amp;</span><span class="ident">msg</span>);
+
+		<span class="kw">match</span> <span class="ident">signature</span> {
+			<span class="prelude-val">Some</span>(<span class="ident">signature</span>) <span class="op">=&gt;</span> {
+				<span class="ident">this</span>.<span class="ident">memory</span>
+					.<span class="ident">set</span>(<span class="ident">out</span>, <span class="ident">signature</span>.<span class="ident">as_ref</span>())
+					.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to set out in ext_ed25519_sign&quot;</span>)<span class="question-mark">?</span>;
+				<span class="prelude-val">Ok</span>(<span class="number">0</span>)
+			},
+			<span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(<span class="number">1</span>),
+		}
+	},
+	<span class="ident">ext_sr25519_public_keys</span>(<span class="ident">id_data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>, <span class="ident">result_len</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u32</span>) <span class="op">-&gt;</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span> <span class="op">=&gt;</span> {
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">id</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="number">4</span>];
+		<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">get_into</span>(<span class="ident">id_data</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">id</span>[..])
+			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to get id in ext_sr25519_public_keys&quot;</span>)<span class="question-mark">?</span>;
+		<span class="kw">let</span> <span class="ident">key_type</span> <span class="op">=</span> <span class="ident">KeyTypeId</span>(<span class="ident">id</span>);
+
+		<span class="kw">let</span> <span class="ident">keys</span> <span class="op">=</span> <span class="ident">runtime_io</span>::<span class="ident">sr25519_public_keys</span>(<span class="ident">key_type</span>).<span class="ident">encode</span>();
+
+		<span class="kw">let</span> <span class="ident">len</span> <span class="op">=</span> <span class="ident">keys</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>;
+		<span class="kw">let</span> <span class="ident">offset</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">heap</span>.<span class="ident">allocate</span>(<span class="ident">len</span>)<span class="question-mark">?</span> <span class="kw">as</span> <span class="ident">u32</span>;
+
+		<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">set</span>(<span class="ident">offset</span>, <span class="ident">keys</span>.<span class="ident">as_ref</span>())
+			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to set memory in ext_sr25519_public_keys&quot;</span>)<span class="question-mark">?</span>;
+		<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">write_primitive</span>(<span class="ident">result_len</span>, <span class="ident">len</span>)
+			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to write result_len in ext_sr25519_public_keys&quot;</span>)<span class="question-mark">?</span>;
+
+		<span class="prelude-val">Ok</span>(<span class="ident">offset</span>)
+	},
+	<span class="ident">ext_sr25519_verify</span>(
+		<span class="ident">msg_data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
+		<span class="ident">msg_len</span>: <span class="ident">u32</span>,
+		<span class="ident">sig_data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
+		<span class="ident">pubkey_data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
+	) <span class="op">-&gt;</span> <span class="ident">u32</span> <span class="op">=&gt;</span> {
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sig</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="number">64</span>];
 		<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">get_into</span>(<span class="ident">sig_data</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">sig</span>[..])
 			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to get signature in ext_sr25519_verify&quot;</span>)<span class="question-mark">?</span>;
@@ -2353,6 +2464,62 @@
 		} <span class="kw">else</span> {
 			<span class="number">5</span>
 		})
+	},
+	<span class="ident">ext_sr25519_generate</span>(<span class="ident">id_data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>, <span class="ident">seed</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>, <span class="ident">seed_len</span>: <span class="ident">u32</span>, <span class="ident">out</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>) <span class="op">=&gt;</span> {
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">id</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="number">4</span>];
+		<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">get_into</span>(<span class="ident">id_data</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">id</span>[..])
+			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to get id in ext_sr25519_generate&quot;</span>)<span class="question-mark">?</span>;
+		<span class="kw">let</span> <span class="ident">key_type</span> <span class="op">=</span> <span class="ident">KeyTypeId</span>(<span class="ident">id</span>);
+		<span class="kw">let</span> <span class="ident">seed</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">seed_len</span> <span class="op">==</span> <span class="number">0</span> {
+			<span class="prelude-val">None</span>
+		} <span class="kw">else</span> {
+			<span class="prelude-val">Some</span>(
+				<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">get</span>(<span class="ident">seed</span>, <span class="ident">seed_len</span> <span class="kw">as</span> <span class="ident">usize</span>)
+					.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to get seed in ext_sr25519_generate&quot;</span>)<span class="question-mark">?</span>
+			)
+		};
+
+		<span class="kw">let</span> <span class="ident">seed</span> <span class="op">=</span> <span class="ident">seed</span>.<span class="ident">as_ref</span>()
+			.<span class="ident">map</span>(<span class="op">|</span><span class="ident">seed</span><span class="op">|</span>
+				<span class="ident">std</span>::<span class="ident">str</span>::<span class="ident">from_utf8</span>(<span class="kw-2">&amp;</span><span class="ident">seed</span>)
+					.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Seed not a valid utf8 string in ext_sr25119_generate&quot;</span>)
+			)
+			.<span class="ident">transpose</span>()<span class="question-mark">?</span>;
+
+		<span class="kw">let</span> <span class="ident">pubkey</span> <span class="op">=</span> <span class="ident">runtime_io</span>::<span class="ident">sr25519_generate</span>(<span class="ident">key_type</span>, <span class="ident">seed</span>);
+
+		<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">set</span>(<span class="ident">out</span>, <span class="ident">pubkey</span>.<span class="ident">as_ref</span>())
+			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to set out in ext_sr25519_generate&quot;</span>.<span class="ident">into</span>())
+	},
+	<span class="ident">ext_sr25519_sign</span>(
+		<span class="ident">id_data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
+		<span class="ident">pubkey_data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
+		<span class="ident">msg_data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
+		<span class="ident">msg_len</span>: <span class="ident">u32</span>,
+		<span class="ident">out</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
+	) <span class="op">-&gt;</span> <span class="ident">u32</span> <span class="op">=&gt;</span> {
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">id</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="number">4</span>];
+		<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">get_into</span>(<span class="ident">id_data</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">id</span>[..])
+			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to get id in ext_sr25519_sign&quot;</span>)<span class="question-mark">?</span>;
+		<span class="kw">let</span> <span class="ident">key_type</span> <span class="op">=</span> <span class="ident">KeyTypeId</span>(<span class="ident">id</span>);
+
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pubkey</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="number">32</span>];
+		<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">get_into</span>(<span class="ident">pubkey_data</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">pubkey</span>[..])
+			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to get pubkey in ext_sr25519_sign&quot;</span>)<span class="question-mark">?</span>;
+
+		<span class="kw">let</span> <span class="ident">msg</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">get</span>(<span class="ident">msg_data</span>, <span class="ident">msg_len</span> <span class="kw">as</span> <span class="ident">usize</span>)
+			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to get message in ext_sr25519_sign&quot;</span>)<span class="question-mark">?</span>;
+
+		<span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span> <span class="ident">runtime_io</span>::<span class="ident">sr25519_sign</span>(<span class="ident">key_type</span>, <span class="kw-2">&amp;</span><span class="ident">sr25519</span>::<span class="ident">Public</span>(<span class="ident">pubkey</span>), <span class="kw-2">&amp;</span><span class="ident">msg</span>);
+
+		<span class="kw">match</span> <span class="ident">signature</span> {
+			<span class="prelude-val">Some</span>(<span class="ident">signature</span>) <span class="op">=&gt;</span> {
+				<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">set</span>(<span class="ident">out</span>, <span class="ident">signature</span>.<span class="ident">as_ref</span>())
+					.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to set out in ext_sr25519_sign&quot;</span>)<span class="question-mark">?</span>;
+				<span class="prelude-val">Ok</span>(<span class="number">0</span>)
+			},
+			<span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(<span class="number">1</span>),
+		}
 	},
 	<span class="ident">ext_secp256k1_ecdsa_recover</span>(<span class="ident">msg_data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>, <span class="ident">sig_data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>, <span class="ident">pubkey_data</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>) <span class="op">-&gt;</span> <span class="ident">u32</span> <span class="op">=&gt;</span> {
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sig</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="number">65</span>];
@@ -2392,50 +2559,6 @@
 
 		<span class="prelude-val">Ok</span>(<span class="kw">if</span> <span class="ident">res</span>.<span class="ident">is_ok</span>() { <span class="number">0</span> } <span class="kw">else</span> { <span class="number">1</span> })
 	},
-	<span class="ident">ext_new_crypto_key</span>(<span class="ident">crypto</span>: <span class="ident">u32</span>) <span class="op">-&gt;</span> <span class="ident">u64</span> <span class="op">=&gt;</span> {
-		<span class="kw">let</span> <span class="ident">kind</span> <span class="op">=</span> <span class="ident">offchain</span>::<span class="ident">CryptoKind</span>::<span class="ident">try_from</span>(<span class="ident">crypto</span>)
-			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;crypto kind OOB while ext_new_crypto_key: wasm&quot;</span>)<span class="question-mark">?</span>;
-
-		<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">ext</span>.<span class="ident">offchain</span>()
-			.<span class="ident">map</span>(<span class="op">|</span><span class="ident">api</span><span class="op">|</span> <span class="ident">api</span>.<span class="ident">new_crypto_key</span>(<span class="ident">kind</span>))
-			.<span class="ident">ok_or_else</span>(<span class="op">||</span> <span class="string">&quot;Calling unavailable API ext_new_crypto_key: wasm&quot;</span>)<span class="question-mark">?</span>;
-
-		<span class="kw">match</span> <span class="ident">res</span> {
-			<span class="prelude-val">Ok</span>(<span class="ident">key</span>) <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">key</span>.<span class="ident">into</span>()),
-			<span class="prelude-val">Err</span>(()) <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">u64</span>::<span class="ident">max_value</span>()),
-		}
-	},
-	<span class="ident">ext_encrypt</span>(
-		<span class="ident">key</span>: <span class="ident">u64</span>,
-		<span class="ident">data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
-		<span class="ident">data_len</span>: <span class="ident">u32</span>,
-		<span class="ident">msg_len</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u32</span>
-	) <span class="op">-&gt;</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span> <span class="op">=&gt;</span> {
-		<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">offchain</span>::<span class="ident">CryptoKey</span>::<span class="ident">try_from</span>(<span class="ident">key</span>)
-			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Key OOB while ext_encrypt: wasm&quot;</span>)<span class="question-mark">?</span>;
-		<span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">get</span>(<span class="ident">data</span>, <span class="ident">data_len</span> <span class="kw">as</span> <span class="ident">usize</span>)
-			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;OOB while ext_encrypt: wasm&quot;</span>)<span class="question-mark">?</span>;
-
-		<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">ext</span>.<span class="ident">offchain</span>()
-			.<span class="ident">map</span>(<span class="op">|</span><span class="ident">api</span><span class="op">|</span> <span class="ident">api</span>.<span class="ident">encrypt</span>(<span class="ident">key</span>, <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">message</span>))
-			.<span class="ident">ok_or_else</span>(<span class="op">||</span> <span class="string">&quot;Calling unavailable API ext_encrypt: wasm&quot;</span>)<span class="question-mark">?</span>;
-
-		<span class="kw">let</span> (<span class="ident">offset</span>,<span class="ident">len</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">res</span> {
-			<span class="prelude-val">Ok</span>(<span class="ident">encrypted</span>) <span class="op">=&gt;</span> {
-				<span class="kw">let</span> <span class="ident">len</span> <span class="op">=</span> <span class="ident">encrypted</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>;
-				<span class="kw">let</span> <span class="ident">offset</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">heap</span>.<span class="ident">allocate</span>(<span class="ident">len</span>)<span class="question-mark">?</span> <span class="kw">as</span> <span class="ident">u32</span>;
-				<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">set</span>(<span class="ident">offset</span>, <span class="kw-2">&amp;</span><span class="ident">encrypted</span>)
-					.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to set memory in ext_encrypt&quot;</span>)<span class="question-mark">?</span>;
-				(<span class="ident">offset</span>, <span class="ident">len</span>)
-			},
-			<span class="prelude-val">Err</span>(()) <span class="op">=&gt;</span> (<span class="number">0</span>, <span class="ident">u32</span>::<span class="ident">max_value</span>()),
-		};
-
-		<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">write_primitive</span>(<span class="ident">msg_len</span>, <span class="ident">len</span>)
-			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to write msg_len in ext_encrypt&quot;</span>)<span class="question-mark">?</span>;
-
-		<span class="prelude-val">Ok</span>(<span class="ident">offset</span>)
-	},
 	<span class="ident">ext_network_state</span>(<span class="ident">written_out</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u32</span>) <span class="op">-&gt;</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span> <span class="op">=&gt;</span> {
 		<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">ext</span>.<span class="ident">offchain</span>()
 			.<span class="ident">map</span>(<span class="op">|</span><span class="ident">api</span><span class="op">|</span> <span class="ident">api</span>.<span class="ident">network_state</span>())
@@ -2451,111 +2574,6 @@
 			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to write written_out in ext_network_state&quot;</span>)<span class="question-mark">?</span>;
 
 		<span class="prelude-val">Ok</span>(<span class="ident">offset</span>)
-	},
-	<span class="ident">ext_pubkey</span>(
-		<span class="ident">key</span>: <span class="ident">u64</span>,
-		<span class="ident">written_out</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u32</span>
-	) <span class="op">-&gt;</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span> <span class="op">=&gt;</span> {
-		<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">offchain</span>::<span class="ident">CryptoKey</span>::<span class="ident">try_from</span>(<span class="ident">key</span>)
-			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Key OOB while ext_decrypt: wasm&quot;</span>)<span class="question-mark">?</span>;
-		<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">ext</span>.<span class="ident">offchain</span>()
-			.<span class="ident">map</span>(<span class="op">|</span><span class="ident">api</span><span class="op">|</span> <span class="ident">api</span>.<span class="ident">pubkey</span>(<span class="ident">key</span>))
-			.<span class="ident">ok_or_else</span>(<span class="op">||</span> <span class="string">&quot;Calling unavailable API ext_authority_pubkey: wasm&quot;</span>)<span class="question-mark">?</span>;
-
-		<span class="kw">let</span> <span class="ident">encoded</span> <span class="op">=</span> <span class="ident">res</span>.<span class="ident">encode</span>();
-		<span class="kw">let</span> <span class="ident">len</span> <span class="op">=</span> <span class="ident">encoded</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>;
-		<span class="kw">let</span> <span class="ident">offset</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">heap</span>.<span class="ident">allocate</span>(<span class="ident">len</span>)<span class="question-mark">?</span> <span class="kw">as</span> <span class="ident">u32</span>;
-		<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">set</span>(<span class="ident">offset</span>, <span class="kw-2">&amp;</span><span class="ident">encoded</span>)
-			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to set memory in ext_authority_pubkey&quot;</span>)<span class="question-mark">?</span>;
-		<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">write_primitive</span>(<span class="ident">written_out</span>, <span class="ident">len</span>)
-			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to write written_out in ext_authority_pubkey&quot;</span>)<span class="question-mark">?</span>;
-		<span class="prelude-val">Ok</span>(<span class="ident">offset</span>)
-	},
-	<span class="ident">ext_decrypt</span>(
-		<span class="ident">key</span>: <span class="ident">u64</span>,
-		<span class="ident">data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
-		<span class="ident">data_len</span>: <span class="ident">u32</span>,
-		<span class="ident">msg_len</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u32</span>
-	) <span class="op">-&gt;</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span> <span class="op">=&gt;</span> {
-		<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">offchain</span>::<span class="ident">CryptoKey</span>::<span class="ident">try_from</span>(<span class="ident">key</span>)
-			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Key OOB while ext_decrypt: wasm&quot;</span>)<span class="question-mark">?</span>;
-		<span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">get</span>(<span class="ident">data</span>, <span class="ident">data_len</span> <span class="kw">as</span> <span class="ident">usize</span>)
-			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;OOB while ext_decrypt: wasm&quot;</span>)<span class="question-mark">?</span>;
-
-		<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">ext</span>.<span class="ident">offchain</span>()
-			.<span class="ident">map</span>(<span class="op">|</span><span class="ident">api</span><span class="op">|</span> <span class="ident">api</span>.<span class="ident">decrypt</span>(<span class="ident">key</span>, <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">message</span>))
-			.<span class="ident">ok_or_else</span>(<span class="op">||</span> <span class="string">&quot;Calling unavailable API ext_decrypt: wasm&quot;</span>)<span class="question-mark">?</span>;
-
-		<span class="kw">let</span> (<span class="ident">offset</span>,<span class="ident">len</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">res</span> {
-			<span class="prelude-val">Ok</span>(<span class="ident">decrypted</span>) <span class="op">=&gt;</span> {
-				<span class="kw">let</span> <span class="ident">len</span> <span class="op">=</span> <span class="ident">decrypted</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>;
-				<span class="kw">let</span> <span class="ident">offset</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">heap</span>.<span class="ident">allocate</span>(<span class="ident">len</span>)<span class="question-mark">?</span> <span class="kw">as</span> <span class="ident">u32</span>;
-				<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">set</span>(<span class="ident">offset</span>, <span class="kw-2">&amp;</span><span class="ident">decrypted</span>)
-					.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to set memory in ext_decrypt&quot;</span>)<span class="question-mark">?</span>;
-				(<span class="ident">offset</span>, <span class="ident">len</span>)
-			},
-			<span class="prelude-val">Err</span>(()) <span class="op">=&gt;</span> (<span class="number">0</span>, <span class="ident">u32</span>::<span class="ident">max_value</span>()),
-		};
-
-		<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">write_primitive</span>(<span class="ident">msg_len</span>, <span class="ident">len</span>)
-			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to write msg_len in ext_decrypt&quot;</span>)<span class="question-mark">?</span>;
-
-		<span class="prelude-val">Ok</span>(<span class="ident">offset</span>)
-	},
-	<span class="ident">ext_sign</span>(
-		<span class="ident">key</span>: <span class="ident">u64</span>,
-		<span class="ident">data</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
-		<span class="ident">data_len</span>: <span class="ident">u32</span>,
-		<span class="ident">sig_data_len</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u32</span>
-	) <span class="op">-&gt;</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>  <span class="op">=&gt;</span> {
-		<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">offchain</span>::<span class="ident">CryptoKey</span>::<span class="ident">try_from</span>(<span class="ident">key</span>)
-			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Key OOB while ext_sign: wasm&quot;</span>)<span class="question-mark">?</span>;
-		<span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">get</span>(<span class="ident">data</span>, <span class="ident">data_len</span> <span class="kw">as</span> <span class="ident">usize</span>)
-			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;OOB while ext_sign: wasm&quot;</span>)<span class="question-mark">?</span>;
-
-		<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">ext</span>.<span class="ident">offchain</span>()
-			.<span class="ident">map</span>(<span class="op">|</span><span class="ident">api</span><span class="op">|</span> <span class="ident">api</span>.<span class="ident">sign</span>(<span class="ident">key</span>, <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">message</span>))
-			.<span class="ident">ok_or_else</span>(<span class="op">||</span> <span class="string">&quot;Calling unavailable API ext_sign: wasm&quot;</span>)<span class="question-mark">?</span>;
-
-		<span class="kw">let</span> (<span class="ident">offset</span>,<span class="ident">len</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">res</span> {
-			<span class="prelude-val">Ok</span>(<span class="ident">signature</span>) <span class="op">=&gt;</span> {
-				<span class="kw">let</span> <span class="ident">len</span> <span class="op">=</span> <span class="ident">signature</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>;
-				<span class="kw">let</span> <span class="ident">offset</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">heap</span>.<span class="ident">allocate</span>(<span class="ident">len</span>)<span class="question-mark">?</span> <span class="kw">as</span> <span class="ident">u32</span>;
-				<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">set</span>(<span class="ident">offset</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>)
-					.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to set memory in ext_sign&quot;</span>)<span class="question-mark">?</span>;
-				(<span class="ident">offset</span>, <span class="ident">len</span>)
-			},
-			<span class="prelude-val">Err</span>(()) <span class="op">=&gt;</span> (<span class="number">0</span>, <span class="ident">u32</span>::<span class="ident">max_value</span>()),
-		};
-
-		<span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">write_primitive</span>(<span class="ident">sig_data_len</span>, <span class="ident">len</span>)
-			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid attempt to write sig_data_len in ext_sign&quot;</span>)<span class="question-mark">?</span>;
-
-		<span class="prelude-val">Ok</span>(<span class="ident">offset</span>)
-	},
-	<span class="ident">ext_verify</span>(
-		<span class="ident">key</span>: <span class="ident">u64</span>,
-		<span class="ident">msg</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
-		<span class="ident">msg_len</span>: <span class="ident">u32</span>,
-		<span class="ident">signature</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
-		<span class="ident">signature_len</span>: <span class="ident">u32</span>
-	) <span class="op">-&gt;</span> <span class="ident">u32</span> <span class="op">=&gt;</span> {
-		<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">offchain</span>::<span class="ident">CryptoKey</span>::<span class="ident">try_from</span>(<span class="ident">key</span>)
-			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Key OOB while ext_verify: wasm&quot;</span>)<span class="question-mark">?</span>;
-		<span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">get</span>(<span class="ident">msg</span>, <span class="ident">msg_len</span> <span class="kw">as</span> <span class="ident">usize</span>)
-			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;OOB while ext_verify: wasm&quot;</span>)<span class="question-mark">?</span>;
-		<span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">memory</span>.<span class="ident">get</span>(<span class="ident">signature</span>, <span class="ident">signature_len</span> <span class="kw">as</span> <span class="ident">usize</span>)
-			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;OOB while ext_verify: wasm&quot;</span>)<span class="question-mark">?</span>;
-
-		<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">ext</span>.<span class="ident">offchain</span>()
-			.<span class="ident">map</span>(<span class="op">|</span><span class="ident">api</span><span class="op">|</span> <span class="ident">api</span>.<span class="ident">verify</span>(<span class="ident">key</span>, <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">message</span>, <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">signature</span>))
-			.<span class="ident">ok_or_else</span>(<span class="op">||</span> <span class="string">&quot;Calling unavailable API ext_verify: wasm&quot;</span>)<span class="question-mark">?</span>;
-
-		<span class="kw">match</span> <span class="ident">res</span> {
-			<span class="prelude-val">Ok</span>(<span class="bool-val">true</span>) <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(<span class="number">0</span>),
-			<span class="prelude-val">Ok</span>(<span class="bool-val">false</span>) <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(<span class="number">1</span>),
-			<span class="prelude-val">Err</span>(()) <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">u32</span>::<span class="ident">max_value</span>()),
-		}
 	},
 	<span class="ident">ext_timestamp</span>() <span class="op">-&gt;</span> <span class="ident">u64</span> <span class="op">=&gt;</span> {
 		<span class="kw">let</span> <span class="ident">timestamp</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">ext</span>.<span class="ident">offchain</span>()

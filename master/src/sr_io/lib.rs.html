@@ -410,9 +410,6 @@
 <span id="410">410</span>
 <span id="411">411</span>
 <span id="412">412</span>
-<span id="413">413</span>
-<span id="414">414</span>
-<span id="415">415</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -449,12 +446,11 @@
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">codec</span>;
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">primitives</span>::<span class="ident">Blake2Hasher</span>;
-<span class="kw">use</span> <span class="ident">primitives</span>::<span class="ident">offchain</span>::{
-	<span class="ident">Timestamp</span>,
-	<span class="ident">HttpRequestId</span>, <span class="ident">HttpRequestStatus</span>, <span class="ident">HttpError</span>,
-	<span class="ident">CryptoKind</span>, <span class="ident">CryptoKey</span>,
-	<span class="ident">StorageKind</span>,
-	<span class="ident">OpaqueNetworkState</span>,
+<span class="kw">use</span> <span class="ident">primitives</span>::{
+	<span class="ident">crypto</span>::<span class="ident">KeyTypeId</span>, <span class="ident">ed25519</span>, <span class="ident">sr25519</span>,
+	<span class="ident">offchain</span>::{
+		<span class="ident">Timestamp</span>, <span class="ident">HttpRequestId</span>, <span class="ident">HttpRequestStatus</span>, <span class="ident">HttpError</span>, <span class="ident">StorageKind</span>, <span class="ident">OpaqueNetworkState</span>,
+	},
 };
 
 <span class="doccomment">/// Error verifying ECDSA signature</span>
@@ -485,7 +481,7 @@
 				$( <span class="attribute">#[<span class="macro-nonterminal">$</span><span class="macro-nonterminal">attr</span>:<span class="ident">meta</span>]</span> )<span class="op">*</span>
 				<span class="kw">fn</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">name</span>:<span class="ident">ident</span>
 					$(<span class="op">&lt;</span> $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">g_name</span>:<span class="ident">ident</span> $( : <span class="macro-nonterminal">$</span><span class="macro-nonterminal">g_ty</span>:<span class="ident">path</span> )<span class="question-mark">?</span> ),<span class="op">+</span> <span class="op">&gt;</span>)<span class="question-mark">?</span>
-					( $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>:<span class="ident">ident</span> : <span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg_ty</span>:<span class="ident">ty</span> ),<span class="op">*</span> )
+					( $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>:<span class="ident">ident</span> : <span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg_ty</span>:<span class="ident">ty</span> ),<span class="op">*</span> $(,)<span class="question-mark">?</span> )
 					$( <span class="op">-&gt;</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ret</span>:<span class="ident">ty</span> )<span class="question-mark">?</span>
 					$( <span class="kw">where</span> $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">w_name</span>:<span class="ident">path</span> : <span class="macro-nonterminal">$</span><span class="macro-nonterminal">w_ty</span>:<span class="ident">path</span> ),<span class="op">+</span> )<span class="question-mark">?</span>;
 			)<span class="op">*</span>
@@ -616,11 +612,45 @@
 
 <span class="macro">export_api</span><span class="macro">!</span> {
 	<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">trait</span> <span class="ident">CryptoApi</span> {
-		<span class="doccomment">/// Verify a ed25519 signature.</span>
-		<span class="kw">fn</span> <span class="ident">ed25519_verify</span><span class="op">&lt;</span><span class="ident">P</span>: <span class="ident">AsRef</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;&gt;</span>(<span class="ident">sig</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>; <span class="number">64</span>], <span class="ident">msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">pubkey</span>: <span class="ident">P</span>) <span class="op">-&gt;</span> <span class="ident">bool</span>;
+		<span class="doccomment">/// Returns all ed25519 public keys for the given key id from the keystore.</span>
+		<span class="kw">fn</span> <span class="ident">ed25519_public_keys</span>(<span class="ident">id</span>: <span class="ident">KeyTypeId</span>) <span class="op">-&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">ed25519</span>::<span class="ident">Public</span><span class="op">&gt;</span>;
+		<span class="doccomment">/// Generate an ed22519 key for the given key type and store it in the keystore.</span>
+		<span class="doccomment">///</span>
+		<span class="doccomment">/// Returns the raw public key.</span>
+		<span class="kw">fn</span> <span class="ident">ed25519_generate</span>(<span class="ident">id</span>: <span class="ident">KeyTypeId</span>, <span class="ident">seed</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">ed25519</span>::<span class="ident">Public</span>;
+		<span class="doccomment">/// Sign the given `msg` with the ed25519 key that corresponds to the given public key and</span>
+		<span class="doccomment">/// key type in the keystore.</span>
+		<span class="doccomment">///</span>
+		<span class="doccomment">/// Returns the raw signature.</span>
+		<span class="kw">fn</span> <span class="ident">ed25519_sign</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">AsRef</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;&gt;</span>(
+			<span class="ident">id</span>: <span class="ident">KeyTypeId</span>,
+			<span class="ident">pubkey</span>: <span class="kw-2">&amp;</span><span class="ident">ed25519</span>::<span class="ident">Public</span>,
+			<span class="ident">msg</span>: <span class="kw-2">&amp;</span><span class="ident">M</span>,
+		) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ed25519</span>::<span class="ident">Signature</span><span class="op">&gt;</span>;
+		<span class="doccomment">/// Verify an ed25519 signature.</span>
+		<span class="doccomment">///</span>
+		<span class="doccomment">/// Returns `true` when the verification in successful.</span>
+		<span class="kw">fn</span> <span class="ident">ed25519_verify</span>(<span class="ident">sig</span>: <span class="kw-2">&amp;</span><span class="ident">ed25519</span>::<span class="ident">Signature</span>, <span class="ident">msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">pubkey</span>: <span class="kw-2">&amp;</span><span class="ident">ed25519</span>::<span class="ident">Public</span>) <span class="op">-&gt;</span> <span class="ident">bool</span>;
 
+		<span class="doccomment">/// Returns all sr25519 public keys for the given key id from the keystore.</span>
+		<span class="kw">fn</span> <span class="ident">sr25519_public_keys</span>(<span class="ident">id</span>: <span class="ident">KeyTypeId</span>) <span class="op">-&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">sr25519</span>::<span class="ident">Public</span><span class="op">&gt;</span>;
+		<span class="doccomment">/// Generate an sr22519 key for the given key type and store it in the keystore.</span>
+		<span class="doccomment">///</span>
+		<span class="doccomment">/// Returns the raw public key.</span>
+		<span class="kw">fn</span> <span class="ident">sr25519_generate</span>(<span class="ident">id</span>: <span class="ident">KeyTypeId</span>, <span class="ident">seed</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">sr25519</span>::<span class="ident">Public</span>;
+		<span class="doccomment">/// Sign the given `msg` with the sr25519 key that corresponds to the given public key and</span>
+		<span class="doccomment">/// key type in the keystore.</span>
+		<span class="doccomment">///</span>
+		<span class="doccomment">/// Returns the raw signature.</span>
+		<span class="kw">fn</span> <span class="ident">sr25519_sign</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">AsRef</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;&gt;</span>(
+			<span class="ident">id</span>: <span class="ident">KeyTypeId</span>,
+			<span class="ident">pubkey</span>: <span class="kw-2">&amp;</span><span class="ident">sr25519</span>::<span class="ident">Public</span>,
+			<span class="ident">msg</span>: <span class="kw-2">&amp;</span><span class="ident">M</span>,
+		) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">sr25519</span>::<span class="ident">Signature</span><span class="op">&gt;</span>;
 		<span class="doccomment">/// Verify an sr25519 signature.</span>
-		<span class="kw">fn</span> <span class="ident">sr25519_verify</span><span class="op">&lt;</span><span class="ident">P</span>: <span class="ident">AsRef</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;&gt;</span>(<span class="ident">sig</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>; <span class="number">64</span>], <span class="ident">msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">pubkey</span>: <span class="ident">P</span>) <span class="op">-&gt;</span> <span class="ident">bool</span>;
+		<span class="doccomment">///</span>
+		<span class="doccomment">/// Returns `true` when the verification in successful.</span>
+		<span class="kw">fn</span> <span class="ident">sr25519_verify</span>(<span class="ident">sig</span>: <span class="kw-2">&amp;</span><span class="ident">sr25519</span>::<span class="ident">Signature</span>, <span class="ident">msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">pubkey</span>: <span class="kw-2">&amp;</span><span class="ident">sr25519</span>::<span class="ident">Public</span>) <span class="op">-&gt;</span> <span class="ident">bool</span>;
 
 		<span class="doccomment">/// Verify and recover a SECP256k1 ECDSA signature.</span>
 		<span class="doccomment">/// - `sig` is passed in RSV format. V should be either 0/1 or 27/28.</span>
@@ -660,42 +690,6 @@
 
 		<span class="doccomment">/// Returns information about the local node&#39;s network state.</span>
 		<span class="kw">fn</span> <span class="ident">network_state</span>() <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">OpaqueNetworkState</span>, ()<span class="op">&gt;</span>;
-
-		<span class="doccomment">/// Returns the currently configured authority public key, if available.</span>
-		<span class="kw">fn</span> <span class="ident">pubkey</span>(<span class="ident">key</span>: <span class="ident">CryptoKey</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span>;
-
-		<span class="doccomment">/// Create new key(pair) for signing/encryption/decryption.</span>
-		<span class="doccomment">///</span>
-		<span class="doccomment">/// Returns an error if given crypto kind is not supported.</span>
-		<span class="kw">fn</span> <span class="ident">new_crypto_key</span>(<span class="ident">crypto</span>: <span class="ident">CryptoKind</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">CryptoKey</span>, ()<span class="op">&gt;</span>;
-
-		<span class="doccomment">/// Encrypt a piece of data using given crypto key.</span>
-		<span class="doccomment">///</span>
-		<span class="doccomment">/// If `key` is `None`, it will attempt to use current authority key.</span>
-		<span class="doccomment">///</span>
-		<span class="doccomment">/// Returns an error if `key` is not available or does not exist.</span>
-		<span class="kw">fn</span> <span class="ident">encrypt</span>(<span class="ident">key</span>: <span class="ident">CryptoKey</span>, <span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span>;
-
-		<span class="doccomment">/// Decrypt a piece of data using given crypto key.</span>
-		<span class="doccomment">///</span>
-		<span class="doccomment">/// If `key` is `None`, it will attempt to use current authority key.</span>
-		<span class="doccomment">///</span>
-		<span class="doccomment">/// Returns an error if data cannot be decrypted or the `key` is not available or does not exist.</span>
-		<span class="kw">fn</span> <span class="ident">decrypt</span>(<span class="ident">key</span>: <span class="ident">CryptoKey</span>, <span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span>;
-
-		<span class="doccomment">/// Sign a piece of data using given crypto key.</span>
-		<span class="doccomment">///</span>
-		<span class="doccomment">/// If `key` is `None`, it will attempt to use current authority key.</span>
-		<span class="doccomment">///</span>
-		<span class="doccomment">/// Returns an error if `key` is not available or does not exist.</span>
-		<span class="kw">fn</span> <span class="ident">sign</span>(<span class="ident">key</span>: <span class="ident">CryptoKey</span>, <span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span>;
-
-		<span class="doccomment">/// Verifies that `signature` for `msg` matches given `key`.</span>
-		<span class="doccomment">///</span>
-		<span class="doccomment">/// Returns an `Ok` with `true` in case it does, `false` in case it doesn&#39;t.</span>
-		<span class="doccomment">/// Returns an error in case the key is not available or does not exist or the parameters</span>
-		<span class="doccomment">/// lengths are incorrect.</span>
-		<span class="kw">fn</span> <span class="ident">verify</span>(<span class="ident">key</span>: <span class="ident">CryptoKey</span>, <span class="ident">msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">signature</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span>, ()<span class="op">&gt;</span>;
 
 		<span class="doccomment">/// Returns current UNIX timestamp (in millis)</span>
 		<span class="kw">fn</span> <span class="ident">timestamp</span>() <span class="op">-&gt;</span> <span class="ident">Timestamp</span>;

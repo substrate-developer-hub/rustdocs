@@ -1,1 +1,1 @@
-initSidebarItems({"constant":[["ED25519","ED25519 public key."],["SR25519","SR25519 public key."]]});
+initSidebarItems({"constant":[["ACCOUNT","Key type for controlling an account in a Substrate runtime, built-in."],["AURA","Key type for Aura module, built-in."],["BABE","Key type for Babe module, build-in."],["DUMMY","A key type ID useful for tests."],["ED25519","Key type for generic Ed25519 key."],["GRANDPA","Key type for Grandpa module, build-in."],["IM_ONLINE","Key type for ImOnline module, built-in."],["SR25519","Key type for generic S/R 25519 key."]]});

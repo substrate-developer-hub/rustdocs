@@ -364,6 +364,33 @@
 <span id="364">364</span>
 <span id="365">365</span>
 <span id="366">366</span>
+<span id="367">367</span>
+<span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
+<span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -450,6 +477,7 @@
 		<span class="ident">native_call</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">NC</span><span class="op">&gt;</span>,
 		<span class="ident">side_effects_handler</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">O</span><span class="op">&gt;</span>,
 		<span class="ident">proof_recorder</span>: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">RefCell</span><span class="op">&lt;</span><span class="ident">ProofRecorder</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span><span class="op">&gt;&gt;</span>,
+		<span class="ident">enable_keystore</span>: <span class="ident">bool</span>,
 	) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">NativeOrEncoded</span><span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;&gt;</span> <span class="kw">where</span> <span class="ident">ExecutionManager</span><span class="op">&lt;</span><span class="ident">EM</span><span class="op">&gt;</span>: <span class="ident">Clone</span>;
 
 	<span class="doccomment">/// Extract RuntimeVersion of given block</span>
@@ -517,14 +545,20 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">LocalCallExecutor</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span><span class="op">&gt;</span> {
 	<span class="ident">backend</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 	<span class="ident">executor</span>: <span class="ident">E</span>,
+	<span class="ident">keystore</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">primitives</span>::<span class="ident">traits</span>::<span class="ident">BareCryptoStorePtr</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span><span class="op">&gt;</span> <span class="ident">LocalCallExecutor</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Creates new instance of local call executor.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">backend</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">executor</span>: <span class="ident">E</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
+		<span class="ident">backend</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+		<span class="ident">executor</span>: <span class="ident">E</span>,
+		<span class="ident">keystore</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">primitives</span>::<span class="ident">traits</span>::<span class="ident">BareCryptoStorePtr</span><span class="op">&gt;</span>,
+	) <span class="op">-&gt;</span> <span class="self">Self</span> {
 		<span class="ident">LocalCallExecutor</span> {
 			<span class="ident">backend</span>,
 			<span class="ident">executor</span>,
+			<span class="ident">keystore</span>,
 		}
 	}
 }
@@ -534,6 +568,7 @@
 		<span class="ident">LocalCallExecutor</span> {
 			<span class="ident">backend</span>: <span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">clone</span>(),
 			<span class="ident">executor</span>: <span class="self">self</span>.<span class="ident">executor</span>.<span class="ident">clone</span>(),
+			<span class="ident">keystore</span>: <span class="self">self</span>.<span class="ident">keystore</span>.<span class="ident">clone</span>(),
 		}
 	}
 }
@@ -564,6 +599,7 @@
 			<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">executor</span>,
 			<span class="ident">method</span>,
 			<span class="ident">call_data</span>,
+			<span class="self">self</span>.<span class="ident">keystore</span>.<span class="ident">clone</span>(),
 		).<span class="ident">execute_using_consensus_failure_handler</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">NeverNativeValue</span>, <span class="kw">fn</span>() <span class="op">-&gt;</span> <span class="kw">_</span><span class="op">&gt;</span>(
 			<span class="ident">strategy</span>.<span class="ident">get_manager</span>(),
 			<span class="bool-val">false</span>,
@@ -596,6 +632,7 @@
 		<span class="ident">native_call</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">NC</span><span class="op">&gt;</span>,
 		<span class="ident">side_effects_handler</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">O</span><span class="op">&gt;</span>,
 		<span class="ident">recorder</span>: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">RefCell</span><span class="op">&lt;</span><span class="ident">ProofRecorder</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;&gt;</span><span class="op">&gt;&gt;</span>,
+		<span class="ident">enable_keystore</span>: <span class="ident">bool</span>,
 	) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">NativeOrEncoded</span><span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;</span>, <span class="ident">error</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="kw">where</span> <span class="ident">ExecutionManager</span><span class="op">&lt;</span><span class="ident">EM</span><span class="op">&gt;</span>: <span class="ident">Clone</span> {
 		<span class="kw">match</span> <span class="ident">initialize_block</span> {
 			<span class="ident">InitializeBlock</span>::<span class="ident">Do</span>(<span class="kw-2">ref</span> <span class="ident">init_block</span>)
@@ -605,6 +642,12 @@
 			<span class="comment">// We don&#39;t need to initialize the runtime at a block.</span>
 			<span class="kw">_</span> <span class="op">=&gt;</span> {},
 		}
+
+		<span class="kw">let</span> <span class="ident">keystore</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">enable_keystore</span> {
+			<span class="self">self</span>.<span class="ident">keystore</span>.<span class="ident">clone</span>()
+		} <span class="kw">else</span> {
+			<span class="prelude-val">None</span>
+		};
 
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">state</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">state_at</span>(<span class="kw-2">*</span><span class="ident">at</span>)<span class="question-mark">?</span>;
 
@@ -629,6 +672,7 @@
 					<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">executor</span>,
 					<span class="ident">method</span>,
 					<span class="ident">call_data</span>,
+					<span class="ident">keystore</span>,
 				)
 				.<span class="ident">execute_using_consensus_failure_handler</span>(
 					<span class="ident">execution_manager</span>,
@@ -646,6 +690,7 @@
 				<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">executor</span>,
 				<span class="ident">method</span>,
 				<span class="ident">call_data</span>,
+				<span class="ident">keystore</span>,
 			)
 			.<span class="ident">execute_using_consensus_failure_handler</span>(
 				<span class="ident">execution_manager</span>,
@@ -661,7 +706,14 @@
 	<span class="kw">fn</span> <span class="ident">runtime_version</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">RuntimeVersion</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">overlay</span> <span class="op">=</span> <span class="ident">OverlayedChanges</span>::<span class="ident">default</span>();
 		<span class="kw">let</span> <span class="ident">state</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">state_at</span>(<span class="kw-2">*</span><span class="ident">id</span>)<span class="question-mark">?</span>;
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ext</span> <span class="op">=</span> <span class="ident">Ext</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">overlay</span>, <span class="kw-2">&amp;</span><span class="ident">state</span>, <span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">changes_trie_storage</span>(), <span class="ident">NeverOffchainExt</span>::<span class="ident">new</span>());
+
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ext</span> <span class="op">=</span> <span class="ident">Ext</span>::<span class="ident">new</span>(
+			<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">overlay</span>,
+			<span class="kw-2">&amp;</span><span class="ident">state</span>,
+			<span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">changes_trie_storage</span>(),
+			<span class="ident">NeverOffchainExt</span>::<span class="ident">new</span>(),
+			<span class="prelude-val">None</span>,
+		);
 		<span class="kw">let</span> <span class="ident">version</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">executor</span>.<span class="ident">runtime_version</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ext</span>);
 		<span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">destroy_state</span>(<span class="ident">state</span>)<span class="question-mark">?</span>;
 		<span class="ident">version</span>.<span class="ident">ok_or</span>(<span class="ident">error</span>::<span class="ident">Error</span>::<span class="ident">VersionInvalid</span>.<span class="ident">into</span>())
@@ -697,6 +749,7 @@
 			<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">executor</span>,
 			<span class="ident">method</span>,
 			<span class="ident">call_data</span>,
+			<span class="self">self</span>.<span class="ident">keystore</span>.<span class="ident">clone</span>(),
 		).<span class="ident">execute_using_consensus_failure_handler</span>(
 			<span class="ident">manager</span>,
 			<span class="bool-val">true</span>,
@@ -723,6 +776,7 @@
 			<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">executor</span>,
 			<span class="ident">method</span>,
 			<span class="ident">call_data</span>,
+			<span class="self">self</span>.<span class="ident">keystore</span>.<span class="ident">clone</span>(),
 		)
 		.<span class="ident">map_err</span>(<span class="ident">Into</span>::<span class="ident">into</span>)
 	}

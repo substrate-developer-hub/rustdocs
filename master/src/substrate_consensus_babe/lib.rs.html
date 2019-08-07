@@ -1225,6 +1225,7 @@
 <span id="1225">1225</span>
 <span id="1226">1226</span>
 <span id="1227">1227</span>
+<span id="1228">1228</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1246,9 +1247,11 @@
 <span class="doccomment">//!</span>
 <span class="doccomment">//! BABE (Blind Assignment for Blockchain Extension) consensus in Substrate.</span>
 
-<span class="attribute">#![<span class="ident">forbid</span>(<span class="ident">unsafe_code</span>, <span class="ident">missing_docs</span>, <span class="ident">unused_must_use</span>, <span class="ident">unused_imports</span>, <span class="ident">unused_variables</span>)]</span>
+<span class="attribute">#![<span class="ident">forbid</span>(<span class="ident">unsafe_code</span>, <span class="ident">missing_docs</span>)]</span>
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">babe_primitives</span>::<span class="kw-2">*</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">consensus_common</span>::<span class="ident">SyncOracle</span>;
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">collections</span>::<span class="ident">HashMap</span>, <span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">u64</span>, <span class="ident">fmt</span>::{<span class="ident">Debug</span>, <span class="ident">Display</span>}, <span class="ident">pin</span>::<span class="ident">Pin</span>, <span class="ident">time</span>::{<span class="ident">Instant</span>, <span class="ident">Duration</span>}};
+<span class="kw">use</span> <span class="ident">babe_primitives</span>;
 <span class="kw">use</span> <span class="ident">consensus_common</span>::<span class="ident">ImportResult</span>;
 <span class="kw">use</span> <span class="ident">consensus_common</span>::<span class="ident">import_queue</span>::{
 	<span class="ident">BoxJustificationImport</span>, <span class="ident">BoxFinalityProofImport</span>,
@@ -1259,11 +1262,11 @@
 	<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">Header</span>, <span class="ident">DigestItemFor</span>, <span class="ident">NumberFor</span>, <span class="ident">ProvideRuntimeApi</span>,
 	<span class="ident">SimpleBitOps</span>, <span class="ident">Zero</span>,
 };
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">collections</span>::<span class="ident">HashMap</span>, <span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">u64</span>, <span class="ident">fmt</span>::{<span class="ident">Debug</span>, <span class="ident">Display</span>}, <span class="ident">pin</span>::<span class="ident">Pin</span>, <span class="ident">time</span>::{<span class="ident">Instant</span>, <span class="ident">Duration</span>}};
+<span class="kw">use</span> <span class="ident">keystore</span>::<span class="ident">KeyStorePtr</span>;
 <span class="kw">use</span> <span class="ident">runtime_support</span>::<span class="ident">serde</span>::{<span class="ident">Serialize</span>, <span class="ident">Deserialize</span>};
 <span class="kw">use</span> <span class="ident">codec</span>::{<span class="ident">Decode</span>, <span class="ident">Encode</span>};
 <span class="kw">use</span> <span class="ident">parking_lot</span>::{<span class="ident">Mutex</span>, <span class="ident">MutexGuard</span>};
-<span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">Blake2Hasher</span>, <span class="ident">H256</span>, <span class="ident">Pair</span>, <span class="ident">Public</span>, <span class="ident">sr25519</span>};
+<span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">Blake2Hasher</span>, <span class="ident">H256</span>, <span class="ident">Pair</span>, <span class="ident">Public</span>};
 <span class="kw">use</span> <span class="ident">merlin</span>::<span class="ident">Transcript</span>;
 <span class="kw">use</span> <span class="ident">inherents</span>::{<span class="ident">InherentDataProviders</span>, <span class="ident">InherentData</span>};
 <span class="kw">use</span> <span class="ident">substrate_telemetry</span>::{
@@ -1291,12 +1294,8 @@
 <span class="kw">use</span> <span class="ident">consensus_common</span>::<span class="ident">import_queue</span>::{<span class="ident">Verifier</span>, <span class="ident">BasicQueue</span>};
 <span class="kw">use</span> <span class="ident">client</span>::{
 	<span class="ident">block_builder</span>::<span class="ident">api</span>::<span class="ident">BlockBuilder</span> <span class="kw">as</span> <span class="ident">BlockBuilderApi</span>,
-	<span class="ident">blockchain</span>::{<span class="self">self</span>, <span class="ident">HeaderBackend</span>, <span class="ident">ProvideCache</span>},
-	<span class="ident">BlockchainEvents</span>,
-	<span class="ident">CallExecutor</span>, <span class="ident">Client</span>,
-	<span class="ident">runtime_api</span>::<span class="ident">ApiExt</span>,
-	<span class="ident">error</span>::<span class="prelude-ty">Result</span> <span class="kw">as</span> <span class="ident">ClientResult</span>,
-	<span class="ident">backend</span>::{<span class="ident">AuxStore</span>, <span class="ident">Backend</span>},
+	<span class="ident">blockchain</span>::{<span class="self">self</span>, <span class="ident">HeaderBackend</span>, <span class="ident">ProvideCache</span>}, <span class="ident">BlockchainEvents</span>, <span class="ident">CallExecutor</span>, <span class="ident">Client</span>,
+	<span class="ident">runtime_api</span>::<span class="ident">ApiExt</span>, <span class="ident">error</span>::<span class="prelude-ty">Result</span> <span class="kw">as</span> <span class="ident">ClientResult</span>, <span class="ident">backend</span>::{<span class="ident">AuxStore</span>, <span class="ident">Backend</span>},
 	<span class="ident">utils</span>::<span class="ident">is_descendent_of</span>,
 };
 <span class="kw">use</span> <span class="ident">fork_tree</span>::<span class="ident">ForkTree</span>;
@@ -1363,13 +1362,12 @@
 
 <span class="doccomment">/// Parameters for BABE.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BabeParams</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">E</span>, <span class="ident">I</span>, <span class="ident">SO</span>, <span class="ident">SC</span><span class="op">&gt;</span> {
-
 	<span class="doccomment">/// The configuration for BABE. Includes the slot duration, threshold, and</span>
 	<span class="doccomment">/// other parameters.</span>
 	<span class="kw">pub</span> <span class="ident">config</span>: <span class="ident">Config</span>,
 
-	<span class="doccomment">/// The key of the node we are running on.</span>
-	<span class="kw">pub</span> <span class="ident">local_key</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">sr25519</span>::<span class="ident">Pair</span><span class="op">&gt;</span>,
+	<span class="doccomment">/// The keystore that manages the keys of the node.</span>
+	<span class="kw">pub</span> <span class="ident">keystore</span>: <span class="ident">KeyStorePtr</span>,
 
 	<span class="doccomment">/// The client to use</span>
 	<span class="kw">pub</span> <span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span>,
@@ -1399,8 +1397,8 @@
 <span class="doccomment">/// Start the babe worker. The returned future should be run in a tokio runtime.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">start_babe</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">C</span>, <span class="ident">SC</span>, <span class="ident">E</span>, <span class="ident">I</span>, <span class="ident">SO</span>, <span class="ident">Error</span>, <span class="ident">H</span><span class="op">&gt;</span>(<span class="ident">BabeParams</span> {
 	<span class="ident">config</span>,
-	<span class="ident">local_key</span>,
 	<span class="ident">client</span>,
+	<span class="ident">keystore</span>,
 	<span class="ident">select_chain</span>,
 	<span class="ident">block_import</span>,
 	<span class="ident">env</span>,
@@ -1428,10 +1426,10 @@
 		<span class="ident">client</span>: <span class="ident">client</span>.<span class="ident">clone</span>(),
 		<span class="ident">block_import</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Mutex</span>::<span class="ident">new</span>(<span class="ident">block_import</span>)),
 		<span class="ident">env</span>,
-		<span class="ident">local_key</span>,
 		<span class="ident">sync_oracle</span>: <span class="ident">sync_oracle</span>.<span class="ident">clone</span>(),
 		<span class="ident">force_authoring</span>,
 		<span class="ident">c</span>: <span class="ident">config</span>.<span class="ident">c</span>(),
+		<span class="ident">keystore</span>,
 	};
 	<span class="ident">register_babe_inherent_data_provider</span>(<span class="kw-2">&amp;</span><span class="ident">inherent_data_providers</span>, <span class="ident">config</span>.<span class="number">0</span>.<span class="ident">slot_duration</span>())<span class="question-mark">?</span>;
 	<span class="prelude-val">Ok</span>(<span class="ident">slots</span>::<span class="ident">start_slot_worker</span>(
@@ -1448,10 +1446,10 @@
 	<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span>,
 	<span class="ident">block_import</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">I</span><span class="op">&gt;&gt;</span>,
 	<span class="ident">env</span>: <span class="ident">E</span>,
-	<span class="ident">local_key</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">sr25519</span>::<span class="ident">Pair</span><span class="op">&gt;</span>,
 	<span class="ident">sync_oracle</span>: <span class="ident">SO</span>,
 	<span class="ident">force_authoring</span>: <span class="ident">bool</span>,
 	<span class="ident">c</span>: (<span class="ident">u64</span>, <span class="ident">u64</span>),
+	<span class="ident">keystore</span>: <span class="ident">KeyStorePtr</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Hash</span>, <span class="ident">H</span>, <span class="ident">B</span>, <span class="ident">C</span>, <span class="ident">E</span>, <span class="ident">I</span>, <span class="ident">Error</span>, <span class="ident">SO</span><span class="op">&gt;</span> <span class="ident">SlotWorker</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">BabeWorker</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">E</span>, <span class="ident">I</span>, <span class="ident">SO</span><span class="op">&gt;</span> <span class="kw">where</span>
@@ -1476,7 +1474,6 @@
 		<span class="ident">chain_head</span>: <span class="ident">B</span>::<span class="ident">Header</span>,
 		<span class="ident">slot_info</span>: <span class="ident">SlotInfo</span>,
 	) <span class="op">-&gt;</span> <span class="self">Self</span>::<span class="ident">OnSlot</span> {
-		<span class="kw">let</span> <span class="ident">pair</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">local_key</span>.<span class="ident">clone</span>();
 		<span class="kw">let</span> <span class="kw-2">ref</span> <span class="ident">client</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">client</span>;
 		<span class="kw">let</span> <span class="ident">block_import</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">block_import</span>.<span class="ident">clone</span>();
 
@@ -1516,10 +1513,10 @@
 		<span class="kw">let</span> <span class="ident">proposal_work</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">claim</span>) <span class="op">=</span> <span class="ident">claim_slot</span>(
 			<span class="ident">slot_info</span>.<span class="ident">number</span>,
 			<span class="ident">epoch</span>,
-			<span class="kw-2">&amp;</span><span class="ident">pair</span>,
 			<span class="self">self</span>.<span class="ident">c</span>,
+			<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">keystore</span>,
 		) {
-			<span class="kw">let</span> ((<span class="ident">inout</span>, <span class="ident">vrf_proof</span>, <span class="ident">_batchable_proof</span>), <span class="ident">authority_index</span>) <span class="op">=</span> <span class="ident">claim</span>;
+			<span class="kw">let</span> ((<span class="ident">inout</span>, <span class="ident">vrf_proof</span>, <span class="ident">_batchable_proof</span>), <span class="ident">authority_index</span>, <span class="ident">key</span>) <span class="op">=</span> <span class="ident">claim</span>;
 
 			<span class="macro">debug</span><span class="macro">!</span>(
 				<span class="ident">target</span>: <span class="string">&quot;babe&quot;</span>, <span class="string">&quot;Starting authorship at slot {}; timestamp = {}&quot;</span>,
@@ -1568,7 +1565,7 @@
 				<span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">remaining_duration</span>)
 					.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> <span class="ident">consensus_common</span>::<span class="ident">Error</span>::<span class="ident">FaultyTimer</span>(<span class="ident">err</span>).<span class="ident">into</span>())
 			).<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">v</span> {
-				<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">Either</span>::<span class="ident">Left</span>((<span class="ident">v</span>, <span class="kw">_</span>)) <span class="op">=&gt;</span> <span class="ident">v</span>,
+				<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">Either</span>::<span class="ident">Left</span>((<span class="ident">v</span>, <span class="kw">_</span>)) <span class="op">=&gt;</span> <span class="ident">v</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> (<span class="ident">v</span>, <span class="ident">key</span>)),
 				<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">Either</span>::<span class="ident">Right</span>((<span class="prelude-val">Ok</span>(<span class="kw">_</span>), <span class="kw">_</span>)) <span class="op">=&gt;</span>
 					<span class="prelude-val">Err</span>(<span class="ident">consensus_common</span>::<span class="ident">Error</span>::<span class="ident">ClientImport</span>(<span class="string">&quot;Timeout in the BaBe proposer&quot;</span>.<span class="ident">into</span>())),
 				<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">Either</span>::<span class="ident">Right</span>((<span class="prelude-val">Err</span>(<span class="ident">err</span>), <span class="kw">_</span>)) <span class="op">=&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>),
@@ -1577,7 +1574,7 @@
 			<span class="kw">return</span> <span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">future</span>::<span class="ident">ready</span>(<span class="prelude-val">Ok</span>(())));
 		};
 
-		<span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">proposal_work</span>.<span class="ident">map_ok</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">b</span><span class="op">|</span> {
+		<span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">proposal_work</span>.<span class="ident">map_ok</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="ident">b</span>, <span class="ident">key</span>)<span class="op">|</span> {
 			<span class="comment">// minor hack since we don&#39;t have access to the timestamp</span>
 			<span class="comment">// that is actually set by the proposer.</span>
 			<span class="kw">let</span> <span class="ident">slot_after_building</span> <span class="op">=</span> <span class="ident">SignedDuration</span>::<span class="ident">default</span>().<span class="ident">slot_now</span>(<span class="ident">slot_duration</span>);
@@ -1600,7 +1597,7 @@
 			<span class="comment">// sign the pre-sealed hash of the block and then</span>
 			<span class="comment">// add it to a digest item.</span>
 			<span class="kw">let</span> <span class="ident">header_hash</span> <span class="op">=</span> <span class="ident">header</span>.<span class="ident">hash</span>();
-			<span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span> <span class="ident">pair</span>.<span class="ident">sign</span>(<span class="ident">header_hash</span>.<span class="ident">as_ref</span>());
+			<span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span> <span class="ident">key</span>.<span class="ident">sign</span>(<span class="ident">header_hash</span>.<span class="ident">as_ref</span>());
 			<span class="kw">let</span> <span class="ident">signature_digest_item</span> <span class="op">=</span> <span class="ident">DigestItemFor</span>::<span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>::<span class="ident">babe_seal</span>(<span class="ident">signature</span>);
 
 			<span class="kw">let</span> <span class="ident">import_block</span> <span class="op">=</span> <span class="ident">BlockImportParams</span>::<span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> {
@@ -1724,7 +1721,7 @@
 	} <span class="kw">else</span> {
 		<span class="kw">let</span> (<span class="ident">pre_hash</span>, <span class="ident">author</span>) <span class="op">=</span> (<span class="ident">header</span>.<span class="ident">hash</span>(), <span class="kw-2">&amp;</span><span class="ident">authorities</span>[<span class="ident">authority_index</span> <span class="kw">as</span> <span class="ident">usize</span>].<span class="number">0</span>);
 
-		<span class="kw">if</span> <span class="ident">sr25519</span>::<span class="ident">Pair</span>::<span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="ident">sig</span>, <span class="ident">pre_hash</span>, <span class="ident">author</span>.<span class="ident">clone</span>()) {
+		<span class="kw">if</span> <span class="ident">AuthorityPair</span>::<span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="ident">sig</span>, <span class="ident">pre_hash</span>, <span class="kw-2">&amp;</span><span class="ident">author</span>) {
 			<span class="kw">let</span> (<span class="ident">inout</span>, <span class="ident">_batchable_proof</span>) <span class="op">=</span> {
 				<span class="kw">let</span> <span class="ident">transcript</span> <span class="op">=</span> <span class="ident">make_transcript</span>(
 					<span class="kw-2">&amp;</span><span class="ident">randomness</span>,
@@ -1997,8 +1994,9 @@
 	}
 }
 
-<span class="kw">fn</span> <span class="ident">get_keypair</span>(<span class="ident">q</span>: <span class="kw-2">&amp;</span><span class="ident">sr25519</span>::<span class="ident">Pair</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="ident">Keypair</span> {
-	<span class="ident">q</span>.<span class="ident">as_ref</span>()
+<span class="kw">fn</span> <span class="ident">get_keypair</span>(<span class="ident">q</span>: <span class="kw-2">&amp;</span><span class="ident">AuthorityPair</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="ident">Keypair</span> {
+	<span class="kw">use</span> <span class="ident">primitives</span>::<span class="ident">crypto</span>::<span class="ident">IsWrappedBy</span>;
+	<span class="ident">primitives</span>::<span class="ident">sr25519</span>::<span class="ident">Pair</span>::<span class="ident">from_ref</span>(<span class="ident">q</span>).<span class="ident">as_ref</span>()
 }
 
 <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span>
@@ -2051,11 +2049,15 @@
 <span class="kw">fn</span> <span class="ident">claim_slot</span>(
 	<span class="ident">slot_number</span>: <span class="ident">u64</span>,
 	<span class="ident">Epoch</span> { <span class="kw-2">ref</span> <span class="ident">authorities</span>, <span class="kw-2">ref</span> <span class="ident">randomness</span>, <span class="ident">epoch_index</span>, .. }: <span class="ident">Epoch</span>,
-	<span class="ident">key</span>: <span class="kw-2">&amp;</span><span class="ident">sr25519</span>::<span class="ident">Pair</span>,
 	<span class="ident">c</span>: (<span class="ident">u64</span>, <span class="ident">u64</span>),
-) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span>((<span class="ident">VRFInOut</span>, <span class="ident">VRFProof</span>, <span class="ident">VRFProofBatchable</span>), <span class="ident">usize</span>)<span class="op">&gt;</span> {
-	<span class="kw">let</span> <span class="ident">public</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">key</span>.<span class="ident">public</span>();
-	<span class="kw">let</span> <span class="ident">authority_index</span> <span class="op">=</span> <span class="ident">authorities</span>.<span class="ident">iter</span>().<span class="ident">position</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="kw-2">&amp;</span><span class="ident">s</span>.<span class="number">0</span> <span class="op">==</span> <span class="ident">public</span>)<span class="question-mark">?</span>;
+	<span class="ident">keystore</span>: <span class="kw-2">&amp;</span><span class="ident">KeyStorePtr</span>,
+) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span>((<span class="ident">VRFInOut</span>, <span class="ident">VRFProof</span>, <span class="ident">VRFProofBatchable</span>), <span class="ident">usize</span>, <span class="ident">AuthorityPair</span>)<span class="op">&gt;</span> {
+	<span class="kw">let</span> <span class="ident">keystore</span> <span class="op">=</span> <span class="ident">keystore</span>.<span class="ident">read</span>();
+	<span class="kw">let</span> (<span class="ident">key_pair</span>, <span class="ident">authority_index</span>) <span class="op">=</span> <span class="ident">authorities</span>.<span class="ident">iter</span>()
+		.<span class="ident">enumerate</span>()
+		.<span class="ident">find_map</span>(<span class="op">|</span>(<span class="ident">i</span>, <span class="ident">a</span>)<span class="op">|</span> {
+			<span class="ident">keystore</span>.<span class="ident">key_pair</span>::<span class="op">&lt;</span><span class="ident">AuthorityPair</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="ident">a</span>.<span class="number">0</span>).<span class="ident">ok</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">kp</span><span class="op">|</span> (<span class="ident">kp</span>, <span class="ident">i</span>))
+		})<span class="question-mark">?</span>;
 	<span class="kw">let</span> <span class="ident">transcript</span> <span class="op">=</span> <span class="ident">make_transcript</span>(<span class="ident">randomness</span>, <span class="ident">slot_number</span>, <span class="ident">epoch_index</span>);
 
 	<span class="comment">// Compute the threshold we will use.</span>
@@ -2064,9 +2066,9 @@
 	<span class="comment">// be empty.  Therefore, this division in `calculate_threshold` is safe.</span>
 	<span class="kw">let</span> <span class="ident">threshold</span> <span class="op">=</span> <span class="ident">calculate_threshold</span>(<span class="ident">c</span>, <span class="ident">authorities</span>, <span class="ident">authority_index</span>);
 
-	<span class="ident">get_keypair</span>(<span class="ident">key</span>)
+	<span class="ident">get_keypair</span>(<span class="kw-2">&amp;</span><span class="ident">key_pair</span>)
 		.<span class="ident">vrf_sign_after_check</span>(<span class="ident">transcript</span>, <span class="op">|</span><span class="ident">inout</span><span class="op">|</span> <span class="ident">check</span>(<span class="ident">inout</span>, <span class="ident">threshold</span>))
-		.<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span>(<span class="ident">s</span>, <span class="ident">authority_index</span>))
+		.<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span>(<span class="ident">s</span>, <span class="ident">authority_index</span>, <span class="ident">key_pair</span>))
 }
 
 <span class="kw">fn</span> <span class="ident">initialize_authorities_cache</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">C</span><span class="op">&gt;</span>(<span class="ident">client</span>: <span class="kw-2">&amp;</span><span class="ident">C</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ConsensusError</span><span class="op">&gt;</span> <span class="kw">where</span>
@@ -2429,8 +2431,8 @@
 		<span class="ident">client</span>: <span class="kw-2">&amp;</span><span class="ident">C</span>,
 		<span class="ident">at</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 		<span class="ident">slot_number</span>: <span class="ident">u64</span>,
-		<span class="ident">key</span>: <span class="kw-2">&amp;</span><span class="ident">sr25519</span>::<span class="ident">Pair</span>,
 		<span class="ident">c</span>: (<span class="ident">u64</span>, <span class="ident">u64</span>),
+		<span class="ident">keystore</span>: <span class="kw-2">&amp;</span><span class="ident">KeyStorePtr</span>,
 	) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">BabePreDigest</span><span class="op">&gt;</span> <span class="kw">where</span>
 		<span class="ident">B</span>: <span class="ident">BlockT</span>,
 		<span class="ident">C</span>: <span class="ident">ProvideRuntimeApi</span> <span class="op">+</span> <span class="ident">ProvideCache</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
@@ -2441,9 +2443,9 @@
 		<span class="kw">super</span>::<span class="ident">claim_slot</span>(
 			<span class="ident">slot_number</span>,
 			<span class="ident">epoch</span>,
-			<span class="ident">key</span>,
 			<span class="ident">c</span>,
-		).<span class="ident">map</span>(<span class="op">|</span>((<span class="ident">inout</span>, <span class="ident">vrf_proof</span>, <span class="kw">_</span>), <span class="ident">authority_index</span>)<span class="op">|</span> {
+			<span class="ident">keystore</span>,
+		).<span class="ident">map</span>(<span class="op">|</span>((<span class="ident">inout</span>, <span class="ident">vrf_proof</span>, <span class="kw">_</span>), <span class="ident">authority_index</span>, <span class="kw">_</span>)<span class="op">|</span> {
 			<span class="ident">BabePreDigest</span> {
 				<span class="ident">vrf_proof</span>,
 				<span class="ident">vrf_output</span>: <span class="ident">inout</span>.<span class="ident">to_output</span>(),

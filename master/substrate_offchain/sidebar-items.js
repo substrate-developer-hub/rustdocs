@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["testing","Offchain Externalities implementation for tests."]],"struct":[["OffchainWorkers","An offchain workers manager."]],"trait":[["AuthorityKeyProvider","Provides currently configured authority key."],["OffchainWorkerApi","The offchain worker api."]]});
+initSidebarItems({"mod":[["testing","Offchain Externalities implementation for tests."]],"struct":[["OffchainWorkers","An offchain workers manager."]],"trait":[["OffchainWorkerApi","The offchain worker api."]]});
