@@ -339,6 +339,7 @@ ALIASES["substrate_consensus_common"] = {};
 ALIASES["substrate_consensus_common_primitives"] = {};
 ALIASES["substrate_consensus_rhd"] = {};
 ALIASES["substrate_consensus_slots"] = {};
+ALIASES["substrate_consensus_uncles"] = {};
 ALIASES["substrate_executor"] = {};
 ALIASES["substrate_finality_grandpa"] = {};
 ALIASES["substrate_finality_grandpa_primitives"] = {};
