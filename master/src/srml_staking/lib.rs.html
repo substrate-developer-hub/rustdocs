@@ -1504,6 +1504,45 @@
 <span id="1504">1504</span>
 <span id="1505">1505</span>
 <span id="1506">1506</span>
+<span id="1507">1507</span>
+<span id="1508">1508</span>
+<span id="1509">1509</span>
+<span id="1510">1510</span>
+<span id="1511">1511</span>
+<span id="1512">1512</span>
+<span id="1513">1513</span>
+<span id="1514">1514</span>
+<span id="1515">1515</span>
+<span id="1516">1516</span>
+<span id="1517">1517</span>
+<span id="1518">1518</span>
+<span id="1519">1519</span>
+<span id="1520">1520</span>
+<span id="1521">1521</span>
+<span id="1522">1522</span>
+<span id="1523">1523</span>
+<span id="1524">1524</span>
+<span id="1525">1525</span>
+<span id="1526">1526</span>
+<span id="1527">1527</span>
+<span id="1528">1528</span>
+<span id="1529">1529</span>
+<span id="1530">1530</span>
+<span id="1531">1531</span>
+<span id="1532">1532</span>
+<span id="1533">1533</span>
+<span id="1534">1534</span>
+<span id="1535">1535</span>
+<span id="1536">1536</span>
+<span id="1537">1537</span>
+<span id="1538">1538</span>
+<span id="1539">1539</span>
+<span id="1540">1540</span>
+<span id="1541">1541</span>
+<span id="1542">1542</span>
+<span id="1543">1543</span>
+<span id="1544">1544</span>
+<span id="1545">1545</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1682,7 +1721,8 @@
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Total reward is split among validators and their nominators depending on the number of points</span>
 <span class="doccomment">//! they received during the era. Points are added to a validator using</span>
-<span class="doccomment">//! [`add_reward_points_to_validator`](./enum.Call.html#variant.add_reward_points_to_validator).</span>
+<span class="doccomment">//! [`reward_by_ids`](./enum.Call.html#variant.reward_by_ids) or</span>
+<span class="doccomment">//! [`reward_by_indices`](./enum.Call.html#variant.reward_by_indices).</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! [`Module`](./struct.Module.html) implements</span>
 <span class="doccomment">//! [`authorship::EventHandler`](../srml_authorship/trait.EventHandler.html) to add reward points</span>
@@ -1830,6 +1870,18 @@
 	<span class="doccomment">/// Reward at one index correspond to reward for validator in current_elected of this index.</span>
 	<span class="doccomment">/// Thus this reward vec is only valid for one elected set.</span>
 	<span class="ident">rewards</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>,
+}
+
+<span class="kw">impl</span> <span class="ident">EraRewards</span> {
+	<span class="doccomment">/// Add the reward to the validator at the given index. Index must be valid</span>
+	<span class="doccomment">/// (i.e. `index &lt; current_elected.len()`).</span>
+	<span class="kw">fn</span> <span class="ident">add_points_to_index</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">index</span>: <span class="ident">u32</span>, <span class="ident">points</span>: <span class="ident">u32</span>) {
+		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">new_total</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">total</span>.<span class="ident">checked_add</span>(<span class="ident">points</span>) {
+			<span class="self">self</span>.<span class="ident">total</span> <span class="op">=</span> <span class="ident">new_total</span>;
+			<span class="self">self</span>.<span class="ident">rewards</span>.<span class="ident">resize</span>((<span class="ident">index</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">+</span> <span class="number">1</span>).<span class="ident">max</span>(<span class="self">self</span>.<span class="ident">rewards</span>.<span class="ident">len</span>()), <span class="number">0</span>);
+			<span class="self">self</span>.<span class="ident">rewards</span>[<span class="ident">index</span> <span class="kw">as</span> <span class="ident">usize</span>] <span class="op">+=</span> <span class="ident">points</span>; <span class="comment">// Addition is less than total</span>
+		}
+	}
 }
 
 <span class="doccomment">/// Indicates the initial status of the staker.</span>
@@ -2906,22 +2958,46 @@
 		}
 	}
 
-	<span class="doccomment">/// Add reward points to validator.</span>
+	<span class="doccomment">/// Add reward points to validators using their stash account ID.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// Validators are keyed by stash account ID and must be in the current elected set.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// For each element in the iterator the given number of points in u32 is added to the</span>
+	<span class="doccomment">/// validator, thus duplicates are handled.</span>
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// At the end of the era each the total payout will be distributed among validator</span>
 	<span class="doccomment">/// relatively to their points.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_reward_points_to_validator</span>(<span class="ident">validator</span>: <span class="ident">T</span>::<span class="ident">AccountId</span>, <span class="ident">points</span>: <span class="ident">u32</span>) {
-		<span class="op">&lt;</span><span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;&gt;</span>::<span class="ident">current_elected</span>().<span class="ident">iter</span>()
-			.<span class="ident">position</span>(<span class="op">|</span><span class="ident">elected</span><span class="op">|</span> <span class="kw-2">*</span><span class="ident">elected</span> <span class="op">==</span> <span class="ident">validator</span>)
-			.<span class="ident">map</span>(<span class="op">|</span><span class="ident">index</span><span class="op">|</span> {
-				<span class="ident">CurrentEraRewards</span>::<span class="ident">mutate</span>(<span class="op">|</span><span class="ident">rewards</span><span class="op">|</span> {
-					<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">new_total</span>) <span class="op">=</span> <span class="ident">rewards</span>.<span class="ident">total</span>.<span class="ident">checked_add</span>(<span class="ident">points</span>) {
-						<span class="ident">rewards</span>.<span class="ident">total</span> <span class="op">=</span> <span class="ident">new_total</span>;
-						<span class="ident">rewards</span>.<span class="ident">rewards</span>.<span class="ident">resize</span>((<span class="ident">index</span> <span class="op">+</span> <span class="number">1</span>).<span class="ident">max</span>(<span class="ident">rewards</span>.<span class="ident">rewards</span>.<span class="ident">len</span>()), <span class="number">0</span>);
-						<span class="ident">rewards</span>.<span class="ident">rewards</span>[<span class="ident">index</span>] <span class="op">+=</span> <span class="ident">points</span>; <span class="comment">// Addition is less than total</span>
-					}
-				});
-			});
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// COMPLEXITY: Complexity is `number_of_validator_to_reward x current_elected_len`.</span>
+	<span class="doccomment">/// If you need to reward lots of validator consider using `reward_by_indices`.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reward_by_ids</span>(<span class="ident">validators_points</span>: <span class="kw">impl</span> <span class="ident">IntoIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (<span class="ident">T</span>::<span class="ident">AccountId</span>, <span class="ident">u32</span>)<span class="op">&gt;</span>) {
+		<span class="ident">CurrentEraRewards</span>::<span class="ident">mutate</span>(<span class="op">|</span><span class="ident">rewards</span><span class="op">|</span> {
+			<span class="kw">let</span> <span class="ident">current_elected</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;&gt;</span>::<span class="ident">current_elected</span>();
+			<span class="kw">for</span> (<span class="ident">validator</span>, <span class="ident">points</span>) <span class="kw">in</span> <span class="ident">validators_points</span>.<span class="ident">into_iter</span>() {
+				<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">index</span>) <span class="op">=</span> <span class="ident">current_elected</span>.<span class="ident">iter</span>()
+					.<span class="ident">position</span>(<span class="op">|</span><span class="ident">elected</span><span class="op">|</span> <span class="kw-2">*</span><span class="ident">elected</span> <span class="op">==</span> <span class="ident">validator</span>)
+				{
+					<span class="ident">rewards</span>.<span class="ident">add_points_to_index</span>(<span class="ident">index</span> <span class="kw">as</span> <span class="ident">u32</span>, <span class="ident">points</span>);
+				}
+			}
+		});
+	}
+
+	<span class="doccomment">/// Add reward points to validators using their validator index.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// For each element in the iterator the given number of points in u32 is added to the</span>
+	<span class="doccomment">/// validator, thus duplicates are handled.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reward_by_indices</span>(<span class="ident">validators_points</span>: <span class="kw">impl</span> <span class="ident">IntoIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (<span class="ident">u32</span>, <span class="ident">u32</span>)<span class="op">&gt;</span>) {
+		<span class="comment">// TODO: This can be optimised once #3302 is implemented.</span>
+		<span class="kw">let</span> <span class="ident">current_elected_len</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;&gt;</span>::<span class="ident">current_elected</span>().<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>;
+
+		<span class="ident">CurrentEraRewards</span>::<span class="ident">mutate</span>(<span class="op">|</span><span class="ident">rewards</span><span class="op">|</span> {
+			<span class="kw">for</span> (<span class="ident">validator_index</span>, <span class="ident">points</span>) <span class="kw">in</span> <span class="ident">validators_points</span>.<span class="ident">into_iter</span>() {
+				<span class="kw">if</span> <span class="ident">validator_index</span> <span class="op">&lt;</span> <span class="ident">current_elected_len</span> {
+					<span class="ident">rewards</span>.<span class="ident">add_points_to_index</span>(<span class="ident">validator_index</span>, <span class="ident">points</span>);
+				}
+			}
+		});
 	}
 }
 
@@ -2951,11 +3027,13 @@
 <span class="doccomment">/// * 1 point to the producer of each referenced uncle block.</span>
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Trait</span> <span class="op">+</span> <span class="ident">authorship</span>::<span class="ident">Trait</span><span class="op">&gt;</span> <span class="ident">authorship</span>::<span class="ident">EventHandler</span><span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">AccountId</span>, <span class="ident">T</span>::<span class="ident">BlockNumber</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
 	<span class="kw">fn</span> <span class="ident">note_author</span>(<span class="ident">author</span>: <span class="ident">T</span>::<span class="ident">AccountId</span>) {
-		<span class="self">Self</span>::<span class="ident">add_reward_points_to_validator</span>(<span class="ident">author</span>, <span class="number">20</span>);
+		<span class="self">Self</span>::<span class="ident">reward_by_ids</span>(<span class="macro">vec</span><span class="macro">!</span>[(<span class="ident">author</span>, <span class="number">20</span>)]);
 	}
 	<span class="kw">fn</span> <span class="ident">note_uncle</span>(<span class="ident">author</span>: <span class="ident">T</span>::<span class="ident">AccountId</span>, <span class="ident">_age</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>) {
-		<span class="self">Self</span>::<span class="ident">add_reward_points_to_validator</span>(<span class="op">&lt;</span><span class="ident">authorship</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;&gt;</span>::<span class="ident">author</span>(), <span class="number">2</span>);
-		<span class="self">Self</span>::<span class="ident">add_reward_points_to_validator</span>(<span class="ident">author</span>, <span class="number">1</span>);
+		<span class="self">Self</span>::<span class="ident">reward_by_ids</span>(<span class="macro">vec</span><span class="macro">!</span>[
+			(<span class="op">&lt;</span><span class="ident">authorship</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;&gt;</span>::<span class="ident">author</span>(), <span class="number">2</span>),
+			(<span class="ident">author</span>, <span class="number">1</span>)
+		])
 	}
 }
 
