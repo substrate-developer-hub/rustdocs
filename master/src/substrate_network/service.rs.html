@@ -789,7 +789,7 @@
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">error</span>::<span class="ident">Error</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">protocol</span>::{<span class="self">self</span>, <span class="ident">Protocol</span>, <span class="ident">Context</span>, <span class="ident">CustomMessageOutcome</span>, <span class="ident">PeerInfo</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">protocol</span>::<span class="ident">consensus_gossip</span>::{<span class="ident">ConsensusGossip</span>, <span class="ident">MessageRecipient</span> <span class="kw">as</span> <span class="ident">GossipMessageRecipient</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">protocol</span>::{<span class="ident">event</span>::<span class="ident">Event</span>, <span class="ident">on_demand</span>::{<span class="ident">AlwaysBadChecker</span>, <span class="ident">RequestData</span>}};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">protocol</span>::{<span class="ident">event</span>::<span class="ident">Event</span>, <span class="ident">light_dispatch</span>::{<span class="ident">AlwaysBadChecker</span>, <span class="ident">RequestData</span>}};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">protocol</span>::<span class="ident">specialization</span>::<span class="ident">NetworkSpecialization</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">protocol</span>::<span class="ident">sync</span>::<span class="ident">SyncState</span>;
 
@@ -983,7 +983,7 @@
 			<span class="ident">service</span>,
 			<span class="ident">import_queue</span>: <span class="ident">params</span>.<span class="ident">import_queue</span>,
 			<span class="ident">from_worker</span>,
-			<span class="ident">on_demand_in</span>: <span class="ident">params</span>.<span class="ident">on_demand</span>.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">od</span><span class="op">|</span> <span class="ident">od</span>.<span class="ident">extract_receiver</span>()),
+			<span class="ident">light_client_rqs</span>: <span class="ident">params</span>.<span class="ident">on_demand</span>.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">od</span><span class="op">|</span> <span class="ident">od</span>.<span class="ident">extract_receiver</span>()),
 		})
 	}
 
@@ -1327,8 +1327,8 @@
 	<span class="ident">import_queue</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">ImportQueue</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span>,
 	<span class="doccomment">/// Messages from the `NetworkService` and that must be processed.</span>
 	<span class="ident">from_worker</span>: <span class="ident">mpsc</span>::<span class="ident">UnboundedReceiver</span><span class="op">&lt;</span><span class="ident">ServerToWorkerMsg</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">S</span><span class="op">&gt;&gt;</span>,
-	<span class="doccomment">/// Receiver for queries from the on-demand that must be processed.</span>
-	<span class="ident">on_demand_in</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">mpsc</span>::<span class="ident">UnboundedReceiver</span><span class="op">&lt;</span><span class="ident">RequestData</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>,
+	<span class="doccomment">/// Receiver for queries from the light client that must be processed.</span>
+	<span class="ident">light_client_rqs</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">mpsc</span>::<span class="ident">UnboundedReceiver</span><span class="op">&lt;</span><span class="ident">RequestData</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>, <span class="ident">S</span>: <span class="ident">NetworkSpecialization</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">H</span>: <span class="ident">ExHashT</span><span class="op">&gt;</span> <span class="ident">Future</span> <span class="kw">for</span> <span class="ident">NetworkWorker</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">S</span>, <span class="ident">H</span><span class="op">&gt;</span> {
@@ -1344,10 +1344,10 @@
 			<span class="ident">std</span>::<span class="ident">task</span>::<span class="ident">Poll</span>::<span class="ident">Pending</span>::<span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span>(), ()<span class="op">&gt;&gt;</span>
 		}).<span class="ident">compat</span>().<span class="ident">poll</span>();
 
-		<span class="comment">// Check for new incoming on-demand requests.</span>
-		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">on_demand_in</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">on_demand_in</span>.<span class="ident">as_mut</span>() {
-			<span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">rq</span>))) <span class="op">=</span> <span class="ident">on_demand_in</span>.<span class="ident">poll</span>() {
-				<span class="self">self</span>.<span class="ident">network_service</span>.<span class="ident">user_protocol_mut</span>().<span class="ident">add_on_demand_request</span>(<span class="ident">rq</span>);
+		<span class="comment">// Check for new incoming light client requests.</span>
+		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">light_client_rqs</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">light_client_rqs</span>.<span class="ident">as_mut</span>() {
+			<span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">rq</span>))) <span class="op">=</span> <span class="ident">light_client_rqs</span>.<span class="ident">poll</span>() {
+				<span class="self">self</span>.<span class="ident">network_service</span>.<span class="ident">user_protocol_mut</span>().<span class="ident">add_light_client_request</span>(<span class="ident">rq</span>);
 			}
 		}
 
