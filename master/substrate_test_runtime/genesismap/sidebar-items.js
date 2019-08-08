@@ -1,1 +1,1 @@
-initSidebarItems({"fn":[["additional_storage_with_genesis",""]],"struct":[["GenesisConfig","Configuration of a general Substrate test genesis block."]]});
+initSidebarItems({"fn":[["additional_storage_with_genesis",""],["insert_genesis_block",""]],"struct":[["GenesisConfig","Configuration of a general Substrate test genesis block."]]});
