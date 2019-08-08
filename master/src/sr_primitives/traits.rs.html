@@ -1287,6 +1287,23 @@
 <span id="1287">1287</span>
 <span id="1288">1288</span>
 <span id="1289">1289</span>
+<span id="1290">1290</span>
+<span id="1291">1291</span>
+<span id="1292">1292</span>
+<span id="1293">1293</span>
+<span id="1294">1294</span>
+<span id="1295">1295</span>
+<span id="1296">1296</span>
+<span id="1297">1297</span>
+<span id="1298">1298</span>
+<span id="1299">1299</span>
+<span id="1300">1300</span>
+<span id="1301">1301</span>
+<span id="1302">1302</span>
+<span id="1303">1303</span>
+<span id="1304">1304</span>
+<span id="1305">1305</span>
+<span id="1306">1306</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -2098,6 +2115,9 @@
 	<span class="doccomment">/// from the transaction using the `additional_signed` function.</span>
 	<span class="kw">type</span> <span class="ident">AdditionalSigned</span>: <span class="ident">Encode</span>;
 
+	<span class="doccomment">/// The type that encodes information that can be passed from pre_dispatch to post-dispatch.</span>
+	<span class="kw">type</span> <span class="ident">Pre</span>: <span class="ident">Default</span>;
+
 	<span class="doccomment">/// Construct any additional data that should be in the signed payload of the transaction. Can</span>
 	<span class="doccomment">/// also perform any pre-signature-verification checks and return an error if needed.</span>
 	<span class="kw">fn</span> <span class="ident">additional_signed</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">AdditionalSigned</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span>;
@@ -2120,8 +2140,8 @@
 		<span class="ident">call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>,
 		<span class="ident">info</span>: <span class="ident">DispatchInfo</span>,
 		<span class="ident">len</span>: <span class="ident">usize</span>,
-	) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">DispatchError</span><span class="op">&gt;</span> {
-		<span class="self">self</span>.<span class="ident">validate</span>(<span class="ident">who</span>, <span class="ident">call</span>, <span class="ident">info</span>, <span class="ident">len</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
+	) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Pre</span>, <span class="ident">DispatchError</span><span class="op">&gt;</span> {
+		<span class="self">self</span>.<span class="ident">validate</span>(<span class="ident">who</span>, <span class="ident">call</span>, <span class="ident">info</span>, <span class="ident">len</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="self">Self</span>::<span class="ident">Pre</span>::<span class="ident">default</span>())
 	}
 
 	<span class="doccomment">/// Validate an unsigned transaction for the transaction queue. Normally the default</span>
@@ -2138,9 +2158,16 @@
 		<span class="ident">call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>,
 		<span class="ident">info</span>: <span class="ident">DispatchInfo</span>,
 		<span class="ident">len</span>: <span class="ident">usize</span>,
-	) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">DispatchError</span><span class="op">&gt;</span> {
-		<span class="self">Self</span>::<span class="ident">validate_unsigned</span>(<span class="ident">call</span>, <span class="ident">info</span>, <span class="ident">len</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
+	) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Pre</span>, <span class="ident">DispatchError</span><span class="op">&gt;</span> {
+		<span class="self">Self</span>::<span class="ident">validate_unsigned</span>(<span class="ident">call</span>, <span class="ident">info</span>, <span class="ident">len</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="self">Self</span>::<span class="ident">Pre</span>::<span class="ident">default</span>())
 	}
+
+	<span class="doccomment">/// Do any post-flight stuff for a transaction.</span>
+	<span class="kw">fn</span> <span class="ident">post_dispatch</span>(
+		<span class="ident">_pre</span>: <span class="self">Self</span>::<span class="ident">Pre</span>,
+		<span class="ident">_info</span>: <span class="ident">DispatchInfo</span>,
+		<span class="ident">_len</span>: <span class="ident">usize</span>,
+	) { }
 }
 
 <span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">tuple_impl_indexed</span> {
@@ -2156,6 +2183,7 @@
 			<span class="kw">type</span> <span class="ident">AccountId</span> <span class="op">=</span> <span class="ident">AccountId</span>;
 			<span class="kw">type</span> <span class="ident">Call</span> <span class="op">=</span> <span class="ident">Call</span>;
 			<span class="kw">type</span> <span class="ident">AdditionalSigned</span> <span class="op">=</span> ($(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">direct</span>::<span class="ident">AdditionalSigned</span>,)<span class="op">+</span>);
+			<span class="kw">type</span> <span class="ident">Pre</span> <span class="op">=</span>  ($(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">direct</span>::<span class="ident">Pre</span>,)<span class="op">+</span>);
 			<span class="kw">fn</span> <span class="ident">additional_signed</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">AdditionalSigned</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span> {
 				<span class="prelude-val">Ok</span>(( $(<span class="self">self</span>.<span class="macro-nonterminal">$</span><span class="macro-nonterminal">index</span>.<span class="ident">additional_signed</span>()<span class="question-mark">?</span>,)<span class="op">+</span> ))
 			}
@@ -2175,9 +2203,8 @@
 				<span class="ident">call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>,
 				<span class="ident">info</span>: <span class="ident">DispatchInfo</span>,
 				<span class="ident">len</span>: <span class="ident">usize</span>,
-			) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">DispatchError</span><span class="op">&gt;</span> {
-				$(<span class="self">self</span>.<span class="macro-nonterminal">$</span><span class="macro-nonterminal">index</span>.<span class="ident">pre_dispatch</span>(<span class="ident">who</span>, <span class="ident">call</span>, <span class="ident">info</span>, <span class="ident">len</span>)<span class="question-mark">?</span>;)<span class="op">+</span>
-				<span class="prelude-val">Ok</span>(())
+			) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Pre</span>, <span class="ident">DispatchError</span><span class="op">&gt;</span> {
+				<span class="prelude-val">Ok</span>(($(<span class="self">self</span>.<span class="macro-nonterminal">$</span><span class="macro-nonterminal">index</span>.<span class="ident">pre_dispatch</span>(<span class="ident">who</span>, <span class="ident">call</span>, <span class="ident">info</span>, <span class="ident">len</span>)<span class="question-mark">?</span>,)<span class="op">+</span>))
 			}
 			<span class="kw">fn</span> <span class="ident">validate_unsigned</span>(
 				<span class="ident">call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>,
@@ -2191,9 +2218,15 @@
 				<span class="ident">call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>,
 				<span class="ident">info</span>: <span class="ident">DispatchInfo</span>,
 				<span class="ident">len</span>: <span class="ident">usize</span>,
-			) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">DispatchError</span><span class="op">&gt;</span> {
-				$(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">direct</span>::<span class="ident">pre_dispatch_unsigned</span>(<span class="ident">call</span>, <span class="ident">info</span>, <span class="ident">len</span>)<span class="question-mark">?</span>;)<span class="op">+</span>
-				<span class="prelude-val">Ok</span>(())
+			) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Pre</span>, <span class="ident">DispatchError</span><span class="op">&gt;</span> {
+				<span class="prelude-val">Ok</span>(($(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">direct</span>::<span class="ident">pre_dispatch_unsigned</span>(<span class="ident">call</span>, <span class="ident">info</span>, <span class="ident">len</span>)<span class="question-mark">?</span>,)<span class="op">+</span>))
+			}
+			<span class="kw">fn</span> <span class="ident">post_dispatch</span>(
+				<span class="ident">pre</span>: <span class="self">Self</span>::<span class="ident">Pre</span>,
+				<span class="ident">info</span>: <span class="ident">DispatchInfo</span>,
+				<span class="ident">len</span>: <span class="ident">usize</span>,
+			) {
+				$(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">direct</span>::<span class="ident">post_dispatch</span>(<span class="ident">pre</span>.<span class="macro-nonterminal">$</span><span class="macro-nonterminal">index</span>, <span class="ident">info</span>, <span class="ident">len</span>);)<span class="op">+</span>
 			}
 		}
 
@@ -2221,6 +2254,7 @@
 	<span class="kw">type</span> <span class="ident">AccountId</span> <span class="op">=</span> <span class="ident">u64</span>;
 	<span class="kw">type</span> <span class="ident">AdditionalSigned</span> <span class="op">=</span> ();
 	<span class="kw">type</span> <span class="ident">Call</span> <span class="op">=</span> ();
+	<span class="kw">type</span> <span class="ident">Pre</span> <span class="op">=</span> ();
 	<span class="kw">fn</span> <span class="ident">additional_signed</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">rstd</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span> { <span class="prelude-val">Ok</span>(()) }
 }
 
