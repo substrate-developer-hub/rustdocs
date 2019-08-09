@@ -890,6 +890,17 @@
 <span id="890">890</span>
 <span id="891">891</span>
 <span id="892">892</span>
+<span id="893">893</span>
+<span id="894">894</span>
+<span id="895">895</span>
+<span id="896">896</span>
+<span id="897">897</span>
+<span id="898">898</span>
+<span id="899">899</span>
+<span id="900">900</span>
+<span id="901">901</span>
+<span id="902">902</span>
+<span id="903">903</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -932,12 +943,8 @@
 	<span class="ident">Verifier</span>, <span class="ident">BasicQueue</span>, <span class="ident">BoxBlockImport</span>, <span class="ident">BoxJustificationImport</span>, <span class="ident">BoxFinalityProofImport</span>,
 };
 <span class="kw">use</span> <span class="ident">client</span>::{
-	<span class="ident">block_builder</span>::<span class="ident">api</span>::<span class="ident">BlockBuilder</span> <span class="kw">as</span> <span class="ident">BlockBuilderApi</span>,
-	<span class="ident">blockchain</span>::<span class="ident">ProvideCache</span>,
-	<span class="ident">runtime_api</span>::<span class="ident">ApiExt</span>,
-	<span class="ident">error</span>::<span class="prelude-ty">Result</span> <span class="kw">as</span> <span class="ident">CResult</span>,
-	<span class="ident">backend</span>::<span class="ident">AuxStore</span>,
-	<span class="ident">BlockOf</span>
+	<span class="ident">block_builder</span>::<span class="ident">api</span>::<span class="ident">BlockBuilder</span> <span class="kw">as</span> <span class="ident">BlockBuilderApi</span>, <span class="ident">blockchain</span>::<span class="ident">ProvideCache</span>,
+	<span class="ident">runtime_api</span>::<span class="ident">ApiExt</span>, <span class="ident">error</span>::<span class="prelude-ty">Result</span> <span class="kw">as</span> <span class="ident">CResult</span>, <span class="ident">backend</span>::<span class="ident">AuxStore</span>, <span class="ident">BlockOf</span>,
 };
 
 <span class="kw">use</span> <span class="ident">sr_primitives</span>::{<span class="ident">generic</span>::{<span class="self">self</span>, <span class="ident">BlockId</span>, <span class="ident">OpaqueDigestItemId</span>}, <span class="ident">Justification</span>};
@@ -959,6 +966,8 @@
 
 <span class="kw">use</span> <span class="ident">slots</span>::{<span class="ident">CheckedHeader</span>, <span class="ident">SlotData</span>, <span class="ident">SlotWorker</span>, <span class="ident">SlotInfo</span>, <span class="ident">SlotCompatible</span>};
 <span class="kw">use</span> <span class="ident">slots</span>::{<span class="ident">SignedDuration</span>, <span class="ident">check_equivocation</span>};
+
+<span class="kw">use</span> <span class="ident">keystore</span>::<span class="ident">KeyStorePtr</span>;
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">aura_primitives</span>::<span class="kw-2">*</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">consensus_common</span>::<span class="ident">SyncOracle</span>;
@@ -996,8 +1005,10 @@
 	<span class="kw">if</span> <span class="ident">authorities</span>.<span class="ident">is_empty</span>() { <span class="kw">return</span> <span class="prelude-val">None</span> }
 
 	<span class="kw">let</span> <span class="ident">idx</span> <span class="op">=</span> <span class="ident">slot_num</span> <span class="op">%</span> (<span class="ident">authorities</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u64</span>);
-	<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">idx</span> <span class="op">&lt;=</span> <span class="ident">usize</span>::<span class="ident">max_value</span>() <span class="kw">as</span> <span class="ident">u64</span>,
-		<span class="string">&quot;It is impossible to have a vector with length beyond the address space; qed&quot;</span>);
+	<span class="macro">assert</span><span class="macro">!</span>(
+		<span class="ident">idx</span> <span class="op">&lt;=</span> <span class="ident">usize</span>::<span class="ident">max_value</span>() <span class="kw">as</span> <span class="ident">u64</span>,
+		<span class="string">&quot;It is impossible to have a vector with length beyond the address space; qed&quot;</span>,
+	);
 
 	<span class="kw">let</span> <span class="ident">current_author</span> <span class="op">=</span> <span class="ident">authorities</span>.<span class="ident">get</span>(<span class="ident">idx</span> <span class="kw">as</span> <span class="ident">usize</span>)
 		.<span class="ident">expect</span>(<span class="string">&quot;authorities not empty; index constrained to list length;\
@@ -1025,7 +1036,6 @@
 <span class="doccomment">/// Start the aura worker. The returned future should be run in a futures executor.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">start_aura</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">C</span>, <span class="ident">SC</span>, <span class="ident">E</span>, <span class="ident">I</span>, <span class="ident">P</span>, <span class="ident">SO</span>, <span class="ident">Error</span>, <span class="ident">H</span><span class="op">&gt;</span>(
 	<span class="ident">slot_duration</span>: <span class="ident">SlotDuration</span>,
-	<span class="ident">local_key</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>,
 	<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span>,
 	<span class="ident">select_chain</span>: <span class="ident">SC</span>,
 	<span class="ident">block_import</span>: <span class="ident">I</span>,
@@ -1033,6 +1043,7 @@
 	<span class="ident">sync_oracle</span>: <span class="ident">SO</span>,
 	<span class="ident">inherent_data_providers</span>: <span class="ident">InherentDataProviders</span>,
 	<span class="ident">force_authoring</span>: <span class="ident">bool</span>,
+	<span class="ident">keystore</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">KeyStorePtr</span><span class="op">&gt;</span>,
 ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">futures01</span>::<span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span>, <span class="ident">consensus_common</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="kw">where</span>
 	<span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">=</span><span class="ident">H</span><span class="op">&gt;</span>,
 	<span class="ident">C</span>: <span class="ident">ProvideRuntimeApi</span> <span class="op">+</span> <span class="ident">BlockOf</span> <span class="op">+</span> <span class="ident">ProvideCache</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">AuxStore</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
@@ -1053,9 +1064,10 @@
 		<span class="ident">client</span>: <span class="ident">client</span>.<span class="ident">clone</span>(),
 		<span class="ident">block_import</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Mutex</span>::<span class="ident">new</span>(<span class="ident">block_import</span>)),
 		<span class="ident">env</span>,
-		<span class="ident">local_key</span>,
+		<span class="ident">keystore</span>,
 		<span class="ident">sync_oracle</span>: <span class="ident">sync_oracle</span>.<span class="ident">clone</span>(),
 		<span class="ident">force_authoring</span>,
+		<span class="ident">_key_type</span>: <span class="ident">PhantomData</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>,
 	};
 	<span class="ident">register_aura_inherent_data_provider</span>(
 		<span class="kw-2">&amp;</span><span class="ident">inherent_data_providers</span>,
@@ -1075,9 +1087,10 @@
 	<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span>,
 	<span class="ident">block_import</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">I</span><span class="op">&gt;&gt;</span>,
 	<span class="ident">env</span>: <span class="ident">E</span>,
-	<span class="ident">local_key</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>,
+	<span class="ident">keystore</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">KeyStorePtr</span><span class="op">&gt;</span>,
 	<span class="ident">sync_oracle</span>: <span class="ident">SO</span>,
 	<span class="ident">force_authoring</span>: <span class="ident">bool</span>,
+	<span class="ident">_key_type</span>: <span class="ident">PhantomData</span><span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">B</span>, <span class="ident">C</span>, <span class="ident">E</span>, <span class="ident">I</span>, <span class="ident">P</span>, <span class="ident">Error</span>, <span class="ident">SO</span><span class="op">&gt;</span> <span class="ident">SlotWorker</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">AuraWorker</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">E</span>, <span class="ident">I</span>, <span class="ident">P</span>, <span class="ident">SO</span><span class="op">&gt;</span> <span class="kw">where</span>
@@ -1102,8 +1115,6 @@
 		<span class="ident">chain_head</span>: <span class="ident">B</span>::<span class="ident">Header</span>,
 		<span class="ident">slot_info</span>: <span class="ident">SlotInfo</span>,
 	) <span class="op">-&gt;</span> <span class="self">Self</span>::<span class="ident">OnSlot</span> {
-		<span class="kw">let</span> <span class="ident">pair</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">local_key</span>.<span class="ident">clone</span>();
-		<span class="kw">let</span> <span class="ident">public_key</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">local_key</span>.<span class="ident">public</span>();
 		<span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">client</span>.<span class="ident">clone</span>();
 		<span class="kw">let</span> <span class="ident">block_import</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">block_import</span>.<span class="ident">clone</span>();
 
@@ -1113,13 +1124,12 @@
 		<span class="kw">let</span> <span class="ident">authorities</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">authorities</span>(<span class="ident">client</span>.<span class="ident">as_ref</span>(), <span class="kw-2">&amp;</span><span class="ident">BlockId</span>::<span class="ident">Hash</span>(<span class="ident">chain_head</span>.<span class="ident">hash</span>())) {
 			<span class="prelude-val">Ok</span>(<span class="ident">authorities</span>) <span class="op">=&gt;</span> <span class="ident">authorities</span>,
 			<span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=&gt;</span> {
-				<span class="macro">warn</span><span class="macro">!</span>(
-					<span class="string">&quot;Unable to fetch authorities at block {:?}: {:?}&quot;</span>,
-					<span class="ident">chain_head</span>.<span class="ident">hash</span>(),
-					<span class="ident">e</span>
-				);
-				<span class="macro">telemetry</span><span class="macro">!</span>(<span class="ident">CONSENSUS_WARN</span>; <span class="string">&quot;aura.unable_fetching_authorities&quot;</span>;
-					<span class="string">&quot;slot&quot;</span> <span class="op">=&gt;</span> <span class="question-mark">?</span><span class="ident">chain_head</span>.<span class="ident">hash</span>(), <span class="string">&quot;err&quot;</span> <span class="op">=&gt;</span> <span class="question-mark">?</span><span class="ident">e</span>
+				<span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;Unable to fetch authorities at block {:?}: {:?}&quot;</span>, <span class="ident">chain_head</span>.<span class="ident">hash</span>(), <span class="ident">e</span>);
+
+				<span class="macro">telemetry</span><span class="macro">!</span>(
+					<span class="ident">CONSENSUS_WARN</span>; <span class="string">&quot;aura.unable_fetching_authorities&quot;</span>;
+					<span class="string">&quot;slot&quot;</span> <span class="op">=&gt;</span> <span class="question-mark">?</span><span class="ident">chain_head</span>.<span class="ident">hash</span>(),
+					<span class="string">&quot;err&quot;</span> <span class="op">=&gt;</span> <span class="question-mark">?</span><span class="ident">e</span>,
 				);
 				<span class="kw">return</span> <span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">future</span>::<span class="ident">ready</span>(<span class="prelude-val">Ok</span>(())));
 			}
@@ -1127,22 +1137,30 @@
 
 		<span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">force_authoring</span> <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">sync_oracle</span>.<span class="ident">is_offline</span>() <span class="op">&amp;&amp;</span> <span class="ident">authorities</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="number">1</span> {
 			<span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;aura&quot;</span>, <span class="string">&quot;Skipping proposal slot. Waiting for the network.&quot;</span>);
-			<span class="macro">telemetry</span><span class="macro">!</span>(<span class="ident">CONSENSUS_DEBUG</span>; <span class="string">&quot;aura.skipping_proposal_slot&quot;</span>;
-				<span class="string">&quot;authorities_len&quot;</span> <span class="op">=&gt;</span> <span class="ident">authorities</span>.<span class="ident">len</span>()
+			<span class="macro">telemetry</span><span class="macro">!</span>(
+				<span class="ident">CONSENSUS_DEBUG</span>;
+				<span class="string">&quot;aura.skipping_proposal_slot&quot;</span>;
+				<span class="string">&quot;authorities_len&quot;</span> <span class="op">=&gt;</span> <span class="ident">authorities</span>.<span class="ident">len</span>(),
 			);
 			<span class="kw">return</span> <span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">future</span>::<span class="ident">ready</span>(<span class="prelude-val">Ok</span>(())));
 		}
 		<span class="kw">let</span> <span class="ident">maybe_author</span> <span class="op">=</span> <span class="ident">slot_author</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>(<span class="ident">slot_num</span>, <span class="kw-2">&amp;</span><span class="ident">authorities</span>);
-		<span class="kw">let</span> <span class="ident">proposal_work</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">maybe_author</span> {
+		<span class="kw">let</span> <span class="ident">maybe_pair</span> <span class="op">=</span> <span class="ident">maybe_author</span>.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">p</span><span class="op">|</span>
+			<span class="self">self</span>.<span class="ident">keystore</span>.<span class="ident">as_ref</span>().<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">k</span><span class="op">|</span>
+				<span class="ident">k</span>.<span class="ident">read</span>().<span class="ident">key_pair_by_type</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="ident">p</span>, <span class="ident">app_crypto</span>::<span class="ident">key_types</span>::<span class="ident">AURA</span>).<span class="ident">ok</span>()
+			)
+		);
+		<span class="kw">let</span> <span class="ident">proposal_work</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">maybe_pair</span> {
 			<span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="kw">return</span> <span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">future</span>::<span class="ident">ready</span>(<span class="prelude-val">Ok</span>(()))),
-			<span class="prelude-val">Some</span>(<span class="ident">author</span>) <span class="op">=&gt;</span> <span class="kw">if</span> <span class="ident">author</span> <span class="op">==</span> <span class="kw-2">&amp;</span><span class="ident">public_key</span> {
+			<span class="prelude-val">Some</span>(<span class="ident">pair</span>) <span class="op">=&gt;</span> {
 				<span class="macro">debug</span><span class="macro">!</span>(
 					<span class="ident">target</span>: <span class="string">&quot;aura&quot;</span>, <span class="string">&quot;Starting authorship at slot {}; timestamp = {}&quot;</span>,
 					<span class="ident">slot_num</span>,
-					<span class="ident">timestamp</span>
+					<span class="ident">timestamp</span>,
 				);
 				<span class="macro">telemetry</span><span class="macro">!</span>(<span class="ident">CONSENSUS_DEBUG</span>; <span class="string">&quot;aura.starting_authorship&quot;</span>;
-					<span class="string">&quot;slot_num&quot;</span> <span class="op">=&gt;</span> <span class="ident">slot_num</span>, <span class="string">&quot;timestamp&quot;</span> <span class="op">=&gt;</span> <span class="ident">timestamp</span>
+					<span class="string">&quot;slot_num&quot;</span> <span class="op">=&gt;</span> <span class="ident">slot_num</span>,
+					<span class="string">&quot;timestamp&quot;</span> <span class="op">=&gt;</span> <span class="ident">timestamp</span>,
 				);
 
 				<span class="comment">// we are the slot author. make a block and sign it.</span>
@@ -1173,27 +1191,22 @@
 					<span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">remaining_duration</span>)
 						.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> <span class="ident">consensus_common</span>::<span class="ident">Error</span>::<span class="ident">FaultyTimer</span>(<span class="ident">err</span>).<span class="ident">into</span>())
 				).<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">v</span> {
-					<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">Either</span>::<span class="ident">Left</span>((<span class="ident">v</span>, <span class="kw">_</span>)) <span class="op">=&gt;</span> <span class="ident">v</span>,
+					<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">Either</span>::<span class="ident">Left</span>((<span class="ident">v</span>, <span class="kw">_</span>)) <span class="op">=&gt;</span> <span class="ident">v</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> (<span class="ident">v</span>, <span class="ident">pair</span>)),
 					<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">Either</span>::<span class="ident">Right</span>((<span class="prelude-val">Ok</span>(<span class="kw">_</span>), <span class="kw">_</span>)) <span class="op">=&gt;</span>
 						<span class="prelude-val">Err</span>(<span class="ident">consensus_common</span>::<span class="ident">Error</span>::<span class="ident">ClientImport</span>(<span class="string">&quot;Timeout in the AuRa proposer&quot;</span>.<span class="ident">into</span>())),
 					<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">Either</span>::<span class="ident">Right</span>((<span class="prelude-val">Err</span>(<span class="ident">err</span>), <span class="kw">_</span>)) <span class="op">=&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>),
 				})
-			} <span class="kw">else</span> {
-				<span class="kw">return</span> <span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">future</span>::<span class="ident">ready</span>(<span class="prelude-val">Ok</span>(())));
 			}
 		};
 
-		<span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">proposal_work</span>.<span class="ident">map_ok</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">b</span><span class="op">|</span> {
+		<span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">proposal_work</span>.<span class="ident">map_ok</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="ident">b</span>, <span class="ident">pair</span>)<span class="op">|</span> {
 			<span class="comment">// minor hack since we don&#39;t have access to the timestamp</span>
 			<span class="comment">// that is actually set by the proposer.</span>
 			<span class="kw">let</span> <span class="ident">slot_after_building</span> <span class="op">=</span> <span class="ident">SignedDuration</span>::<span class="ident">default</span>().<span class="ident">slot_now</span>(<span class="ident">slot_duration</span>);
 			<span class="kw">if</span> <span class="ident">slot_after_building</span> <span class="op">!=</span> <span class="ident">slot_num</span> {
-				<span class="macro">info</span><span class="macro">!</span>(
-					<span class="string">&quot;Discarding proposal for slot {}; block production took too long&quot;</span>,
-					<span class="ident">slot_num</span>
-				);
+				<span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;Discarding proposal for slot {}; block production took too long&quot;</span>, <span class="ident">slot_num</span>);
 				<span class="macro">telemetry</span><span class="macro">!</span>(<span class="ident">CONSENSUS_INFO</span>; <span class="string">&quot;aura.discarding_proposal_took_too_long&quot;</span>;
-					<span class="string">&quot;slot&quot;</span> <span class="op">=&gt;</span> <span class="ident">slot_num</span>
+					<span class="string">&quot;slot&quot;</span> <span class="op">=&gt;</span> <span class="ident">slot_num</span>,
 				);
 				<span class="kw">return</span>
 			}
@@ -1204,7 +1217,7 @@
 				<span class="macro">error</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;aura&quot;</span>, <span class="string">&quot;FATAL ERROR: Invalid pre-digest: {}!&quot;</span>, <span class="ident">e</span>);
 				<span class="kw">return</span>
 			} <span class="kw">else</span> {
-				<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;aura&quot;</span>, <span class="string">&quot;Got correct number of seals.  Good!&quot;</span>)
+				<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;aura&quot;</span>, <span class="string">&quot;Got correct number of seals. Good!&quot;</span>)
 			};
 
 			<span class="kw">let</span> <span class="ident">header_num</span> <span class="op">=</span> <span class="ident">header</span>.<span class="ident">number</span>().<span class="ident">clone</span>();
@@ -1235,14 +1248,14 @@
 			<span class="macro">telemetry</span><span class="macro">!</span>(<span class="ident">CONSENSUS_INFO</span>; <span class="string">&quot;aura.pre_sealed_block&quot;</span>;
 				<span class="string">&quot;header_num&quot;</span> <span class="op">=&gt;</span> <span class="question-mark">?</span><span class="ident">header_num</span>,
 				<span class="string">&quot;hash_now&quot;</span> <span class="op">=&gt;</span> <span class="question-mark">?</span><span class="ident">import_block</span>.<span class="ident">post_header</span>().<span class="ident">hash</span>(),
-				<span class="string">&quot;hash_previously&quot;</span> <span class="op">=&gt;</span> <span class="question-mark">?</span><span class="ident">header_hash</span>
+				<span class="string">&quot;hash_previously&quot;</span> <span class="op">=&gt;</span> <span class="question-mark">?</span><span class="ident">header_hash</span>,
 			);
 
 			<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span> <span class="ident">block_import</span>.<span class="ident">lock</span>().<span class="ident">import_block</span>(<span class="ident">import_block</span>, <span class="ident">Default</span>::<span class="ident">default</span>()) {
-				<span class="macro">warn</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;aura&quot;</span>, <span class="string">&quot;Error with block built on {:?}: {:?}&quot;</span>,
-						<span class="ident">parent_hash</span>, <span class="ident">e</span>);
+				<span class="macro">warn</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;aura&quot;</span>, <span class="string">&quot;Error with block built on {:?}: {:?}&quot;</span>, <span class="ident">parent_hash</span>, <span class="ident">e</span>);
+
 				<span class="macro">telemetry</span><span class="macro">!</span>(<span class="ident">CONSENSUS_WARN</span>; <span class="string">&quot;aura.err_with_block_built_on&quot;</span>;
-					<span class="string">&quot;hash&quot;</span> <span class="op">=&gt;</span> <span class="question-mark">?</span><span class="ident">parent_hash</span>, <span class="string">&quot;err&quot;</span> <span class="op">=&gt;</span> <span class="question-mark">?</span><span class="ident">e</span>
+					<span class="string">&quot;hash&quot;</span> <span class="op">=&gt;</span> <span class="question-mark">?</span><span class="ident">parent_hash</span>, <span class="string">&quot;err&quot;</span> <span class="op">=&gt;</span> <span class="question-mark">?</span><span class="ident">e</span>,
 				);
 			}
 		}))
@@ -1251,8 +1264,9 @@
 
 <span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">aura_err</span> {
 	($(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">i</span>: <span class="ident">expr</span>),<span class="op">+</span>) <span class="op">=&gt;</span> {
-		{ <span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;aura&quot;</span>, $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">i</span>),<span class="op">+</span>)
-		; <span class="macro">format</span><span class="macro">!</span>($(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">i</span>),<span class="op">+</span>)
+		{
+			<span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;aura&quot;</span>, $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">i</span> ),<span class="op">+</span>);
+			<span class="macro">format</span><span class="macro">!</span>($( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">i</span> ),<span class="op">+</span>)
 		}
 	};
 }
@@ -1713,7 +1727,7 @@
 	<span class="attribute">#[<span class="ident">test</span>]</span>
 	<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span>
 	<span class="kw">fn</span> <span class="ident">authoring_blocks</span>() {
-		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> ::<span class="ident">env_logger</span>::<span class="ident">try_init</span>();
+		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">env_logger</span>::<span class="ident">try_init</span>();
 		<span class="kw">let</span> <span class="ident">net</span> <span class="op">=</span> <span class="ident">AuraTestNet</span>::<span class="ident">new</span>(<span class="number">3</span>);
 
 		<span class="kw">let</span> <span class="ident">peers</span> <span class="op">=</span> <span class="kw-2">&amp;</span>[
@@ -1726,7 +1740,15 @@
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">import_notifications</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
 
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">runtime</span> <span class="op">=</span> <span class="ident">current_thread</span>::<span class="ident">Runtime</span>::<span class="ident">new</span>().<span class="ident">unwrap</span>();
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">keystore_paths</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
 		<span class="kw">for</span> (<span class="ident">peer_id</span>, <span class="ident">key</span>) <span class="kw">in</span> <span class="ident">peers</span> {
+			<span class="kw">let</span> <span class="ident">keystore_path</span> <span class="op">=</span> <span class="ident">tempfile</span>::<span class="ident">tempdir</span>().<span class="ident">expect</span>(<span class="string">&quot;Creates keystore path&quot;</span>);
+			<span class="kw">let</span> <span class="ident">keystore</span> <span class="op">=</span> <span class="ident">keystore</span>::<span class="ident">Store</span>::<span class="ident">open</span>(<span class="ident">keystore_path</span>.<span class="ident">path</span>(), <span class="prelude-val">None</span>).<span class="ident">expect</span>(<span class="string">&quot;Creates keystore.&quot;</span>);
+
+			<span class="ident">keystore</span>.<span class="ident">write</span>().<span class="ident">insert_ephemeral_from_seed</span>::<span class="op">&lt;</span><span class="ident">AuthorityPair</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>.<span class="ident">to_seed</span>())
+				.<span class="ident">expect</span>(<span class="string">&quot;Creates authority key&quot;</span>);
+			<span class="ident">keystore_paths</span>.<span class="ident">push</span>(<span class="ident">keystore_path</span>);
+
 			<span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">net</span>.<span class="ident">lock</span>().<span class="ident">peer</span>(<span class="kw-2">*</span><span class="ident">peer_id</span>).<span class="ident">client</span>().<span class="ident">as_full</span>().<span class="ident">expect</span>(<span class="string">&quot;full clients are created&quot;</span>).<span class="ident">clone</span>();
 			<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span>
 			<span class="kw">let</span> <span class="ident">select_chain</span> <span class="op">=</span> <span class="ident">LongestChain</span>::<span class="ident">new</span>(
@@ -1749,7 +1771,6 @@
 
 			<span class="kw">let</span> <span class="ident">aura</span> <span class="op">=</span> <span class="ident">start_aura</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">AuthorityPair</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(
 				<span class="ident">slot_duration</span>,
-				<span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">key</span>.<span class="ident">clone</span>().<span class="ident">pair</span>().<span class="ident">into</span>()),
 				<span class="ident">client</span>.<span class="ident">clone</span>(),
 				<span class="ident">select_chain</span>,
 				<span class="ident">client</span>,
@@ -1757,6 +1778,7 @@
 				<span class="ident">DummyOracle</span>,
 				<span class="ident">inherent_data_providers</span>,
 				<span class="bool-val">false</span>,
+				<span class="prelude-val">Some</span>(<span class="ident">keystore</span>),
 			).<span class="ident">expect</span>(<span class="string">&quot;Starts aura&quot;</span>);
 
 			<span class="ident">runtime</span>.<span class="ident">spawn</span>(<span class="ident">aura</span>);
