@@ -98,6 +98,15 @@
 <span id="98"> 98</span>
 <span id="99"> 99</span>
 <span id="100">100</span>
+<span id="101">101</span>
+<span id="102">102</span>
+<span id="103">103</span>
+<span id="104">104</span>
+<span id="105">105</span>
+<span id="106">106</span>
+<span id="107">107</span>
+<span id="108">108</span>
+<span id="109">109</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">service</span>;
 <span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">future</span>, <span class="ident">Future</span>, <span class="ident">sync</span>::<span class="ident">oneshot</span>};
@@ -160,11 +169,11 @@
 	<span class="kw-2">mut</span> <span class="ident">runtime</span>: <span class="ident">Runtime</span>,
 	<span class="ident">service</span>: <span class="ident">T</span>,
 	<span class="ident">e</span>: <span class="ident">E</span>,
-) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
-	<span class="kw">where</span>
-		<span class="ident">T</span>: <span class="ident">Deref</span><span class="op">&lt;</span><span class="ident">Target</span><span class="op">=</span><span class="ident">substrate_service</span>::<span class="ident">Service</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;&gt;</span> <span class="op">+</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-		<span class="ident">C</span>: <span class="ident">substrate_service</span>::<span class="ident">Components</span>,
-		<span class="ident">E</span>: <span class="ident">IntoExit</span>,
+) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> <span class="kw">where</span>
+	<span class="ident">T</span>: <span class="ident">Deref</span><span class="op">&lt;</span><span class="ident">Target</span><span class="op">=</span><span class="ident">substrate_service</span>::<span class="ident">Service</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;&gt;</span>,
+	<span class="ident">T</span>: <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> <span class="ident">substrate_service</span>::<span class="ident">error</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+	<span class="ident">C</span>: <span class="ident">substrate_service</span>::<span class="ident">Components</span>,
+	<span class="ident">E</span>: <span class="ident">IntoExit</span>,
 {
 	<span class="kw">let</span> (<span class="ident">exit_send</span>, <span class="ident">exit</span>) <span class="op">=</span> <span class="ident">exit_future</span>::<span class="ident">signal</span>();
 
@@ -175,10 +184,19 @@
 	<span class="comment">// but we need to keep holding a reference to the global telemetry guard</span>
 	<span class="kw">let</span> <span class="ident">_telemetry</span> <span class="op">=</span> <span class="ident">service</span>.<span class="ident">telemetry</span>();
 
-	<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">runtime</span>.<span class="ident">block_on</span>(<span class="ident">service</span>.<span class="ident">select</span>(<span class="ident">e</span>.<span class="ident">into_exit</span>()));
+	<span class="kw">let</span> <span class="ident">service_res</span> <span class="op">=</span> {
+		<span class="kw">let</span> <span class="ident">exit</span> <span class="op">=</span> <span class="ident">e</span>.<span class="ident">into_exit</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">error</span>::<span class="ident">Error</span>::<span class="ident">Other</span>(<span class="string">&quot;Exit future failed.&quot;</span>.<span class="ident">into</span>()));
+		<span class="kw">let</span> <span class="ident">service</span> <span class="op">=</span> <span class="ident">service</span>.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> <span class="ident">error</span>::<span class="ident">Error</span>::<span class="ident">Service</span>(<span class="ident">err</span>));
+		<span class="kw">let</span> <span class="ident">select</span> <span class="op">=</span> <span class="ident">service</span>.<span class="ident">select</span>(<span class="ident">exit</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()).<span class="ident">map_err</span>(<span class="op">|</span>(<span class="ident">err</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">err</span>);
+		<span class="ident">runtime</span>.<span class="ident">block_on</span>(<span class="ident">select</span>)
+	};
+
 	<span class="ident">exit_send</span>.<span class="ident">fire</span>();
 
-	<span class="prelude-val">Ok</span>(())
+	<span class="comment">// TODO [andre]: timeout this future #1318</span>
+	<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">runtime</span>.<span class="ident">shutdown_on_idle</span>().<span class="ident">wait</span>();
+
+	<span class="ident">service_res</span>
 }
 
 <span class="comment">// handles ctrl-c</span>

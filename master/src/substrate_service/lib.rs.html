@@ -1113,6 +1113,31 @@
 <span id="1113">1113</span>
 <span id="1114">1114</span>
 <span id="1115">1115</span>
+<span id="1116">1116</span>
+<span id="1117">1117</span>
+<span id="1118">1118</span>
+<span id="1119">1119</span>
+<span id="1120">1120</span>
+<span id="1121">1121</span>
+<span id="1122">1122</span>
+<span id="1123">1123</span>
+<span id="1124">1124</span>
+<span id="1125">1125</span>
+<span id="1126">1126</span>
+<span id="1127">1127</span>
+<span id="1128">1128</span>
+<span id="1129">1129</span>
+<span id="1130">1130</span>
+<span id="1131">1131</span>
+<span id="1132">1132</span>
+<span id="1133">1133</span>
+<span id="1134">1134</span>
+<span id="1135">1135</span>
+<span id="1136">1136</span>
+<span id="1137">1137</span>
+<span id="1138">1138</span>
+<span id="1139">1139</span>
+<span id="1140">1140</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1144,6 +1169,7 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">io</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">net</span>::<span class="ident">SocketAddr</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">atomic</span>::{<span class="ident">AtomicBool</span>, <span class="ident">Ordering</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::{<span class="ident">Duration</span>, <span class="ident">Instant</span>};
 <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">sync</span>::<span class="ident">mpsc</span>;
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">Mutex</span>;
@@ -1198,8 +1224,14 @@
 		<span class="ident">NetworkStatus</span><span class="op">&lt;</span><span class="ident">ComponentBlock</span><span class="op">&lt;</span><span class="ident">Components</span><span class="op">&gt;&gt;</span>, <span class="ident">NetworkState</span>
 	)<span class="op">&gt;&gt;</span><span class="op">&gt;&gt;</span>,
 	<span class="ident">transaction_pool</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">TransactionPool</span><span class="op">&lt;</span><span class="ident">Components</span>::<span class="ident">TransactionPoolApi</span><span class="op">&gt;&gt;</span>,
+	<span class="doccomment">/// A future that resolves when the service has exited, this is useful to</span>
+	<span class="doccomment">/// make sure any internally spawned futures stop when the service does.</span>
 	<span class="ident">exit</span>: <span class="ident">exit_future</span>::<span class="ident">Exit</span>,
+	<span class="doccomment">/// A signal that makes the exit future above resolve, fired on service drop.</span>
 	<span class="ident">signal</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Signal</span><span class="op">&gt;</span>,
+	<span class="doccomment">/// Set to `true` when a spawned essential task has failed. The next time</span>
+	<span class="doccomment">/// the service future is polled it should complete with an error.</span>
+	<span class="ident">essential_failed</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">AtomicBool</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// Sender for futures that must be spawned as background tasks.</span>
 	<span class="ident">to_spawn_tx</span>: <span class="ident">mpsc</span>::<span class="ident">UnboundedSender</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;&gt;</span>,
 	<span class="doccomment">/// Receiver for futures that must be spawned as background tasks.</span>
@@ -1511,7 +1543,7 @@
 
 		<span class="comment">// Telemetry</span>
 		<span class="kw">let</span> <span class="ident">telemetry</span> <span class="op">=</span> <span class="ident">config</span>.<span class="ident">telemetry_endpoints</span>.<span class="ident">clone</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">endpoints</span><span class="op">|</span> {
-			<span class="kw">let</span> <span class="ident">is_authority</span> <span class="op">=</span> <span class="ident">config</span>.<span class="ident">roles</span> <span class="op">==</span> <span class="ident">Roles</span>::<span class="ident">AUTHORITY</span>;
+			<span class="kw">let</span> <span class="ident">is_authority</span> <span class="op">=</span> <span class="ident">config</span>.<span class="ident">roles</span>.<span class="ident">is_authority</span>();
 			<span class="kw">let</span> <span class="ident">network_id</span> <span class="op">=</span> <span class="ident">network</span>.<span class="ident">local_peer_id</span>().<span class="ident">to_base58</span>();
 			<span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">config</span>.<span class="ident">name</span>.<span class="ident">clone</span>();
 			<span class="kw">let</span> <span class="ident">impl_name</span> <span class="op">=</span> <span class="ident">config</span>.<span class="ident">impl_name</span>.<span class="ident">to_owned</span>();
@@ -1556,12 +1588,13 @@
 			<span class="ident">network_status_sinks</span>,
 			<span class="ident">select_chain</span>,
 			<span class="ident">transaction_pool</span>,
+			<span class="ident">exit</span>,
 			<span class="ident">signal</span>: <span class="prelude-val">Some</span>(<span class="ident">signal</span>),
+			<span class="ident">essential_failed</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">AtomicBool</span>::<span class="ident">new</span>(<span class="bool-val">false</span>)),
 			<span class="ident">to_spawn_tx</span>,
 			<span class="ident">to_spawn_rx</span>,
 			<span class="ident">to_poll</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
 			<span class="ident">config</span>,
-			<span class="ident">exit</span>,
 			<span class="ident">rpc_handlers</span>,
 			<span class="ident">_rpc</span>: <span class="ident">rpc</span>,
 			<span class="ident">_telemetry</span>: <span class="ident">telemetry</span>,
@@ -1605,6 +1638,19 @@
 	<span class="doccomment">/// Spawns a task in the background that runs the future passed as parameter.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn_task</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">task</span>: <span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>) {
 		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">to_spawn_tx</span>.<span class="ident">unbounded_send</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">task</span>));
+	}
+
+	<span class="doccomment">/// Spawns a task in the background that runs the future passed as</span>
+	<span class="doccomment">/// parameter. The given task is considered essential, i.e. if it errors we</span>
+	<span class="doccomment">/// trigger a service exit.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn_essential_task</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">task</span>: <span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>) {
+		<span class="kw">let</span> <span class="ident">essential_failed</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">essential_failed</span>.<span class="ident">clone</span>();
+		<span class="kw">let</span> <span class="ident">essential_task</span> <span class="op">=</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">task</span>.<span class="ident">map_err</span>(<span class="kw">move</span> <span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
+			<span class="macro">error</span><span class="macro">!</span>(<span class="string">&quot;Essential task failed. Shutting down service.&quot;</span>);
+			<span class="ident">essential_failed</span>.<span class="ident">store</span>(<span class="bool-val">true</span>, <span class="ident">Ordering</span>::<span class="ident">Relaxed</span>);
+		}));
+
+		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">to_spawn_tx</span>.<span class="ident">unbounded_send</span>(<span class="ident">essential_task</span>);
 	}
 
 	<span class="doccomment">/// Returns a handle for spawning tasks.</span>
@@ -1664,9 +1710,13 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Components</span><span class="op">&gt;</span> <span class="ident">Future</span> <span class="kw">for</span> <span class="ident">Service</span><span class="op">&lt;</span><span class="ident">Components</span><span class="op">&gt;</span> <span class="kw">where</span> <span class="ident">Components</span>: <span class="ident">components</span>::<span class="ident">Components</span> {
 	<span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> ();
-	<span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> ();
+	<span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span>;
 
 	<span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Item</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+		<span class="kw">if</span> <span class="self">self</span>.<span class="ident">essential_failed</span>.<span class="ident">load</span>(<span class="ident">Ordering</span>::<span class="ident">Relaxed</span>) {
+			<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">Other</span>(<span class="string">&quot;Essential task failed.&quot;</span>.<span class="ident">into</span>()));
+		}
+
 		<span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">task_to_spawn</span>))) <span class="op">=</span> <span class="self">self</span>.<span class="ident">to_spawn_rx</span>.<span class="ident">poll</span>() {
 			<span class="kw">let</span> <span class="ident">executor</span> <span class="op">=</span> <span class="ident">tokio_executor</span>::<span class="ident">DefaultExecutor</span>::<span class="ident">current</span>();
 			<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="ident">executor</span>.<span class="ident">execute</span>(<span class="ident">task_to_spawn</span>) {
