@@ -794,6 +794,58 @@
 <span id="794">794</span>
 <span id="795">795</span>
 <span id="796">796</span>
+<span id="797">797</span>
+<span id="798">798</span>
+<span id="799">799</span>
+<span id="800">800</span>
+<span id="801">801</span>
+<span id="802">802</span>
+<span id="803">803</span>
+<span id="804">804</span>
+<span id="805">805</span>
+<span id="806">806</span>
+<span id="807">807</span>
+<span id="808">808</span>
+<span id="809">809</span>
+<span id="810">810</span>
+<span id="811">811</span>
+<span id="812">812</span>
+<span id="813">813</span>
+<span id="814">814</span>
+<span id="815">815</span>
+<span id="816">816</span>
+<span id="817">817</span>
+<span id="818">818</span>
+<span id="819">819</span>
+<span id="820">820</span>
+<span id="821">821</span>
+<span id="822">822</span>
+<span id="823">823</span>
+<span id="824">824</span>
+<span id="825">825</span>
+<span id="826">826</span>
+<span id="827">827</span>
+<span id="828">828</span>
+<span id="829">829</span>
+<span id="830">830</span>
+<span id="831">831</span>
+<span id="832">832</span>
+<span id="833">833</span>
+<span id="834">834</span>
+<span id="835">835</span>
+<span id="836">836</span>
+<span id="837">837</span>
+<span id="838">838</span>
+<span id="839">839</span>
+<span id="840">840</span>
+<span id="841">841</span>
+<span id="842">842</span>
+<span id="843">843</span>
+<span id="844">844</span>
+<span id="845">845</span>
+<span id="846">846</span>
+<span id="847">847</span>
+<span id="848">848</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -815,16 +867,21 @@
 
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">Schedule</span>, <span class="ident">Trait</span>, <span class="ident">CodeHash</span>, <span class="ident">ComputeDispatchFee</span>, <span class="ident">BalanceOf</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">exec</span>::{
-	<span class="ident">Ext</span>, <span class="ident">VmExecResult</span>, <span class="ident">OutputBuf</span>, <span class="ident">EmptyOutputBuf</span>, <span class="ident">CallReceipt</span>, <span class="ident">InstantiateReceipt</span>, <span class="ident">StorageKey</span>,
-	<span class="ident">TopicOf</span>,
+	<span class="ident">Ext</span>, <span class="ident">ExecResult</span>, <span class="ident">ExecError</span>, <span class="ident">ExecReturnValue</span>, <span class="ident">StorageKey</span>, <span class="ident">TopicOf</span>, <span class="ident">STATUS_SUCCESS</span>,
 };
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">gas</span>::{<span class="ident">Gas</span>, <span class="ident">GasMeter</span>, <span class="ident">Token</span>, <span class="ident">GasMeterResult</span>, <span class="ident">approx_gas_for_balance</span>};
 <span class="kw">use</span> <span class="ident">sandbox</span>;
 <span class="kw">use</span> <span class="ident">system</span>;
 <span class="kw">use</span> <span class="ident">rstd</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
+<span class="kw">use</span> <span class="ident">rstd</span>::<span class="ident">convert</span>::<span class="ident">TryInto</span>;
 <span class="kw">use</span> <span class="ident">rstd</span>::<span class="ident">mem</span>;
 <span class="kw">use</span> <span class="ident">codec</span>::{<span class="ident">Decode</span>, <span class="ident">Encode</span>};
 <span class="kw">use</span> <span class="ident">sr_primitives</span>::<span class="ident">traits</span>::{<span class="ident">Bounded</span>, <span class="ident">SaturatedConversion</span>};
+
+<span class="doccomment">/// The value returned from ext_call and ext_create contract external functions if the call or</span>
+<span class="doccomment">/// instantiation traps. This value is chosen as if the execution does not trap, the return value</span>
+<span class="doccomment">/// will always be an 8-bit integer, so 0x0100 is the smallest value that could not be returned.</span>
+<span class="kw">const</span> <span class="ident">TRAP_RETURN_CODE</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="number">0x0100</span>;
 
 <span class="doccomment">/// Enumerates all possible *special* trap conditions.</span>
 <span class="doccomment">///</span>
@@ -832,15 +889,12 @@
 <span class="doccomment">/// to just terminate quickly in some cases.</span>
 <span class="kw">enum</span> <span class="ident">SpecialTrap</span> {
 	<span class="doccomment">/// Signals that trap was generated in response to call `ext_return` host function.</span>
-	<span class="ident">Return</span>(<span class="ident">OutputBuf</span>),
+	<span class="ident">Return</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>),
 }
 
 <span class="doccomment">/// Can only be used for one call.</span>
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">Runtime</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">E</span>: <span class="ident">Ext</span> <span class="op">+</span> <span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
 	<span class="ident">ext</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">E</span>,
-	<span class="comment">// A VM can return a result only once and only by value. So</span>
-	<span class="comment">// we wrap output buffer to make it possible to take the buffer out.</span>
-	<span class="ident">empty_output_buf</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">EmptyOutputBuf</span><span class="op">&gt;</span>,
 	<span class="ident">scratch_buf</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
 	<span class="ident">schedule</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Schedule</span>,
 	<span class="ident">memory</span>: <span class="ident">sandbox</span>::<span class="ident">Memory</span>,
@@ -851,14 +905,12 @@
 	<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">new</span>(
 		<span class="ident">ext</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">E</span>,
 		<span class="ident">input_data</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
-		<span class="ident">empty_output_buf</span>: <span class="ident">EmptyOutputBuf</span>,
 		<span class="ident">schedule</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Schedule</span>,
 		<span class="ident">memory</span>: <span class="ident">sandbox</span>::<span class="ident">Memory</span>,
 		<span class="ident">gas_meter</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">GasMeter</span><span class="op">&lt;</span><span class="ident">E</span>::<span class="ident">T</span><span class="op">&gt;</span>,
 	) <span class="op">-&gt;</span> <span class="self">Self</span> {
 		<span class="ident">Runtime</span> {
 			<span class="ident">ext</span>,
-			<span class="ident">empty_output_buf</span>: <span class="prelude-val">Some</span>(<span class="ident">empty_output_buf</span>),
 			<span class="comment">// Put the input data into the scratch buffer immediately.</span>
 			<span class="ident">scratch_buf</span>: <span class="ident">input_data</span>,
 			<span class="ident">schedule</span>,
@@ -875,20 +927,42 @@
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">to_execution_result</span><span class="op">&lt;</span><span class="ident">E</span>: <span class="ident">Ext</span><span class="op">&gt;</span>(
 	<span class="ident">runtime</span>: <span class="ident">Runtime</span><span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span>,
-	<span class="ident">sandbox_err</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">sandbox</span>::<span class="ident">Error</span><span class="op">&gt;</span>,
-) <span class="op">-&gt;</span> <span class="ident">VmExecResult</span> {
-	<span class="comment">// Check the exact type of the error. It could be plain trap or</span>
-	<span class="comment">// special runtime trap the we must recognize.</span>
-	<span class="kw">match</span> (<span class="ident">sandbox_err</span>, <span class="ident">runtime</span>.<span class="ident">special_trap</span>) {
+	<span class="ident">sandbox_result</span>: <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">sandbox</span>::<span class="ident">ReturnValue</span>, <span class="ident">sandbox</span>::<span class="ident">Error</span><span class="op">&gt;</span>,
+) <span class="op">-&gt;</span> <span class="ident">ExecResult</span> {
+	<span class="comment">// Special case. The trap was the result of the execution `return` host function.</span>
+	<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">SpecialTrap</span>::<span class="ident">Return</span>(<span class="ident">data</span>)) <span class="op">=</span> <span class="ident">runtime</span>.<span class="ident">special_trap</span> {
+		<span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">ExecReturnValue</span> { <span class="ident">status</span>: <span class="ident">STATUS_SUCCESS</span>, <span class="ident">data</span> });
+	}
+
+	<span class="comment">// Check the exact type of the error.</span>
+	<span class="kw">match</span> <span class="ident">sandbox_result</span> {
 		<span class="comment">// No traps were generated. Proceed normally.</span>
-		(<span class="prelude-val">None</span>, <span class="prelude-val">None</span>) <span class="op">=&gt;</span> <span class="ident">VmExecResult</span>::<span class="prelude-val">Ok</span>,
-		<span class="comment">// Special case. The trap was the result of the execution `return` host function.</span>
-		(<span class="prelude-val">Some</span>(<span class="ident">sandbox</span>::<span class="ident">Error</span>::<span class="ident">Execution</span>), <span class="prelude-val">Some</span>(<span class="ident">SpecialTrap</span>::<span class="ident">Return</span>(<span class="ident">buf</span>))) <span class="op">=&gt;</span> <span class="ident">VmExecResult</span>::<span class="ident">Returned</span>(<span class="ident">buf</span>),
+		<span class="prelude-val">Ok</span>(<span class="ident">sandbox</span>::<span class="ident">ReturnValue</span>::<span class="ident">Unit</span>) <span class="op">=&gt;</span> {
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buffer</span> <span class="op">=</span> <span class="ident">runtime</span>.<span class="ident">scratch_buf</span>;
+			<span class="ident">buffer</span>.<span class="ident">clear</span>();
+			<span class="prelude-val">Ok</span>(<span class="ident">ExecReturnValue</span> { <span class="ident">status</span>: <span class="ident">STATUS_SUCCESS</span>, <span class="ident">data</span>: <span class="ident">buffer</span> })
+		}
+		<span class="prelude-val">Ok</span>(<span class="ident">sandbox</span>::<span class="ident">ReturnValue</span>::<span class="ident">Value</span>(<span class="ident">sandbox</span>::<span class="ident">TypedValue</span>::<span class="ident">I32</span>(<span class="ident">exit_code</span>))) <span class="op">=&gt;</span> {
+			<span class="kw">let</span> <span class="ident">status</span> <span class="op">=</span> (<span class="ident">exit_code</span> <span class="op">&amp;</span> <span class="number">0xFF</span>).<span class="ident">try_into</span>()
+				.<span class="ident">expect</span>(<span class="string">&quot;exit_code is masked into the range of a u8; qed&quot;</span>);
+			<span class="prelude-val">Ok</span>(<span class="ident">ExecReturnValue</span> { <span class="ident">status</span>, <span class="ident">data</span>: <span class="ident">runtime</span>.<span class="ident">scratch_buf</span> })
+		}
+		<span class="comment">// This should never happen as the return type of exported functions should have been</span>
+		<span class="comment">// validated by the code preparation process. However, because panics are really</span>
+		<span class="comment">// undesirable in the runtime code, we treat this as a trap for now. Eventually, we might</span>
+		<span class="comment">// want to revisit this.</span>
+		<span class="prelude-val">Ok</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">ExecError</span> { <span class="ident">reason</span>: <span class="string">&quot;return type error&quot;</span>, <span class="ident">buffer</span>: <span class="ident">runtime</span>.<span class="ident">scratch_buf</span> }),
+		<span class="comment">// `Error::Module` is returned only if instantiation or linking failed (i.e.</span>
+		<span class="comment">// wasm binary tried to import a function that is not provided by the host).</span>
+		<span class="comment">// This shouldn&#39;t happen because validation process ought to reject such binaries.</span>
+		<span class="comment">//</span>
+		<span class="comment">// Because panics are really undesirable in the runtime code, we treat this as</span>
+		<span class="comment">// a trap for now. Eventually, we might want to revisit this.</span>
+		<span class="prelude-val">Err</span>(<span class="ident">sandbox</span>::<span class="ident">Error</span>::<span class="ident">Module</span>) <span class="op">=&gt;</span>
+			<span class="prelude-val">Err</span>(<span class="ident">ExecError</span> { <span class="ident">reason</span>: <span class="string">&quot;validation error&quot;</span>, <span class="ident">buffer</span>: <span class="ident">runtime</span>.<span class="ident">scratch_buf</span> }),
 		<span class="comment">// Any other kind of a trap should result in a failure.</span>
-		(<span class="prelude-val">Some</span>(<span class="kw">_</span>), <span class="kw">_</span>) <span class="op">=&gt;</span> <span class="ident">VmExecResult</span>::<span class="ident">Trap</span>(<span class="string">&quot;during execution&quot;</span>),
-		<span class="comment">// Any other case (such as special trap flag without actual trap) signifies</span>
-		<span class="comment">// a logic error.</span>
-		<span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(),
+		<span class="prelude-val">Err</span>(<span class="ident">sandbox</span>::<span class="ident">Error</span>::<span class="ident">Execution</span>) <span class="op">|</span> <span class="prelude-val">Err</span>(<span class="ident">sandbox</span>::<span class="ident">Error</span>::<span class="ident">OutOfBounds</span>) <span class="op">=&gt;</span>
+			<span class="prelude-val">Err</span>(<span class="ident">ExecError</span> { <span class="ident">reason</span>: <span class="string">&quot;during execution&quot;</span>, <span class="ident">buffer</span>: <span class="ident">runtime</span>.<span class="ident">scratch_buf</span> }),
 	}
 }
 
@@ -983,12 +1057,29 @@
 ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">sandbox</span>::<span class="ident">HostError</span><span class="op">&gt;</span> {
 	<span class="ident">charge_gas</span>(<span class="ident">ctx</span>.<span class="ident">gas_meter</span>, <span class="ident">ctx</span>.<span class="ident">schedule</span>, <span class="ident">RuntimeToken</span>::<span class="ident">ReadMemory</span>(<span class="ident">len</span>))<span class="question-mark">?</span>;
 
-	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
-	<span class="ident">buf</span>.<span class="ident">resize</span>(<span class="ident">len</span> <span class="kw">as</span> <span class="ident">usize</span>, <span class="number">0</span>);
-
-	<span class="ident">ctx</span>.<span class="ident">memory</span>().<span class="ident">get</span>(<span class="ident">ptr</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">buf</span>)<span class="question-mark">?</span>;
-
+	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="number">0u8</span>; <span class="ident">len</span> <span class="kw">as</span> <span class="ident">usize</span>];
+	<span class="ident">ctx</span>.<span class="ident">memory</span>.<span class="ident">get</span>(<span class="ident">ptr</span>, <span class="ident">buf</span>.<span class="ident">as_mut_slice</span>()).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">sandbox</span>::<span class="ident">HostError</span>)<span class="question-mark">?</span>;
 	<span class="prelude-val">Ok</span>(<span class="ident">buf</span>)
+}
+
+<span class="doccomment">/// Read designated chunk from the sandbox memory into the scratch buffer, consuming an</span>
+<span class="doccomment">/// appropriate amount of gas. Resizes the scratch buffer to the specified length on success.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// Returns `Err` if one of the following conditions occurs:</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// - calculating the gas cost resulted in overflow.</span>
+<span class="doccomment">/// - out of gas</span>
+<span class="doccomment">/// - requested buffer is not within the bounds of the sandbox memory.</span>
+<span class="kw">fn</span> <span class="ident">read_sandbox_memory_into_scratch</span><span class="op">&lt;</span><span class="ident">E</span>: <span class="ident">Ext</span><span class="op">&gt;</span>(
+	<span class="ident">ctx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Runtime</span><span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span>,
+	<span class="ident">ptr</span>: <span class="ident">u32</span>,
+	<span class="ident">len</span>: <span class="ident">u32</span>,
+) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">sandbox</span>::<span class="ident">HostError</span><span class="op">&gt;</span> {
+	<span class="ident">charge_gas</span>(<span class="ident">ctx</span>.<span class="ident">gas_meter</span>, <span class="ident">ctx</span>.<span class="ident">schedule</span>, <span class="ident">RuntimeToken</span>::<span class="ident">ReadMemory</span>(<span class="ident">len</span>))<span class="question-mark">?</span>;
+
+	<span class="ident">ctx</span>.<span class="ident">scratch_buf</span>.<span class="ident">resize</span>(<span class="ident">len</span> <span class="kw">as</span> <span class="ident">usize</span>, <span class="number">0</span>);
+	<span class="ident">ctx</span>.<span class="ident">memory</span>.<span class="ident">get</span>(<span class="ident">ptr</span>, <span class="ident">ctx</span>.<span class="ident">scratch_buf</span>.<span class="ident">as_mut_slice</span>()).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">sandbox</span>::<span class="ident">HostError</span>)<span class="question-mark">?</span>;
+	<span class="prelude-val">Ok</span>(())
 }
 
 <span class="doccomment">/// Read designated chunk from the sandbox memory into the supplied buffer, consuming</span>
@@ -1006,7 +1097,7 @@
 ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">sandbox</span>::<span class="ident">HostError</span><span class="op">&gt;</span> {
 	<span class="ident">charge_gas</span>(<span class="ident">ctx</span>.<span class="ident">gas_meter</span>, <span class="ident">ctx</span>.<span class="ident">schedule</span>, <span class="ident">RuntimeToken</span>::<span class="ident">ReadMemory</span>(<span class="ident">buf</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>))<span class="question-mark">?</span>;
 
-	<span class="ident">ctx</span>.<span class="ident">memory</span>().<span class="ident">get</span>(<span class="ident">ptr</span>, <span class="ident">buf</span>).<span class="ident">map_err</span>(<span class="ident">Into</span>::<span class="ident">into</span>)
+	<span class="ident">ctx</span>.<span class="ident">memory</span>.<span class="ident">get</span>(<span class="ident">ptr</span>, <span class="ident">buf</span>).<span class="ident">map_err</span>(<span class="ident">Into</span>::<span class="ident">into</span>)
 }
 
 <span class="doccomment">/// Read designated chunk from the sandbox memory, consuming an appropriate amount of</span>
@@ -1115,8 +1206,15 @@
 
 	<span class="comment">// Make a call to another contract.</span>
 	<span class="comment">//</span>
-	<span class="comment">// Returns 0 on the successful execution and puts the result data returned by the callee into</span>
-	<span class="comment">// the scratch buffer. Otherwise, returns a non-zero value and clears the scratch buffer.</span>
+	<span class="comment">// If the called contract runs to completion, then this returns the status code the callee</span>
+	<span class="comment">// returns on exit in the bottom 8 bits of the return value. The top 24 bits are 0s. A status</span>
+	<span class="comment">// code of 0 indicates success, and any other code indicates a failure. On failure, any state</span>
+	<span class="comment">// changes made by the called contract are reverted. The scratch buffer is filled with the</span>
+	<span class="comment">// output data returned by the called contract, even in the case of a failure status.</span>
+	<span class="comment">//</span>
+	<span class="comment">// If the contract traps during execution or otherwise fails to complete successfully, then</span>
+	<span class="comment">// this function clears the scratch buffer and returns 0x0100. As with a failure status, any</span>
+	<span class="comment">// state changes made by the called contract are reverted.</span>
 	<span class="comment">//</span>
 	<span class="comment">// - callee_ptr: a pointer to the address of the callee contract.</span>
 	<span class="comment">//   Should be decodable as an `T::AccountId`. Traps otherwise.</span>
@@ -1141,12 +1239,10 @@
 			<span class="ident">read_sandbox_memory_as</span>(<span class="ident">ctx</span>, <span class="ident">callee_ptr</span>, <span class="ident">callee_len</span>)<span class="question-mark">?</span>;
 		<span class="kw">let</span> <span class="ident">value</span>: <span class="ident">BalanceOf</span><span class="op">&lt;&lt;</span><span class="ident">E</span> <span class="kw">as</span> <span class="ident">Ext</span><span class="op">&gt;</span>::<span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span>
 			<span class="ident">read_sandbox_memory_as</span>(<span class="ident">ctx</span>, <span class="ident">value_ptr</span>, <span class="ident">value_len</span>)<span class="question-mark">?</span>;
-		<span class="kw">let</span> <span class="ident">input_data</span> <span class="op">=</span> <span class="ident">read_sandbox_memory</span>(<span class="ident">ctx</span>, <span class="ident">input_data_ptr</span>, <span class="ident">input_data_len</span>)<span class="question-mark">?</span>;
 
-		<span class="comment">// Grab the scratch buffer and put in its&#39; place an empty one.</span>
-		<span class="comment">// We will use it for creating `EmptyOutputBuf` container for the call.</span>
-		<span class="kw">let</span> <span class="ident">scratch_buf</span> <span class="op">=</span> <span class="ident">mem</span>::<span class="ident">replace</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ctx</span>.<span class="ident">scratch_buf</span>, <span class="ident">Vec</span>::<span class="ident">new</span>());
-		<span class="kw">let</span> <span class="ident">empty_output_buf</span> <span class="op">=</span> <span class="ident">EmptyOutputBuf</span>::<span class="ident">from_spare_vec</span>(<span class="ident">scratch_buf</span>);
+		<span class="comment">// Read input data into the scratch buffer, then take ownership of it.</span>
+		<span class="ident">read_sandbox_memory_into_scratch</span>(<span class="ident">ctx</span>, <span class="ident">input_data_ptr</span>, <span class="ident">input_data_len</span>)<span class="question-mark">?</span>;
+		<span class="kw">let</span> <span class="ident">input_data</span> <span class="op">=</span> <span class="ident">mem</span>::<span class="ident">replace</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ctx</span>.<span class="ident">scratch_buf</span>, <span class="ident">Vec</span>::<span class="ident">new</span>());
 
 		<span class="kw">let</span> <span class="ident">nested_gas_limit</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">gas</span> <span class="op">==</span> <span class="number">0</span> {
 			<span class="ident">ctx</span>.<span class="ident">gas_meter</span>.<span class="ident">gas_left</span>()
@@ -1161,22 +1257,25 @@
 						<span class="kw-2">&amp;</span><span class="ident">callee</span>,
 						<span class="ident">value</span>,
 						<span class="ident">nested_meter</span>,
-						<span class="kw-2">&amp;</span><span class="ident">input_data</span>,
-						<span class="ident">empty_output_buf</span>
+						<span class="ident">input_data</span>,
 					)
-					.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
+					.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> <span class="ident">err</span>.<span class="ident">buffer</span>)
 				}
 				<span class="comment">// there is not enough gas to allocate for the nested call.</span>
-				<span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="prelude-val">Err</span>(()),
+				<span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">input_data</span>),
 			}
 		});
 
 		<span class="kw">match</span> <span class="ident">call_outcome</span> {
-			<span class="prelude-val">Ok</span>(<span class="ident">CallReceipt</span> { <span class="ident">output_data</span> }) <span class="op">=&gt;</span> {
-				<span class="ident">ctx</span>.<span class="ident">scratch_buf</span> <span class="op">=</span> <span class="ident">output_data</span>;
-				<span class="prelude-val">Ok</span>(<span class="number">0</span>)
+			<span class="prelude-val">Ok</span>(<span class="ident">output</span>) <span class="op">=&gt;</span> {
+				<span class="ident">ctx</span>.<span class="ident">scratch_buf</span> <span class="op">=</span> <span class="ident">output</span>.<span class="ident">data</span>;
+				<span class="prelude-val">Ok</span>(<span class="ident">output</span>.<span class="ident">status</span>.<span class="ident">into</span>())
 			},
-			<span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(<span class="number">1</span>),
+			<span class="prelude-val">Err</span>(<span class="ident">buffer</span>) <span class="op">=&gt;</span> {
+				<span class="ident">ctx</span>.<span class="ident">scratch_buf</span> <span class="op">=</span> <span class="ident">buffer</span>;
+				<span class="ident">ctx</span>.<span class="ident">scratch_buf</span>.<span class="ident">clear</span>();
+				<span class="prelude-val">Ok</span>(<span class="ident">TRAP_RETURN_CODE</span>)
+			},
 		}
 	},
 
@@ -1184,6 +1283,20 @@
 	<span class="comment">//</span>
 	<span class="comment">// This function creates an account and executes the constructor defined in the code specified</span>
 	<span class="comment">// by the code hash.</span>
+	<span class="comment">//</span>
+	<span class="comment">// If the constructor runs to completion, then this returns the status code that the newly</span>
+	<span class="comment">// created contract returns on exit in the bottom 8 bits of the return value. The top 24 bits</span>
+	<span class="comment">// are 0s. A status code of 0 indicates success, and any other code indicates a failure. On</span>
+	<span class="comment">// failure, any state changes made by the called contract are reverted and the contract is not</span>
+	<span class="comment">// instantiated. On a success status, the scratch buffer is filled with the encoded address of</span>
+	<span class="comment">// the newly created contract. In the case of a failure status, the scratch buffer is cleared.</span>
+	<span class="comment">//</span>
+	<span class="comment">// If the contract traps during execution or otherwise fails to complete successfully, then</span>
+	<span class="comment">// this function clears the scratch buffer and returns 0x0100. As with a failure status, any</span>
+	<span class="comment">// state changes made by the called contract are reverted.</span>
+
+	<span class="comment">// This function creates an account and executes initializer code. After the execution,</span>
+	<span class="comment">// the returned buffer is saved as the code of the created account.</span>
 	<span class="comment">//</span>
 	<span class="comment">// Returns 0 on the successful contract creation and puts the address of the created contract</span>
 	<span class="comment">// into the scratch buffer. Otherwise, returns non-zero value and clears the scratch buffer.</span>
@@ -1210,10 +1323,10 @@
 			<span class="ident">read_sandbox_memory_as</span>(<span class="ident">ctx</span>, <span class="ident">code_hash_ptr</span>, <span class="ident">code_hash_len</span>)<span class="question-mark">?</span>;
 		<span class="kw">let</span> <span class="ident">value</span>: <span class="ident">BalanceOf</span><span class="op">&lt;&lt;</span><span class="ident">E</span> <span class="kw">as</span> <span class="ident">Ext</span><span class="op">&gt;</span>::<span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span>
 			<span class="ident">read_sandbox_memory_as</span>(<span class="ident">ctx</span>, <span class="ident">value_ptr</span>, <span class="ident">value_len</span>)<span class="question-mark">?</span>;
-		<span class="kw">let</span> <span class="ident">input_data</span> <span class="op">=</span> <span class="ident">read_sandbox_memory</span>(<span class="ident">ctx</span>, <span class="ident">input_data_ptr</span>, <span class="ident">input_data_len</span>)<span class="question-mark">?</span>;
 
-		<span class="comment">// Clear the scratch buffer in any case.</span>
-		<span class="ident">ctx</span>.<span class="ident">scratch_buf</span>.<span class="ident">clear</span>();
+		<span class="comment">// Read input data into the scratch buffer, then take ownership of it.</span>
+		<span class="ident">read_sandbox_memory_into_scratch</span>(<span class="ident">ctx</span>, <span class="ident">input_data_ptr</span>, <span class="ident">input_data_len</span>)<span class="question-mark">?</span>;
+		<span class="kw">let</span> <span class="ident">input_data</span> <span class="op">=</span> <span class="ident">mem</span>::<span class="ident">replace</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ctx</span>.<span class="ident">scratch_buf</span>, <span class="ident">Vec</span>::<span class="ident">new</span>());
 
 		<span class="kw">let</span> <span class="ident">nested_gas_limit</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">gas</span> <span class="op">==</span> <span class="number">0</span> {
 			<span class="ident">ctx</span>.<span class="ident">gas_meter</span>.<span class="ident">gas_left</span>()
@@ -1228,21 +1341,30 @@
 						<span class="kw-2">&amp;</span><span class="ident">code_hash</span>,
 						<span class="ident">value</span>,
 						<span class="ident">nested_meter</span>,
-						<span class="kw-2">&amp;</span><span class="ident">input_data</span>
+						<span class="ident">input_data</span>
 					)
-					.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
+					.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> <span class="ident">err</span>.<span class="ident">buffer</span>)
 				}
 				<span class="comment">// there is not enough gas to allocate for the nested call.</span>
-				<span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="prelude-val">Err</span>(()),
+				<span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">input_data</span>),
 			}
 		});
 		<span class="kw">match</span> <span class="ident">instantiate_outcome</span> {
-			<span class="prelude-val">Ok</span>(<span class="ident">InstantiateReceipt</span> { <span class="ident">address</span> }) <span class="op">=&gt;</span> {
-				<span class="comment">// Write the address to the scratch buffer.</span>
-				<span class="ident">address</span>.<span class="ident">encode_to</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ctx</span>.<span class="ident">scratch_buf</span>);
-				<span class="prelude-val">Ok</span>(<span class="number">0</span>)
+			<span class="prelude-val">Ok</span>((<span class="ident">address</span>, <span class="ident">output</span>)) <span class="op">=&gt;</span> {
+				<span class="kw">let</span> <span class="ident">is_success</span> <span class="op">=</span> <span class="ident">output</span>.<span class="ident">is_success</span>();
+				<span class="ident">ctx</span>.<span class="ident">scratch_buf</span> <span class="op">=</span> <span class="ident">output</span>.<span class="ident">data</span>;
+				<span class="ident">ctx</span>.<span class="ident">scratch_buf</span>.<span class="ident">clear</span>();
+				<span class="kw">if</span> <span class="ident">is_success</span> {
+					<span class="comment">// Write the address to the scratch buffer.</span>
+					<span class="ident">address</span>.<span class="ident">encode_to</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ctx</span>.<span class="ident">scratch_buf</span>);
+				}
+				<span class="prelude-val">Ok</span>(<span class="ident">output</span>.<span class="ident">status</span>.<span class="ident">into</span>())
 			},
-			<span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(<span class="number">1</span>),
+			<span class="prelude-val">Err</span>(<span class="ident">buffer</span>) <span class="op">=&gt;</span> {
+				<span class="ident">ctx</span>.<span class="ident">scratch_buf</span> <span class="op">=</span> <span class="ident">buffer</span>;
+				<span class="ident">ctx</span>.<span class="ident">scratch_buf</span>.<span class="ident">clear</span>();
+				<span class="prelude-val">Ok</span>(<span class="ident">TRAP_RETURN_CODE</span>)
+			},
 		}
 	},
 
@@ -1251,33 +1373,11 @@
 	<span class="comment">//</span>
 	<span class="comment">// This is the only way to return a data buffer to the caller.</span>
 	<span class="ident">ext_return</span>(<span class="ident">ctx</span>, <span class="ident">data_ptr</span>: <span class="ident">u32</span>, <span class="ident">data_len</span>: <span class="ident">u32</span>) <span class="op">=&gt;</span> {
-		<span class="kw">match</span> <span class="ident">ctx</span>
-			.<span class="ident">gas_meter</span>
-			.<span class="ident">charge</span>(
-				<span class="ident">ctx</span>.<span class="ident">schedule</span>,
-				<span class="ident">RuntimeToken</span>::<span class="ident">ReturnData</span>(<span class="ident">data_len</span>)
-			)
-		{
-			<span class="ident">GasMeterResult</span>::<span class="ident">Proceed</span> <span class="op">=&gt;</span> (),
-			<span class="ident">GasMeterResult</span>::<span class="ident">OutOfGas</span> <span class="op">=&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">sandbox</span>::<span class="ident">HostError</span>),
-		}
+		<span class="ident">charge_gas</span>(<span class="ident">ctx</span>.<span class="ident">gas_meter</span>, <span class="ident">ctx</span>.<span class="ident">schedule</span>, <span class="ident">RuntimeToken</span>::<span class="ident">ReturnData</span>(<span class="ident">data_len</span>))<span class="question-mark">?</span>;
 
-		<span class="kw">let</span> <span class="ident">empty_output_buf</span> <span class="op">=</span> <span class="ident">ctx</span>
-			.<span class="ident">empty_output_buf</span>
-			.<span class="ident">take</span>()
-			.<span class="ident">expect</span>(
-				<span class="string">&quot;`empty_output_buf` is taken only here;
-				`ext_return` traps;
-				`Runtime` can only be used only for one execution;
-				qed&quot;</span>
-			);
-		<span class="kw">let</span> <span class="ident">output_buf</span> <span class="op">=</span> <span class="ident">empty_output_buf</span>.<span class="ident">fill</span>(
-			<span class="ident">data_len</span> <span class="kw">as</span> <span class="ident">usize</span>,
-			<span class="op">|</span><span class="ident">slice_mut</span><span class="op">|</span> {
-				<span class="comment">// Read the memory at the specified pointer to the provided slice.</span>
-				<span class="ident">ctx</span>.<span class="ident">memory</span>.<span class="ident">get</span>(<span class="ident">data_ptr</span>, <span class="ident">slice_mut</span>)
-			}
-		)<span class="question-mark">?</span>;
+		<span class="ident">read_sandbox_memory_into_scratch</span>(<span class="ident">ctx</span>, <span class="ident">data_ptr</span>, <span class="ident">data_len</span>)<span class="question-mark">?</span>;
+		<span class="kw">let</span> <span class="ident">output_buf</span> <span class="op">=</span> <span class="ident">mem</span>::<span class="ident">replace</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ctx</span>.<span class="ident">scratch_buf</span>, <span class="ident">Vec</span>::<span class="ident">new</span>());
+
 		<span class="ident">ctx</span>.<span class="ident">special_trap</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">SpecialTrap</span>::<span class="ident">Return</span>(<span class="ident">output_buf</span>));
 
 		<span class="comment">// The trap mechanism is used to immediately terminate the execution.</span>
@@ -1455,7 +1555,7 @@
 
 	<span class="comment">// Returns the size of the scratch buffer.</span>
 	<span class="comment">//</span>
-	<span class="comment">// For more details on the scratch buffer see `ext_scratch_copy`.</span>
+	<span class="comment">// For more details on the scratch buffer see `ext_scratch_read`.</span>
 	<span class="ident">ext_scratch_size</span>(<span class="ident">ctx</span>) <span class="op">-&gt;</span> <span class="ident">u32</span> <span class="op">=&gt;</span> {
 		<span class="prelude-val">Ok</span>(<span class="ident">ctx</span>.<span class="ident">scratch_buf</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>)
 	},
@@ -1466,7 +1566,7 @@
 	<span class="comment">// In order to get size of the scratch buffer use `ext_scratch_size`. At the start of contract</span>
 	<span class="comment">// execution, the scratch buffer is filled with the input data. Whenever a contract calls</span>
 	<span class="comment">// function that uses the scratch buffer the contents of the scratch buffer are overwritten.</span>
-	<span class="ident">ext_scratch_copy</span>(<span class="ident">ctx</span>, <span class="ident">dest_ptr</span>: <span class="ident">u32</span>, <span class="ident">offset</span>: <span class="ident">u32</span>, <span class="ident">len</span>: <span class="ident">u32</span>) <span class="op">=&gt;</span> {
+	<span class="ident">ext_scratch_read</span>(<span class="ident">ctx</span>, <span class="ident">dest_ptr</span>: <span class="ident">u32</span>, <span class="ident">offset</span>: <span class="ident">u32</span>, <span class="ident">len</span>: <span class="ident">u32</span>) <span class="op">=&gt;</span> {
 		<span class="kw">let</span> <span class="ident">offset</span> <span class="op">=</span> <span class="ident">offset</span> <span class="kw">as</span> <span class="ident">usize</span>;
 		<span class="kw">if</span> <span class="ident">offset</span> <span class="op">&gt;</span> <span class="ident">ctx</span>.<span class="ident">scratch_buf</span>.<span class="ident">len</span>() {
 			<span class="comment">// Offset can&#39;t be larger than scratch buffer length.</span>
@@ -1489,6 +1589,15 @@
 		)<span class="question-mark">?</span>;
 
 		<span class="prelude-val">Ok</span>(())
+	},
+
+	<span class="comment">// Copy data from contract memory starting from `src_ptr` with length `len` into the scratch</span>
+	<span class="comment">// buffer. This overwrites the entire scratch buffer and resizes to `len`. Specifying a `len`</span>
+	<span class="comment">// of zero clears the scratch buffer.</span>
+	<span class="comment">//</span>
+	<span class="comment">// This should be used before exiting a call or instantiation in order to set the return data.</span>
+	<span class="ident">ext_scratch_write</span>(<span class="ident">ctx</span>, <span class="ident">src_ptr</span>: <span class="ident">u32</span>, <span class="ident">len</span>: <span class="ident">u32</span>) <span class="op">=&gt;</span> {
+		<span class="ident">read_sandbox_memory_into_scratch</span>(<span class="ident">ctx</span>, <span class="ident">src_ptr</span>, <span class="ident">len</span>)
 	},
 
 	<span class="comment">// Deposit a contract event with the data buffer and optional list of topics. There is a limit</span>
@@ -1517,16 +1626,11 @@
 
 		<span class="kw">let</span> <span class="ident">event_data</span> <span class="op">=</span> <span class="ident">read_sandbox_memory</span>(<span class="ident">ctx</span>, <span class="ident">data_ptr</span>, <span class="ident">data_len</span>)<span class="question-mark">?</span>;
 
-		<span class="kw">match</span> <span class="ident">ctx</span>
-			.<span class="ident">gas_meter</span>
-			.<span class="ident">charge</span>(
-				<span class="ident">ctx</span>.<span class="ident">schedule</span>,
-				<span class="ident">RuntimeToken</span>::<span class="ident">DepositEvent</span>(<span class="ident">topics</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>, <span class="ident">data_len</span>)
-			)
-		{
-			<span class="ident">GasMeterResult</span>::<span class="ident">Proceed</span> <span class="op">=&gt;</span> (),
-			<span class="ident">GasMeterResult</span>::<span class="ident">OutOfGas</span> <span class="op">=&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">sandbox</span>::<span class="ident">HostError</span>),
-		}
+		<span class="ident">charge_gas</span>(
+			<span class="ident">ctx</span>.<span class="ident">gas_meter</span>,
+			<span class="ident">ctx</span>.<span class="ident">schedule</span>,
+			<span class="ident">RuntimeToken</span>::<span class="ident">DepositEvent</span>(<span class="ident">topics</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>, <span class="ident">data_len</span>)
+		)<span class="question-mark">?</span>;
 		<span class="ident">ctx</span>.<span class="ident">ext</span>.<span class="ident">deposit_event</span>(<span class="ident">topics</span>, <span class="ident">event_data</span>);
 
 		<span class="prelude-val">Ok</span>(())
