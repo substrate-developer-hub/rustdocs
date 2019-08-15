@@ -947,7 +947,6 @@
 <span id="947">947</span>
 <span id="948">948</span>
 <span id="949">949</span>
-<span id="950">950</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -980,7 +979,7 @@
 <span class="kw">use</span> <span class="ident">serde</span>::<span class="ident">Serialize</span>;
 <span class="kw">use</span> <span class="ident">log</span>::<span class="ident">debug</span>;
 
-<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">sync</span>::<span class="ident">mpsc</span>;
+<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">channel</span>::<span class="ident">mpsc</span>;
 <span class="kw">use</span> <span class="ident">parking_lot</span>::{<span class="ident">Mutex</span>, <span class="ident">RwLock</span>};
 <span class="kw">use</span> <span class="ident">sr_primitives</span>::{
 	<span class="ident">generic</span>::<span class="ident">BlockId</span>,
@@ -1404,7 +1403,6 @@
 <span class="kw">mod</span> <span class="ident">tests</span> {
 	<span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 	<span class="kw">use</span> <span class="ident">sr_primitives</span>::<span class="ident">transaction_validity</span>::<span class="ident">ValidTransaction</span>;
-	<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">Stream</span>;
 	<span class="kw">use</span> <span class="ident">codec</span>::<span class="ident">Encode</span>;
 	<span class="kw">use</span> <span class="ident">test_runtime</span>::{<span class="ident">Block</span>, <span class="ident">Extrinsic</span>, <span class="ident">Transfer</span>, <span class="ident">H256</span>, <span class="ident">AccountId</span>};
 	<span class="kw">use</span> <span class="ident">assert_matches</span>::<span class="ident">assert_matches</span>;
@@ -1556,9 +1554,9 @@
 		};
 
 		<span class="comment">// then</span>
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">it</span> <span class="op">=</span> <span class="ident">stream</span>.<span class="ident">wait</span>();
-		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">it</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(())));
-		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">it</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(())));
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">it</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on_stream</span>(<span class="ident">stream</span>);
+		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">it</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(()));
+		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">it</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(()));
 		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">it</span>.<span class="ident">next</span>(), <span class="prelude-val">None</span>);
 	}
 
@@ -1698,9 +1696,9 @@
 			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">pool</span>.<span class="ident">status</span>().<span class="ident">future</span>, <span class="number">0</span>);
 
 			<span class="comment">// then</span>
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stream</span> <span class="op">=</span> <span class="ident">watcher</span>.<span class="ident">into_stream</span>().<span class="ident">wait</span>();
-			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">watcher</span>::<span class="ident">Status</span>::<span class="ident">Ready</span>)));
-			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">watcher</span>::<span class="ident">Status</span>::<span class="ident">Finalized</span>(<span class="ident">H256</span>::<span class="ident">from_low_u64_be</span>(<span class="number">2</span>).<span class="ident">into</span>()))));
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stream</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on_stream</span>(<span class="ident">watcher</span>.<span class="ident">into_stream</span>());
+			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="ident">watcher</span>::<span class="ident">Status</span>::<span class="ident">Ready</span>));
+			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="ident">watcher</span>::<span class="ident">Status</span>::<span class="ident">Finalized</span>(<span class="ident">H256</span>::<span class="ident">from_low_u64_be</span>(<span class="number">2</span>).<span class="ident">into</span>())));
 			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">None</span>);
 		}
 
@@ -1723,9 +1721,9 @@
 			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">pool</span>.<span class="ident">status</span>().<span class="ident">future</span>, <span class="number">0</span>);
 
 			<span class="comment">// then</span>
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stream</span> <span class="op">=</span> <span class="ident">watcher</span>.<span class="ident">into_stream</span>().<span class="ident">wait</span>();
-			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">watcher</span>::<span class="ident">Status</span>::<span class="ident">Ready</span>)));
-			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">watcher</span>::<span class="ident">Status</span>::<span class="ident">Finalized</span>(<span class="ident">H256</span>::<span class="ident">from_low_u64_be</span>(<span class="number">2</span>).<span class="ident">into</span>()))));
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stream</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on_stream</span>(<span class="ident">watcher</span>.<span class="ident">into_stream</span>());
+			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="ident">watcher</span>::<span class="ident">Status</span>::<span class="ident">Ready</span>));
+			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="ident">watcher</span>::<span class="ident">Status</span>::<span class="ident">Finalized</span>(<span class="ident">H256</span>::<span class="ident">from_low_u64_be</span>(<span class="number">2</span>).<span class="ident">into</span>())));
 			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">None</span>);
 		}
 
@@ -1752,9 +1750,9 @@
 			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">pool</span>.<span class="ident">status</span>().<span class="ident">ready</span>, <span class="number">2</span>);
 
 			<span class="comment">// then</span>
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stream</span> <span class="op">=</span> <span class="ident">watcher</span>.<span class="ident">into_stream</span>().<span class="ident">wait</span>();
-			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">watcher</span>::<span class="ident">Status</span>::<span class="ident">Future</span>)));
-			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">watcher</span>::<span class="ident">Status</span>::<span class="ident">Ready</span>)));
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stream</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on_stream</span>(<span class="ident">watcher</span>.<span class="ident">into_stream</span>());
+			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="ident">watcher</span>::<span class="ident">Status</span>::<span class="ident">Future</span>));
+			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="ident">watcher</span>::<span class="ident">Status</span>::<span class="ident">Ready</span>));
 		}
 
 		<span class="attribute">#[<span class="ident">test</span>]</span>
@@ -1775,9 +1773,9 @@
 
 
 			<span class="comment">// then</span>
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stream</span> <span class="op">=</span> <span class="ident">watcher</span>.<span class="ident">into_stream</span>().<span class="ident">wait</span>();
-			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">watcher</span>::<span class="ident">Status</span>::<span class="ident">Ready</span>)));
-			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">watcher</span>::<span class="ident">Status</span>::<span class="ident">Invalid</span>)));
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stream</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on_stream</span>(<span class="ident">watcher</span>.<span class="ident">into_stream</span>());
+			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="ident">watcher</span>::<span class="ident">Status</span>::<span class="ident">Ready</span>));
+			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="ident">watcher</span>::<span class="ident">Status</span>::<span class="ident">Invalid</span>));
 			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">None</span>);
 		}
 
@@ -1802,9 +1800,9 @@
 
 
 			<span class="comment">// then</span>
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stream</span> <span class="op">=</span> <span class="ident">watcher</span>.<span class="ident">into_stream</span>().<span class="ident">wait</span>();
-			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">watcher</span>::<span class="ident">Status</span>::<span class="ident">Ready</span>)));
-			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">watcher</span>::<span class="ident">Status</span>::<span class="ident">Broadcast</span>(<span class="ident">peers</span>))));
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stream</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on_stream</span>(<span class="ident">watcher</span>.<span class="ident">into_stream</span>());
+			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="ident">watcher</span>::<span class="ident">Status</span>::<span class="ident">Ready</span>));
+			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="ident">watcher</span>::<span class="ident">Status</span>::<span class="ident">Broadcast</span>(<span class="ident">peers</span>)));
 		}
 
 		<span class="attribute">#[<span class="ident">test</span>]</span>
@@ -1839,9 +1837,9 @@
 			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">pool</span>.<span class="ident">status</span>().<span class="ident">ready</span>, <span class="number">1</span>);
 
 			<span class="comment">// then</span>
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stream</span> <span class="op">=</span> <span class="ident">watcher</span>.<span class="ident">into_stream</span>().<span class="ident">wait</span>();
-			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">watcher</span>::<span class="ident">Status</span>::<span class="ident">Ready</span>)));
-			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">watcher</span>::<span class="ident">Status</span>::<span class="ident">Dropped</span>)));
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stream</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on_stream</span>(<span class="ident">watcher</span>.<span class="ident">into_stream</span>());
+			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="ident">watcher</span>::<span class="ident">Status</span>::<span class="ident">Ready</span>));
+			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stream</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="ident">watcher</span>::<span class="ident">Status</span>::<span class="ident">Dropped</span>));
 		}
 
 		<span class="attribute">#[<span class="ident">test</span>]</span>
