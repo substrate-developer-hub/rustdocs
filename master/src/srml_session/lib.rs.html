@@ -839,6 +839,32 @@
 <span id="839">839</span>
 <span id="840">840</span>
 <span id="841">841</span>
+<span id="842">842</span>
+<span id="843">843</span>
+<span id="844">844</span>
+<span id="845">845</span>
+<span id="846">846</span>
+<span id="847">847</span>
+<span id="848">848</span>
+<span id="849">849</span>
+<span id="850">850</span>
+<span id="851">851</span>
+<span id="852">852</span>
+<span id="853">853</span>
+<span id="854">854</span>
+<span id="855">855</span>
+<span id="856">856</span>
+<span id="857">857</span>
+<span id="858">858</span>
+<span id="859">859</span>
+<span id="860">860</span>
+<span id="861">861</span>
+<span id="862">862</span>
+<span id="863">863</span>
+<span id="864">864</span>
+<span id="865">865</span>
+<span id="866">866</span>
+<span id="867">867</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -966,6 +992,7 @@
 <span class="kw">use</span> <span class="ident">sr_primitives</span>::{<span class="ident">KeyTypeId</span>, <span class="ident">AppKey</span>};
 <span class="kw">use</span> <span class="ident">sr_primitives</span>::<span class="ident">weights</span>::<span class="ident">SimpleDispatchInfo</span>;
 <span class="kw">use</span> <span class="ident">sr_primitives</span>::<span class="ident">traits</span>::{<span class="ident">Convert</span>, <span class="ident">Zero</span>, <span class="ident">Member</span>, <span class="ident">OpaqueKeys</span>};
+<span class="kw">use</span> <span class="ident">sr_staking_primitives</span>::<span class="ident">SessionIndex</span>;
 <span class="kw">use</span> <span class="ident">srml_support</span>::{
 	<span class="ident">dispatch</span>::<span class="prelude-ty">Result</span>, <span class="ident">ConsensusEngineId</span>, <span class="ident">StorageValue</span>, <span class="ident">StorageDoubleMap</span>, <span class="ident">for_each_tuple</span>,
 	<span class="ident">decl_module</span>, <span class="ident">decl_event</span>, <span class="ident">decl_storage</span>,
@@ -978,9 +1005,6 @@
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;historical&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">historical</span>;
-
-<span class="doccomment">/// Simple index type with which we can count sessions.</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">SessionIndex</span> <span class="op">=</span> <span class="ident">u32</span>;
 
 <span class="doccomment">/// Decides whether the session should be ended.</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">ShouldEndSession</span><span class="op">&lt;</span><span class="ident">BlockNumber</span><span class="op">&gt;</span> {
@@ -1010,6 +1034,7 @@
 }
 
 <span class="doccomment">/// An event handler for when the session is ending.</span>
+<span class="doccomment">/// TODO [slashing] consider renaming to OnSessionStarting</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">OnSessionEnding</span><span class="op">&lt;</span><span class="ident">ValidatorId</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Handle the fact that the session is ending, and optionally provide the new validator set.</span>
 	<span class="doccomment">///</span>
@@ -1027,7 +1052,7 @@
 	<span class="kw">fn</span> <span class="ident">on_session_ending</span>(<span class="kw">_</span>: <span class="ident">SessionIndex</span>, <span class="kw">_</span>: <span class="ident">SessionIndex</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;&gt;</span> { <span class="prelude-val">None</span> }
 }
 
-<span class="doccomment">/// Handler for when a session keys set changes.</span>
+<span class="doccomment">/// Handler for session lifecycle events.</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">SessionHandler</span><span class="op">&lt;</span><span class="ident">ValidatorId</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// The given validator set will be used for the genesis session.</span>
 	<span class="doccomment">/// It is guaranteed that the given validator set will also be used</span>
@@ -1042,11 +1067,17 @@
 		<span class="ident">queued_validators</span>: <span class="kw-2">&amp;</span>[(<span class="ident">ValidatorId</span>, <span class="ident">Ks</span>)],
 	);
 
+	<span class="doccomment">/// A notification for end of the session.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// Note it is triggered before any `OnSessionEnding` handlers,</span>
+	<span class="doccomment">/// so we can still affect the validator set.</span>
+	<span class="kw">fn</span> <span class="ident">on_before_session_ending</span>() {}
+
 	<span class="doccomment">/// A validator got disabled. Act accordingly until a new session begins.</span>
 	<span class="kw">fn</span> <span class="ident">on_disabled</span>(<span class="ident">validator_index</span>: <span class="ident">usize</span>);
 }
 
-<span class="doccomment">/// One session-key type handler.</span>
+<span class="doccomment">/// A session handler for specific key type.</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">OneSessionHandler</span><span class="op">&lt;</span><span class="ident">ValidatorId</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// The key type expected.</span>
 	<span class="kw">type</span> <span class="ident">Key</span>: <span class="ident">Decode</span> <span class="op">+</span> <span class="ident">Default</span> <span class="op">+</span> <span class="ident">AppKey</span>;
@@ -1054,10 +1085,23 @@
 	<span class="kw">fn</span> <span class="ident">on_genesis_session</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">I</span>: <span class="lifetime">&#39;a</span><span class="op">&gt;</span>(<span class="ident">validators</span>: <span class="ident">I</span>)
 		<span class="kw">where</span> <span class="ident">I</span>: <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">ValidatorId</span>, <span class="self">Self</span>::<span class="ident">Key</span>)<span class="op">&gt;</span>, <span class="ident">ValidatorId</span>: <span class="lifetime">&#39;a</span>;
 
-	<span class="kw">fn</span> <span class="ident">on_new_session</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">I</span>: <span class="lifetime">&#39;a</span><span class="op">&gt;</span>(<span class="ident">changed</span>: <span class="ident">bool</span>, <span class="ident">validators</span>: <span class="ident">I</span>, <span class="ident">queued_validators</span>: <span class="ident">I</span>)
-		<span class="kw">where</span> <span class="ident">I</span>: <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">ValidatorId</span>, <span class="self">Self</span>::<span class="ident">Key</span>)<span class="op">&gt;</span>, <span class="ident">ValidatorId</span>: <span class="lifetime">&#39;a</span>;
+	<span class="doccomment">/// Session set has changed; act appropriately.</span>
+	<span class="kw">fn</span> <span class="ident">on_new_session</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">I</span>: <span class="lifetime">&#39;a</span><span class="op">&gt;</span>(
+		<span class="ident">_changed</span>: <span class="ident">bool</span>,
+		<span class="ident">_validators</span>: <span class="ident">I</span>,
+		<span class="ident">_queued_validators</span>: <span class="ident">I</span>
+	) <span class="kw">where</span> <span class="ident">I</span>: <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">ValidatorId</span>, <span class="self">Self</span>::<span class="ident">Key</span>)<span class="op">&gt;</span>, <span class="ident">ValidatorId</span>: <span class="lifetime">&#39;a</span>;
 
-	<span class="kw">fn</span> <span class="ident">on_disabled</span>(<span class="ident">i</span>: <span class="ident">usize</span>);
+
+	<span class="doccomment">/// A notification for end of the session.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// Note it is triggered before any `OnSessionEnding` handlers,</span>
+	<span class="doccomment">/// so we can still affect the validator set.</span>
+	<span class="kw">fn</span> <span class="ident">on_before_session_ending</span>() {}
+
+	<span class="doccomment">/// A validator got disabled. Act accordingly until a new session begins.</span>
+	<span class="kw">fn</span> <span class="ident">on_disabled</span>(<span class="ident">_validator_index</span>: <span class="ident">usize</span>);
+
 }
 
 <span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">impl_session_handlers</span> {
@@ -1065,6 +1109,7 @@
 		<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">AId</span><span class="op">&gt;</span> <span class="ident">SessionHandler</span><span class="op">&lt;</span><span class="ident">AId</span><span class="op">&gt;</span> <span class="kw">for</span> () {
 			<span class="kw">fn</span> <span class="ident">on_genesis_session</span><span class="op">&lt;</span><span class="ident">Ks</span>: <span class="ident">OpaqueKeys</span><span class="op">&gt;</span>(<span class="kw">_</span>: <span class="kw-2">&amp;</span>[(<span class="ident">AId</span>, <span class="ident">Ks</span>)]) {}
 			<span class="kw">fn</span> <span class="ident">on_new_session</span><span class="op">&lt;</span><span class="ident">Ks</span>: <span class="ident">OpaqueKeys</span><span class="op">&gt;</span>(<span class="kw">_</span>: <span class="ident">bool</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>[(<span class="ident">AId</span>, <span class="ident">Ks</span>)], <span class="kw">_</span>: <span class="kw-2">&amp;</span>[(<span class="ident">AId</span>, <span class="ident">Ks</span>)]) {}
+			<span class="kw">fn</span> <span class="ident">on_before_session_ending</span>() {}
 			<span class="kw">fn</span> <span class="ident">on_disabled</span>(<span class="kw">_</span>: <span class="ident">usize</span>) {}
 		}
 	);
@@ -1095,6 +1140,13 @@
 					<span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span>::<span class="ident">on_new_session</span>(<span class="ident">changed</span>, <span class="ident">our_keys</span>, <span class="ident">queued_keys</span>);
 				)<span class="op">*</span>
 			}
+
+			<span class="kw">fn</span> <span class="ident">on_before_session_ending</span>() {
+				$(
+					<span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span>::<span class="ident">on_before_session_ending</span>();
+				)<span class="op">*</span>
+			}
+
 			<span class="kw">fn</span> <span class="ident">on_disabled</span>(<span class="ident">i</span>: <span class="ident">usize</span>) {
 				$(
 					<span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span>::<span class="ident">on_disabled</span>(<span class="ident">i</span>);

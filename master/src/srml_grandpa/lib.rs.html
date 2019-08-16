@@ -402,6 +402,64 @@
 <span id="402">402</span>
 <span id="403">403</span>
 <span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
+<span id="407">407</span>
+<span id="408">408</span>
+<span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
+<span id="438">438</span>
+<span id="439">439</span>
+<span id="440">440</span>
+<span id="441">441</span>
+<span id="442">442</span>
+<span id="443">443</span>
+<span id="444">444</span>
+<span id="445">445</span>
+<span id="446">446</span>
+<span id="447">447</span>
+<span id="448">448</span>
+<span id="449">449</span>
+<span id="450">450</span>
+<span id="451">451</span>
+<span id="452">452</span>
+<span id="453">453</span>
+<span id="454">454</span>
+<span id="455">455</span>
+<span id="456">456</span>
+<span id="457">457</span>
+<span id="458">458</span>
+<span id="459">459</span>
+<span id="460">460</span>
+<span id="461">461</span>
+<span id="462">462</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -442,6 +500,11 @@
 };
 <span class="kw">use</span> <span class="ident">sr_primitives</span>::{
 	<span class="ident">generic</span>::{<span class="ident">DigestItem</span>, <span class="ident">OpaqueDigestItemId</span>}, <span class="ident">traits</span>::<span class="ident">Zero</span>,
+	<span class="ident">Perbill</span>,
+};
+<span class="kw">use</span> <span class="ident">sr_staking_primitives</span>::{
+	<span class="ident">SessionIndex</span>,
+	<span class="ident">offence</span>::{<span class="ident">Offence</span>, <span class="ident">Kind</span>},
 };
 <span class="kw">use</span> <span class="ident">fg_primitives</span>::{<span class="ident">ScheduledChange</span>, <span class="ident">ConsensusLog</span>, <span class="ident">GRANDPA_ENGINE_ID</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">fg_primitives</span>::{<span class="ident">AuthorityId</span>, <span class="ident">AuthorityWeight</span>};
@@ -805,6 +868,59 @@
 		<span class="comment">// to figure out _who_ failed. until then, we can&#39;t meaningfully guard</span>
 		<span class="comment">// against `next == last` the way that normal session changes do.</span>
 		<span class="op">&lt;</span><span class="ident">Stalled</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;&gt;</span>::<span class="ident">put</span>((<span class="ident">further_wait</span>, <span class="ident">median</span>));
+	}
+}
+
+<span class="doccomment">/// A round number and set id which point on the time of an offence.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Copy</span>, <span class="ident">Clone</span>, <span class="ident">PartialOrd</span>, <span class="ident">Ord</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>, <span class="ident">Encode</span>, <span class="ident">Decode</span>)]</span>
+<span class="kw">struct</span> <span class="ident">GrandpaTimeSlot</span> {
+	<span class="comment">// The order of these matters for `derive(Ord)`.</span>
+	<span class="ident">set_id</span>: <span class="ident">u64</span>,
+	<span class="ident">round</span>: <span class="ident">u64</span>,
+}
+
+<span class="comment">// TODO [slashing]: Integrate this.</span>
+<span class="doccomment">/// A grandpa equivocation offence report.</span>
+<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
+<span class="kw">struct</span> <span class="ident">GrandpaEquivocationOffence</span><span class="op">&lt;</span><span class="ident">FullIdentification</span><span class="op">&gt;</span> {
+	<span class="doccomment">/// Time slot at which this incident happened.</span>
+	<span class="ident">time_slot</span>: <span class="ident">GrandpaTimeSlot</span>,
+	<span class="doccomment">/// The session index in which the incident happened.</span>
+	<span class="ident">session_index</span>: <span class="ident">SessionIndex</span>,
+	<span class="doccomment">/// The size of the validator set at the time of the offence.</span>
+	<span class="ident">validator_set_count</span>: <span class="ident">u32</span>,
+	<span class="doccomment">/// The authority which produced this equivocation.</span>
+	<span class="ident">offender</span>: <span class="ident">FullIdentification</span>,
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">FullIdentification</span>: <span class="ident">Clone</span><span class="op">&gt;</span> <span class="ident">Offence</span><span class="op">&lt;</span><span class="ident">FullIdentification</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">GrandpaEquivocationOffence</span><span class="op">&lt;</span><span class="ident">FullIdentification</span><span class="op">&gt;</span> {
+	<span class="kw">const</span> <span class="ident">ID</span>: <span class="ident">Kind</span> <span class="op">=</span> <span class="kw-2">*</span><span class="string">b&quot;grandpa:equivoca&quot;</span>;
+	<span class="kw">type</span> <span class="ident">TimeSlot</span> <span class="op">=</span> <span class="ident">GrandpaTimeSlot</span>;
+
+	<span class="kw">fn</span> <span class="ident">offenders</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FullIdentification</span><span class="op">&gt;</span> {
+		<span class="macro">vec</span><span class="macro">!</span>[<span class="self">self</span>.<span class="ident">offender</span>.<span class="ident">clone</span>()]
+	}
+
+	<span class="kw">fn</span> <span class="ident">session_index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">SessionIndex</span> {
+		<span class="self">self</span>.<span class="ident">session_index</span>
+	}
+
+	<span class="kw">fn</span> <span class="ident">validator_set_count</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">u32</span> {
+		<span class="self">self</span>.<span class="ident">validator_set_count</span>
+	}
+
+	<span class="kw">fn</span> <span class="ident">time_slot</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="self">Self</span>::<span class="ident">TimeSlot</span> {
+		<span class="self">self</span>.<span class="ident">time_slot</span>
+	}
+
+	<span class="kw">fn</span> <span class="ident">slash_fraction</span>(
+		<span class="ident">offenders_count</span>: <span class="ident">u32</span>,
+		<span class="ident">validator_set_count</span>: <span class="ident">u32</span>,
+	) <span class="op">-&gt;</span> <span class="ident">Perbill</span> {
+		<span class="comment">// the formula is min((3k / n)^2, 1)</span>
+		<span class="kw">let</span> <span class="ident">x</span> <span class="op">=</span> <span class="ident">Perbill</span>::<span class="ident">from_rational_approximation</span>(<span class="number">3</span> <span class="op">*</span> <span class="ident">offenders_count</span>, <span class="ident">validator_set_count</span>);
+		<span class="comment">// _ ^ 2</span>
+		<span class="ident">x</span>.<span class="ident">square</span>()
 	}
 }
 </pre></div>
