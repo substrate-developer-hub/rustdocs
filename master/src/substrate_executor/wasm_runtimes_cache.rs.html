@@ -329,6 +329,21 @@
 <span id="329">329</span>
 <span id="330">330</span>
 <span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -418,7 +433,7 @@
 	<span class="ident">data_segments</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
 	<span class="doccomment">/// The list of all global mutable variables of the module in their sequential order.</span>
 	<span class="ident">global_mut_values</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">RuntimeValue</span><span class="op">&gt;</span>,
-	<span class="ident">heap_pages</span>: <span class="ident">u32</span>,
+	<span class="ident">heap_pages</span>: <span class="ident">u64</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">StateSnapshot</span> {
@@ -426,7 +441,7 @@
 	<span class="kw">fn</span> <span class="ident">take</span>(
 		<span class="ident">module_instance</span>: <span class="kw-2">&amp;</span><span class="ident">WasmModuleInstanceRef</span>,
 		<span class="ident">data_segments</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">DataSegment</span><span class="op">&gt;</span>,
-		<span class="ident">heap_pages</span>: <span class="ident">u32</span>,
+		<span class="ident">heap_pages</span>: <span class="ident">u64</span>,
 	) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">prepared_segments</span> <span class="op">=</span> <span class="ident">data_segments</span>
 			.<span class="ident">into_iter</span>()
@@ -582,6 +597,12 @@
 			.<span class="ident">original_storage_hash</span>(<span class="ident">well_known_keys</span>::<span class="ident">CODE</span>)
 			.<span class="ident">ok_or</span>(<span class="ident">Error</span>::<span class="ident">InvalidCode</span>(<span class="string">&quot;`CODE` not found in storage.&quot;</span>.<span class="ident">into</span>()))<span class="question-mark">?</span>;
 
+		<span class="kw">let</span> <span class="ident">heap_pages</span> <span class="op">=</span> <span class="ident">ext</span>
+			.<span class="ident">storage</span>(<span class="ident">well_known_keys</span>::<span class="ident">HEAP_PAGES</span>)
+			.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">pages</span><span class="op">|</span> <span class="ident">u64</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="ident">pages</span>[..]).<span class="ident">ok</span>())
+			.<span class="ident">or</span>(<span class="ident">default_heap_pages</span>)
+			.<span class="ident">unwrap_or</span>(<span class="ident">DEFAULT_HEAP_PAGES</span>);
+
 		<span class="comment">// This is direct result from fighting with borrowck.</span>
 		<span class="kw">let</span> <span class="ident">handle_result</span> <span class="op">=</span>
 			<span class="op">|</span><span class="ident">cached_result</span>: <span class="kw-2">&amp;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">CachedRuntime</span><span class="op">&gt;</span>, <span class="ident">CacheError</span><span class="op">&gt;</span><span class="op">|</span> <span class="kw">match</span> <span class="kw-2">*</span><span class="ident">cached_result</span> {
@@ -590,10 +611,25 @@
 			};
 
 		<span class="kw">match</span> <span class="self">self</span>.<span class="ident">instances</span>.<span class="ident">entry</span>(<span class="ident">code_hash</span>.<span class="ident">into</span>()) {
-			<span class="ident">Entry</span>::<span class="ident">Occupied</span>(<span class="ident">o</span>) <span class="op">=&gt;</span> <span class="ident">handle_result</span>(<span class="ident">o</span>.<span class="ident">get</span>()),
+			<span class="ident">Entry</span>::<span class="ident">Occupied</span>(<span class="kw-2">mut</span> <span class="ident">o</span>) <span class="op">=&gt;</span> {
+				<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">o</span>.<span class="ident">get_mut</span>();
+				<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="kw-2">ref</span> <span class="ident">cached_runtime</span>) <span class="op">=</span> <span class="ident">result</span> {
+					<span class="kw">if</span> <span class="ident">cached_runtime</span>.<span class="ident">state_snapshot</span>.<span class="ident">heap_pages</span> <span class="op">!=</span> <span class="ident">heap_pages</span> {
+						<span class="macro">trace</span><span class="macro">!</span>(
+							<span class="ident">target</span>: <span class="string">&quot;runtimes_cache&quot;</span>,
+							<span class="string">&quot;heap_pages were changed. Reinstantiating the instance&quot;</span>
+						);
+						<span class="kw-2">*</span><span class="ident">result</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">create_wasm_instance</span>(<span class="ident">wasm_executor</span>, <span class="ident">ext</span>, <span class="ident">heap_pages</span>);
+						<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="kw-2">ref</span> <span class="ident">err</span>) <span class="op">=</span> <span class="ident">result</span> {
+							<span class="macro">warn</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;runtimes_cache&quot;</span>, <span class="string">&quot;cannot create a runtime: {:?}&quot;</span>, <span class="ident">err</span>);
+						}
+					}
+				}
+				<span class="ident">handle_result</span>(<span class="ident">result</span>)
+			},
 			<span class="ident">Entry</span>::<span class="ident">Vacant</span>(<span class="ident">v</span>) <span class="op">=&gt;</span> {
 				<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;runtimes_cache&quot;</span>, <span class="string">&quot;no instance found in cache, creating now.&quot;</span>);
-				<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">create_wasm_instance</span>(<span class="ident">wasm_executor</span>, <span class="ident">ext</span>, <span class="ident">default_heap_pages</span>);
+				<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">create_wasm_instance</span>(<span class="ident">wasm_executor</span>, <span class="ident">ext</span>, <span class="ident">heap_pages</span>);
 				<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="kw-2">ref</span> <span class="ident">err</span>) <span class="op">=</span> <span class="ident">result</span> {
 					<span class="macro">warn</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;runtimes_cache&quot;</span>, <span class="string">&quot;cannot create a runtime: {:?}&quot;</span>, <span class="ident">err</span>);
 				}
@@ -605,7 +641,7 @@
 	<span class="kw">fn</span> <span class="ident">create_wasm_instance</span><span class="op">&lt;</span><span class="ident">E</span>: <span class="ident">Externalities</span><span class="op">&lt;</span><span class="ident">Blake2Hasher</span><span class="op">&gt;&gt;</span>(
 		<span class="ident">wasm_executor</span>: <span class="kw-2">&amp;</span><span class="ident">WasmExecutor</span>,
 		<span class="ident">ext</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">E</span>,
-		<span class="ident">default_heap_pages</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>,
+		<span class="ident">heap_pages</span>: <span class="ident">u64</span>,
 	) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">CachedRuntime</span><span class="op">&gt;</span>, <span class="ident">CacheError</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">code</span> <span class="op">=</span> <span class="ident">ext</span>
 			.<span class="ident">original_storage</span>(<span class="ident">well_known_keys</span>::<span class="ident">CODE</span>)
@@ -618,18 +654,12 @@
 		<span class="comment">// we just loaded and validated the `module` above.</span>
 		<span class="kw">let</span> <span class="ident">data_segments</span> <span class="op">=</span> <span class="ident">extract_data_segments</span>(<span class="kw-2">&amp;</span><span class="ident">code</span>).<span class="ident">ok_or</span>(<span class="ident">CacheError</span>::<span class="ident">CantDeserializeWasm</span>)<span class="question-mark">?</span>;
 
-		<span class="kw">let</span> <span class="ident">heap_pages</span> <span class="op">=</span> <span class="ident">ext</span>
-			.<span class="ident">storage</span>(<span class="ident">well_known_keys</span>::<span class="ident">HEAP_PAGES</span>)
-			.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">pages</span><span class="op">|</span> <span class="ident">u64</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="ident">pages</span>[..]).<span class="ident">ok</span>())
-			.<span class="ident">or</span>(<span class="ident">default_heap_pages</span>)
-			.<span class="ident">unwrap_or</span>(<span class="ident">DEFAULT_HEAP_PAGES</span>);
-
 		<span class="comment">// Instantiate this module.</span>
 		<span class="kw">let</span> <span class="ident">instance</span> <span class="op">=</span> <span class="ident">WasmExecutor</span>::<span class="ident">instantiate_module</span>::<span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span>(<span class="ident">heap_pages</span> <span class="kw">as</span> <span class="ident">usize</span>, <span class="kw-2">&amp;</span><span class="ident">module</span>)
 			.<span class="ident">map_err</span>(<span class="ident">CacheError</span>::<span class="ident">Instantiation</span>)<span class="question-mark">?</span>;
 
 		<span class="comment">// Take state snapshot before executing anything.</span>
-		<span class="kw">let</span> <span class="ident">state_snapshot</span> <span class="op">=</span> <span class="ident">StateSnapshot</span>::<span class="ident">take</span>(<span class="kw-2">&amp;</span><span class="ident">instance</span>, <span class="ident">data_segments</span>, <span class="ident">heap_pages</span> <span class="kw">as</span> <span class="ident">u32</span>)
+		<span class="kw">let</span> <span class="ident">state_snapshot</span> <span class="op">=</span> <span class="ident">StateSnapshot</span>::<span class="ident">take</span>(<span class="kw-2">&amp;</span><span class="ident">instance</span>, <span class="ident">data_segments</span>, <span class="ident">heap_pages</span>)
 			.<span class="ident">expect</span>(
 				<span class="string">&quot;`take` returns `Err` if the module is not valid;
 				we already loaded module above, thus the `Module` is proven to be valid at this point;
