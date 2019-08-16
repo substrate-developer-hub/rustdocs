@@ -466,6 +466,60 @@
 <span id="466">466</span>
 <span id="467">467</span>
 <span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
+<span id="493">493</span>
+<span id="494">494</span>
+<span id="495">495</span>
+<span id="496">496</span>
+<span id="497">497</span>
+<span id="498">498</span>
+<span id="499">499</span>
+<span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
+<span id="507">507</span>
+<span id="508">508</span>
+<span id="509">509</span>
+<span id="510">510</span>
+<span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
+<span id="514">514</span>
+<span id="515">515</span>
+<span id="516">516</span>
+<span id="517">517</span>
+<span id="518">518</span>
+<span id="519">519</span>
+<span id="520">520</span>
+<span id="521">521</span>
+<span id="522">522</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -483,7 +537,8 @@
 <span class="comment">// You should have received a copy of the GNU General Public License</span>
 <span class="comment">// along with Substrate.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
 
-<span class="doccomment">//! Consensus extension module for BABE consensus.</span>
+<span class="doccomment">//! Consensus extension module for BABE consensus. Collects on-chain randomness</span>
+<span class="doccomment">//! from VRF outputs and manages epoch transitions.</span>
 
 <span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>), <span class="ident">no_std</span>)]</span>
 <span class="attribute">#![<span class="ident">forbid</span>(<span class="ident">unused_must_use</span>, <span class="ident">unsafe_code</span>, <span class="ident">unused_variables</span>, <span class="ident">dead_code</span>)]</span>
@@ -495,14 +550,16 @@
 <span class="kw">use</span> <span class="ident">timestamp</span>::{<span class="ident">OnTimestampSet</span>};
 <span class="kw">use</span> <span class="ident">sr_primitives</span>::{<span class="ident">generic</span>::<span class="ident">DigestItem</span>, <span class="ident">ConsensusEngineId</span>};
 <span class="kw">use</span> <span class="ident">sr_primitives</span>::<span class="ident">traits</span>::{<span class="ident">IsMember</span>, <span class="ident">SaturatedConversion</span>, <span class="ident">Saturating</span>, <span class="ident">RandomnessBeacon</span>};
+<span class="kw">use</span> <span class="ident">sr_primitives</span>::<span class="ident">weights</span>::<span class="ident">SimpleDispatchInfo</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">timestamp</span>::<span class="ident">TimestampInherentData</span>;
 <span class="kw">use</span> <span class="ident">codec</span>::{<span class="ident">Encode</span>, <span class="ident">Decode</span>};
 <span class="kw">use</span> <span class="ident">inherents</span>::{<span class="ident">RuntimeString</span>, <span class="ident">InherentIdentifier</span>, <span class="ident">InherentData</span>, <span class="ident">ProvideInherent</span>, <span class="ident">MakeFatalError</span>};
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">inherents</span>::{<span class="ident">InherentDataProviders</span>, <span class="ident">ProvideInherentData</span>};
-<span class="kw">use</span> <span class="ident">babe_primitives</span>::{<span class="ident">BABE_ENGINE_ID</span>, <span class="ident">ConsensusLog</span>, <span class="ident">BabeWeight</span>, <span class="ident">Epoch</span>, <span class="ident">RawBabePreDigest</span>};
+<span class="kw">use</span> <span class="ident">babe_primitives</span>::{<span class="ident">BABE_ENGINE_ID</span>, <span class="ident">ConsensusLog</span>, <span class="ident">BabeAuthorityWeight</span>, <span class="ident">Epoch</span>, <span class="ident">RawBabePreDigest</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">babe_primitives</span>::{<span class="ident">AuthorityId</span>, <span class="ident">VRF_OUTPUT_LENGTH</span>, <span class="ident">PUBLIC_KEY_LENGTH</span>};
+<span class="kw">use</span> <span class="ident">system</span>::<span class="ident">ensure_root</span>;
 
 <span class="doccomment">/// The BABE inherent identifier.</span>
 <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">INHERENT_IDENTIFIER</span>: <span class="ident">InherentIdentifier</span> <span class="op">=</span> <span class="kw-2">*</span><span class="string">b&quot;babeslot&quot;</span>;
@@ -592,7 +649,7 @@
 		<span class="kw">pub</span> <span class="ident">EpochIndex</span> <span class="ident">get</span>(<span class="ident">epoch_index</span>): <span class="ident">u64</span>;
 
 		<span class="doccomment">/// Current epoch authorities.</span>
-		<span class="kw">pub</span> <span class="ident">Authorities</span> <span class="ident">get</span>(<span class="ident">authorities</span>): <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">BabeWeight</span>)<span class="op">&gt;</span>;
+		<span class="kw">pub</span> <span class="ident">Authorities</span> <span class="ident">get</span>(<span class="ident">authorities</span>): <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">BabeAuthorityWeight</span>)<span class="op">&gt;</span>;
 
 		<span class="doccomment">/// Slot at which the current epoch started. It is possible that no</span>
 		<span class="doccomment">/// block was authored at the given slot and the epoch change was</span>
@@ -601,6 +658,14 @@
 
 		<span class="doccomment">/// Current slot number.</span>
 		<span class="kw">pub</span> <span class="ident">CurrentSlot</span> <span class="ident">get</span>(<span class="ident">current_slot</span>): <span class="ident">u64</span>;
+
+		<span class="doccomment">/// Whether secondary slots are enabled in case the VRF-based slot is</span>
+		<span class="doccomment">/// empty for the current epoch and the next epoch, respectively.</span>
+		<span class="kw">pub</span> <span class="ident">SecondarySlots</span> <span class="ident">get</span>(<span class="ident">secondary_slots</span>): (<span class="ident">bool</span>, <span class="ident">bool</span>) <span class="op">=</span> (<span class="bool-val">true</span>, <span class="bool-val">true</span>);
+
+		<span class="doccomment">/// Pending change to enable/disable secondary slots which will be</span>
+		<span class="doccomment">/// triggered at `current_epoch + 2`.</span>
+		<span class="kw">pub</span> <span class="ident">PendingSecondarySlotsChange</span> <span class="ident">get</span>(<span class="ident">pending_secondary_slots_change</span>): <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> <span class="op">=</span> <span class="prelude-val">None</span>;
 
 		<span class="doccomment">/// The epoch randomness for the *current* epoch.</span>
 		<span class="doccomment">///</span>
@@ -637,7 +702,7 @@
 		<span class="ident">Initialized</span> <span class="ident">get</span>(<span class="ident">initialized</span>): <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span>;
 	}
 	<span class="ident">add_extra_genesis</span> {
-		<span class="ident">config</span>(<span class="ident">authorities</span>): <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">BabeWeight</span>)<span class="op">&gt;</span>;
+		<span class="ident">config</span>(<span class="ident">authorities</span>): <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">BabeAuthorityWeight</span>)<span class="op">&gt;</span>;
 		<span class="ident">build</span>(<span class="op">|</span>
 			<span class="ident">storage</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> (<span class="ident">sr_primitives</span>::<span class="ident">StorageOverlay</span>, <span class="ident">sr_primitives</span>::<span class="ident">ChildrenStorageOverlay</span>),
 			<span class="ident">config</span>: <span class="kw-2">&amp;</span><span class="ident">GenesisConfig</span>
@@ -673,6 +738,20 @@
 		<span class="kw">fn</span> <span class="ident">on_finalize</span>() {
 			<span class="ident">Initialized</span>::<span class="ident">kill</span>();
 		}
+
+		<span class="doccomment">/// Sets a pending change to enable / disable secondary slot assignment.</span>
+		<span class="doccomment">/// The pending change will be set at the end of the current epoch and</span>
+		<span class="doccomment">/// will be enacted at `current_epoch + 2`.</span>
+		<span class="attribute">#[<span class="ident">weight</span> <span class="op">=</span> <span class="ident">SimpleDispatchInfo</span>::<span class="ident">FixedOperational</span>(<span class="number">10_000</span>)]</span>
+		<span class="kw">fn</span> <span class="ident">set_pending_secondary_slots_change</span>(<span class="ident">origin</span>, <span class="ident">change</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span>) {
+			<span class="ident">ensure_root</span>(<span class="ident">origin</span>)<span class="question-mark">?</span>;
+			<span class="kw">match</span> <span class="ident">change</span> {
+				<span class="prelude-val">Some</span>(<span class="ident">change</span>) <span class="op">=&gt;</span>	<span class="ident">PendingSecondarySlotsChange</span>::<span class="ident">put</span>(<span class="ident">change</span>),
+				<span class="prelude-val">None</span> <span class="op">=&gt;</span> {
+					<span class="ident">PendingSecondarySlotsChange</span>::<span class="ident">take</span>();
+				},
+			}
+		}
 	}
 }
 
@@ -691,9 +770,16 @@
 	{
 		<span class="kw">for</span> (<span class="ident">id</span>, <span class="kw-2">mut</span> <span class="ident">data</span>) <span class="kw">in</span> <span class="ident">digests</span>.<span class="ident">into_iter</span>() {
 			<span class="kw">if</span> <span class="ident">id</span> <span class="op">==</span> <span class="ident">BABE_ENGINE_ID</span> {
-				<span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="ident">RawBabePreDigest</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">data</span>).<span class="ident">ok</span>()<span class="question-mark">?</span>.<span class="ident">authority_index</span>);
+				<span class="kw">let</span> <span class="ident">pre_digest</span> <span class="op">=</span> <span class="ident">RawBabePreDigest</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">data</span>).<span class="ident">ok</span>()<span class="question-mark">?</span>;
+				<span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="kw">match</span> <span class="ident">pre_digest</span> {
+					<span class="ident">RawBabePreDigest</span>::<span class="ident">Primary</span> { <span class="ident">authority_index</span>, .. } <span class="op">=&gt;</span>
+						<span class="ident">authority_index</span>,
+					<span class="ident">RawBabePreDigest</span>::<span class="ident">Secondary</span> { <span class="ident">authority_index</span>, .. } <span class="op">=&gt;</span>
+						<span class="ident">authority_index</span>,
+				});
 			}
 		}
+
 		<span class="kw">return</span> <span class="prelude-val">None</span>;
 	}
 }
@@ -771,11 +857,14 @@
 			})
 		{
 			<span class="kw">if</span> <span class="ident">EpochStartSlot</span>::<span class="ident">get</span>() <span class="op">==</span> <span class="number">0</span> {
-				<span class="ident">EpochStartSlot</span>::<span class="ident">put</span>(<span class="ident">digest</span>.<span class="ident">slot_number</span>);
+				<span class="ident">EpochStartSlot</span>::<span class="ident">put</span>(<span class="ident">digest</span>.<span class="ident">slot_number</span>());
 			}
 
-			<span class="ident">CurrentSlot</span>::<span class="ident">put</span>(<span class="ident">digest</span>.<span class="ident">slot_number</span>);
-			<span class="self">Self</span>::<span class="ident">deposit_vrf_output</span>(<span class="kw-2">&amp;</span><span class="ident">digest</span>.<span class="ident">vrf_output</span>);
+			<span class="ident">CurrentSlot</span>::<span class="ident">put</span>(<span class="ident">digest</span>.<span class="ident">slot_number</span>());
+
+			<span class="kw">if</span> <span class="kw">let</span> <span class="ident">RawBabePreDigest</span>::<span class="ident">Primary</span> { <span class="ident">vrf_output</span>, .. } <span class="op">=</span> <span class="ident">digest</span> {
+				<span class="self">Self</span>::<span class="ident">deposit_vrf_output</span>(<span class="kw-2">&amp;</span><span class="ident">vrf_output</span>);
+			}
 
 			<span class="kw">return</span>;
 		}
@@ -800,7 +889,7 @@
 		<span class="ident">this_randomness</span>
 	}
 
-	<span class="kw">fn</span> <span class="ident">initialize_authorities</span>(<span class="ident">authorities</span>: <span class="kw-2">&amp;</span>[(<span class="ident">AuthorityId</span>, <span class="ident">BabeWeight</span>)]) {
+	<span class="kw">fn</span> <span class="ident">initialize_authorities</span>(<span class="ident">authorities</span>: <span class="kw-2">&amp;</span>[(<span class="ident">AuthorityId</span>, <span class="ident">BabeAuthorityWeight</span>)]) {
 		<span class="kw">if</span> <span class="op">!</span><span class="ident">authorities</span>.<span class="ident">is_empty</span>() {
 			<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">Authorities</span>::<span class="ident">get</span>().<span class="ident">is_empty</span>(), <span class="string">&quot;Authorities are already initialized!&quot;</span>);
 			<span class="ident">Authorities</span>::<span class="ident">put_ref</span>(<span class="ident">authorities</span>);
@@ -873,12 +962,31 @@
 		<span class="kw">let</span> <span class="ident">next_epoch_start_slot</span> <span class="op">=</span> <span class="ident">EpochStartSlot</span>::<span class="ident">get</span>().<span class="ident">saturating_add</span>(<span class="ident">T</span>::<span class="ident">EpochDuration</span>::<span class="ident">get</span>());
 		<span class="kw">let</span> <span class="ident">next_randomness</span> <span class="op">=</span> <span class="ident">NextRandomness</span>::<span class="ident">get</span>();
 
+		<span class="comment">// Update any pending secondary slots change</span>
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">secondary_slots</span> <span class="op">=</span> <span class="ident">SecondarySlots</span>::<span class="ident">get</span>();
+
+		<span class="comment">// change for E + 1 now becomes change at E</span>
+		<span class="ident">secondary_slots</span>.<span class="number">0</span> <span class="op">=</span> <span class="ident">secondary_slots</span>.<span class="number">1</span>;
+
+		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">change</span>) <span class="op">=</span> <span class="ident">PendingSecondarySlotsChange</span>::<span class="ident">take</span>() {
+			<span class="comment">// if there&#39;s a pending change schedule it for E + 1</span>
+			<span class="ident">secondary_slots</span>.<span class="number">1</span> <span class="op">=</span> <span class="ident">change</span>;
+		} <span class="kw">else</span> {
+			<span class="comment">// otherwise E + 1 will have the same value as E</span>
+			<span class="ident">secondary_slots</span>.<span class="number">1</span> <span class="op">=</span> <span class="ident">secondary_slots</span>.<span class="number">0</span>;
+		}
+
+		<span class="ident">SecondarySlots</span>::<span class="ident">mutate</span>(<span class="op">|</span><span class="ident">secondary</span><span class="op">|</span> {
+			<span class="kw-2">*</span><span class="ident">secondary</span> <span class="op">=</span> <span class="ident">secondary_slots</span>;
+		});
+
 		<span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> <span class="ident">Epoch</span> {
 			<span class="ident">epoch_index</span>: <span class="ident">next_epoch_index</span>,
 			<span class="ident">start_slot</span>: <span class="ident">next_epoch_start_slot</span>,
 			<span class="ident">duration</span>: <span class="ident">T</span>::<span class="ident">EpochDuration</span>::<span class="ident">get</span>(),
 			<span class="ident">authorities</span>: <span class="ident">next_authorities</span>,
 			<span class="ident">randomness</span>: <span class="ident">next_randomness</span>,
+			<span class="ident">secondary_slots</span>: <span class="ident">secondary_slots</span>.<span class="number">1</span>,
 		};
 
 		<span class="self">Self</span>::<span class="ident">deposit_consensus</span>(<span class="ident">ConsensusLog</span>::<span class="ident">NextEpochData</span>(<span class="ident">next</span>))
