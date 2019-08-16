@@ -439,6 +439,33 @@
 <span id="439">439</span>
 <span id="440">440</span>
 <span id="441">441</span>
+<span id="442">442</span>
+<span id="443">443</span>
+<span id="444">444</span>
+<span id="445">445</span>
+<span id="446">446</span>
+<span id="447">447</span>
+<span id="448">448</span>
+<span id="449">449</span>
+<span id="450">450</span>
+<span id="451">451</span>
+<span id="452">452</span>
+<span id="453">453</span>
+<span id="454">454</span>
+<span id="455">455</span>
+<span id="456">456</span>
+<span id="457">457</span>
+<span id="458">458</span>
+<span id="459">459</span>
+<span id="460">460</span>
+<span id="461">461</span>
+<span id="462">462</span>
+<span id="463">463</span>
+<span id="464">464</span>
+<span id="465">465</span>
+<span id="466">466</span>
+<span id="467">467</span>
+<span id="468">468</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -604,6 +631,10 @@
 		<span class="doccomment">/// epoch.</span>
 		<span class="ident">SegmentIndex</span> <span class="ident">build</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="number">0</span>): <span class="ident">u32</span>;
 		<span class="ident">UnderConstruction</span>: <span class="ident">map</span> <span class="ident">u32</span> <span class="op">=&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="number">32</span> <span class="comment">/* VRF_OUTPUT_LENGTH */</span>]<span class="op">&gt;</span>;
+
+		<span class="doccomment">/// Temporary value (cleared at block finalization) which is true</span>
+		<span class="doccomment">/// if per-block initialization has already been called for current block.</span>
+		<span class="ident">Initialized</span> <span class="ident">get</span>(<span class="ident">initialized</span>): <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span>;
 	}
 	<span class="ident">add_extra_genesis</span> {
 		<span class="ident">config</span>(<span class="ident">authorities</span>): <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">BabeWeight</span>)<span class="op">&gt;</span>;
@@ -635,25 +666,12 @@
 
 		<span class="doccomment">/// Initialization</span>
 		<span class="kw">fn</span> <span class="ident">on_initialize</span>() {
-			<span class="kw">for</span> <span class="ident">digest</span> <span class="kw">in</span> <span class="self">Self</span>::<span class="ident">get_inherent_digests</span>()
-				.<span class="ident">logs</span>
-				.<span class="ident">iter</span>()
-				.<span class="ident">filter_map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">s</span>.<span class="ident">as_pre_runtime</span>())
-				.<span class="ident">filter_map</span>(<span class="op">|</span>(<span class="ident">id</span>, <span class="kw-2">mut</span> <span class="ident">data</span>)<span class="op">|</span> <span class="kw">if</span> <span class="ident">id</span> <span class="op">==</span> <span class="ident">BABE_ENGINE_ID</span> {
-					<span class="ident">RawBabePreDigest</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">data</span>).<span class="ident">ok</span>()
-				} <span class="kw">else</span> {
-					<span class="prelude-val">None</span>
-				})
-			{
-				<span class="kw">if</span> <span class="ident">EpochStartSlot</span>::<span class="ident">get</span>() <span class="op">==</span> <span class="number">0</span> {
-					<span class="ident">EpochStartSlot</span>::<span class="ident">put</span>(<span class="ident">digest</span>.<span class="ident">slot_number</span>);
-				}
+			<span class="self">Self</span>::<span class="ident">do_initialize</span>();
+		}
 
-				<span class="ident">CurrentSlot</span>::<span class="ident">put</span>(<span class="ident">digest</span>.<span class="ident">slot_number</span>);
-				<span class="self">Self</span>::<span class="ident">deposit_vrf_output</span>(<span class="kw-2">&amp;</span><span class="ident">digest</span>.<span class="ident">vrf_output</span>);
-
-				<span class="kw">return</span>;
-			}
+		<span class="doccomment">/// Block finalization</span>
+		<span class="kw">fn</span> <span class="ident">on_finalize</span>() {
+			<span class="ident">Initialized</span>::<span class="ident">kill</span>();
 		}
 	}
 }
@@ -690,6 +708,12 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Trait</span><span class="op">&gt;</span> <span class="ident">session</span>::<span class="ident">ShouldEndSession</span><span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">BlockNumber</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
 	<span class="kw">fn</span> <span class="ident">should_end_session</span>(<span class="kw">_</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
+		<span class="comment">// it might be (and it is in current implementation) that session module is calling</span>
+		<span class="comment">// should_end_session() from it&#39;s own on_initialize() handler</span>
+		<span class="comment">// =&gt; because session on_initialize() is called earlier than ours, let&#39;s ensure</span>
+		<span class="comment">// that we have synced with digest before checking if session should be ended</span>
+		<span class="self">Self</span>::<span class="ident">do_initialize</span>();
+
 		<span class="kw">let</span> <span class="ident">diff</span> <span class="op">=</span> <span class="ident">CurrentSlot</span>::<span class="ident">get</span>().<span class="ident">saturating_sub</span>(<span class="ident">EpochStartSlot</span>::<span class="ident">get</span>());
 		<span class="ident">diff</span> <span class="op">&gt;=</span> <span class="ident">T</span>::<span class="ident">EpochDuration</span>::<span class="ident">get</span>()
 	}
@@ -724,6 +748,36 @@
 			<span class="kw">let</span> <span class="ident">segment_idx</span> <span class="op">=</span> <span class="ident">segment_idx</span> <span class="op">+</span> <span class="number">1</span>;
 			<span class="op">&lt;</span><span class="ident">UnderConstruction</span><span class="op">&gt;</span>::<span class="ident">insert</span>(<span class="kw-2">&amp;</span><span class="ident">segment_idx</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="kw-2">*</span><span class="ident">vrf_output</span>].<span class="ident">as_ref</span>());
 			<span class="op">&lt;</span><span class="ident">SegmentIndex</span><span class="op">&gt;</span>::<span class="ident">put</span>(<span class="kw-2">&amp;</span><span class="ident">segment_idx</span>);
+		}
+	}
+
+	<span class="kw">fn</span> <span class="ident">do_initialize</span>() {
+		<span class="comment">// since do_initialize can be called twice (if session module is present)</span>
+		<span class="comment">// =&gt; let&#39;s ensure that we only modify the storage once per block</span>
+		<span class="kw">let</span> <span class="ident">initialized</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">initialized</span>().<span class="ident">unwrap_or</span>(<span class="bool-val">false</span>);
+		<span class="kw">if</span> <span class="ident">initialized</span> {
+			<span class="kw">return</span>;
+		}
+
+		<span class="ident">Initialized</span>::<span class="ident">put</span>(<span class="bool-val">true</span>);
+		<span class="kw">for</span> <span class="ident">digest</span> <span class="kw">in</span> <span class="self">Self</span>::<span class="ident">get_inherent_digests</span>()
+			.<span class="ident">logs</span>
+			.<span class="ident">iter</span>()
+			.<span class="ident">filter_map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">s</span>.<span class="ident">as_pre_runtime</span>())
+			.<span class="ident">filter_map</span>(<span class="op">|</span>(<span class="ident">id</span>, <span class="kw-2">mut</span> <span class="ident">data</span>)<span class="op">|</span> <span class="kw">if</span> <span class="ident">id</span> <span class="op">==</span> <span class="ident">BABE_ENGINE_ID</span> {
+				<span class="ident">RawBabePreDigest</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">data</span>).<span class="ident">ok</span>()
+			} <span class="kw">else</span> {
+				<span class="prelude-val">None</span>
+			})
+		{
+			<span class="kw">if</span> <span class="ident">EpochStartSlot</span>::<span class="ident">get</span>() <span class="op">==</span> <span class="number">0</span> {
+				<span class="ident">EpochStartSlot</span>::<span class="ident">put</span>(<span class="ident">digest</span>.<span class="ident">slot_number</span>);
+			}
+
+			<span class="ident">CurrentSlot</span>::<span class="ident">put</span>(<span class="ident">digest</span>.<span class="ident">slot_number</span>);
+			<span class="self">Self</span>::<span class="ident">deposit_vrf_output</span>(<span class="kw-2">&amp;</span><span class="ident">digest</span>.<span class="ident">vrf_output</span>);
+
+			<span class="kw">return</span>;
 		}
 	}
 
