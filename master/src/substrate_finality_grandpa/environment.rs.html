@@ -1088,6 +1088,11 @@
 <span id="1088">1088</span>
 <span id="1089">1089</span>
 <span id="1090">1090</span>
+<span id="1091">1091</span>
+<span id="1092">1092</span>
+<span id="1093">1093</span>
+<span id="1094">1094</span>
+<span id="1095">1095</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1886,24 +1891,6 @@
 	}
 
 	<span class="kw">fn</span> <span class="ident">finalize_block</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">hash</span>: <span class="ident">Block</span>::<span class="ident">Hash</span>, <span class="ident">number</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>, <span class="ident">round</span>: <span class="ident">u64</span>, <span class="ident">commit</span>: <span class="ident">Commit</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
-		<span class="kw">use</span> <span class="ident">client</span>::<span class="ident">blockchain</span>::<span class="ident">HeaderBackend</span>;
-
-		<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span>
-		<span class="kw">let</span> <span class="ident">blockchain</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">backend</span>().<span class="ident">blockchain</span>();
-		<span class="kw">let</span> <span class="ident">status</span> <span class="op">=</span> <span class="ident">blockchain</span>.<span class="ident">info</span>();
-		<span class="kw">if</span> <span class="ident">number</span> <span class="op">&lt;=</span> <span class="ident">status</span>.<span class="ident">finalized_number</span> <span class="op">&amp;&amp;</span> <span class="ident">blockchain</span>.<span class="ident">hash</span>(<span class="ident">number</span>)<span class="question-mark">?</span> <span class="op">==</span> <span class="prelude-val">Some</span>(<span class="ident">hash</span>) {
-			<span class="comment">// This can happen after a forced change (triggered by the finality tracker when finality is stalled), since</span>
-			<span class="comment">// the voter will be restarted at the median last finalized block, which can be lower than the local best</span>
-			<span class="comment">// finalized block.</span>
-			<span class="macro">warn</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;afg&quot;</span>, <span class="string">&quot;Re-finalized block #{:?} ({:?}) in the canonical chain, current best finalized is #{:?}&quot;</span>,
-				  <span class="ident">hash</span>,
-				  <span class="ident">number</span>,
-				  <span class="ident">status</span>.<span class="ident">finalized_number</span>,
-			);
-
-			<span class="kw">return</span> <span class="prelude-val">Ok</span>(());
-		}
-
 		<span class="ident">finalize_block</span>(
 			<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">inner</span>,
 			<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">authority_set</span>,
@@ -1978,6 +1965,29 @@
 	<span class="ident">E</span>: <span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
 	<span class="ident">RA</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
 {
+	<span class="kw">use</span> <span class="ident">client</span>::<span class="ident">blockchain</span>::<span class="ident">HeaderBackend</span>;
+
+	<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span>
+	<span class="kw">let</span> <span class="ident">blockchain</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">backend</span>().<span class="ident">blockchain</span>();
+	<span class="kw">let</span> <span class="ident">info</span> <span class="op">=</span> <span class="ident">blockchain</span>.<span class="ident">info</span>();
+	<span class="kw">if</span> <span class="ident">number</span> <span class="op">&lt;=</span> <span class="ident">info</span>.<span class="ident">finalized_number</span> <span class="op">&amp;&amp;</span> <span class="ident">blockchain</span>.<span class="ident">hash</span>(<span class="ident">number</span>)<span class="question-mark">?</span> <span class="op">==</span> <span class="prelude-val">Some</span>(<span class="ident">hash</span>) {
+		<span class="comment">// We might have a race condition on finality, since we can finalize</span>
+		<span class="comment">// through either sync (import justification) or through grandpa gossip.</span>
+		<span class="comment">// so let&#39;s make sure that this finalization request is no longer stale.</span>
+		<span class="comment">// This can also happen after a forced change (triggered by the finality</span>
+		<span class="comment">// tracker when finality is stalled), since the voter will be restarted</span>
+		<span class="comment">// at the median last finalized block, which can be lower than the local</span>
+		<span class="comment">// best finalized block.</span>
+		<span class="macro">warn</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;afg&quot;</span>,
+			<span class="string">&quot;Re-finalized block #{:?} ({:?}) in the canonical chain, current best finalized is #{:?}&quot;</span>,
+			<span class="ident">hash</span>,
+			<span class="ident">number</span>,
+			<span class="ident">info</span>.<span class="ident">finalized_number</span>,
+		);
+
+		<span class="kw">return</span> <span class="prelude-val">Ok</span>(());
+	}
+
 	<span class="comment">// lock must be held through writing to DB to avoid race</span>
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">authority_set</span> <span class="op">=</span> <span class="ident">authority_set</span>.<span class="ident">inner</span>().<span class="ident">write</span>();
 
