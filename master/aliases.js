@@ -114,6 +114,7 @@ ALIASES["http_body"] = {};
 ALIASES["httparse"] = {};
 ALIASES["humantime"] = {};
 ALIASES["hyper"] = {};
+ALIASES["hyper_tls"] = {};
 ALIASES["idna"] = {};
 ALIASES["impl_codec"] = {};
 ALIASES["impl_serde"] = {};
