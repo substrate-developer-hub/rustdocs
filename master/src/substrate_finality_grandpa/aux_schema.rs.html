@@ -649,7 +649,7 @@
 <span class="kw">use</span> <span class="ident">sr_primitives</span>::<span class="ident">traits</span>::{<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">NumberFor</span>};
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">info</span>, <span class="ident">warn</span>};
 <span class="kw">use</span> <span class="ident">substrate_telemetry</span>::{<span class="ident">telemetry</span>, <span class="ident">CONSENSUS_INFO</span>};
-<span class="kw">use</span> <span class="ident">fg_primitives</span>::<span class="ident">AuthorityId</span>;
+<span class="kw">use</span> <span class="ident">fg_primitives</span>::{<span class="ident">AuthorityId</span>, <span class="ident">AuthorityWeight</span>, <span class="ident">SetId</span>, <span class="ident">RoundNumber</span>};
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">authorities</span>::{<span class="ident">AuthoritySet</span>, <span class="ident">SharedAuthoritySet</span>, <span class="ident">PendingChange</span>, <span class="ident">DelayKind</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">consensus_changes</span>::{<span class="ident">SharedConsensusChanges</span>, <span class="ident">ConsensusChanges</span>};
@@ -670,16 +670,16 @@
 <span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">test</span>, <span class="ident">derive</span>(<span class="ident">PartialEq</span>))]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">V1VoterSetState</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// The voter set state, currently paused.</span>
-	<span class="ident">Paused</span>(<span class="ident">u64</span>, <span class="ident">RoundState</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span>),
+	<span class="ident">Paused</span>(<span class="ident">RoundNumber</span>, <span class="ident">RoundState</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span>),
 	<span class="doccomment">/// The voter set state, currently live.</span>
-	<span class="ident">Live</span>(<span class="ident">u64</span>, <span class="ident">RoundState</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span>),
+	<span class="ident">Live</span>(<span class="ident">RoundNumber</span>, <span class="ident">RoundState</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span>),
 }
 
-<span class="kw">type</span> <span class="ident">V0VoterSetState</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span> <span class="op">=</span> (<span class="ident">u64</span>, <span class="ident">RoundState</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span>);
+<span class="kw">type</span> <span class="ident">V0VoterSetState</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span> <span class="op">=</span> (<span class="ident">RoundNumber</span>, <span class="ident">RoundState</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span>);
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">Encode</span>, <span class="ident">Decode</span>, <span class="ident">PartialEq</span>)]</span>
 <span class="kw">struct</span> <span class="ident">V0PendingChange</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span> {
-	<span class="ident">next_authorities</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">u64</span>)<span class="op">&gt;</span>,
+	<span class="ident">next_authorities</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">AuthorityWeight</span>)<span class="op">&gt;</span>,
 	<span class="ident">delay</span>: <span class="ident">N</span>,
 	<span class="ident">canon_height</span>: <span class="ident">N</span>,
 	<span class="ident">canon_hash</span>: <span class="ident">H</span>,
@@ -687,8 +687,8 @@
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">Encode</span>, <span class="ident">Decode</span>, <span class="ident">PartialEq</span>)]</span>
 <span class="kw">struct</span> <span class="ident">V0AuthoritySet</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span> {
-	<span class="ident">current_authorities</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">u64</span>)<span class="op">&gt;</span>,
-	<span class="ident">set_id</span>: <span class="ident">u64</span>,
+	<span class="ident">current_authorities</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">AuthorityWeight</span>)<span class="op">&gt;</span>,
+	<span class="ident">set_id</span>: <span class="ident">SetId</span>,
 	<span class="ident">pending_changes</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">V0PendingChange</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
@@ -890,7 +890,7 @@
 	<span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">PersistentData</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>
 	<span class="kw">where</span>
 		<span class="ident">B</span>: <span class="ident">AuxStore</span>,
-		<span class="ident">G</span>: <span class="ident">FnOnce</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">u64</span>)<span class="op">&gt;</span><span class="op">&gt;</span>,
+		<span class="ident">G</span>: <span class="ident">FnOnce</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">AuthorityWeight</span>)<span class="op">&gt;</span><span class="op">&gt;</span>,
 {
 	<span class="kw">let</span> <span class="ident">version</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">load_decode</span>(<span class="ident">backend</span>, <span class="ident">VERSION_KEY</span>)<span class="question-mark">?</span>;
 	<span class="kw">let</span> <span class="ident">consensus_changes</span> <span class="op">=</span> <span class="ident">load_decode</span>(<span class="ident">backend</span>, <span class="ident">CONSENSUS_CHANGES_KEY</span>)<span class="question-mark">?</span>
@@ -1071,7 +1071,7 @@
 
 		<span class="kw">let</span> <span class="ident">authorities</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[(<span class="ident">AuthorityId</span>::<span class="ident">default</span>(), <span class="number">100</span>)];
 		<span class="kw">let</span> <span class="ident">set_id</span> <span class="op">=</span> <span class="number">3</span>;
-		<span class="kw">let</span> <span class="ident">round_number</span>: <span class="ident">u64</span> <span class="op">=</span> <span class="number">42</span>;
+		<span class="kw">let</span> <span class="ident">round_number</span>: <span class="ident">RoundNumber</span> <span class="op">=</span> <span class="number">42</span>;
 		<span class="kw">let</span> <span class="ident">round_state</span> <span class="op">=</span> <span class="ident">RoundState</span>::<span class="op">&lt;</span><span class="ident">H256</span>, <span class="ident">u64</span><span class="op">&gt;</span> {
 			<span class="ident">prevote_ghost</span>: <span class="prelude-val">Some</span>((<span class="ident">H256</span>::<span class="ident">random</span>(), <span class="number">32</span>)),
 			<span class="ident">finalized</span>: <span class="prelude-val">None</span>,
@@ -1159,7 +1159,7 @@
 
 		<span class="kw">let</span> <span class="ident">authorities</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[(<span class="ident">AuthorityId</span>::<span class="ident">default</span>(), <span class="number">100</span>)];
 		<span class="kw">let</span> <span class="ident">set_id</span> <span class="op">=</span> <span class="number">3</span>;
-		<span class="kw">let</span> <span class="ident">round_number</span>: <span class="ident">u64</span> <span class="op">=</span> <span class="number">42</span>;
+		<span class="kw">let</span> <span class="ident">round_number</span>: <span class="ident">RoundNumber</span> <span class="op">=</span> <span class="number">42</span>;
 		<span class="kw">let</span> <span class="ident">round_state</span> <span class="op">=</span> <span class="ident">RoundState</span>::<span class="op">&lt;</span><span class="ident">H256</span>, <span class="ident">u64</span><span class="op">&gt;</span> {
 			<span class="ident">prevote_ghost</span>: <span class="prelude-val">Some</span>((<span class="ident">H256</span>::<span class="ident">random</span>(), <span class="number">32</span>)),
 			<span class="ident">finalized</span>: <span class="prelude-val">None</span>,

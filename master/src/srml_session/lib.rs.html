@@ -865,6 +865,53 @@
 <span id="865">865</span>
 <span id="866">866</span>
 <span id="867">867</span>
+<span id="868">868</span>
+<span id="869">869</span>
+<span id="870">870</span>
+<span id="871">871</span>
+<span id="872">872</span>
+<span id="873">873</span>
+<span id="874">874</span>
+<span id="875">875</span>
+<span id="876">876</span>
+<span id="877">877</span>
+<span id="878">878</span>
+<span id="879">879</span>
+<span id="880">880</span>
+<span id="881">881</span>
+<span id="882">882</span>
+<span id="883">883</span>
+<span id="884">884</span>
+<span id="885">885</span>
+<span id="886">886</span>
+<span id="887">887</span>
+<span id="888">888</span>
+<span id="889">889</span>
+<span id="890">890</span>
+<span id="891">891</span>
+<span id="892">892</span>
+<span id="893">893</span>
+<span id="894">894</span>
+<span id="895">895</span>
+<span id="896">896</span>
+<span id="897">897</span>
+<span id="898">898</span>
+<span id="899">899</span>
+<span id="900">900</span>
+<span id="901">901</span>
+<span id="902">902</span>
+<span id="903">903</span>
+<span id="904">904</span>
+<span id="905">905</span>
+<span id="906">906</span>
+<span id="907">907</span>
+<span id="908">908</span>
+<span id="909">909</span>
+<span id="910">910</span>
+<span id="911">911</span>
+<span id="912">912</span>
+<span id="913">913</span>
+<span id="914">914</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1038,6 +1085,12 @@
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">OnSessionEnding</span><span class="op">&lt;</span><span class="ident">ValidatorId</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Handle the fact that the session is ending, and optionally provide the new validator set.</span>
 	<span class="doccomment">///</span>
+	<span class="doccomment">/// Even if the validator-set is the same as before, if any underlying economic</span>
+	<span class="doccomment">/// conditions have changed (i.e. stake-weights), the new validator set must be returned.</span>
+	<span class="doccomment">/// This is necessary for consensus engines making use of the session module to</span>
+	<span class="doccomment">/// issue a validator-set change so misbehavior can be provably associated with the new</span>
+	<span class="doccomment">/// economic conditions as opposed to the old.</span>
+	<span class="doccomment">///</span>
 	<span class="doccomment">/// `ending_index` is the index of the currently ending session.</span>
 	<span class="doccomment">/// The returned validator set, if any, will not be applied until `will_apply_at`.</span>
 	<span class="doccomment">/// `will_apply_at` is guaranteed to be at least `ending_index + 1`, since session indices don&#39;t</span>
@@ -1060,7 +1113,11 @@
 	<span class="doccomment">/// should provide the same validator set.</span>
 	<span class="kw">fn</span> <span class="ident">on_genesis_session</span><span class="op">&lt;</span><span class="ident">Ks</span>: <span class="ident">OpaqueKeys</span><span class="op">&gt;</span>(<span class="ident">validators</span>: <span class="kw-2">&amp;</span>[(<span class="ident">ValidatorId</span>, <span class="ident">Ks</span>)]);
 
-	<span class="doccomment">/// Session set has changed; act appropriately.</span>
+	<span class="doccomment">/// Session set has changed; act appropriately. Note that this can be called</span>
+	<span class="doccomment">/// before initialization of your module.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// `changed` is true whenever any of the session keys or underlying economic</span>
+	<span class="doccomment">/// identities or weightings behind those keys has changed.</span>
 	<span class="kw">fn</span> <span class="ident">on_new_session</span><span class="op">&lt;</span><span class="ident">Ks</span>: <span class="ident">OpaqueKeys</span><span class="op">&gt;</span>(
 		<span class="ident">changed</span>: <span class="ident">bool</span>,
 		<span class="ident">validators</span>: <span class="kw-2">&amp;</span>[(<span class="ident">ValidatorId</span>, <span class="ident">Ks</span>)],
@@ -1085,11 +1142,19 @@
 	<span class="kw">fn</span> <span class="ident">on_genesis_session</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">I</span>: <span class="lifetime">&#39;a</span><span class="op">&gt;</span>(<span class="ident">validators</span>: <span class="ident">I</span>)
 		<span class="kw">where</span> <span class="ident">I</span>: <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">ValidatorId</span>, <span class="self">Self</span>::<span class="ident">Key</span>)<span class="op">&gt;</span>, <span class="ident">ValidatorId</span>: <span class="lifetime">&#39;a</span>;
 
-	<span class="doccomment">/// Session set has changed; act appropriately.</span>
+	<span class="doccomment">/// Session set has changed; act appropriately. Note that this can be called</span>
+	<span class="doccomment">/// before initialization of your module.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// `changed` is true when at least one of the session keys</span>
+	<span class="doccomment">/// or the underlying economic identities/distribution behind one the</span>
+	<span class="doccomment">/// session keys has changed, false otherwise.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// The `validators` are the validators of the incoming session, and `queued_validators`</span>
+	<span class="doccomment">/// will follow.</span>
 	<span class="kw">fn</span> <span class="ident">on_new_session</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">I</span>: <span class="lifetime">&#39;a</span><span class="op">&gt;</span>(
-		<span class="ident">_changed</span>: <span class="ident">bool</span>,
-		<span class="ident">_validators</span>: <span class="ident">I</span>,
-		<span class="ident">_queued_validators</span>: <span class="ident">I</span>
+		<span class="ident">changed</span>: <span class="ident">bool</span>,
+		<span class="ident">validators</span>: <span class="ident">I</span>,
+		<span class="ident">queued_validators</span>: <span class="ident">I</span>,
 	) <span class="kw">where</span> <span class="ident">I</span>: <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">ValidatorId</span>, <span class="self">Self</span>::<span class="ident">Key</span>)<span class="op">&gt;</span>, <span class="ident">ValidatorId</span>: <span class="lifetime">&#39;a</span>;
 
 
@@ -1209,10 +1274,8 @@
 		<span class="doccomment">/// Current index of the session.</span>
 		<span class="ident">CurrentIndex</span> <span class="ident">get</span>(<span class="ident">current_index</span>): <span class="ident">SessionIndex</span>;
 
-		<span class="doccomment">/// True if anything has changed in this session.</span>
-		<span class="ident">Changed</span>: <span class="ident">bool</span>;
-
-		<span class="doccomment">/// Queued keys changed.</span>
+		<span class="doccomment">/// True if the underlying economic identities or weighting behind the validators</span>
+		<span class="doccomment">/// has changed in the queued validator set.</span>
 		<span class="ident">QueuedChanged</span>: <span class="ident">bool</span>;
 
 		<span class="doccomment">/// The queued keys for the next session. When the next session begins, these keys</span>
@@ -1311,13 +1374,10 @@
 
 			<span class="self">Self</span>::<span class="ident">do_set_keys</span>(<span class="kw-2">&amp;</span><span class="ident">who</span>, <span class="ident">keys</span>)<span class="question-mark">?</span>;
 
-			<span class="comment">// Something changed.</span>
-			<span class="ident">Changed</span>::<span class="ident">put</span>(<span class="bool-val">true</span>);
-
 			<span class="prelude-val">Ok</span>(())
 		}
 
-		<span class="doccomment">/// Called when a block is finalized. Will rotate session if it is the last</span>
+		<span class="doccomment">/// Called when a block is initialized. Will rotate session if it is the last</span>
 		<span class="doccomment">/// block of the current session.</span>
 		<span class="kw">fn</span> <span class="ident">on_initialize</span>(<span class="ident">n</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>) {
 			<span class="kw">if</span> <span class="ident">T</span>::<span class="ident">ShouldEndSession</span>::<span class="ident">should_end_session</span>(<span class="ident">n</span>) {
@@ -1335,7 +1395,6 @@
 		<span class="kw">let</span> <span class="ident">session_index</span> <span class="op">=</span> <span class="ident">CurrentIndex</span>::<span class="ident">get</span>();
 
 		<span class="kw">let</span> <span class="ident">changed</span> <span class="op">=</span> <span class="ident">QueuedChanged</span>::<span class="ident">get</span>();
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">next_changed</span> <span class="op">=</span> <span class="ident">Changed</span>::<span class="ident">take</span>();
 
 		<span class="comment">// Get queued session keys and validators.</span>
 		<span class="kw">let</span> <span class="ident">session_keys</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">QueuedKeys</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">get</span>();
@@ -1347,12 +1406,16 @@
 		<span class="kw">let</span> <span class="ident">applied_at</span> <span class="op">=</span> <span class="ident">session_index</span> <span class="op">+</span> <span class="number">2</span>;
 
 		<span class="comment">// Get next validator set.</span>
-		<span class="kw">let</span> <span class="ident">maybe_validators</span> <span class="op">=</span> <span class="ident">T</span>::<span class="ident">OnSessionEnding</span>::<span class="ident">on_session_ending</span>(<span class="ident">session_index</span>, <span class="ident">applied_at</span>);
-		<span class="kw">let</span> <span class="ident">next_validators</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">validators</span>) <span class="op">=</span> <span class="ident">maybe_validators</span> {
-			<span class="ident">next_changed</span> <span class="op">=</span> <span class="bool-val">true</span>;
-			<span class="ident">validators</span>
+		<span class="kw">let</span> <span class="ident">maybe_next_validators</span> <span class="op">=</span> <span class="ident">T</span>::<span class="ident">OnSessionEnding</span>::<span class="ident">on_session_ending</span>(<span class="ident">session_index</span>, <span class="ident">applied_at</span>);
+		<span class="kw">let</span> (<span class="ident">next_validators</span>, <span class="ident">next_identities_changed</span>)
+			<span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">validators</span>) <span class="op">=</span> <span class="ident">maybe_next_validators</span>
+		{
+			<span class="comment">// NOTE: as per the documentation on `OnSessionEnding`, we consider</span>
+			<span class="comment">// the validator set as having changed even if the validators are the</span>
+			<span class="comment">// same as before, as underlying economic conditions may have changed.</span>
+			(<span class="ident">validators</span>, <span class="bool-val">true</span>)
 		} <span class="kw">else</span> {
-			<span class="op">&lt;</span><span class="ident">Validators</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">get</span>()
+			(<span class="op">&lt;</span><span class="ident">Validators</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">get</span>(), <span class="bool-val">false</span>)
 		};
 
 		<span class="comment">// Increment session index.</span>
@@ -1360,9 +1423,34 @@
 		<span class="ident">CurrentIndex</span>::<span class="ident">put</span>(<span class="ident">session_index</span>);
 
 		<span class="comment">// Queue next session keys.</span>
-		<span class="kw">let</span> <span class="ident">queued_amalgamated</span> <span class="op">=</span> <span class="ident">next_validators</span>.<span class="ident">into_iter</span>()
-			.<span class="ident">map</span>(<span class="op">|</span><span class="ident">a</span><span class="op">|</span> { <span class="kw">let</span> <span class="ident">k</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">load_keys</span>(<span class="kw-2">&amp;</span><span class="ident">a</span>).<span class="ident">unwrap_or_default</span>(); (<span class="ident">a</span>, <span class="ident">k</span>) })
-			.<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
+		<span class="kw">let</span> (<span class="ident">queued_amalgamated</span>, <span class="ident">next_changed</span>) <span class="op">=</span> {
+			<span class="comment">// until we are certain there has been a change, iterate the prior</span>
+			<span class="comment">// validators along with the current and check for changes</span>
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">changed</span> <span class="op">=</span> <span class="ident">next_identities_changed</span>;
+
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">now_session_keys</span> <span class="op">=</span> <span class="ident">session_keys</span>.<span class="ident">iter</span>();
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">check_next_changed</span> <span class="op">=</span> <span class="op">|</span><span class="ident">keys</span>: <span class="kw-2">&amp;</span><span class="ident">T</span>::<span class="ident">Keys</span><span class="op">|</span> {
+				<span class="kw">if</span> <span class="ident">changed</span> { <span class="kw">return</span> }
+				<span class="comment">// since a new validator set always leads to `changed` starting</span>
+				<span class="comment">// as true, we can ensure that `now_session_keys` and `next_validators`</span>
+				<span class="comment">// have the same length. this function is called once per iteration.</span>
+				<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>(<span class="kw">_</span>, <span class="kw-2">ref</span> <span class="ident">old_keys</span>)) <span class="op">=</span> <span class="ident">now_session_keys</span>.<span class="ident">next</span>() {
+					<span class="kw">if</span> <span class="ident">old_keys</span> <span class="op">!</span><span class="op">=</span> <span class="ident">keys</span> {
+						<span class="ident">changed</span> <span class="op">=</span> <span class="bool-val">true</span>;
+						<span class="kw">return</span>
+					}
+				}
+			};
+			<span class="kw">let</span> <span class="ident">queued_amalgamated</span> <span class="op">=</span> <span class="ident">next_validators</span>.<span class="ident">into_iter</span>()
+				.<span class="ident">map</span>(<span class="op">|</span><span class="ident">a</span><span class="op">|</span> {
+					<span class="kw">let</span> <span class="ident">k</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">load_keys</span>(<span class="kw-2">&amp;</span><span class="ident">a</span>).<span class="ident">unwrap_or_default</span>();
+					<span class="ident">check_next_changed</span>(<span class="kw-2">&amp;</span><span class="ident">k</span>);
+					(<span class="ident">a</span>, <span class="ident">k</span>)
+				})
+				.<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
+
+			(<span class="ident">queued_amalgamated</span>, <span class="ident">changed</span>)
+		};
 
 		<span class="op">&lt;</span><span class="ident">QueuedKeys</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">put</span>(<span class="ident">queued_amalgamated</span>.<span class="ident">clone</span>());
 		<span class="ident">QueuedChanged</span>::<span class="ident">put</span>(<span class="ident">next_changed</span>);
@@ -1371,13 +1459,16 @@
 		<span class="self">Self</span>::<span class="ident">deposit_event</span>(<span class="ident">Event</span>::<span class="ident">NewSession</span>(<span class="ident">session_index</span>));
 
 		<span class="comment">// Tell everyone about the new session keys.</span>
-		<span class="ident">T</span>::<span class="ident">SessionHandler</span>::<span class="ident">on_new_session</span>::<span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">Keys</span><span class="op">&gt;</span>(<span class="ident">changed</span>, <span class="kw-2">&amp;</span><span class="ident">session_keys</span>, <span class="kw-2">&amp;</span><span class="ident">queued_amalgamated</span>);
+		<span class="ident">T</span>::<span class="ident">SessionHandler</span>::<span class="ident">on_new_session</span>::<span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">Keys</span><span class="op">&gt;</span>(
+			<span class="ident">changed</span>,
+			<span class="kw-2">&amp;</span><span class="ident">session_keys</span>,
+			<span class="kw-2">&amp;</span><span class="ident">queued_amalgamated</span>,
+		);
 	}
 
 	<span class="doccomment">/// Disable the validator of index `i`.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">disable_index</span>(<span class="ident">i</span>: <span class="ident">usize</span>) {
 		<span class="ident">T</span>::<span class="ident">SessionHandler</span>::<span class="ident">on_disabled</span>(<span class="ident">i</span>);
-		<span class="ident">Changed</span>::<span class="ident">put</span>(<span class="bool-val">true</span>);
 	}
 
 	<span class="doccomment">/// Disable the validator identified by `c`. (If using with the staking module, this would be</span>
@@ -1422,8 +1513,6 @@
 				<span class="kw">let</span> <span class="ident">key_data</span> <span class="op">=</span> <span class="ident">old_keys</span>.<span class="ident">get_raw</span>(<span class="ident">id</span>);
 				<span class="self">Self</span>::<span class="ident">clear_key_owner</span>(<span class="ident">id</span>, <span class="ident">key_data</span>);
 			}
-
-			<span class="ident">Changed</span>::<span class="ident">put</span>(<span class="bool-val">true</span>);
 		}
 	}
 
@@ -1536,8 +1625,6 @@
 			<span class="ident">Session</span>::<span class="ident">on_free_balance_zero</span>(<span class="kw-2">&amp;</span><span class="number">1</span>);
 			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Session</span>::<span class="ident">load_keys</span>(<span class="kw-2">&amp;</span><span class="number">1</span>), <span class="prelude-val">None</span>);
 			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Session</span>::<span class="ident">key_owner</span>(<span class="ident">id</span>, <span class="ident">UintAuthorityId</span>(<span class="number">1</span>).<span class="ident">get_raw</span>(<span class="ident">id</span>)), <span class="prelude-val">None</span>);
-
-			<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">Changed</span>::<span class="ident">get</span>());
 		})
 	}
 
@@ -1684,9 +1771,16 @@
 			<span class="ident">initialize_block</span>(<span class="number">6</span>);
 			<span class="macro">assert</span><span class="macro">!</span>(<span class="op">!</span><span class="ident">session_changed</span>());
 
+			<span class="comment">// changing the keys of a validator leads to change.</span>
+			<span class="macro">assert_ok</span><span class="macro">!</span>(<span class="ident">Session</span>::<span class="ident">set_keys</span>(<span class="ident">Origin</span>::<span class="ident">signed</span>(<span class="number">69</span>), <span class="ident">UintAuthorityId</span>(<span class="number">69</span>).<span class="ident">into</span>(), <span class="macro">vec</span><span class="macro">!</span>[]));
 			<span class="ident">force_new_session</span>();
 			<span class="ident">initialize_block</span>(<span class="number">7</span>);
 			<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">session_changed</span>());
+
+			<span class="comment">// while changing the keys of a non-validator does not.</span>
+			<span class="ident">force_new_session</span>();
+			<span class="ident">initialize_block</span>(<span class="number">7</span>);
+			<span class="macro">assert</span><span class="macro">!</span>(<span class="op">!</span><span class="ident">session_changed</span>());
 		});
 	}
 
