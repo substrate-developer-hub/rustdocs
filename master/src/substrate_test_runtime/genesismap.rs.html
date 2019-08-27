@@ -101,6 +101,14 @@
 <span id="101">101</span>
 <span id="102">102</span>
 <span id="103">103</span>
+<span id="104">104</span>
+<span id="105">105</span>
+<span id="106">106</span>
+<span id="107">107</span>
+<span id="108">108</span>
+<span id="109">109</span>
+<span id="110">110</span>
+<span id="111">111</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -129,10 +137,12 @@
 
 <span class="doccomment">/// Configuration of a general Substrate test genesis block.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">GenesisConfig</span> {
-	<span class="kw">pub</span> <span class="ident">changes_trie_config</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChangesTrieConfiguration</span><span class="op">&gt;</span>,
-	<span class="kw">pub</span> <span class="ident">authorities</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">AuthorityId</span><span class="op">&gt;</span>,
-	<span class="kw">pub</span> <span class="ident">balances</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AccountId</span>, <span class="ident">u64</span>)<span class="op">&gt;</span>,
-	<span class="kw">pub</span> <span class="ident">heap_pages_override</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>,
+	<span class="ident">changes_trie_config</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChangesTrieConfiguration</span><span class="op">&gt;</span>,
+	<span class="ident">authorities</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">AuthorityId</span><span class="op">&gt;</span>,
+	<span class="ident">balances</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AccountId</span>, <span class="ident">u64</span>)<span class="op">&gt;</span>,
+	<span class="ident">heap_pages_override</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>,
+	<span class="doccomment">/// Additional storage key pairs that will be added to the genesis map.</span>
+	<span class="ident">extra_storage</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">GenesisConfig</span> {
@@ -142,6 +152,7 @@
 		<span class="ident">endowed_accounts</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">AccountId</span><span class="op">&gt;</span>,
 		<span class="ident">balance</span>: <span class="ident">u64</span>,
 		<span class="ident">heap_pages_override</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>,
+		<span class="ident">extra_storage</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
 		<span class="ident">GenesisConfig</span> {
 			<span class="ident">changes_trie_config</span>: <span class="kw">match</span> <span class="ident">support_changes_trie</span> {
@@ -151,6 +162,7 @@
 			<span class="ident">authorities</span>: <span class="ident">authorities</span>.<span class="ident">clone</span>(),
 			<span class="ident">balances</span>: <span class="ident">endowed_accounts</span>.<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">a</span><span class="op">|</span> (<span class="ident">a</span>, <span class="ident">balance</span>)).<span class="ident">collect</span>(),
 			<span class="ident">heap_pages_override</span>,
+			<span class="ident">extra_storage</span>,
 		}
 	}
 
@@ -174,6 +186,10 @@
 			<span class="ident">map</span>.<span class="ident">insert</span>(<span class="ident">well_known_keys</span>::<span class="ident">CHANGES_TRIE_CONFIG</span>.<span class="ident">to_vec</span>(), <span class="ident">changes_trie_config</span>.<span class="ident">encode</span>());
 		}
 		<span class="ident">map</span>.<span class="ident">insert</span>(<span class="ident">twox_128</span>(<span class="kw-2">&amp;</span><span class="string">b&quot;sys:auth&quot;</span>[..])[..].<span class="ident">to_vec</span>(), <span class="self">self</span>.<span class="ident">authorities</span>.<span class="ident">encode</span>());
+		<span class="comment">// Finally, add the extra storage entries.</span>
+		<span class="kw">for</span> (<span class="ident">key</span>, <span class="ident">value</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">extra_storage</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>() {
+			<span class="ident">map</span>.<span class="ident">insert</span>(<span class="ident">key</span>, <span class="ident">value</span>);
+		}
 		(<span class="ident">map</span>, <span class="ident">Default</span>::<span class="ident">default</span>())
 	}
 }
