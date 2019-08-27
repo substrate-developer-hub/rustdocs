@@ -252,6 +252,13 @@
 <span id="252">252</span>
 <span id="253">253</span>
 <span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -276,14 +283,14 @@
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">cli</span>::<span class="ident">error</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">chain_spec</span>;
+<span class="attribute">#[<span class="ident">macro_use</span>]</span>
 <span class="kw">mod</span> <span class="ident">service</span>;
 <span class="kw">mod</span> <span class="ident">factory_impl</span>;
 
 <span class="kw">use</span> <span class="ident">tokio</span>::<span class="ident">prelude</span>::<span class="ident">Future</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::<span class="ident">runtime</span>::{<span class="ident">Builder</span> <span class="kw">as</span> <span class="ident">RuntimeBuilder</span>, <span class="ident">Runtime</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">cli</span>::{<span class="ident">VersionInfo</span>, <span class="ident">IntoExit</span>, <span class="ident">NoCustom</span>, <span class="ident">SharedParams</span>, <span class="ident">ExecutionStrategyParam</span>};
-<span class="kw">use</span> <span class="ident">substrate_service</span>::{<span class="ident">ServiceFactory</span>, <span class="ident">Roles</span> <span class="kw">as</span> <span class="ident">ServiceRoles</span>};
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ops</span>::<span class="ident">Deref</span>;
+<span class="kw">use</span> <span class="ident">substrate_service</span>::{<span class="ident">AbstractService</span>, <span class="ident">Roles</span> <span class="kw">as</span> <span class="ident">ServiceRoles</span>};
 <span class="kw">use</span> <span class="ident">log</span>::<span class="ident">info</span>;
 <span class="kw">use</span> <span class="ident">structopt</span>::{<span class="ident">StructOpt</span>, <span class="ident">clap</span>::<span class="ident">App</span>};
 <span class="kw">use</span> <span class="ident">cli</span>::{<span class="ident">AugmentClap</span>, <span class="ident">GetLogFilter</span>, <span class="ident">parse_and_prepare</span>, <span class="ident">ParseAndPrepare</span>};
@@ -414,7 +421,8 @@
 	<span class="ident">E</span>: <span class="ident">IntoExit</span>,
 {
 	<span class="kw">match</span> <span class="ident">parse_and_prepare</span>::<span class="op">&lt;</span><span class="ident">CustomSubcommands</span>, <span class="ident">NoCustom</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="ident">version</span>, <span class="string">&quot;substrate-node&quot;</span>, <span class="ident">args</span>) {
-		<span class="ident">ParseAndPrepare</span>::<span class="ident">Run</span>(<span class="ident">cmd</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">cmd</span>.<span class="ident">run</span>(<span class="ident">load_spec</span>, <span class="ident">exit</span>, <span class="op">|</span><span class="ident">exit</span>, <span class="ident">_cli_args</span>, <span class="ident">_custom_args</span>, <span class="ident">config</span><span class="op">|</span> {
+		<span class="ident">ParseAndPrepare</span>::<span class="ident">Run</span>(<span class="ident">cmd</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">cmd</span>.<span class="ident">run</span>::<span class="op">&lt;</span>(), <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="ident">load_spec</span>, <span class="ident">exit</span>,
+		<span class="op">|</span><span class="ident">exit</span>, <span class="ident">_cli_args</span>, <span class="ident">_custom_args</span>, <span class="ident">config</span><span class="op">|</span> {
 			<span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">version</span>.<span class="ident">name</span>);
 			<span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;  version {}&quot;</span>, <span class="ident">config</span>.<span class="ident">full_version</span>());
 			<span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;  by Parity Technologies, 2017-2019&quot;</span>);
@@ -426,23 +434,26 @@
 			<span class="kw">match</span> <span class="ident">config</span>.<span class="ident">roles</span> {
 				<span class="ident">ServiceRoles</span>::<span class="ident">LIGHT</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">run_until_exit</span>(
 					<span class="ident">runtime</span>,
-					<span class="ident">service</span>::<span class="ident">Factory</span>::<span class="ident">new_light</span>(<span class="ident">config</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">e</span>))<span class="question-mark">?</span>,
+					<span class="ident">service</span>::<span class="ident">new_light</span>(<span class="ident">config</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">e</span>))<span class="question-mark">?</span>,
 					<span class="ident">exit</span>
 				),
 				<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">run_until_exit</span>(
 					<span class="ident">runtime</span>,
-					<span class="ident">service</span>::<span class="ident">Factory</span>::<span class="ident">new_full</span>(<span class="ident">config</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">e</span>))<span class="question-mark">?</span>,
+					<span class="ident">service</span>::<span class="ident">new_full</span>(<span class="ident">config</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">e</span>))<span class="question-mark">?</span>,
 					<span class="ident">exit</span>
 				),
 			}.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">e</span>))
 		}),
 		<span class="ident">ParseAndPrepare</span>::<span class="ident">BuildSpec</span>(<span class="ident">cmd</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">cmd</span>.<span class="ident">run</span>(<span class="ident">load_spec</span>),
-		<span class="ident">ParseAndPrepare</span>::<span class="ident">ExportBlocks</span>(<span class="ident">cmd</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">cmd</span>.<span class="ident">run</span>::<span class="op">&lt;</span><span class="ident">service</span>::<span class="ident">Factory</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="ident">load_spec</span>, <span class="ident">exit</span>),
-		<span class="ident">ParseAndPrepare</span>::<span class="ident">ImportBlocks</span>(<span class="ident">cmd</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">cmd</span>.<span class="ident">run</span>::<span class="op">&lt;</span><span class="ident">service</span>::<span class="ident">Factory</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="ident">load_spec</span>, <span class="ident">exit</span>),
+		<span class="ident">ParseAndPrepare</span>::<span class="ident">ExportBlocks</span>(<span class="ident">cmd</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">cmd</span>.<span class="ident">run_with_builder</span>::<span class="op">&lt;</span>(), <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="op">|</span><span class="ident">config</span><span class="op">|</span>
+			<span class="prelude-val">Ok</span>(<span class="macro">new_full_start</span><span class="macro">!</span>(<span class="ident">config</span>).<span class="number">0</span>), <span class="ident">load_spec</span>, <span class="ident">exit</span>),
+		<span class="ident">ParseAndPrepare</span>::<span class="ident">ImportBlocks</span>(<span class="ident">cmd</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">cmd</span>.<span class="ident">run_with_builder</span>::<span class="op">&lt;</span>(), <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="op">|</span><span class="ident">config</span><span class="op">|</span>
+			<span class="prelude-val">Ok</span>(<span class="macro">new_full_start</span><span class="macro">!</span>(<span class="ident">config</span>).<span class="number">0</span>), <span class="ident">load_spec</span>, <span class="ident">exit</span>),
 		<span class="ident">ParseAndPrepare</span>::<span class="ident">PurgeChain</span>(<span class="ident">cmd</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">cmd</span>.<span class="ident">run</span>(<span class="ident">load_spec</span>),
-		<span class="ident">ParseAndPrepare</span>::<span class="ident">RevertChain</span>(<span class="ident">cmd</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">cmd</span>.<span class="ident">run</span>::<span class="op">&lt;</span><span class="ident">service</span>::<span class="ident">Factory</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="ident">load_spec</span>),
+		<span class="ident">ParseAndPrepare</span>::<span class="ident">RevertChain</span>(<span class="ident">cmd</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">cmd</span>.<span class="ident">run_with_builder</span>::<span class="op">&lt;</span>(), <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="op">|</span><span class="ident">config</span><span class="op">|</span>
+			<span class="prelude-val">Ok</span>(<span class="macro">new_full_start</span><span class="macro">!</span>(<span class="ident">config</span>).<span class="number">0</span>), <span class="ident">load_spec</span>),
 		<span class="ident">ParseAndPrepare</span>::<span class="ident">CustomCommand</span>(<span class="ident">CustomSubcommands</span>::<span class="ident">Factory</span>(<span class="ident">cli_args</span>)) <span class="op">=</span><span class="op">&gt;</span> {
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">cli</span>::<span class="ident">create_config_with_db_path</span>(
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">cli</span>::<span class="ident">create_config_with_db_path</span>::<span class="op">&lt;</span>(), <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(
 				<span class="ident">load_spec</span>,
 				<span class="kw-2">&amp;</span><span class="ident">cli_args</span>.<span class="ident">shared_params</span>,
 				<span class="kw-2">&amp;</span><span class="ident">version</span>,
@@ -464,9 +475,13 @@
 				<span class="ident">cli_args</span>.<span class="ident">num</span>,
 				<span class="ident">cli_args</span>.<span class="ident">rounds</span>,
 			);
-			<span class="ident">transaction_factory</span>::<span class="ident">factory</span>::<span class="op">&lt;</span><span class="ident">service</span>::<span class="ident">Factory</span>, <span class="ident">FactoryState</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>(
+
+			<span class="kw">let</span> <span class="ident">service_builder</span> <span class="op">=</span> <span class="macro">new_full_start</span><span class="macro">!</span>(<span class="ident">config</span>).<span class="number">0</span>;
+			<span class="ident">transaction_factory</span>::<span class="ident">factory</span>::<span class="op">&lt;</span><span class="ident">FactoryState</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(
 				<span class="ident">factory_state</span>,
-				<span class="ident">config</span>,
+				<span class="ident">service_builder</span>.<span class="ident">client</span>(),
+				<span class="ident">service_builder</span>.<span class="ident">select_chain</span>()
+					.<span class="ident">expect</span>(<span class="string">&quot;The select_chain is always initialized by new_full_start!; QED&quot;</span>)
 			).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Error in transaction factory: {}&quot;</span>, <span class="ident">e</span>))<span class="question-mark">?</span>;
 
 			<span class="prelude-val">Ok</span>(())
@@ -474,14 +489,13 @@
 	}
 }
 
-<span class="kw">fn</span> <span class="ident">run_until_exit</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">C</span>, <span class="ident">E</span><span class="op">&gt;</span>(
+<span class="kw">fn</span> <span class="ident">run_until_exit</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;</span>(
 	<span class="kw-2">mut</span> <span class="ident">runtime</span>: <span class="ident">Runtime</span>,
 	<span class="ident">service</span>: <span class="ident">T</span>,
 	<span class="ident">e</span>: <span class="ident">E</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> <span class="kw">where</span>
-	<span class="ident">T</span>: <span class="ident">Deref</span><span class="op">&lt;</span><span class="ident">Target</span><span class="op">=</span><span class="ident">substrate_service</span>::<span class="ident">Service</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-	<span class="ident">T</span>: <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> <span class="ident">substrate_service</span>::<span class="ident">error</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-	<span class="ident">C</span>: <span class="ident">substrate_service</span>::<span class="ident">Components</span>,
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
+<span class="kw">where</span>
+	<span class="ident">T</span>: <span class="ident">AbstractService</span>,
 	<span class="ident">E</span>: <span class="ident">IntoExit</span>,
 {
 	<span class="kw">let</span> (<span class="ident">exit_send</span>, <span class="ident">exit</span>) <span class="op">=</span> <span class="ident">exit_future</span>::<span class="ident">signal</span>();

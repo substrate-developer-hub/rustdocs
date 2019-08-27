@@ -484,40 +484,6 @@
 <span id="484">484</span>
 <span id="485">485</span>
 <span id="486">486</span>
-<span id="487">487</span>
-<span id="488">488</span>
-<span id="489">489</span>
-<span id="490">490</span>
-<span id="491">491</span>
-<span id="492">492</span>
-<span id="493">493</span>
-<span id="494">494</span>
-<span id="495">495</span>
-<span id="496">496</span>
-<span id="497">497</span>
-<span id="498">498</span>
-<span id="499">499</span>
-<span id="500">500</span>
-<span id="501">501</span>
-<span id="502">502</span>
-<span id="503">503</span>
-<span id="504">504</span>
-<span id="505">505</span>
-<span id="506">506</span>
-<span id="507">507</span>
-<span id="508">508</span>
-<span id="509">509</span>
-<span id="510">510</span>
-<span id="511">511</span>
-<span id="512">512</span>
-<span id="513">513</span>
-<span id="514">514</span>
-<span id="515">515</span>
-<span id="516">516</span>
-<span id="517">517</span>
-<span id="518">518</span>
-<span id="519">519</span>
-<span id="520">520</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -537,271 +503,240 @@
 
 <span class="attribute">#![<span class="ident">warn</span>(<span class="ident">unused_extern_crates</span>)]</span>
 
-<span class="doccomment">//! Service and ServiceFactory implementation. Specialized wrapper over substrate service.</span>
+<span class="doccomment">//! Service implementation. Specialized wrapper over substrate service.</span>
 
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>;
 
-<span class="kw">use</span> <span class="ident">babe</span>::{<span class="ident">import_queue</span>, <span class="ident">start_babe</span>, <span class="ident">BabeImportQueue</span>, <span class="ident">Config</span>};
+<span class="kw">use</span> <span class="ident">babe</span>::{<span class="ident">import_queue</span>, <span class="ident">Config</span>};
 <span class="kw">use</span> <span class="ident">client</span>::{<span class="self">self</span>, <span class="ident">LongestChain</span>};
 <span class="kw">use</span> <span class="ident">grandpa</span>::{<span class="self">self</span>, <span class="ident">FinalityProofProvider</span> <span class="kw">as</span> <span class="ident">GrandpaFinalityProofProvider</span>};
 <span class="kw">use</span> <span class="ident">node_executor</span>;
-<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">node_primitives</span>::<span class="ident">Block</span>;
 <span class="kw">use</span> <span class="ident">node_runtime</span>::{<span class="ident">GenesisConfig</span>, <span class="ident">RuntimeApi</span>};
 <span class="kw">use</span> <span class="ident">substrate_service</span>::{
-	<span class="ident">FactoryFullConfiguration</span>, <span class="ident">LightComponents</span>, <span class="ident">FullComponents</span>, <span class="ident">FullBackend</span>,
-	<span class="ident">FullClient</span>, <span class="ident">LightClient</span>, <span class="ident">LightBackend</span>, <span class="ident">FullExecutor</span>, <span class="ident">LightExecutor</span>,
-	<span class="ident">error</span>::{<span class="ident">Error</span> <span class="kw">as</span> <span class="ident">ServiceError</span>},
+	<span class="ident">AbstractService</span>, <span class="ident">ServiceBuilder</span>, <span class="ident">config</span>::<span class="ident">Configuration</span>, <span class="ident">error</span>::{<span class="ident">Error</span> <span class="kw">as</span> <span class="ident">ServiceError</span>},
 };
 <span class="kw">use</span> <span class="ident">transaction_pool</span>::{<span class="self">self</span>, <span class="ident">txpool</span>::{<span class="ident">Pool</span> <span class="kw">as</span> <span class="ident">TransactionPool</span>}};
 <span class="kw">use</span> <span class="ident">inherents</span>::<span class="ident">InherentDataProviders</span>;
 <span class="kw">use</span> <span class="ident">network</span>::<span class="ident">construct_simple_protocol</span>;
-<span class="kw">use</span> <span class="ident">substrate_service</span>::<span class="ident">construct_service_factory</span>;
-<span class="kw">use</span> <span class="ident">substrate_service</span>::<span class="ident">TelemetryOnConnect</span>;
 
 <span class="macro">construct_simple_protocol</span><span class="macro">!</span> {
 	<span class="doccomment">/// Demo protocol attachment for substrate.</span>
 	<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">NodeProtocol</span> <span class="kw">where</span> <span class="ident">Block</span> <span class="op">=</span> <span class="ident">Block</span> { }
 }
 
-<span class="kw">type</span> <span class="ident">BabeBlockImportForService</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">babe</span>::<span class="ident">BabeBlockImport</span><span class="op">&lt;</span>
-	<span class="ident">FullBackend</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>,
-	<span class="ident">FullExecutor</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>,
-	<span class="op">&lt;</span><span class="ident">F</span> <span class="kw">as</span> <span class="kw">crate</span>::<span class="ident">ServiceFactory</span><span class="op">&gt;</span>::<span class="ident">Block</span>,
-	<span class="ident">grandpa</span>::<span class="ident">BlockImportForService</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>,
-	<span class="op">&lt;</span><span class="ident">F</span> <span class="kw">as</span> <span class="kw">crate</span>::<span class="ident">ServiceFactory</span><span class="op">&gt;</span>::<span class="ident">RuntimeApi</span>,
-	<span class="ident">client</span>::<span class="ident">Client</span><span class="op">&lt;</span>
-		<span class="ident">FullBackend</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>,
-		<span class="ident">FullExecutor</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>,
-		<span class="op">&lt;</span><span class="ident">F</span> <span class="kw">as</span> <span class="kw">crate</span>::<span class="ident">ServiceFactory</span><span class="op">&gt;</span>::<span class="ident">Block</span>,
-		<span class="op">&lt;</span><span class="ident">F</span> <span class="kw">as</span> <span class="kw">crate</span>::<span class="ident">ServiceFactory</span><span class="op">&gt;</span>::<span class="ident">RuntimeApi</span>
-	<span class="op">&gt;</span>,
-<span class="op">&gt;</span>;
+<span class="doccomment">/// Starts a `ServiceBuilder` for a full service.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// Use this macro if you don&#39;t actually need the full service, but just the builder in order to</span>
+<span class="doccomment">/// be able to perform chain operations.</span>
+<span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">new_full_start</span> {
+	(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">config</span>:<span class="ident">expr</span>) <span class="op">=</span><span class="op">&gt;</span> {{
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">import_setup</span> <span class="op">=</span> <span class="prelude-val">None</span>;
+		<span class="kw">let</span> <span class="ident">inherent_data_providers</span> <span class="op">=</span> <span class="ident">inherents</span>::<span class="ident">InherentDataProviders</span>::<span class="ident">new</span>();
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">tasks_to_spawn</span> <span class="op">=</span> <span class="prelude-val">None</span>;
 
-<span class="doccomment">/// Node specific configuration</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">NodeConfig</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">substrate_service</span>::<span class="ident">ServiceFactory</span><span class="op">&gt;</span> {
-	<span class="doccomment">/// GRANDPA and BABE connection to import block.</span>
-	<span class="comment">// FIXME #1134 rather than putting this on the config, let&#39;s have an actual intermediate setup state</span>
-	<span class="kw">pub</span> <span class="ident">import_setup</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span>(
-		<span class="ident">BabeBlockImportForService</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>,
-		<span class="ident">grandpa</span>::<span class="ident">LinkHalfForService</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>,
-		<span class="ident">babe</span>::<span class="ident">BabeLink</span>,
-	)<span class="op">&gt;</span>,
-	<span class="doccomment">/// Tasks that were created by previous setup steps and should be spawned.</span>
-	<span class="kw">pub</span> <span class="ident">tasks_to_spawn</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-	<span class="ident">inherent_data_providers</span>: <span class="ident">InherentDataProviders</span>,
-}
-
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">NodeConfig</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span> <span class="kw">where</span> <span class="ident">F</span>: <span class="ident">substrate_service</span>::<span class="ident">ServiceFactory</span> {
-	<span class="kw">fn</span> <span class="ident">default</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">NodeConfig</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span> {
-		<span class="ident">NodeConfig</span> {
-			<span class="ident">import_setup</span>: <span class="prelude-val">None</span>,
-			<span class="ident">inherent_data_providers</span>: <span class="ident">InherentDataProviders</span>::<span class="ident">new</span>(),
-			<span class="ident">tasks_to_spawn</span>: <span class="prelude-val">None</span>,
-		}
-	}
-}
-
-<span class="macro">construct_service_factory</span><span class="macro">!</span> {
-	<span class="kw">struct</span> <span class="ident">Factory</span> {
-		<span class="ident">Block</span> <span class="op">=</span> <span class="ident">Block</span>,
-		<span class="ident">RuntimeApi</span> <span class="op">=</span> <span class="ident">RuntimeApi</span>,
-		<span class="ident">NetworkProtocol</span> <span class="op">=</span> <span class="ident">NodeProtocol</span> { <span class="op">|</span><span class="ident">config</span><span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="ident">NodeProtocol</span>::<span class="ident">new</span>()) },
-		<span class="ident">RuntimeDispatch</span> <span class="op">=</span> <span class="ident">node_executor</span>::<span class="ident">Executor</span>,
-		<span class="ident">FullTransactionPoolApi</span> <span class="op">=</span>
-			<span class="ident">transaction_pool</span>::<span class="ident">ChainApi</span><span class="op">&lt;</span>
-				<span class="ident">client</span>::<span class="ident">Client</span><span class="op">&lt;</span><span class="ident">FullBackend</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">FullExecutor</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">Block</span>, <span class="ident">RuntimeApi</span><span class="op">&gt;</span>,
-				<span class="ident">Block</span>
-			<span class="op">&gt;</span> {
-				<span class="op">|</span><span class="ident">config</span>, <span class="ident">client</span><span class="op">|</span>
-					<span class="prelude-val">Ok</span>(<span class="ident">TransactionPool</span>::<span class="ident">new</span>(<span class="ident">config</span>, <span class="ident">transaction_pool</span>::<span class="ident">ChainApi</span>::<span class="ident">new</span>(<span class="ident">client</span>)))
-			},
-		<span class="ident">LightTransactionPoolApi</span> <span class="op">=</span>
-			<span class="ident">transaction_pool</span>::<span class="ident">ChainApi</span><span class="op">&lt;</span>
-				<span class="ident">client</span>::<span class="ident">Client</span><span class="op">&lt;</span><span class="ident">LightBackend</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">LightExecutor</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">Block</span>, <span class="ident">RuntimeApi</span><span class="op">&gt;</span>,
-				<span class="ident">Block</span>
-			<span class="op">&gt;</span> {
-				<span class="op">|</span><span class="ident">config</span>, <span class="ident">client</span><span class="op">|</span>
-					<span class="prelude-val">Ok</span>(<span class="ident">TransactionPool</span>::<span class="ident">new</span>(<span class="ident">config</span>, <span class="ident">transaction_pool</span>::<span class="ident">ChainApi</span>::<span class="ident">new</span>(<span class="ident">client</span>)))
-			},
-		<span class="ident">Genesis</span> <span class="op">=</span> <span class="ident">GenesisConfig</span>,
-		<span class="ident">Configuration</span> <span class="op">=</span> <span class="ident">NodeConfig</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>,
-		<span class="ident">FullService</span> <span class="op">=</span> <span class="ident">FullComponents</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-			<span class="op">|</span><span class="ident">config</span>: <span class="ident">FactoryFullConfiguration</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span><span class="op">|</span> <span class="ident">FullComponents</span>::<span class="op">&lt;</span><span class="ident">Factory</span><span class="op">&gt;</span>::<span class="ident">new</span>(<span class="ident">config</span>)
-		},
-		<span class="ident">AuthoritySetup</span> <span class="op">=</span> {
-			<span class="op">|</span><span class="kw-2">mut</span> <span class="ident">service</span>: <span class="self">Self</span>::<span class="ident">FullService</span><span class="op">|</span> {
-				<span class="kw">let</span> (<span class="ident">block_import</span>, <span class="ident">link_half</span>, <span class="ident">babe_link</span>) <span class="op">=</span>
-					<span class="ident">service</span>.<span class="ident">config_mut</span>().<span class="ident">custom</span>.<span class="ident">import_setup</span>.<span class="ident">take</span>()
-						.<span class="ident">expect</span>(<span class="string">&quot;Link Half and Block Import are present for Full Services or setup failed before. qed&quot;</span>);
-
-				<span class="comment">// spawn any futures that were created in the previous setup steps</span>
-				<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">tasks</span>) <span class="op">=</span> <span class="ident">service</span>.<span class="ident">config_mut</span>().<span class="ident">custom</span>.<span class="ident">tasks_to_spawn</span>.<span class="ident">take</span>() {
-					<span class="kw">for</span> <span class="ident">task</span> <span class="kw">in</span> <span class="ident">tasks</span> {
-						<span class="ident">service</span>.<span class="ident">spawn_task</span>(
-							<span class="ident">task</span>.<span class="ident">select</span>(<span class="ident">service</span>.<span class="ident">on_exit</span>())
-								.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
-								.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
-						);
-					}
-				}
-
-				<span class="kw">if</span> <span class="ident">service</span>.<span class="ident">config</span>().<span class="ident">roles</span>.<span class="ident">is_authority</span>() {
-					<span class="kw">let</span> <span class="ident">proposer</span> <span class="op">=</span> <span class="ident">substrate_basic_authorship</span>::<span class="ident">ProposerFactory</span> {
-						<span class="ident">client</span>: <span class="ident">service</span>.<span class="ident">client</span>(),
-						<span class="ident">transaction_pool</span>: <span class="ident">service</span>.<span class="ident">transaction_pool</span>(),
-					};
-
-					<span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">service</span>.<span class="ident">client</span>();
-					<span class="kw">let</span> <span class="ident">select_chain</span> <span class="op">=</span> <span class="ident">service</span>.<span class="ident">select_chain</span>()
-						.<span class="ident">ok_or</span>(<span class="ident">ServiceError</span>::<span class="ident">SelectChainRequired</span>)<span class="question-mark">?</span>;
-
-					<span class="kw">let</span> <span class="ident">babe_config</span> <span class="op">=</span> <span class="ident">babe</span>::<span class="ident">BabeParams</span> {
-						<span class="ident">config</span>: <span class="ident">Config</span>::<span class="ident">get_or_compute</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">client</span>)<span class="question-mark">?</span>,
-						<span class="ident">keystore</span>: <span class="ident">service</span>.<span class="ident">keystore</span>(),
-						<span class="ident">client</span>,
-						<span class="ident">select_chain</span>,
-						<span class="ident">block_import</span>,
-						<span class="ident">env</span>: <span class="ident">proposer</span>,
-						<span class="ident">sync_oracle</span>: <span class="ident">service</span>.<span class="ident">network</span>(),
-						<span class="ident">inherent_data_providers</span>: <span class="ident">service</span>.<span class="ident">config</span>()
-							.<span class="ident">custom</span>.<span class="ident">inherent_data_providers</span>.<span class="ident">clone</span>(),
-						<span class="ident">force_authoring</span>: <span class="ident">service</span>.<span class="ident">config</span>().<span class="ident">force_authoring</span>,
-						<span class="ident">time_source</span>: <span class="ident">babe_link</span>,
-					};
-
-					<span class="kw">let</span> <span class="ident">babe</span> <span class="op">=</span> <span class="ident">start_babe</span>(<span class="ident">babe_config</span>)<span class="question-mark">?</span>;
-					<span class="kw">let</span> <span class="ident">select</span> <span class="op">=</span> <span class="ident">babe</span>.<span class="ident">select</span>(<span class="ident">service</span>.<span class="ident">on_exit</span>()).<span class="ident">then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()));
-
-					<span class="comment">// the BABE authoring task is considered infallible, i.e. if it</span>
-					<span class="comment">// fails we take down the service with it.</span>
-					<span class="ident">service</span>.<span class="ident">spawn_essential_task</span>(<span class="ident">select</span>);
-				}
-
-				<span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">grandpa</span>::<span class="ident">Config</span> {
-					<span class="comment">// FIXME #1578 make this available through chainspec</span>
-					<span class="ident">gossip_duration</span>: <span class="ident">Duration</span>::<span class="ident">from_millis</span>(<span class="number">333</span>),
-					<span class="ident">justification_period</span>: <span class="number">4096</span>,
-					<span class="ident">name</span>: <span class="prelude-val">Some</span>(<span class="ident">service</span>.<span class="ident">config</span>().<span class="ident">name</span>.<span class="ident">clone</span>()),
-					<span class="ident">keystore</span>: <span class="prelude-val">Some</span>(<span class="ident">service</span>.<span class="ident">keystore</span>()),
-				};
-
-				<span class="kw">match</span> (<span class="ident">service</span>.<span class="ident">config</span>().<span class="ident">roles</span>.<span class="ident">is_authority</span>(), <span class="ident">service</span>.<span class="ident">config</span>().<span class="ident">disable_grandpa</span>) {
-					(<span class="bool-val">false</span>, <span class="bool-val">false</span>) <span class="op">=</span><span class="op">&gt;</span> {
-						<span class="comment">// start the lightweight GRANDPA observer</span>
-						<span class="ident">service</span>.<span class="ident">spawn_task</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">grandpa</span>::<span class="ident">run_grandpa_observer</span>(
-							<span class="ident">config</span>,
-							<span class="ident">link_half</span>,
-							<span class="ident">service</span>.<span class="ident">network</span>(),
-							<span class="ident">service</span>.<span class="ident">on_exit</span>(),
-						)<span class="question-mark">?</span>));
-					},
-					(<span class="bool-val">true</span>, <span class="bool-val">false</span>) <span class="op">=</span><span class="op">&gt;</span> {
-						<span class="comment">// start the full GRANDPA voter</span>
-						<span class="kw">let</span> <span class="ident">telemetry_on_connect</span> <span class="op">=</span> <span class="ident">TelemetryOnConnect</span> {
-							<span class="ident">telemetry_connection_sinks</span>: <span class="ident">service</span>.<span class="ident">telemetry_on_connect_stream</span>(),
-						};
-						<span class="kw">let</span> <span class="ident">grandpa_config</span> <span class="op">=</span> <span class="ident">grandpa</span>::<span class="ident">GrandpaParams</span> {
-							<span class="ident">config</span>: <span class="ident">config</span>,
-							<span class="ident">link</span>: <span class="ident">link_half</span>,
-							<span class="ident">network</span>: <span class="ident">service</span>.<span class="ident">network</span>(),
-							<span class="ident">inherent_data_providers</span>:
-								<span class="ident">service</span>.<span class="ident">config</span>().<span class="ident">custom</span>.<span class="ident">inherent_data_providers</span>.<span class="ident">clone</span>(),
-							<span class="ident">on_exit</span>: <span class="ident">service</span>.<span class="ident">on_exit</span>(),
-							<span class="ident">telemetry_on_connect</span>: <span class="prelude-val">Some</span>(<span class="ident">telemetry_on_connect</span>),
-						};
-
-						<span class="comment">// the GRANDPA voter task is considered infallible, i.e.</span>
-						<span class="comment">// if it fails we take down the service with it.</span>
-						<span class="ident">service</span>.<span class="ident">spawn_essential_task</span>(<span class="ident">grandpa</span>::<span class="ident">run_grandpa_voter</span>(<span class="ident">grandpa_config</span>)<span class="question-mark">?</span>);
-					},
-					(<span class="kw">_</span>, <span class="bool-val">true</span>) <span class="op">=</span><span class="op">&gt;</span> {
-						<span class="ident">grandpa</span>::<span class="ident">setup_disabled_grandpa</span>(
-							<span class="ident">service</span>.<span class="ident">client</span>(),
-							<span class="kw-2">&amp;</span><span class="ident">service</span>.<span class="ident">config</span>().<span class="ident">custom</span>.<span class="ident">inherent_data_providers</span>,
-							<span class="ident">service</span>.<span class="ident">network</span>(),
-						)<span class="question-mark">?</span>;
-					},
-				}
-
-				<span class="prelude-val">Ok</span>(<span class="ident">service</span>)
-			}
-		},
-		<span class="ident">LightService</span> <span class="op">=</span> <span class="ident">LightComponents</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>
-			{ <span class="op">|</span><span class="ident">config</span><span class="op">|</span> <span class="op">&lt;</span><span class="ident">LightComponents</span><span class="op">&lt;</span><span class="ident">Factory</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">new</span>(<span class="ident">config</span>) },
-		<span class="ident">FullImportQueue</span> <span class="op">=</span> <span class="ident">BabeImportQueue</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Block</span><span class="op">&gt;</span>
-			{
-				<span class="op">|</span>
-					<span class="ident">config</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FactoryFullConfiguration</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>,
-					<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FullClient</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-					<span class="ident">select_chain</span>: <span class="self">Self</span>::<span class="ident">SelectChain</span>,
-					<span class="ident">transaction_pool</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">TransactionPool</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">FullTransactionPoolApi</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-				<span class="op">|</span>
-			{
+		<span class="kw">let</span> <span class="ident">builder</span> <span class="op">=</span> <span class="ident">substrate_service</span>::<span class="ident">ServiceBuilder</span>::<span class="ident">new_full</span>::<span class="op">&lt;</span>
+			<span class="ident">node_primitives</span>::<span class="ident">Block</span>, <span class="ident">node_runtime</span>::<span class="ident">RuntimeApi</span>, <span class="ident">node_executor</span>::<span class="ident">Executor</span>
+		<span class="op">&gt;</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">config</span>)<span class="question-mark">?</span>
+			.<span class="ident">with_select_chain</span>(<span class="op">|</span><span class="ident">_config</span>, <span class="ident">client</span><span class="op">|</span> {
+				<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span>
+				<span class="prelude-val">Ok</span>(<span class="ident">client</span>::<span class="ident">LongestChain</span>::<span class="ident">new</span>(<span class="ident">client</span>.<span class="ident">backend</span>().<span class="ident">clone</span>()))
+			})<span class="question-mark">?</span>
+			.<span class="ident">with_transaction_pool</span>(<span class="op">|</span><span class="ident">config</span>, <span class="ident">client</span><span class="op">|</span>
+				<span class="prelude-val">Ok</span>(<span class="ident">transaction_pool</span>::<span class="ident">txpool</span>::<span class="ident">Pool</span>::<span class="ident">new</span>(<span class="ident">config</span>, <span class="ident">transaction_pool</span>::<span class="ident">ChainApi</span>::<span class="ident">new</span>(<span class="ident">client</span>)))
+			)<span class="question-mark">?</span>
+			.<span class="ident">with_import_queue</span>(<span class="op">|</span><span class="ident">_config</span>, <span class="ident">client</span>, <span class="kw-2">mut</span> <span class="ident">select_chain</span>, <span class="ident">transaction_pool</span><span class="op">|</span> {
+				<span class="kw">let</span> <span class="ident">select_chain</span> <span class="op">=</span> <span class="ident">select_chain</span>.<span class="ident">take</span>()
+					.<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">substrate_service</span>::<span class="ident">Error</span>::<span class="ident">SelectChainRequired</span>)<span class="question-mark">?</span>;
 				<span class="kw">let</span> (<span class="ident">block_import</span>, <span class="ident">link_half</span>) <span class="op">=</span>
-					<span class="ident">grandpa</span>::<span class="ident">block_import</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">RuntimeApi</span>, <span class="ident">FullClient</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>, <span class="kw">_</span><span class="op">&gt;</span>(
+					<span class="ident">grandpa</span>::<span class="ident">block_import</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">node_runtime</span>::<span class="ident">RuntimeApi</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(
 						<span class="ident">client</span>.<span class="ident">clone</span>(), <span class="ident">client</span>.<span class="ident">clone</span>(), <span class="ident">select_chain</span>
 					)<span class="question-mark">?</span>;
 				<span class="kw">let</span> <span class="ident">justification_import</span> <span class="op">=</span> <span class="ident">block_import</span>.<span class="ident">clone</span>();
 
-				<span class="kw">let</span> (<span class="ident">import_queue</span>, <span class="ident">babe_link</span>, <span class="ident">babe_block_import</span>, <span class="ident">pruning_task</span>) <span class="op">=</span> <span class="ident">import_queue</span>(
-					<span class="ident">Config</span>::<span class="ident">get_or_compute</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">client</span>)<span class="question-mark">?</span>,
+				<span class="kw">let</span> (<span class="ident">import_queue</span>, <span class="ident">babe_link</span>, <span class="ident">babe_block_import</span>, <span class="ident">pruning_task</span>) <span class="op">=</span> <span class="ident">babe</span>::<span class="ident">import_queue</span>(
+					<span class="ident">babe</span>::<span class="ident">Config</span>::<span class="ident">get_or_compute</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">client</span>)<span class="question-mark">?</span>,
 					<span class="ident">block_import</span>,
 					<span class="prelude-val">Some</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">justification_import</span>)),
 					<span class="prelude-val">None</span>,
 					<span class="ident">client</span>.<span class="ident">clone</span>(),
 					<span class="ident">client</span>,
-					<span class="ident">config</span>.<span class="ident">custom</span>.<span class="ident">inherent_data_providers</span>.<span class="ident">clone</span>(),
-					<span class="ident">transaction_pool</span>,
+					<span class="ident">inherent_data_providers</span>.<span class="ident">clone</span>(),
+					<span class="prelude-val">Some</span>(<span class="ident">transaction_pool</span>)
 				)<span class="question-mark">?</span>;
 
-				<span class="ident">config</span>.<span class="ident">custom</span>.<span class="ident">import_setup</span> <span class="op">=</span> <span class="prelude-val">Some</span>((<span class="ident">babe_block_import</span>.<span class="ident">clone</span>(), <span class="ident">link_half</span>, <span class="ident">babe_link</span>));
-				<span class="ident">config</span>.<span class="ident">custom</span>.<span class="ident">tasks_to_spawn</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">pruning_task</span>)]);
+				<span class="ident">import_setup</span> <span class="op">=</span> <span class="prelude-val">Some</span>((<span class="ident">babe_block_import</span>.<span class="ident">clone</span>(), <span class="ident">link_half</span>, <span class="ident">babe_link</span>));
+				<span class="ident">tasks_to_spawn</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">pruning_task</span>)]);
 
 				<span class="prelude-val">Ok</span>(<span class="ident">import_queue</span>)
-			}},
-		<span class="ident">LightImportQueue</span> <span class="op">=</span> <span class="ident">BabeImportQueue</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Block</span><span class="op">&gt;</span>
-			{ <span class="op">|</span><span class="ident">config</span>: <span class="kw-2">&amp;</span><span class="ident">FactoryFullConfiguration</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">LightClient</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">|</span> {
-				<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span>
-				<span class="kw">let</span> <span class="ident">fetch_checker</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">backend</span>().<span class="ident">blockchain</span>().<span class="ident">fetcher</span>()
-					.<span class="ident">upgrade</span>()
-					.<span class="ident">map</span>(<span class="op">|</span><span class="ident">fetcher</span><span class="op">|</span> <span class="ident">fetcher</span>.<span class="ident">checker</span>().<span class="ident">clone</span>())
-					.<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="string">&quot;Trying to start light import queue without active fetch checker&quot;</span>)<span class="question-mark">?</span>;
-				<span class="kw">let</span> <span class="ident">block_import</span> <span class="op">=</span> <span class="ident">grandpa</span>::<span class="ident">light_block_import</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">RuntimeApi</span>, <span class="ident">LightClient</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span><span class="op">&gt;</span>(
-					<span class="ident">client</span>.<span class="ident">clone</span>(), <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">fetch_checker</span>), <span class="ident">client</span>.<span class="ident">clone</span>()
-				)<span class="question-mark">?</span>;
+			})<span class="question-mark">?</span>
+			.<span class="ident">with_rpc_extensions</span>(<span class="op">|</span><span class="ident">client</span>, <span class="ident">pool</span><span class="op">|</span> {
+				<span class="kw">use</span> <span class="ident">node_rpc</span>::<span class="ident">accounts</span>::{<span class="ident">Accounts</span>, <span class="ident">AccountsApi</span>};
 
-				<span class="kw">let</span> <span class="ident">finality_proof_import</span> <span class="op">=</span> <span class="ident">block_import</span>.<span class="ident">clone</span>();
-				<span class="kw">let</span> <span class="ident">finality_proof_request_builder</span> <span class="op">=</span>
-					<span class="ident">finality_proof_import</span>.<span class="ident">create_finality_proof_request_builder</span>();
+				<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">io</span> <span class="op">=</span> <span class="ident">jsonrpc_core</span>::<span class="ident">IoHandler</span>::<span class="op">&lt;</span><span class="ident">substrate_service</span>::<span class="ident">RpcMetadata</span><span class="op">&gt;</span>::<span class="ident">default</span>();
+				<span class="ident">io</span>.<span class="ident">extend_with</span>(
+					<span class="ident">AccountsApi</span>::<span class="ident">to_delegate</span>(<span class="ident">Accounts</span>::<span class="ident">new</span>(<span class="ident">client</span>, <span class="ident">pool</span>))
+				);
+				<span class="ident">io</span>
+			})<span class="question-mark">?</span>;
+		
+		(<span class="ident">builder</span>, <span class="ident">import_setup</span>, <span class="ident">inherent_data_providers</span>, <span class="ident">tasks_to_spawn</span>)
+	}}
+}
 
-				<span class="comment">// FIXME: pruning task isn&#39;t started since light client doesn&#39;t do `AuthoritySetup`.</span>
-				<span class="kw">let</span> (<span class="ident">import_queue</span>, ..) <span class="op">=</span> <span class="ident">import_queue</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">TransactionPool</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">FullTransactionPoolApi</span><span class="op">&gt;</span><span class="op">&gt;</span>(
-					<span class="ident">Config</span>::<span class="ident">get_or_compute</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">client</span>)<span class="question-mark">?</span>,
-					<span class="ident">block_import</span>,
-					<span class="prelude-val">None</span>,
-					<span class="prelude-val">Some</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">finality_proof_import</span>)),
-					<span class="ident">client</span>.<span class="ident">clone</span>(),
-					<span class="ident">client</span>,
-					<span class="ident">config</span>.<span class="ident">custom</span>.<span class="ident">inherent_data_providers</span>.<span class="ident">clone</span>(),
-					<span class="prelude-val">None</span>,
-				)<span class="question-mark">?</span>;
+<span class="doccomment">/// Creates a full service from the configuration.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// We need to use a macro because the test suit doesn&#39;t work with an opaque service. It expects</span>
+<span class="doccomment">/// concrete types instead.</span>
+<span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">new_full</span> {
+	(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">config</span>:<span class="ident">expr</span>) <span class="op">=</span><span class="op">&gt;</span> {{
+		<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">Future</span>;
 
-				<span class="prelude-val">Ok</span>((<span class="ident">import_queue</span>, <span class="ident">finality_proof_request_builder</span>))
-			}},
-		<span class="ident">SelectChain</span> <span class="op">=</span> <span class="ident">LongestChain</span><span class="op">&lt;</span><span class="ident">FullBackend</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>, <span class="self">Self</span>::<span class="ident">Block</span><span class="op">&gt;</span>
-			{ <span class="op">|</span><span class="ident">config</span>: <span class="kw-2">&amp;</span><span class="ident">FactoryFullConfiguration</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FullClient</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">|</span> {
-				<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span>
-				<span class="prelude-val">Ok</span>(<span class="ident">LongestChain</span>::<span class="ident">new</span>(<span class="ident">client</span>.<span class="ident">backend</span>().<span class="ident">clone</span>()))
+		<span class="kw">let</span> (<span class="ident">builder</span>, <span class="kw-2">mut</span> <span class="ident">import_setup</span>, <span class="ident">inherent_data_providers</span>, <span class="kw-2">mut</span> <span class="ident">tasks_to_spawn</span>) <span class="op">=</span> <span class="macro">new_full_start</span><span class="macro">!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">config</span>);
+
+		<span class="kw">let</span> <span class="ident">service</span> <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">with_network_protocol</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="kw">crate</span>::<span class="ident">service</span>::<span class="ident">NodeProtocol</span>::<span class="ident">new</span>()))<span class="question-mark">?</span>
+			.<span class="ident">with_finality_proof_provider</span>(<span class="op">|</span><span class="ident">client</span><span class="op">|</span>
+				<span class="prelude-val">Ok</span>(<span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">grandpa</span>::<span class="ident">FinalityProofProvider</span>::<span class="ident">new</span>(<span class="ident">client</span>.<span class="ident">clone</span>(), <span class="ident">client</span>)) <span class="kw">as</span> <span class="kw">_</span>)
+			)<span class="question-mark">?</span>
+			.<span class="ident">build</span>()<span class="question-mark">?</span>;
+
+		<span class="kw">let</span> (<span class="ident">block_import</span>, <span class="ident">link_half</span>, <span class="ident">babe_link</span>) <span class="op">=</span> <span class="ident">import_setup</span>.<span class="ident">take</span>()
+				.<span class="ident">expect</span>(<span class="string">&quot;Link Half and Block Import are present for Full Services or setup failed before. qed&quot;</span>);
+
+		<span class="comment">// spawn any futures that were created in the previous setup steps</span>
+		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">tasks</span>) <span class="op">=</span> <span class="ident">tasks_to_spawn</span>.<span class="ident">take</span>() {
+			<span class="kw">for</span> <span class="ident">task</span> <span class="kw">in</span> <span class="ident">tasks</span> {
+				<span class="ident">service</span>.<span class="ident">spawn_task</span>(
+					<span class="ident">task</span>.<span class="ident">select</span>(<span class="ident">service</span>.<span class="ident">on_exit</span>())
+						.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
+						.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
+				);
 			}
-		},
-		<span class="ident">FinalityProofProvider</span> <span class="op">=</span> { <span class="op">|</span><span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FullClient</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">|</span> {
-			<span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">GrandpaFinalityProofProvider</span>::<span class="ident">new</span>(<span class="ident">client</span>.<span class="ident">clone</span>(), <span class="ident">client</span>)) <span class="kw">as</span> <span class="kw">_</span>))
-		}},
+		}
 
-		<span class="ident">RpcExtensions</span> <span class="op">=</span> <span class="ident">jsonrpc_core</span>::<span class="ident">IoHandler</span><span class="op">&lt;</span><span class="ident">substrate_rpc</span>::<span class="ident">Metadata</span><span class="op">&gt;</span>
-		{ <span class="op">|</span><span class="ident">client</span>, <span class="ident">pool</span><span class="op">|</span> {
+		<span class="kw">if</span> <span class="ident">service</span>.<span class="ident">config</span>().<span class="ident">roles</span>.<span class="ident">is_authority</span>() {
+			<span class="kw">let</span> <span class="ident">proposer</span> <span class="op">=</span> <span class="ident">substrate_basic_authorship</span>::<span class="ident">ProposerFactory</span> {
+				<span class="ident">client</span>: <span class="ident">service</span>.<span class="ident">client</span>(),
+				<span class="ident">transaction_pool</span>: <span class="ident">service</span>.<span class="ident">transaction_pool</span>(),
+			};
+
+			<span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">service</span>.<span class="ident">client</span>();
+			<span class="kw">let</span> <span class="ident">select_chain</span> <span class="op">=</span> <span class="ident">service</span>.<span class="ident">select_chain</span>()
+				.<span class="ident">ok_or</span>(<span class="ident">substrate_service</span>::<span class="ident">Error</span>::<span class="ident">SelectChainRequired</span>)<span class="question-mark">?</span>;
+
+			<span class="kw">let</span> <span class="ident">babe_config</span> <span class="op">=</span> <span class="ident">babe</span>::<span class="ident">BabeParams</span> {
+				<span class="ident">config</span>: <span class="ident">babe</span>::<span class="ident">Config</span>::<span class="ident">get_or_compute</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">client</span>)<span class="question-mark">?</span>,
+				<span class="ident">keystore</span>: <span class="ident">service</span>.<span class="ident">keystore</span>(),
+				<span class="ident">client</span>,
+				<span class="ident">select_chain</span>,
+				<span class="ident">block_import</span>,
+				<span class="ident">env</span>: <span class="ident">proposer</span>,
+				<span class="ident">sync_oracle</span>: <span class="ident">service</span>.<span class="ident">network</span>(),
+				<span class="ident">inherent_data_providers</span>: <span class="ident">inherent_data_providers</span>.<span class="ident">clone</span>(),
+				<span class="ident">force_authoring</span>: <span class="ident">service</span>.<span class="ident">config</span>().<span class="ident">force_authoring</span>,
+				<span class="ident">time_source</span>: <span class="ident">babe_link</span>,
+			};
+
+			<span class="kw">let</span> <span class="ident">babe</span> <span class="op">=</span> <span class="ident">babe</span>::<span class="ident">start_babe</span>(<span class="ident">babe_config</span>)<span class="question-mark">?</span>;
+			<span class="kw">let</span> <span class="ident">select</span> <span class="op">=</span> <span class="ident">babe</span>.<span class="ident">select</span>(<span class="ident">service</span>.<span class="ident">on_exit</span>()).<span class="ident">then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()));
+			<span class="ident">service</span>.<span class="ident">spawn_task</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">select</span>));
+		}
+
+		<span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">grandpa</span>::<span class="ident">Config</span> {
+			<span class="comment">// FIXME #1578 make this available through chainspec</span>
+			<span class="ident">gossip_duration</span>: <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>::<span class="ident">from_millis</span>(<span class="number">333</span>),
+			<span class="ident">justification_period</span>: <span class="number">4096</span>,
+			<span class="ident">name</span>: <span class="prelude-val">Some</span>(<span class="ident">service</span>.<span class="ident">config</span>().<span class="ident">name</span>.<span class="ident">clone</span>()),
+			<span class="ident">keystore</span>: <span class="prelude-val">Some</span>(<span class="ident">service</span>.<span class="ident">keystore</span>()),
+		};
+
+		<span class="kw">match</span> (<span class="ident">service</span>.<span class="ident">config</span>().<span class="ident">roles</span>.<span class="ident">is_authority</span>(), <span class="ident">service</span>.<span class="ident">config</span>().<span class="ident">disable_grandpa</span>) {
+			(<span class="bool-val">false</span>, <span class="bool-val">false</span>) <span class="op">=</span><span class="op">&gt;</span> {
+				<span class="comment">// start the lightweight GRANDPA observer</span>
+				<span class="ident">service</span>.<span class="ident">spawn_task</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">grandpa</span>::<span class="ident">run_grandpa_observer</span>(
+					<span class="ident">config</span>,
+					<span class="ident">link_half</span>,
+					<span class="ident">service</span>.<span class="ident">network</span>(),
+					<span class="ident">service</span>.<span class="ident">on_exit</span>(),
+				)<span class="question-mark">?</span>));
+			},
+			(<span class="bool-val">true</span>, <span class="bool-val">false</span>) <span class="op">=</span><span class="op">&gt;</span> {
+				<span class="comment">// start the full GRANDPA voter</span>
+				<span class="kw">let</span> <span class="ident">grandpa_config</span> <span class="op">=</span> <span class="ident">grandpa</span>::<span class="ident">GrandpaParams</span> {
+					<span class="ident">config</span>: <span class="ident">config</span>,
+					<span class="ident">link</span>: <span class="ident">link_half</span>,
+					<span class="ident">network</span>: <span class="ident">service</span>.<span class="ident">network</span>(),
+					<span class="ident">inherent_data_providers</span>: <span class="ident">inherent_data_providers</span>.<span class="ident">clone</span>(),
+					<span class="ident">on_exit</span>: <span class="ident">service</span>.<span class="ident">on_exit</span>(),
+					<span class="ident">telemetry_on_connect</span>: <span class="prelude-val">Some</span>(<span class="ident">service</span>.<span class="ident">telemetry_on_connect_stream</span>()),
+				};
+				<span class="ident">service</span>.<span class="ident">spawn_task</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">grandpa</span>::<span class="ident">run_grandpa_voter</span>(<span class="ident">grandpa_config</span>)<span class="question-mark">?</span>));
+			},
+			(<span class="kw">_</span>, <span class="bool-val">true</span>) <span class="op">=</span><span class="op">&gt;</span> {
+				<span class="ident">grandpa</span>::<span class="ident">setup_disabled_grandpa</span>(
+					<span class="ident">service</span>.<span class="ident">client</span>(),
+					<span class="kw-2">&amp;</span><span class="ident">inherent_data_providers</span>,
+					<span class="ident">service</span>.<span class="ident">network</span>(),
+				)<span class="question-mark">?</span>;
+			},
+		}
+
+		<span class="prelude-val">Ok</span>((<span class="ident">service</span>, <span class="ident">inherent_data_providers</span>))
+	}}
+}
+
+<span class="doccomment">/// Builds a new service for a full client.</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_full</span><span class="op">&lt;</span><span class="ident">C</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Default</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>(<span class="ident">config</span>: <span class="ident">Configuration</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">GenesisConfig</span><span class="op">&gt;</span>)
+<span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">AbstractService</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+	<span class="macro">new_full</span><span class="macro">!</span>(<span class="ident">config</span>).<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">service</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">service</span>)
+}
+
+<span class="doccomment">/// Builds a new service for a light client.</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_light</span><span class="op">&lt;</span><span class="ident">C</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Default</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>(<span class="ident">config</span>: <span class="ident">Configuration</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">GenesisConfig</span><span class="op">&gt;</span>)
+<span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">AbstractService</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+	<span class="kw">let</span> <span class="ident">inherent_data_providers</span> <span class="op">=</span> <span class="ident">InherentDataProviders</span>::<span class="ident">new</span>();
+
+	<span class="ident">ServiceBuilder</span>::<span class="ident">new_light</span>::<span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">RuntimeApi</span>, <span class="ident">node_executor</span>::<span class="ident">Executor</span><span class="op">&gt;</span>(<span class="ident">config</span>)<span class="question-mark">?</span>
+		.<span class="ident">with_select_chain</span>(<span class="op">|</span><span class="ident">_config</span>, <span class="ident">client</span><span class="op">|</span> {
+			<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span>
+			<span class="prelude-val">Ok</span>(<span class="ident">LongestChain</span>::<span class="ident">new</span>(<span class="ident">client</span>.<span class="ident">backend</span>().<span class="ident">clone</span>()))
+		})<span class="question-mark">?</span>
+		.<span class="ident">with_transaction_pool</span>(<span class="op">|</span><span class="ident">config</span>, <span class="ident">client</span><span class="op">|</span>
+			<span class="prelude-val">Ok</span>(<span class="ident">TransactionPool</span>::<span class="ident">new</span>(<span class="ident">config</span>, <span class="ident">transaction_pool</span>::<span class="ident">ChainApi</span>::<span class="ident">new</span>(<span class="ident">client</span>)))
+		)<span class="question-mark">?</span>
+		.<span class="ident">with_import_queue_and_fprb</span>(<span class="op">|</span><span class="ident">_config</span>, <span class="ident">client</span>, <span class="ident">_select_chain</span>, <span class="ident">transaction_pool</span><span class="op">|</span> {
+			<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span>
+			<span class="kw">let</span> <span class="ident">fetch_checker</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">backend</span>().<span class="ident">blockchain</span>().<span class="ident">fetcher</span>()
+				.<span class="ident">upgrade</span>()
+				.<span class="ident">map</span>(<span class="op">|</span><span class="ident">fetcher</span><span class="op">|</span> <span class="ident">fetcher</span>.<span class="ident">checker</span>().<span class="ident">clone</span>())
+				.<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="string">&quot;Trying to start light import queue without active fetch checker&quot;</span>)<span class="question-mark">?</span>;
+			<span class="kw">let</span> <span class="ident">block_import</span> <span class="op">=</span> <span class="ident">grandpa</span>::<span class="ident">light_block_import</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">RuntimeApi</span>, <span class="kw">_</span><span class="op">&gt;</span>(
+				<span class="ident">client</span>.<span class="ident">clone</span>(), <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">fetch_checker</span>), <span class="ident">client</span>.<span class="ident">clone</span>()
+			)<span class="question-mark">?</span>;
+
+			<span class="kw">let</span> <span class="ident">finality_proof_import</span> <span class="op">=</span> <span class="ident">block_import</span>.<span class="ident">clone</span>();
+			<span class="kw">let</span> <span class="ident">finality_proof_request_builder</span> <span class="op">=</span>
+				<span class="ident">finality_proof_import</span>.<span class="ident">create_finality_proof_request_builder</span>();
+
+			<span class="comment">// FIXME: pruning task isn&#39;t started since light client doesn&#39;t do `AuthoritySetup`.</span>
+			<span class="kw">let</span> (<span class="ident">import_queue</span>, ..) <span class="op">=</span> <span class="ident">import_queue</span>(
+				<span class="ident">Config</span>::<span class="ident">get_or_compute</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">client</span>)<span class="question-mark">?</span>,
+				<span class="ident">block_import</span>,
+				<span class="prelude-val">None</span>,
+				<span class="prelude-val">Some</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">finality_proof_import</span>)),
+				<span class="ident">client</span>.<span class="ident">clone</span>(),
+				<span class="ident">client</span>,
+				<span class="ident">inherent_data_providers</span>.<span class="ident">clone</span>(),
+				<span class="prelude-val">Some</span>(<span class="ident">transaction_pool</span>)
+			)<span class="question-mark">?</span>;
+
+			<span class="prelude-val">Ok</span>((<span class="ident">import_queue</span>, <span class="ident">finality_proof_request_builder</span>))
+		})<span class="question-mark">?</span>
+		.<span class="ident">with_network_protocol</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="ident">NodeProtocol</span>::<span class="ident">new</span>()))<span class="question-mark">?</span>
+		.<span class="ident">with_finality_proof_provider</span>(<span class="op">|</span><span class="ident">client</span><span class="op">|</span>
+			<span class="prelude-val">Ok</span>(<span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">GrandpaFinalityProofProvider</span>::<span class="ident">new</span>(<span class="ident">client</span>.<span class="ident">clone</span>(), <span class="ident">client</span>)) <span class="kw">as</span> <span class="kw">_</span>)
+		)<span class="question-mark">?</span>
+		.<span class="ident">with_rpc_extensions</span>(<span class="op">|</span><span class="ident">client</span>, <span class="ident">pool</span><span class="op">|</span> {
 			<span class="kw">use</span> <span class="ident">node_rpc</span>::<span class="ident">accounts</span>::{<span class="ident">Accounts</span>, <span class="ident">AccountsApi</span>};
 
 			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">io</span> <span class="op">=</span> <span class="ident">jsonrpc_core</span>::<span class="ident">IoHandler</span>::<span class="ident">default</span>();
@@ -809,10 +744,9 @@
 				<span class="ident">AccountsApi</span>::<span class="ident">to_delegate</span>(<span class="ident">Accounts</span>::<span class="ident">new</span>(<span class="ident">client</span>, <span class="ident">pool</span>))
 			);
 			<span class="ident">io</span>
-		}},
-	}
+		})<span class="question-mark">?</span>
+		.<span class="ident">build</span>()
 }
-
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span> {
@@ -833,9 +767,8 @@
 	<span class="kw">use</span> <span class="ident">timestamp</span>;
 	<span class="kw">use</span> <span class="ident">finality_tracker</span>;
 	<span class="kw">use</span> <span class="ident">keyring</span>::<span class="ident">AccountKeyring</span>;
-	<span class="kw">use</span> <span class="ident">substrate_service</span>::<span class="ident">ServiceFactory</span>;
-	<span class="kw">use</span> <span class="ident">service_test</span>::<span class="ident">SyncService</span>;
-	<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">service</span>::<span class="ident">Factory</span>;
+	<span class="kw">use</span> <span class="ident">substrate_service</span>::<span class="ident">AbstractService</span>;
+	<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">service</span>::{<span class="ident">new_full</span>, <span class="ident">new_light</span>};
 
 	<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;rhd&quot;</span>)]</span>
 	<span class="kw">fn</span> <span class="ident">test_sync</span>() {
@@ -890,8 +823,10 @@
 			<span class="kw">let</span> <span class="ident">v</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Decode</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">xt</span>.<span class="ident">as_slice</span>()).<span class="ident">unwrap</span>();
 			<span class="ident">OpaqueExtrinsic</span>(<span class="ident">v</span>)
 		};
-		<span class="ident">service_test</span>::<span class="ident">sync</span>::<span class="op">&lt;</span><span class="ident">Factory</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(
+		<span class="ident">service_test</span>::<span class="ident">sync</span>(
 			<span class="ident">chain_spec</span>::<span class="ident">integration_test_config</span>(),
+			<span class="op">|</span><span class="ident">config</span><span class="op">|</span> <span class="ident">new_full</span>(<span class="ident">config</span>),
+			<span class="op">|</span><span class="ident">config</span><span class="op">|</span> <span class="ident">new_light</span>(<span class="ident">config</span>),
 			<span class="ident">block_factory</span>,
 			<span class="ident">extrinsic_factory</span>,
 		);
@@ -908,130 +843,127 @@
 
 		<span class="kw">let</span> <span class="ident">chain_spec</span> <span class="op">=</span> <span class="kw">crate</span>::<span class="ident">chain_spec</span>::<span class="ident">tests</span>::<span class="ident">integration_test_config_with_single_authority</span>();
 
+		<span class="comment">// For the block factory</span>
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">slot_num</span> <span class="op">=</span> <span class="number">1u64</span>;
-		<span class="kw">let</span> <span class="ident">block_factory</span> <span class="op">=</span> <span class="op">|</span><span class="ident">service</span>: <span class="kw-2">&amp;</span><span class="ident">SyncService</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">Factory</span> <span class="kw">as</span> <span class="ident">ServiceFactory</span><span class="op">&gt;</span>::<span class="ident">FullService</span><span class="op">&gt;</span><span class="op">|</span> {
-			<span class="kw">let</span> <span class="ident">service</span> <span class="op">=</span> <span class="ident">service</span>.<span class="ident">get</span>();
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">inherent_data</span> <span class="op">=</span> <span class="ident">service</span>
-				.<span class="ident">config</span>()
-				.<span class="ident">custom</span>
-				.<span class="ident">inherent_data_providers</span>
-				.<span class="ident">create_inherent_data</span>()
-				.<span class="ident">expect</span>(<span class="string">&quot;Creates inherent data.&quot;</span>);
-			<span class="ident">inherent_data</span>.<span class="ident">replace_data</span>(<span class="ident">finality_tracker</span>::<span class="ident">INHERENT_IDENTIFIER</span>, <span class="kw-2">&amp;</span><span class="number">1u64</span>);
 
-			<span class="kw">let</span> <span class="ident">parent_id</span> <span class="op">=</span> <span class="ident">BlockId</span>::<span class="ident">number</span>(<span class="ident">service</span>.<span class="ident">client</span>().<span class="ident">info</span>().<span class="ident">chain</span>.<span class="ident">best_number</span>);
-			<span class="kw">let</span> <span class="ident">parent_header</span> <span class="op">=</span> <span class="ident">service</span>.<span class="ident">client</span>().<span class="ident">header</span>(<span class="kw-2">&amp;</span><span class="ident">parent_id</span>).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>();
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">proposer_factory</span> <span class="op">=</span> <span class="ident">substrate_basic_authorship</span>::<span class="ident">ProposerFactory</span> {
-				<span class="ident">client</span>: <span class="ident">service</span>.<span class="ident">client</span>(),
-				<span class="ident">transaction_pool</span>: <span class="ident">service</span>.<span class="ident">transaction_pool</span>(),
-			};
-
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">digest</span> <span class="op">=</span> <span class="ident">Digest</span>::<span class="op">&lt;</span><span class="ident">H256</span><span class="op">&gt;</span>::<span class="ident">default</span>();
-
-			<span class="comment">// even though there&#39;s only one authority some slots might be empty,</span>
-			<span class="comment">// so we must keep trying the next slots until we can claim one.</span>
-			<span class="kw">let</span> <span class="ident">babe_pre_digest</span> <span class="op">=</span> <span class="kw">loop</span> {
-				<span class="ident">inherent_data</span>.<span class="ident">replace_data</span>(<span class="ident">timestamp</span>::<span class="ident">INHERENT_IDENTIFIER</span>, <span class="kw-2">&amp;</span>(<span class="ident">slot_num</span> <span class="op">*</span> <span class="ident">SLOT_DURATION</span>));
-				<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">babe_pre_digest</span>) <span class="op">=</span> <span class="ident">babe</span>::<span class="ident">test_helpers</span>::<span class="ident">claim_slot</span>(
-					<span class="ident">slot_num</span>,
-					<span class="kw-2">&amp;</span><span class="ident">parent_header</span>,
-					<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">service</span>.<span class="ident">client</span>(),
-					(<span class="number">278</span>, <span class="number">1000</span>),
-					<span class="kw-2">&amp;</span><span class="ident">keystore</span>,
-				) {
-					<span class="kw">break</span> <span class="ident">babe_pre_digest</span>;
-				}
-
-				<span class="ident">slot_num</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
-			};
-
-			<span class="ident">digest</span>.<span class="ident">push</span>(<span class="op">&lt;</span><span class="ident">DigestItem</span> <span class="kw">as</span> <span class="ident">CompatibleDigestItem</span><span class="op">&gt;</span>::<span class="ident">babe_pre_digest</span>(<span class="ident">babe_pre_digest</span>));
-
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">proposer</span> <span class="op">=</span> <span class="ident">proposer_factory</span>.<span class="ident">init</span>(<span class="kw-2">&amp;</span><span class="ident">parent_header</span>).<span class="ident">unwrap</span>();
-			<span class="kw">let</span> <span class="ident">new_block</span> <span class="op">=</span> <span class="ident">futures03</span>::<span class="ident">executor</span>::<span class="ident">block_on</span>(<span class="ident">proposer</span>.<span class="ident">propose</span>(
-				<span class="ident">inherent_data</span>,
-				<span class="ident">digest</span>,
-				<span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">1</span>),
-			)).<span class="ident">expect</span>(<span class="string">&quot;Error making test block&quot;</span>);
-
-			<span class="kw">let</span> (<span class="ident">new_header</span>, <span class="ident">new_body</span>) <span class="op">=</span> <span class="ident">new_block</span>.<span class="ident">deconstruct</span>();
-			<span class="kw">let</span> <span class="ident">pre_hash</span> <span class="op">=</span> <span class="ident">new_header</span>.<span class="ident">hash</span>();
-			<span class="comment">// sign the pre-sealed hash of the block and then</span>
-			<span class="comment">// add it to a digest item.</span>
-			<span class="kw">let</span> <span class="ident">to_sign</span> <span class="op">=</span> <span class="ident">pre_hash</span>.<span class="ident">encode</span>();
-			<span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span> <span class="ident">alice</span>.<span class="ident">sign</span>(<span class="kw-2">&amp;</span><span class="ident">to_sign</span>[..]);
-			<span class="kw">let</span> <span class="ident">item</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">DigestItem</span> <span class="kw">as</span> <span class="ident">CompatibleDigestItem</span><span class="op">&gt;</span>::<span class="ident">babe_seal</span>(
-				<span class="ident">signature</span>.<span class="ident">into</span>(),
-			);
-			<span class="ident">slot_num</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
-
-			<span class="ident">BlockImportParams</span> {
-				<span class="ident">origin</span>: <span class="ident">BlockOrigin</span>::<span class="ident">File</span>,
-				<span class="ident">header</span>: <span class="ident">new_header</span>,
-				<span class="ident">justification</span>: <span class="prelude-val">None</span>,
-				<span class="ident">post_digests</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">item</span>],
-				<span class="ident">body</span>: <span class="prelude-val">Some</span>(<span class="ident">new_body</span>),
-				<span class="ident">finalized</span>: <span class="bool-val">true</span>,
-				<span class="ident">auxiliary</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
-				<span class="ident">fork_choice</span>: <span class="ident">ForkChoiceStrategy</span>::<span class="ident">LongestChain</span>,
-			}
-		};
-
+		<span class="comment">// For the extrinsics factory</span>
 		<span class="kw">let</span> <span class="ident">bob</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">AccountKeyring</span>::<span class="ident">Bob</span>.<span class="ident">pair</span>());
 		<span class="kw">let</span> <span class="ident">charlie</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">AccountKeyring</span>::<span class="ident">Charlie</span>.<span class="ident">pair</span>());
-
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">index</span> <span class="op">=</span> <span class="number">0</span>;
-		<span class="kw">let</span> <span class="ident">extrinsic_factory</span> <span class="op">=</span> <span class="op">|</span><span class="ident">service</span>: <span class="kw-2">&amp;</span><span class="ident">SyncService</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">Factory</span> <span class="kw">as</span> <span class="ident">ServiceFactory</span><span class="op">&gt;</span>::<span class="ident">FullService</span><span class="op">&gt;</span><span class="op">|</span> {
-			<span class="kw">let</span> <span class="ident">amount</span> <span class="op">=</span> <span class="number">5</span> <span class="op">*</span> <span class="ident">CENTS</span>;
-			<span class="kw">let</span> <span class="ident">to</span> <span class="op">=</span> <span class="ident">AddressPublic</span>::<span class="ident">from_raw</span>(<span class="ident">bob</span>.<span class="ident">public</span>().<span class="number">0</span>);
-			<span class="kw">let</span> <span class="ident">from</span> <span class="op">=</span> <span class="ident">AddressPublic</span>::<span class="ident">from_raw</span>(<span class="ident">charlie</span>.<span class="ident">public</span>().<span class="number">0</span>);
-			<span class="kw">let</span> <span class="ident">genesis_hash</span> <span class="op">=</span> <span class="ident">service</span>.<span class="ident">get</span>().<span class="ident">client</span>().<span class="ident">block_hash</span>(<span class="number">0</span>).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>();
-			<span class="kw">let</span> <span class="ident">best_block_id</span> <span class="op">=</span> <span class="ident">BlockId</span>::<span class="ident">number</span>(<span class="ident">service</span>.<span class="ident">get</span>().<span class="ident">client</span>().<span class="ident">info</span>().<span class="ident">chain</span>.<span class="ident">best_number</span>);
-			<span class="kw">let</span> <span class="ident">version</span> <span class="op">=</span> <span class="ident">service</span>.<span class="ident">get</span>().<span class="ident">client</span>().<span class="ident">runtime_version_at</span>(<span class="kw-2">&amp;</span><span class="ident">best_block_id</span>).<span class="ident">unwrap</span>().<span class="ident">spec_version</span>;
-			<span class="kw">let</span> <span class="ident">signer</span> <span class="op">=</span> <span class="ident">charlie</span>.<span class="ident">clone</span>();
 
-			<span class="kw">let</span> <span class="ident">function</span> <span class="op">=</span> <span class="ident">Call</span>::<span class="ident">Balances</span>(<span class="ident">BalancesCall</span>::<span class="ident">transfer</span>(<span class="ident">to</span>.<span class="ident">into</span>(), <span class="ident">amount</span>));
-
-			<span class="kw">let</span> <span class="ident">check_version</span> <span class="op">=</span> <span class="ident">system</span>::<span class="ident">CheckVersion</span>::<span class="ident">new</span>();
-			<span class="kw">let</span> <span class="ident">check_genesis</span> <span class="op">=</span> <span class="ident">system</span>::<span class="ident">CheckGenesis</span>::<span class="ident">new</span>();
-			<span class="kw">let</span> <span class="ident">check_era</span> <span class="op">=</span> <span class="ident">system</span>::<span class="ident">CheckEra</span>::<span class="ident">from</span>(<span class="ident">Era</span>::<span class="ident">Immortal</span>);
-			<span class="kw">let</span> <span class="ident">check_nonce</span> <span class="op">=</span> <span class="ident">system</span>::<span class="ident">CheckNonce</span>::<span class="ident">from</span>(<span class="ident">index</span>);
-			<span class="kw">let</span> <span class="ident">check_weight</span> <span class="op">=</span> <span class="ident">system</span>::<span class="ident">CheckWeight</span>::<span class="ident">new</span>();
-			<span class="kw">let</span> <span class="ident">take_fees</span> <span class="op">=</span> <span class="ident">balances</span>::<span class="ident">TakeFees</span>::<span class="ident">from</span>(<span class="number">0</span>);
-			<span class="kw">let</span> <span class="ident">extra</span> <span class="op">=</span> (<span class="ident">check_version</span>, <span class="ident">check_genesis</span>, <span class="ident">check_era</span>, <span class="ident">check_nonce</span>, <span class="ident">check_weight</span>, <span class="ident">take_fees</span>);
-
-			<span class="kw">let</span> <span class="ident">raw_payload</span> <span class="op">=</span> (<span class="ident">function</span>, <span class="ident">extra</span>.<span class="ident">clone</span>(), <span class="ident">version</span>, <span class="ident">genesis_hash</span>, <span class="ident">genesis_hash</span>);
-			<span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span> <span class="ident">raw_payload</span>.<span class="ident">using_encoded</span>(<span class="op">|</span><span class="ident">payload</span><span class="op">|</span> <span class="kw">if</span> <span class="ident">payload</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="number">256</span> {
-				<span class="ident">signer</span>.<span class="ident">sign</span>(<span class="kw-2">&amp;</span><span class="ident">blake2_256</span>(<span class="ident">payload</span>)[..])
-			} <span class="kw">else</span> {
-				<span class="ident">signer</span>.<span class="ident">sign</span>(<span class="ident">payload</span>)
-			});
-			<span class="kw">let</span> <span class="ident">xt</span> <span class="op">=</span> <span class="ident">UncheckedExtrinsic</span>::<span class="ident">new_signed</span>(
-				<span class="ident">raw_payload</span>.<span class="number">0</span>,
-				<span class="ident">from</span>.<span class="ident">into</span>(),
-				<span class="ident">signature</span>.<span class="ident">into</span>(),
-				<span class="ident">extra</span>,
-			).<span class="ident">encode</span>();
-			<span class="kw">let</span> <span class="ident">v</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Decode</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">xt</span>.<span class="ident">as_slice</span>()).<span class="ident">unwrap</span>();
-
-			<span class="ident">index</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
-			<span class="ident">OpaqueExtrinsic</span>(<span class="ident">v</span>)
-		};
-
-		<span class="ident">service_test</span>::<span class="ident">sync</span>::<span class="op">&lt;</span><span class="ident">Factory</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(
+		<span class="ident">service_test</span>::<span class="ident">sync</span>(
 			<span class="ident">chain_spec</span>,
-			<span class="ident">block_factory</span>,
-			<span class="ident">extrinsic_factory</span>,
+			<span class="op">|</span><span class="ident">config</span><span class="op">|</span> <span class="macro">new_full</span><span class="macro">!</span>(<span class="ident">config</span>),
+			<span class="op">|</span><span class="ident">config</span><span class="op">|</span> <span class="ident">new_light</span>(<span class="ident">config</span>),
+			<span class="op">|</span><span class="ident">service</span>, <span class="ident">inherent_data_providers</span><span class="op">|</span> {
+				<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">inherent_data</span> <span class="op">=</span> <span class="ident">inherent_data_providers</span>
+					.<span class="ident">create_inherent_data</span>()
+					.<span class="ident">expect</span>(<span class="string">&quot;Creates inherent data.&quot;</span>);
+				<span class="ident">inherent_data</span>.<span class="ident">replace_data</span>(<span class="ident">finality_tracker</span>::<span class="ident">INHERENT_IDENTIFIER</span>, <span class="kw-2">&amp;</span><span class="number">1u64</span>);
+
+				<span class="kw">let</span> <span class="ident">parent_id</span> <span class="op">=</span> <span class="ident">BlockId</span>::<span class="ident">number</span>(<span class="ident">service</span>.<span class="ident">client</span>().<span class="ident">info</span>().<span class="ident">chain</span>.<span class="ident">best_number</span>);
+				<span class="kw">let</span> <span class="ident">parent_header</span> <span class="op">=</span> <span class="ident">service</span>.<span class="ident">client</span>().<span class="ident">header</span>(<span class="kw-2">&amp;</span><span class="ident">parent_id</span>).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>();
+				<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">proposer_factory</span> <span class="op">=</span> <span class="ident">substrate_basic_authorship</span>::<span class="ident">ProposerFactory</span> {
+					<span class="ident">client</span>: <span class="ident">service</span>.<span class="ident">client</span>(),
+					<span class="ident">transaction_pool</span>: <span class="ident">service</span>.<span class="ident">transaction_pool</span>(),
+				};
+
+				<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">digest</span> <span class="op">=</span> <span class="ident">Digest</span>::<span class="op">&lt;</span><span class="ident">H256</span><span class="op">&gt;</span>::<span class="ident">default</span>();
+
+				<span class="comment">// even though there&#39;s only one authority some slots might be empty,</span>
+				<span class="comment">// so we must keep trying the next slots until we can claim one.</span>
+				<span class="kw">let</span> <span class="ident">babe_pre_digest</span> <span class="op">=</span> <span class="kw">loop</span> {
+					<span class="ident">inherent_data</span>.<span class="ident">replace_data</span>(<span class="ident">timestamp</span>::<span class="ident">INHERENT_IDENTIFIER</span>, <span class="kw-2">&amp;</span>(<span class="ident">slot_num</span> <span class="op">*</span> <span class="ident">SLOT_DURATION</span>));
+					<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">babe_pre_digest</span>) <span class="op">=</span> <span class="ident">babe</span>::<span class="ident">test_helpers</span>::<span class="ident">claim_slot</span>(
+						<span class="ident">slot_num</span>,
+						<span class="kw-2">&amp;</span><span class="ident">parent_header</span>,
+						<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">service</span>.<span class="ident">client</span>(),
+						(<span class="number">278</span>, <span class="number">1000</span>),
+						<span class="kw-2">&amp;</span><span class="ident">keystore</span>,
+					) {
+						<span class="kw">break</span> <span class="ident">babe_pre_digest</span>;
+					}
+
+					<span class="ident">slot_num</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+				};
+
+				<span class="ident">digest</span>.<span class="ident">push</span>(<span class="op">&lt;</span><span class="ident">DigestItem</span> <span class="kw">as</span> <span class="ident">CompatibleDigestItem</span><span class="op">&gt;</span>::<span class="ident">babe_pre_digest</span>(<span class="ident">babe_pre_digest</span>));
+
+				<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">proposer</span> <span class="op">=</span> <span class="ident">proposer_factory</span>.<span class="ident">init</span>(<span class="kw-2">&amp;</span><span class="ident">parent_header</span>).<span class="ident">unwrap</span>();
+				<span class="kw">let</span> <span class="ident">new_block</span> <span class="op">=</span> <span class="ident">futures03</span>::<span class="ident">executor</span>::<span class="ident">block_on</span>(<span class="ident">proposer</span>.<span class="ident">propose</span>(
+					<span class="ident">inherent_data</span>,
+					<span class="ident">digest</span>,
+					<span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">1</span>),
+				)).<span class="ident">expect</span>(<span class="string">&quot;Error making test block&quot;</span>);
+
+				<span class="kw">let</span> (<span class="ident">new_header</span>, <span class="ident">new_body</span>) <span class="op">=</span> <span class="ident">new_block</span>.<span class="ident">deconstruct</span>();
+				<span class="kw">let</span> <span class="ident">pre_hash</span> <span class="op">=</span> <span class="ident">new_header</span>.<span class="ident">hash</span>();
+				<span class="comment">// sign the pre-sealed hash of the block and then</span>
+				<span class="comment">// add it to a digest item.</span>
+				<span class="kw">let</span> <span class="ident">to_sign</span> <span class="op">=</span> <span class="ident">pre_hash</span>.<span class="ident">encode</span>();
+				<span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span> <span class="ident">alice</span>.<span class="ident">sign</span>(<span class="kw-2">&amp;</span><span class="ident">to_sign</span>[..]);
+				<span class="kw">let</span> <span class="ident">item</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">DigestItem</span> <span class="kw">as</span> <span class="ident">CompatibleDigestItem</span><span class="op">&gt;</span>::<span class="ident">babe_seal</span>(
+					<span class="ident">signature</span>.<span class="ident">into</span>(),
+				);
+				<span class="ident">slot_num</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+
+				<span class="ident">BlockImportParams</span> {
+					<span class="ident">origin</span>: <span class="ident">BlockOrigin</span>::<span class="ident">File</span>,
+					<span class="ident">header</span>: <span class="ident">new_header</span>,
+					<span class="ident">justification</span>: <span class="prelude-val">None</span>,
+					<span class="ident">post_digests</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">item</span>],
+					<span class="ident">body</span>: <span class="prelude-val">Some</span>(<span class="ident">new_body</span>),
+					<span class="ident">finalized</span>: <span class="bool-val">true</span>,
+					<span class="ident">auxiliary</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
+					<span class="ident">fork_choice</span>: <span class="ident">ForkChoiceStrategy</span>::<span class="ident">LongestChain</span>,
+				}
+			},
+			<span class="op">|</span><span class="ident">service</span>, <span class="kw">_</span><span class="op">|</span> {
+				<span class="kw">let</span> <span class="ident">amount</span> <span class="op">=</span> <span class="number">5</span> <span class="op">*</span> <span class="ident">CENTS</span>;
+				<span class="kw">let</span> <span class="ident">to</span> <span class="op">=</span> <span class="ident">AddressPublic</span>::<span class="ident">from_raw</span>(<span class="ident">bob</span>.<span class="ident">public</span>().<span class="number">0</span>);
+				<span class="kw">let</span> <span class="ident">from</span> <span class="op">=</span> <span class="ident">AddressPublic</span>::<span class="ident">from_raw</span>(<span class="ident">charlie</span>.<span class="ident">public</span>().<span class="number">0</span>);
+				<span class="kw">let</span> <span class="ident">genesis_hash</span> <span class="op">=</span> <span class="ident">service</span>.<span class="ident">client</span>().<span class="ident">block_hash</span>(<span class="number">0</span>).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>();
+				<span class="kw">let</span> <span class="ident">best_block_id</span> <span class="op">=</span> <span class="ident">BlockId</span>::<span class="ident">number</span>(<span class="ident">service</span>.<span class="ident">client</span>().<span class="ident">info</span>().<span class="ident">chain</span>.<span class="ident">best_number</span>);
+				<span class="kw">let</span> <span class="ident">version</span> <span class="op">=</span> <span class="ident">service</span>.<span class="ident">client</span>().<span class="ident">runtime_version_at</span>(<span class="kw-2">&amp;</span><span class="ident">best_block_id</span>).<span class="ident">unwrap</span>().<span class="ident">spec_version</span>;
+				<span class="kw">let</span> <span class="ident">signer</span> <span class="op">=</span> <span class="ident">charlie</span>.<span class="ident">clone</span>();
+
+				<span class="kw">let</span> <span class="ident">function</span> <span class="op">=</span> <span class="ident">Call</span>::<span class="ident">Balances</span>(<span class="ident">BalancesCall</span>::<span class="ident">transfer</span>(<span class="ident">to</span>.<span class="ident">into</span>(), <span class="ident">amount</span>));
+
+				<span class="kw">let</span> <span class="ident">check_version</span> <span class="op">=</span> <span class="ident">system</span>::<span class="ident">CheckVersion</span>::<span class="ident">new</span>();
+				<span class="kw">let</span> <span class="ident">check_genesis</span> <span class="op">=</span> <span class="ident">system</span>::<span class="ident">CheckGenesis</span>::<span class="ident">new</span>();
+				<span class="kw">let</span> <span class="ident">check_era</span> <span class="op">=</span> <span class="ident">system</span>::<span class="ident">CheckEra</span>::<span class="ident">from</span>(<span class="ident">Era</span>::<span class="ident">Immortal</span>);
+				<span class="kw">let</span> <span class="ident">check_nonce</span> <span class="op">=</span> <span class="ident">system</span>::<span class="ident">CheckNonce</span>::<span class="ident">from</span>(<span class="ident">index</span>);
+				<span class="kw">let</span> <span class="ident">check_weight</span> <span class="op">=</span> <span class="ident">system</span>::<span class="ident">CheckWeight</span>::<span class="ident">new</span>();
+				<span class="kw">let</span> <span class="ident">take_fees</span> <span class="op">=</span> <span class="ident">balances</span>::<span class="ident">TakeFees</span>::<span class="ident">from</span>(<span class="number">0</span>);
+				<span class="kw">let</span> <span class="ident">extra</span> <span class="op">=</span> (<span class="ident">check_version</span>, <span class="ident">check_genesis</span>, <span class="ident">check_era</span>, <span class="ident">check_nonce</span>, <span class="ident">check_weight</span>, <span class="ident">take_fees</span>);
+
+				<span class="kw">let</span> <span class="ident">raw_payload</span> <span class="op">=</span> (<span class="ident">function</span>, <span class="ident">extra</span>.<span class="ident">clone</span>(), <span class="ident">version</span>, <span class="ident">genesis_hash</span>, <span class="ident">genesis_hash</span>);
+				<span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span> <span class="ident">raw_payload</span>.<span class="ident">using_encoded</span>(<span class="op">|</span><span class="ident">payload</span><span class="op">|</span> <span class="kw">if</span> <span class="ident">payload</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="number">256</span> {
+					<span class="ident">signer</span>.<span class="ident">sign</span>(<span class="kw-2">&amp;</span><span class="ident">blake2_256</span>(<span class="ident">payload</span>)[..])
+				} <span class="kw">else</span> {
+					<span class="ident">signer</span>.<span class="ident">sign</span>(<span class="ident">payload</span>)
+				});
+				<span class="kw">let</span> <span class="ident">xt</span> <span class="op">=</span> <span class="ident">UncheckedExtrinsic</span>::<span class="ident">new_signed</span>(
+					<span class="ident">raw_payload</span>.<span class="number">0</span>,
+					<span class="ident">from</span>.<span class="ident">into</span>(),
+					<span class="ident">signature</span>.<span class="ident">into</span>(),
+					<span class="ident">extra</span>,
+				).<span class="ident">encode</span>();
+				<span class="kw">let</span> <span class="ident">v</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Decode</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">xt</span>.<span class="ident">as_slice</span>()).<span class="ident">unwrap</span>();
+
+				<span class="ident">index</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+				<span class="ident">OpaqueExtrinsic</span>(<span class="ident">v</span>)
+			},
 		);
 	}
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
 	<span class="attribute">#[<span class="ident">ignore</span>]</span>
 	<span class="kw">fn</span> <span class="ident">test_consensus</span>() {
-		<span class="kw">use</span> <span class="kw">super</span>::<span class="ident">Factory</span>;
-
-		<span class="ident">service_test</span>::<span class="ident">consensus</span>::<span class="op">&lt;</span><span class="ident">Factory</span><span class="op">&gt;</span>(
+		<span class="ident">service_test</span>::<span class="ident">consensus</span>(
 			<span class="kw">crate</span>::<span class="ident">chain_spec</span>::<span class="ident">tests</span>::<span class="ident">integration_test_config_with_two_authorities</span>(),
+			<span class="op">|</span><span class="ident">config</span><span class="op">|</span> <span class="ident">new_full</span>(<span class="ident">config</span>),
+			<span class="op">|</span><span class="ident">config</span><span class="op">|</span> <span class="ident">new_light</span>(<span class="ident">config</span>),
 			<span class="macro">vec</span><span class="macro">!</span>[
 				<span class="string">&quot;//Alice&quot;</span>.<span class="ident">into</span>(),
 				<span class="string">&quot;//Bob&quot;</span>.<span class="ident">into</span>(),
