@@ -2936,8 +2936,9 @@
 <span class="kw">use</span> <span class="ident">hash_db</span>::{<span class="ident">Hasher</span>, <span class="ident">Prefix</span>};
 <span class="kw">use</span> <span class="ident">primitives</span>::{
 	<span class="ident">Blake2Hasher</span>, <span class="ident">H256</span>, <span class="ident">ChangesTrieConfiguration</span>, <span class="ident">convert_hash</span>,
-	<span class="ident">NeverNativeValue</span>, <span class="ident">ExecutionContext</span>,
-	<span class="ident">storage</span>::{<span class="ident">StorageKey</span>, <span class="ident">StorageData</span>, <span class="ident">well_known_keys</span>}, <span class="ident">NativeOrEncoded</span>
+	<span class="ident">NeverNativeValue</span>, <span class="ident">ExecutionContext</span>, <span class="ident">NativeOrEncoded</span>,
+	<span class="ident">storage</span>::{<span class="ident">StorageKey</span>, <span class="ident">StorageData</span>, <span class="ident">well_known_keys</span>},
+	<span class="ident">offchain</span>,
 };
 <span class="kw">use</span> <span class="ident">substrate_telemetry</span>::{<span class="ident">telemetry</span>, <span class="ident">SUBSTRATE_INFO</span>};
 <span class="kw">use</span> <span class="ident">sr_primitives</span>::{
@@ -4380,8 +4381,6 @@
 		<span class="ident">context</span>: <span class="ident">ExecutionContext</span>,
 		<span class="ident">recorder</span>: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">RefCell</span><span class="op">&lt;</span><span class="ident">ProofRecorder</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">NativeOrEncoded</span><span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-		<span class="kw">let</span> <span class="ident">enable_keystore</span> <span class="op">=</span> <span class="ident">context</span>.<span class="ident">enable_keystore</span>();
-
 		<span class="kw">let</span> <span class="ident">manager</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">context</span> {
 			<span class="ident">ExecutionContext</span>::<span class="ident">BlockConstruction</span> <span class="op">=</span><span class="op">&gt;</span>
 				<span class="self">self</span>.<span class="ident">execution_strategies</span>.<span class="ident">block_construction</span>.<span class="ident">get_manager</span>(),
@@ -4389,16 +4388,17 @@
 				<span class="self">self</span>.<span class="ident">execution_strategies</span>.<span class="ident">syncing</span>.<span class="ident">get_manager</span>(),
 			<span class="ident">ExecutionContext</span>::<span class="ident">Importing</span> <span class="op">=</span><span class="op">&gt;</span>
 				<span class="self">self</span>.<span class="ident">execution_strategies</span>.<span class="ident">importing</span>.<span class="ident">get_manager</span>(),
-			<span class="ident">ExecutionContext</span>::<span class="ident">OffchainWorker</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span>
+			<span class="ident">ExecutionContext</span>::<span class="ident">OffchainCall</span>(<span class="prelude-val">Some</span>((<span class="kw">_</span>, <span class="ident">capabilities</span>))) <span class="kw">if</span> <span class="ident">capabilities</span>.<span class="ident">has_all</span>() <span class="op">=</span><span class="op">&gt;</span>
 				<span class="self">self</span>.<span class="ident">execution_strategies</span>.<span class="ident">offchain_worker</span>.<span class="ident">get_manager</span>(),
-			<span class="ident">ExecutionContext</span>::<span class="ident">Other</span> <span class="op">=</span><span class="op">&gt;</span>
+			<span class="ident">ExecutionContext</span>::<span class="ident">OffchainCall</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span>
 				<span class="self">self</span>.<span class="ident">execution_strategies</span>.<span class="ident">other</span>.<span class="ident">get_manager</span>(),
 		};
 
+		<span class="kw">let</span> <span class="ident">capabilities</span> <span class="op">=</span> <span class="ident">context</span>.<span class="ident">capabilities</span>();
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">offchain_extensions</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">context</span> {
-			<span class="ident">ExecutionContext</span>::<span class="ident">OffchainWorker</span>(<span class="ident">ext</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">ext</span>),
+			<span class="ident">ExecutionContext</span>::<span class="ident">OffchainCall</span>(<span class="ident">ext</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ext</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="number">0</span>),
 			<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">None</span>,
-		};
+		}.<span class="ident">map</span>(<span class="op">|</span><span class="ident">ext</span><span class="op">|</span> <span class="ident">offchain</span>::<span class="ident">LimitedExternalities</span>::<span class="ident">new</span>(<span class="ident">capabilities</span>, <span class="ident">ext</span>));
 
 		<span class="self">self</span>.<span class="ident">executor</span>.<span class="ident">contextual_call</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">fn</span>(<span class="kw">_</span>,<span class="kw">_</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">_</span>,<span class="kw">_</span>,<span class="kw">_</span><span class="op">&gt;</span>(
 			<span class="op">|</span><span class="op">|</span> <span class="ident">core_api</span>.<span class="ident">initialize_block</span>(<span class="ident">at</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">prepare_environment_block</span>(<span class="ident">at</span>)<span class="question-mark">?</span>),
@@ -4411,7 +4411,7 @@
 			<span class="ident">native_call</span>,
 			<span class="ident">offchain_extensions</span>.<span class="ident">as_mut</span>(),
 			<span class="ident">recorder</span>,
-			<span class="ident">enable_keystore</span>,
+			<span class="ident">capabilities</span>.<span class="ident">has</span>(<span class="ident">offchain</span>::<span class="ident">Capability</span>::<span class="ident">Keystore</span>),
 		)
 	}
 

@@ -214,6 +214,10 @@
 <span id="214">214</span>
 <span id="215">215</span>
 <span id="216">216</span>
+<span id="217">217</span>
+<span id="218">218</span>
+<span id="219">219</span>
+<span id="220">220</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -305,19 +309,23 @@
 	<span class="ident">Syncing</span>,
 	<span class="doccomment">/// Context used for block construction.</span>
 	<span class="ident">BlockConstruction</span>,
-	<span class="doccomment">/// Offchain worker context.</span>
-	<span class="ident">OffchainWorker</span>(<span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">offchain</span>::<span class="ident">Externalities</span><span class="op">&gt;</span>),
-	<span class="doccomment">/// Context used for other calls.</span>
-	<span class="ident">Other</span>,
+	<span class="doccomment">/// Context used for offchain calls.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// This allows passing offchain extension and customizing available capabilities.</span>
+	<span class="ident">OffchainCall</span>(<span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">offchain</span>::<span class="ident">Externalities</span><span class="op">&gt;</span>, <span class="ident">offchain</span>::<span class="ident">Capabilities</span>)<span class="op">&gt;</span>),
 }
 
 <span class="kw">impl</span> <span class="ident">ExecutionContext</span> {
-	<span class="doccomment">/// Returns if the keystore should be enabled for the current context.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">enable_keystore</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+	<span class="doccomment">/// Returns the capabilities of particular context.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">capabilities</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">offchain</span>::<span class="ident">Capabilities</span> {
 		<span class="kw">use</span> <span class="ident">ExecutionContext</span>::<span class="kw-2">*</span>;
+
 		<span class="kw">match</span> <span class="self">self</span> {
-			<span class="ident">Importing</span> <span class="op">|</span> <span class="ident">Syncing</span> <span class="op">|</span> <span class="ident">BlockConstruction</span> <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">false</span>,
-			<span class="ident">OffchainWorker</span>(<span class="kw">_</span>) <span class="op">|</span> <span class="ident">Other</span> <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">true</span>,
+			<span class="ident">Importing</span> <span class="op">|</span> <span class="ident">Syncing</span> <span class="op">|</span> <span class="ident">BlockConstruction</span> <span class="op">=</span><span class="op">&gt;</span>
+				<span class="ident">offchain</span>::<span class="ident">Capabilities</span>::<span class="ident">none</span>(),
+			<span class="comment">// Enable keystore by default for offchain calls. CC @bkchr</span>
+			<span class="ident">OffchainCall</span>(<span class="prelude-val">None</span>) <span class="op">=</span><span class="op">&gt;</span> [<span class="ident">offchain</span>::<span class="ident">Capability</span>::<span class="ident">Keystore</span>][..].<span class="ident">into</span>(),
+			<span class="ident">OffchainCall</span>(<span class="prelude-val">Some</span>((<span class="kw">_</span>, <span class="ident">capabilities</span>))) <span class="op">=</span><span class="op">&gt;</span> <span class="kw-2">*</span><span class="ident">capabilities</span>,
 		}
 	}
 }
