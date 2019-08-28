@@ -484,6 +484,19 @@
 <span id="484">484</span>
 <span id="485">485</span>
 <span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
+<span id="493">493</span>
+<span id="494">494</span>
+<span id="495">495</span>
+<span id="496">496</span>
+<span id="497">497</span>
+<span id="498">498</span>
+<span id="499">499</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -533,7 +546,7 @@
 	(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">config</span>:<span class="ident">expr</span>) <span class="op">=</span><span class="op">&gt;</span> {{
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">import_setup</span> <span class="op">=</span> <span class="prelude-val">None</span>;
 		<span class="kw">let</span> <span class="ident">inherent_data_providers</span> <span class="op">=</span> <span class="ident">inherents</span>::<span class="ident">InherentDataProviders</span>::<span class="ident">new</span>();
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">tasks_to_spawn</span> <span class="op">=</span> <span class="prelude-val">None</span>;
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">tasks_to_spawn</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
 
 		<span class="kw">let</span> <span class="ident">builder</span> <span class="op">=</span> <span class="ident">substrate_service</span>::<span class="ident">ServiceBuilder</span>::<span class="ident">new_full</span>::<span class="op">&lt;</span>
 			<span class="ident">node_primitives</span>::<span class="ident">Block</span>, <span class="ident">node_runtime</span>::<span class="ident">RuntimeApi</span>, <span class="ident">node_executor</span>::<span class="ident">Executor</span>
@@ -566,7 +579,7 @@
 				)<span class="question-mark">?</span>;
 
 				<span class="ident">import_setup</span> <span class="op">=</span> <span class="prelude-val">Some</span>((<span class="ident">babe_block_import</span>.<span class="ident">clone</span>(), <span class="ident">link_half</span>, <span class="ident">babe_link</span>));
-				<span class="ident">tasks_to_spawn</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">pruning_task</span>)]);
+				<span class="ident">tasks_to_spawn</span>.<span class="ident">push</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">pruning_task</span>));
 
 				<span class="prelude-val">Ok</span>(<span class="ident">import_queue</span>)
 			})<span class="question-mark">?</span>
@@ -579,7 +592,7 @@
 				);
 				<span class="ident">io</span>
 			})<span class="question-mark">?</span>;
-		
+
 		(<span class="ident">builder</span>, <span class="ident">import_setup</span>, <span class="ident">inherent_data_providers</span>, <span class="ident">tasks_to_spawn</span>)
 	}}
 }
@@ -604,14 +617,12 @@
 				.<span class="ident">expect</span>(<span class="string">&quot;Link Half and Block Import are present for Full Services or setup failed before. qed&quot;</span>);
 
 		<span class="comment">// spawn any futures that were created in the previous setup steps</span>
-		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">tasks</span>) <span class="op">=</span> <span class="ident">tasks_to_spawn</span>.<span class="ident">take</span>() {
-			<span class="kw">for</span> <span class="ident">task</span> <span class="kw">in</span> <span class="ident">tasks</span> {
-				<span class="ident">service</span>.<span class="ident">spawn_task</span>(
-					<span class="ident">task</span>.<span class="ident">select</span>(<span class="ident">service</span>.<span class="ident">on_exit</span>())
-						.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
-						.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
-				);
-			}
+		<span class="kw">for</span> <span class="ident">task</span> <span class="kw">in</span> <span class="ident">tasks_to_spawn</span>.<span class="ident">drain</span>(..) {
+			<span class="ident">service</span>.<span class="ident">spawn_task</span>(
+				<span class="ident">task</span>.<span class="ident">select</span>(<span class="ident">service</span>.<span class="ident">on_exit</span>())
+					.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
+					.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
+			);
 		}
 
 		<span class="kw">if</span> <span class="ident">service</span>.<span class="ident">config</span>().<span class="ident">roles</span>.<span class="ident">is_authority</span>() {
@@ -694,9 +705,12 @@
 <span class="doccomment">/// Builds a new service for a light client.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_light</span><span class="op">&lt;</span><span class="ident">C</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Default</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>(<span class="ident">config</span>: <span class="ident">Configuration</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">GenesisConfig</span><span class="op">&gt;</span>)
 <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">AbstractService</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
-	<span class="kw">let</span> <span class="ident">inherent_data_providers</span> <span class="op">=</span> <span class="ident">InherentDataProviders</span>::<span class="ident">new</span>();
+	<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">Future</span>;
 
-	<span class="ident">ServiceBuilder</span>::<span class="ident">new_light</span>::<span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">RuntimeApi</span>, <span class="ident">node_executor</span>::<span class="ident">Executor</span><span class="op">&gt;</span>(<span class="ident">config</span>)<span class="question-mark">?</span>
+	<span class="kw">let</span> <span class="ident">inherent_data_providers</span> <span class="op">=</span> <span class="ident">InherentDataProviders</span>::<span class="ident">new</span>();
+	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">tasks_to_spawn</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+
+	<span class="kw">let</span> <span class="ident">service</span> <span class="op">=</span> <span class="ident">ServiceBuilder</span>::<span class="ident">new_light</span>::<span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">RuntimeApi</span>, <span class="ident">node_executor</span>::<span class="ident">Executor</span><span class="op">&gt;</span>(<span class="ident">config</span>)<span class="question-mark">?</span>
 		.<span class="ident">with_select_chain</span>(<span class="op">|</span><span class="ident">_config</span>, <span class="ident">client</span><span class="op">|</span> {
 			<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span>
 			<span class="prelude-val">Ok</span>(<span class="ident">LongestChain</span>::<span class="ident">new</span>(<span class="ident">client</span>.<span class="ident">backend</span>().<span class="ident">clone</span>()))
@@ -718,8 +732,7 @@
 			<span class="kw">let</span> <span class="ident">finality_proof_request_builder</span> <span class="op">=</span>
 				<span class="ident">finality_proof_import</span>.<span class="ident">create_finality_proof_request_builder</span>();
 
-			<span class="comment">// FIXME: pruning task isn&#39;t started since light client doesn&#39;t do `AuthoritySetup`.</span>
-			<span class="kw">let</span> (<span class="ident">import_queue</span>, ..) <span class="op">=</span> <span class="ident">import_queue</span>(
+			<span class="kw">let</span> (<span class="ident">import_queue</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">pruning_task</span>) <span class="op">=</span> <span class="ident">import_queue</span>(
 				<span class="ident">Config</span>::<span class="ident">get_or_compute</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">client</span>)<span class="question-mark">?</span>,
 				<span class="ident">block_import</span>,
 				<span class="prelude-val">None</span>,
@@ -729,6 +742,8 @@
 				<span class="ident">inherent_data_providers</span>.<span class="ident">clone</span>(),
 				<span class="prelude-val">Some</span>(<span class="ident">transaction_pool</span>)
 			)<span class="question-mark">?</span>;
+
+			<span class="ident">tasks_to_spawn</span>.<span class="ident">push</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">pruning_task</span>));
 
 			<span class="prelude-val">Ok</span>((<span class="ident">import_queue</span>, <span class="ident">finality_proof_request_builder</span>))
 		})<span class="question-mark">?</span>
@@ -745,7 +760,18 @@
 			);
 			<span class="ident">io</span>
 		})<span class="question-mark">?</span>
-		.<span class="ident">build</span>()
+		.<span class="ident">build</span>()<span class="question-mark">?</span>;
+
+	<span class="comment">// spawn any futures that were created in the previous setup steps</span>
+	<span class="kw">for</span> <span class="ident">task</span> <span class="kw">in</span> <span class="ident">tasks_to_spawn</span>.<span class="ident">drain</span>(..) {
+		<span class="ident">service</span>.<span class="ident">spawn_task</span>(
+			<span class="ident">task</span>.<span class="ident">select</span>(<span class="ident">service</span>.<span class="ident">on_exit</span>())
+				.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
+				.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
+		);
+	}
+
+	<span class="prelude-val">Ok</span>(<span class="ident">service</span>)
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
