@@ -361,6 +361,7 @@ ALIASES["substrate_panic_handler"] = {};
 ALIASES["substrate_peerset"] = {};
 ALIASES["substrate_primitives"] = {};
 ALIASES["substrate_rpc"] = {};
+ALIASES["substrate_rpc_api"] = {};
 ALIASES["substrate_rpc_servers"] = {};
 ALIASES["substrate_runtime_test"] = {};
 ALIASES["substrate_serializer"] = {};
