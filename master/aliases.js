@@ -359,6 +359,7 @@ ALIASES["substrate_offchain"] = {};
 ALIASES["substrate_offchain_primitives"] = {};
 ALIASES["substrate_panic_handler"] = {};
 ALIASES["substrate_peerset"] = {};
+ALIASES["substrate_phragmen"] = {};
 ALIASES["substrate_primitives"] = {};
 ALIASES["substrate_rpc"] = {};
 ALIASES["substrate_rpc_api"] = {};
