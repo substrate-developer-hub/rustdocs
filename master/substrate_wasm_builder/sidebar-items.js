@@ -1,1 +1,1 @@
-initSidebarItems({"fn":[["build_project","Build the currently built project as WASM binary."]]});
+initSidebarItems({"fn":[["build_project","Build the currently built project as WASM binary."],["build_project_with_default_rustflags","Build the currently built project as WASM binary."]]});

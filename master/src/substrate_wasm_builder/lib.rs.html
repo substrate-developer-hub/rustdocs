@@ -214,6 +214,32 @@
 <span id="214">214</span>
 <span id="215">215</span>
 <span id="216">216</span>
+<span id="217">217</span>
+<span id="218">218</span>
+<span id="219">219</span>
+<span id="220">220</span>
+<span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -283,6 +309,8 @@
 <span class="doccomment">//!                          needs to change. As WASM builder instructs `cargo` to watch for file changes</span>
 <span class="doccomment">//!                          this environment variable should only be required in certain circumstances.</span>
 <span class="doccomment">//! - `WASM_BUILD_RUSTFLAGS` - Extend `RUSTFLAGS` given to `cargo build` while building the WASM binary.</span>
+<span class="doccomment">//! - `WASM_TARGET_DIRECTORY` - Will copy any build WASM binary to the given directory. The path needs</span>
+<span class="doccomment">//!                            to be absolute.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Each project can be skipped individually by using the environment variable `SKIP_PROJECT_NAME_WASM_BUILD`.</span>
 <span class="doccomment">//! Where `PROJECT_NAME` needs to be replaced by the name of the cargo project, e.g. `node-runtime` will</span>
@@ -313,6 +341,11 @@
 <span class="doccomment">/// Environment variable to extend the `RUSTFLAGS` variable given to the WASM build.</span>
 <span class="kw">const</span> <span class="ident">WASM_BUILD_RUSTFLAGS_ENV</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> <span class="op">=</span> <span class="string">&quot;WASM_BUILD_RUSTFLAGS&quot;</span>;
 
+<span class="doccomment">/// Environment variable to set the target directory to copy the final WASM binary.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// The directory needs to be an absolute path.</span>
+<span class="kw">const</span> <span class="ident">WASM_TARGET_DIRECTORY</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> <span class="op">=</span> <span class="string">&quot;WASM_TARGET_DIRECTORY&quot;</span>;
+
 <span class="doccomment">/// Build the currently built project as WASM binary.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// The current project is determined by using the `CARGO_MANIFEST_DIR` environment variable.</span>
@@ -321,6 +354,22 @@
 <span class="doccomment">///               constant `WASM_BINARY`, which contains the built WASM binary.</span>
 <span class="doccomment">/// `cargo_manifest` - The path to the `Cargo.toml` of the project that should be built.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">build_project</span>(<span class="ident">file_name</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="ident">cargo_manifest</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) {
+	<span class="ident">build_project_with_default_rustflags</span>(<span class="ident">file_name</span>, <span class="ident">cargo_manifest</span>, <span class="string">&quot;&quot;</span>);
+}
+
+<span class="doccomment">/// Build the currently built project as WASM binary.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// The current project is determined by using the `CARGO_MANIFEST_DIR` environment variable.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// `file_name` - The name + path of the file being generated. The file contains the</span>
+<span class="doccomment">///               constant `WASM_BINARY`, which contains the built WASM binary.</span>
+<span class="doccomment">/// `cargo_manifest` - The path to the `Cargo.toml` of the project that should be built.</span>
+<span class="doccomment">/// `default_rustflags` - Default `RUSTFLAGS` that will always be set for the build.</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">build_project_with_default_rustflags</span>(
+	<span class="ident">file_name</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
+	<span class="ident">cargo_manifest</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
+	<span class="ident">default_rustflags</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
+) {
 	<span class="kw">if</span> <span class="ident">check_skip_build</span>() {
 		<span class="kw">return</span>;
 	}
@@ -340,10 +389,13 @@
 		<span class="ident">process</span>::<span class="ident">exit</span>(<span class="number">1</span>);
 	}
 
-	<span class="kw">let</span> (<span class="ident">wasm_binary</span>, <span class="ident">bloaty</span>) <span class="op">=</span> <span class="ident">wasm_project</span>::<span class="ident">create_and_compile</span>(<span class="kw-2">&amp;</span><span class="ident">cargo_manifest</span>);
+	<span class="kw">let</span> (<span class="ident">wasm_binary</span>, <span class="ident">bloaty</span>) <span class="op">=</span> <span class="ident">wasm_project</span>::<span class="ident">create_and_compile</span>(
+		<span class="kw-2">&amp;</span><span class="ident">cargo_manifest</span>,
+		<span class="ident">default_rustflags</span>,
+	);
 
-	<span class="ident">create_out_file</span>(
-		<span class="ident">file_name</span>,
+	<span class="ident">write_file_if_changed</span>(
+		<span class="ident">file_name</span>.<span class="ident">into</span>(),
 		<span class="macro">format</span><span class="macro">!</span>(
 			<span class="string">r#&quot;
 				pub const WASM_BINARY: &amp;[u8] = include_bytes!(&quot;{wasm_binary}&quot;);
@@ -360,11 +412,11 @@
 	<span class="ident">env</span>::<span class="ident">var</span>(<span class="ident">SKIP_BUILD_ENV</span>).<span class="ident">is_ok</span>()
 }
 
-<span class="kw">fn</span> <span class="ident">create_out_file</span>(<span class="ident">file_name</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="ident">content</span>: <span class="ident">String</span>) {
-	<span class="ident">fs</span>::<span class="ident">write</span>(
-		<span class="ident">file_name</span>,
-		<span class="ident">content</span>
-	).<span class="ident">expect</span>(<span class="string">&quot;Creating and writing can not fail; qed&quot;</span>);
+<span class="doccomment">/// Write to the given `file` if the `content` is different.</span>
+<span class="kw">fn</span> <span class="ident">write_file_if_changed</span>(<span class="ident">file</span>: <span class="ident">PathBuf</span>, <span class="ident">content</span>: <span class="ident">String</span>) {
+	<span class="kw">if</span> <span class="ident">fs</span>::<span class="ident">read_to_string</span>(<span class="kw-2">&amp;</span><span class="ident">file</span>).<span class="ident">ok</span>().<span class="ident">as_ref</span>() <span class="op">!</span><span class="op">=</span> <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">content</span>) {
+		<span class="ident">fs</span>::<span class="ident">write</span>(<span class="kw-2">&amp;</span><span class="ident">file</span>, <span class="ident">content</span>).<span class="ident">expect</span>(<span class="kw-2">&amp;</span><span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Writing `{}` can not fail!&quot;</span>, <span class="ident">file</span>.<span class="ident">display</span>()));
+	}
 }
 
 <span class="doccomment">/// Get a cargo command that compiles with nightly</span>
