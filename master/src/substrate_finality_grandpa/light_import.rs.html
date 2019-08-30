@@ -759,6 +759,14 @@
 <span id="759">759</span>
 <span id="760">760</span>
 <span id="761">761</span>
+<span id="762">762</span>
+<span id="763">763</span>
+<span id="764">764</span>
+<span id="765">765</span>
+<span id="766">766</span>
+<span id="767">767</span>
+<span id="768">768</span>
+<span id="769">769</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -783,7 +791,7 @@
 
 <span class="kw">use</span> <span class="ident">client</span>::{
 	<span class="ident">CallExecutor</span>, <span class="ident">Client</span>,
-	<span class="ident">backend</span>::{<span class="ident">AuxStore</span>, <span class="ident">Backend</span>},
+	<span class="ident">backend</span>::{<span class="ident">AuxStore</span>, <span class="ident">Backend</span>, <span class="ident">Finalizer</span>},
 	<span class="ident">blockchain</span>::<span class="ident">HeaderBackend</span>,
 	<span class="ident">error</span>::<span class="ident">Error</span> <span class="kw">as</span> <span class="ident">ClientError</span>,
 };
@@ -816,6 +824,7 @@
 <span class="doccomment">/// Create light block importer.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">light_block_import</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">RA</span>, <span class="ident">PRA</span><span class="op">&gt;</span>(
 	<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">backend</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 	<span class="ident">authority_set_provider</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">AuthoritySetForFinalityChecker</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">api</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PRA</span><span class="op">&gt;</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">GrandpaLightBlockImport</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span>, <span class="ident">ClientError</span><span class="op">&gt;</span>
@@ -827,10 +836,10 @@
 		<span class="ident">PRA</span>::<span class="ident">Api</span>: <span class="ident">GrandpaApi</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 {
 	<span class="kw">let</span> <span class="ident">info</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">info</span>();
-	<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span>
-	<span class="kw">let</span> <span class="ident">import_data</span> <span class="op">=</span> <span class="ident">load_aux_import_data</span>(<span class="ident">info</span>.<span class="ident">chain</span>.<span class="ident">finalized_hash</span>, <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">client</span>.<span class="ident">backend</span>(), <span class="ident">api</span>)<span class="question-mark">?</span>;
+	<span class="kw">let</span> <span class="ident">import_data</span> <span class="op">=</span> <span class="ident">load_aux_import_data</span>(<span class="ident">info</span>.<span class="ident">chain</span>.<span class="ident">finalized_hash</span>, <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">client</span>, <span class="ident">api</span>)<span class="question-mark">?</span>;
 	<span class="prelude-val">Ok</span>(<span class="ident">GrandpaLightBlockImport</span> {
 		<span class="ident">client</span>,
+		<span class="ident">backend</span>,
 		<span class="ident">authority_set_provider</span>,
 		<span class="ident">data</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">RwLock</span>::<span class="ident">new</span>(<span class="ident">import_data</span>)),
 	})
@@ -843,6 +852,7 @@
 <span class="doccomment">/// - fetching finality proofs for blocks that are enacting consensus changes.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">GrandpaLightBlockImport</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">RA</span><span class="op">&gt;</span> {
 	<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">backend</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 	<span class="ident">authority_set_provider</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">AuthoritySetForFinalityChecker</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">data</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">RwLock</span><span class="op">&lt;</span><span class="ident">LightImportData</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
@@ -851,6 +861,7 @@
 	<span class="kw">fn</span> <span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
 		<span class="ident">GrandpaLightBlockImport</span> {
 			<span class="ident">client</span>: <span class="self">self</span>.<span class="ident">client</span>.<span class="ident">clone</span>(),
+			<span class="ident">backend</span>: <span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">clone</span>(),
 			<span class="ident">authority_set_provider</span>: <span class="self">self</span>.<span class="ident">authority_set_provider</span>.<span class="ident">clone</span>(),
 			<span class="ident">data</span>: <span class="self">self</span>.<span class="ident">data</span>.<span class="ident">clone</span>(),
 		}
@@ -893,7 +904,7 @@
 		<span class="ident">block</span>: <span class="ident">BlockImportParams</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 		<span class="ident">new_cache</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">well_known_cache_keys</span>::<span class="ident">Id</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ImportResult</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
-		<span class="ident">do_import_block</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">GrandpaJustification</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>(
+		<span class="ident">do_import_block</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">GrandpaJustification</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>(
 			<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">client</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">data</span>.<span class="ident">write</span>(), <span class="ident">block</span>, <span class="ident">new_cache</span>
 		)
 	}
@@ -938,8 +949,9 @@
 		<span class="ident">finality_proof</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
 		<span class="ident">verifier</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">Verifier</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">Block</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
-		<span class="ident">do_import_finality_proof</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">GrandpaJustification</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>(
+		<span class="ident">do_import_finality_proof</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">GrandpaJustification</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>(
 			<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">client</span>,
+			<span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">clone</span>(),
 			<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">authority_set_provider</span>,
 			<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">data</span>.<span class="ident">write</span>(),
 			<span class="ident">hash</span>,
@@ -989,16 +1001,19 @@
 }
 
 <span class="doccomment">/// Try to import new block.</span>
-<span class="kw">fn</span> <span class="ident">do_import_block</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">RA</span>, <span class="ident">J</span><span class="op">&gt;</span>(
-	<span class="kw-2">mut</span> <span class="ident">client</span>: <span class="kw-2">&amp;</span><span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span>,
+<span class="kw">fn</span> <span class="ident">do_import_block</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">C</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">J</span><span class="op">&gt;</span>(
+	<span class="kw-2">mut</span> <span class="ident">client</span>: <span class="ident">C</span>,
 	<span class="ident">data</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LightImportData</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 	<span class="kw-2">mut</span> <span class="ident">block</span>: <span class="ident">BlockImportParams</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 	<span class="ident">new_cache</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">well_known_cache_keys</span>::<span class="ident">Id</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ImportResult</span>, <span class="ident">ConsensusError</span><span class="op">&gt;</span>
 	<span class="kw">where</span>
+		<span class="ident">C</span>: <span class="ident">HeaderBackend</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>
+			<span class="op">+</span> <span class="ident">AuxStore</span>
+			<span class="op">+</span> <span class="ident">Finalizer</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span>, <span class="ident">B</span><span class="op">&gt;</span>
+			<span class="op">+</span> <span class="ident">BlockImport</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>
+			<span class="op">+</span> <span class="ident">Clone</span>,
 		<span class="ident">B</span>: <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-		<span class="ident">E</span>: <span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
-		<span class="ident">RA</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
 		<span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>: <span class="ident">grandpa</span>::<span class="ident">BlockNumberOps</span>,
 		<span class="ident">DigestFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>: <span class="ident">Encode</span>,
 		<span class="ident">J</span>: <span class="ident">ProvableJustification</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Header</span><span class="op">&gt;</span>,
@@ -1009,7 +1024,7 @@
 	<span class="comment">// we don&#39;t want to finalize on `inner.import_block`</span>
 	<span class="kw">let</span> <span class="ident">justification</span> <span class="op">=</span> <span class="ident">block</span>.<span class="ident">justification</span>.<span class="ident">take</span>();
 	<span class="kw">let</span> <span class="ident">enacts_consensus_change</span> <span class="op">=</span> <span class="op">!</span><span class="ident">new_cache</span>.<span class="ident">is_empty</span>();
-	<span class="kw">let</span> <span class="ident">import_result</span> <span class="op">=</span> <span class="ident">BlockImport</span>::<span class="ident">import_block</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">client</span>, <span class="ident">block</span>, <span class="ident">new_cache</span>);
+	<span class="kw">let</span> <span class="ident">import_result</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">import_block</span>(<span class="ident">block</span>, <span class="ident">new_cache</span>);
 
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">imported_aux</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">import_result</span> {
 		<span class="prelude-val">Ok</span>(<span class="ident">ImportResult</span>::<span class="ident">Imported</span>(<span class="ident">aux</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">aux</span>,
@@ -1026,7 +1041,7 @@
 				<span class="ident">hash</span>,
 			);
 
-			<span class="ident">do_import_justification</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">J</span><span class="op">&gt;</span>(<span class="ident">client</span>, <span class="ident">data</span>, <span class="ident">hash</span>, <span class="ident">number</span>, <span class="ident">justification</span>)
+			<span class="ident">do_import_justification</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">J</span><span class="op">&gt;</span>(<span class="ident">client</span>, <span class="ident">data</span>, <span class="ident">hash</span>, <span class="ident">number</span>, <span class="ident">justification</span>)
 		},
 		<span class="prelude-val">None</span> <span class="kw">if</span> <span class="ident">enacts_consensus_change</span> <span class="op">=</span><span class="op">&gt;</span> {
 			<span class="macro">trace</span><span class="macro">!</span>(
@@ -1045,8 +1060,9 @@
 }
 
 <span class="doccomment">/// Try to import finality proof.</span>
-<span class="kw">fn</span> <span class="ident">do_import_finality_proof</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">RA</span>, <span class="ident">J</span><span class="op">&gt;</span>(
-	<span class="ident">client</span>: <span class="kw-2">&amp;</span><span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span>,
+<span class="kw">fn</span> <span class="ident">do_import_finality_proof</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">C</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">J</span><span class="op">&gt;</span>(
+	<span class="ident">client</span>: <span class="ident">C</span>,
+	<span class="ident">backend</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 	<span class="ident">authority_set_provider</span>: <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">AuthoritySetForFinalityChecker</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 	<span class="ident">data</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LightImportData</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 	<span class="ident">_hash</span>: <span class="ident">Block</span>::<span class="ident">Hash</span>,
@@ -1055,9 +1071,12 @@
 	<span class="ident">verifier</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">Verifier</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">Block</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>), <span class="ident">ConsensusError</span><span class="op">&gt;</span>
 	<span class="kw">where</span>
+		<span class="ident">C</span>: <span class="ident">HeaderBackend</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>
+			<span class="op">+</span> <span class="ident">AuxStore</span>
+			<span class="op">+</span> <span class="ident">Finalizer</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span>, <span class="ident">B</span><span class="op">&gt;</span>
+			<span class="op">+</span> <span class="ident">BlockImport</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>
+			<span class="op">+</span> <span class="ident">Clone</span>,
 		<span class="ident">B</span>: <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-		<span class="ident">E</span>: <span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
-		<span class="ident">RA</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
 		<span class="ident">DigestFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>: <span class="ident">Encode</span>,
 		<span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>: <span class="ident">grandpa</span>::<span class="ident">BlockNumberOps</span>,
 		<span class="ident">J</span>: <span class="ident">ProvableJustification</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Header</span><span class="op">&gt;</span>,
@@ -1065,8 +1084,7 @@
 	<span class="kw">let</span> <span class="ident">authority_set_id</span> <span class="op">=</span> <span class="ident">data</span>.<span class="ident">authority_set</span>.<span class="ident">set_id</span>();
 	<span class="kw">let</span> <span class="ident">authorities</span> <span class="op">=</span> <span class="ident">data</span>.<span class="ident">authority_set</span>.<span class="ident">authorities</span>();
 	<span class="kw">let</span> <span class="ident">finality_effects</span> <span class="op">=</span> <span class="kw">crate</span>::<span class="ident">finality_proof</span>::<span class="ident">check_finality_proof</span>(
-		<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span>
-		<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">client</span>.<span class="ident">backend</span>().<span class="ident">blockchain</span>(),
+		<span class="ident">backend</span>.<span class="ident">blockchain</span>(),
 		<span class="ident">authority_set_id</span>,
 		<span class="ident">authorities</span>,
 		<span class="ident">authority_set_provider</span>,
@@ -1084,13 +1102,12 @@
 		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">authorities</span>) <span class="op">=</span> <span class="ident">new_authorities</span> {
 			<span class="ident">cache</span>.<span class="ident">insert</span>(<span class="ident">well_known_cache_keys</span>::<span class="ident">AUTHORITIES</span>, <span class="ident">authorities</span>.<span class="ident">encode</span>());
 		}
-		<span class="ident">do_import_block</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">J</span><span class="op">&gt;</span>(<span class="ident">client</span>, <span class="ident">data</span>, <span class="ident">block_to_import</span>, <span class="ident">cache</span>)<span class="question-mark">?</span>;
+		<span class="ident">do_import_block</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">J</span><span class="op">&gt;</span>(<span class="ident">client</span>.<span class="ident">clone</span>(), <span class="ident">data</span>, <span class="ident">block_to_import</span>, <span class="ident">cache</span>)<span class="question-mark">?</span>;
 	}
 
 	<span class="comment">// try to import latest justification</span>
 	<span class="kw">let</span> <span class="ident">finalized_block_hash</span> <span class="op">=</span> <span class="ident">finality_effects</span>.<span class="ident">block</span>;
-	<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span>
-	<span class="kw">let</span> <span class="ident">finalized_block_number</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">backend</span>().<span class="ident">blockchain</span>()
+	<span class="kw">let</span> <span class="ident">finalized_block_number</span> <span class="op">=</span> <span class="ident">backend</span>.<span class="ident">blockchain</span>()
 		.<span class="ident">expect_block_number_from_id</span>(<span class="kw-2">&amp;</span><span class="ident">BlockId</span>::<span class="ident">Hash</span>(<span class="ident">finality_effects</span>.<span class="ident">block</span>))
 		.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">ConsensusError</span>::<span class="ident">ClientImport</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
 	<span class="ident">do_finalize_block</span>(
@@ -1111,17 +1128,19 @@
 }
 
 <span class="doccomment">/// Try to import justification.</span>
-<span class="kw">fn</span> <span class="ident">do_import_justification</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">RA</span>, <span class="ident">J</span><span class="op">&gt;</span>(
-	<span class="ident">client</span>: <span class="kw-2">&amp;</span><span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span>,
+<span class="kw">fn</span> <span class="ident">do_import_justification</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">C</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">J</span><span class="op">&gt;</span>(
+	<span class="ident">client</span>: <span class="ident">C</span>,
 	<span class="ident">data</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LightImportData</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 	<span class="ident">hash</span>: <span class="ident">Block</span>::<span class="ident">Hash</span>,
 	<span class="ident">number</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 	<span class="ident">justification</span>: <span class="ident">Justification</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ImportResult</span>, <span class="ident">ConsensusError</span><span class="op">&gt;</span>
 	<span class="kw">where</span>
+		<span class="ident">C</span>: <span class="ident">HeaderBackend</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>
+			<span class="op">+</span> <span class="ident">AuxStore</span>
+			<span class="op">+</span> <span class="ident">Finalizer</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span>, <span class="ident">B</span><span class="op">&gt;</span>
+			<span class="op">+</span> <span class="ident">Clone</span>,
 		<span class="ident">B</span>: <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-		<span class="ident">E</span>: <span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
-		<span class="ident">RA</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
 		<span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>: <span class="ident">grandpa</span>::<span class="ident">BlockNumberOps</span>,
 		<span class="ident">J</span>: <span class="ident">ProvableJustification</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Header</span><span class="op">&gt;</span>,
 {
@@ -1180,17 +1199,19 @@
 }
 
 <span class="doccomment">/// Finalize the block.</span>
-<span class="kw">fn</span> <span class="ident">do_finalize_block</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">RA</span><span class="op">&gt;</span>(
-	<span class="ident">client</span>: <span class="kw-2">&amp;</span><span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span>,
+<span class="kw">fn</span> <span class="ident">do_finalize_block</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">C</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span><span class="op">&gt;</span>(
+	<span class="ident">client</span>: <span class="ident">C</span>,
 	<span class="ident">data</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LightImportData</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 	<span class="ident">hash</span>: <span class="ident">Block</span>::<span class="ident">Hash</span>,
 	<span class="ident">number</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 	<span class="ident">justification</span>: <span class="ident">Justification</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ImportResult</span>, <span class="ident">ConsensusError</span><span class="op">&gt;</span>
 	<span class="kw">where</span>
+		<span class="ident">C</span>: <span class="ident">HeaderBackend</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>
+			<span class="op">+</span> <span class="ident">AuxStore</span>
+			<span class="op">+</span> <span class="ident">Finalizer</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span>, <span class="ident">B</span><span class="op">&gt;</span>
+			<span class="op">+</span> <span class="ident">Clone</span>,
 		<span class="ident">B</span>: <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-		<span class="ident">E</span>: <span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
-		<span class="ident">RA</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
 		<span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>: <span class="ident">grandpa</span>::<span class="ident">BlockNumberOps</span>,
 {
 	<span class="comment">// finalize the block</span>
@@ -1201,7 +1222,7 @@
 
 	<span class="comment">// forget obsoleted consensus changes</span>
 	<span class="kw">let</span> <span class="ident">consensus_finalization_res</span> <span class="op">=</span> <span class="ident">data</span>.<span class="ident">consensus_changes</span>
-		.<span class="ident">finalize</span>((<span class="ident">number</span>, <span class="ident">hash</span>), <span class="op">|</span><span class="ident">at_height</span><span class="op">|</span> <span class="ident">canonical_at_height</span>(<span class="kw-2">&amp;</span><span class="ident">client</span>, (<span class="ident">hash</span>, <span class="ident">number</span>), <span class="bool-val">true</span>, <span class="ident">at_height</span>));
+		.<span class="ident">finalize</span>((<span class="ident">number</span>, <span class="ident">hash</span>), <span class="op">|</span><span class="ident">at_height</span><span class="op">|</span> <span class="ident">canonical_at_height</span>(<span class="ident">client</span>.<span class="ident">clone</span>(), (<span class="ident">hash</span>, <span class="ident">number</span>), <span class="bool-val">true</span>, <span class="ident">at_height</span>));
 	<span class="kw">match</span> <span class="ident">consensus_finalization_res</span> {
 		<span class="prelude-val">Ok</span>((<span class="bool-val">true</span>, <span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">require_insert_aux</span>(
 			<span class="kw-2">&amp;</span><span class="ident">client</span>,
@@ -1268,20 +1289,14 @@
 }
 
 <span class="doccomment">/// Insert into aux store. If failed, return error &amp;&amp; show inconsistency warning.</span>
-<span class="kw">fn</span> <span class="ident">require_insert_aux</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Encode</span>, <span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">RA</span><span class="op">&gt;</span>(
-	<span class="ident">client</span>: <span class="kw-2">&amp;</span><span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span>,
+<span class="kw">fn</span> <span class="ident">require_insert_aux</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Encode</span>, <span class="ident">A</span>: <span class="ident">AuxStore</span><span class="op">&gt;</span>(
+	<span class="ident">store</span>: <span class="kw-2">&amp;</span><span class="ident">A</span>,
 	<span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
 	<span class="ident">value</span>: <span class="kw-2">&amp;</span><span class="ident">T</span>,
 	<span class="ident">value_type</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ConsensusError</span><span class="op">&gt;</span>
-	<span class="kw">where</span>
-		<span class="ident">B</span>: <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-		<span class="ident">E</span>: <span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
-{
-	<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span>
-	<span class="kw">let</span> <span class="ident">backend</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">client</span>.<span class="ident">backend</span>();
+) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ConsensusError</span><span class="op">&gt;</span> {
 	<span class="kw">let</span> <span class="ident">encoded</span> <span class="op">=</span> <span class="ident">value</span>.<span class="ident">encode</span>();
-	<span class="kw">let</span> <span class="ident">update_res</span> <span class="op">=</span> <span class="ident">Backend</span>::<span class="ident">insert_aux</span>(<span class="ident">backend</span>, <span class="kw-2">&amp;</span>[(<span class="ident">key</span>, <span class="kw-2">&amp;</span><span class="ident">encoded</span>[..])], <span class="kw-2">&amp;</span>[]);
+	<span class="kw">let</span> <span class="ident">update_res</span> <span class="op">=</span> <span class="ident">store</span>.<span class="ident">insert_aux</span>(<span class="kw-2">&amp;</span>[(<span class="ident">key</span>, <span class="kw-2">&amp;</span><span class="ident">encoded</span>[..])], <span class="kw-2">&amp;</span>[]);
 	<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">error</span>) <span class="op">=</span> <span class="ident">update_res</span> {
 		<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">on_post_finalization_error</span>(<span class="ident">error</span>, <span class="ident">value_type</span>));
 	}
@@ -1379,6 +1394,7 @@
 	<span class="doccomment">/// Creates light block import that ignores justifications that came outside of finality proofs.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">light_block_import_without_justifications</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">RA</span>, <span class="ident">PRA</span><span class="op">&gt;</span>(
 		<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+		<span class="ident">backend</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 		<span class="ident">authority_set_provider</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">AuthoritySetForFinalityChecker</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 		<span class="ident">api</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PRA</span><span class="op">&gt;</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">NoJustificationsImport</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span>, <span class="ident">ClientError</span><span class="op">&gt;</span>
@@ -1389,14 +1405,14 @@
 			<span class="ident">PRA</span>: <span class="ident">ProvideRuntimeApi</span>,
 			<span class="ident">PRA</span>::<span class="ident">Api</span>: <span class="ident">GrandpaApi</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 	{
-		<span class="ident">light_block_import</span>(<span class="ident">client</span>, <span class="ident">authority_set_provider</span>, <span class="ident">api</span>).<span class="ident">map</span>(<span class="ident">NoJustificationsImport</span>)
+		<span class="ident">light_block_import</span>(<span class="ident">client</span>, <span class="ident">backend</span>, <span class="ident">authority_set_provider</span>, <span class="ident">api</span>).<span class="ident">map</span>(<span class="ident">NoJustificationsImport</span>)
 	}
 
 	<span class="kw">fn</span> <span class="ident">import_block</span>(
 		<span class="ident">new_cache</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">well_known_cache_keys</span>::<span class="ident">Id</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 		<span class="ident">justification</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Justification</span><span class="op">&gt;</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ImportResult</span> {
-		<span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">test_client</span>::<span class="ident">new_light</span>();
+		<span class="kw">let</span> (<span class="ident">client</span>, <span class="ident">_backend</span>) <span class="op">=</span> <span class="ident">test_client</span>::<span class="ident">new_light</span>();
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">import_data</span> <span class="op">=</span> <span class="ident">LightImportData</span> {
 			<span class="ident">last_finalized</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
 			<span class="ident">authority_set</span>: <span class="ident">LightAuthoritySet</span>::<span class="ident">genesis</span>(<span class="macro">vec</span><span class="macro">!</span>[(<span class="ident">AuthorityId</span>::<span class="ident">from_slice</span>(<span class="kw-2">&amp;</span>[<span class="number">1</span>; <span class="number">32</span>]), <span class="number">1</span>)]),
@@ -1418,7 +1434,7 @@
 			<span class="ident">auxiliary</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
 			<span class="ident">fork_choice</span>: <span class="ident">ForkChoiceStrategy</span>::<span class="ident">LongestChain</span>,
 		};
-		<span class="ident">do_import_block</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">TestJustification</span><span class="op">&gt;</span>(
+		<span class="ident">do_import_block</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">TestJustification</span><span class="op">&gt;</span>(
 			<span class="kw-2">&amp;</span><span class="ident">client</span>,
 			<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">import_data</span>,
 			<span class="ident">block</span>,

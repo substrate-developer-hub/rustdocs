@@ -724,6 +724,43 @@
 <span id="724">724</span>
 <span id="725">725</span>
 <span id="726">726</span>
+<span id="727">727</span>
+<span id="728">728</span>
+<span id="729">729</span>
+<span id="730">730</span>
+<span id="731">731</span>
+<span id="732">732</span>
+<span id="733">733</span>
+<span id="734">734</span>
+<span id="735">735</span>
+<span id="736">736</span>
+<span id="737">737</span>
+<span id="738">738</span>
+<span id="739">739</span>
+<span id="740">740</span>
+<span id="741">741</span>
+<span id="742">742</span>
+<span id="743">743</span>
+<span id="744">744</span>
+<span id="745">745</span>
+<span id="746">746</span>
+<span id="747">747</span>
+<span id="748">748</span>
+<span id="749">749</span>
+<span id="750">750</span>
+<span id="751">751</span>
+<span id="752">752</span>
+<span id="753">753</span>
+<span id="754">754</span>
+<span id="755">755</span>
+<span id="756">756</span>
+<span id="757">757</span>
+<span id="758">758</span>
+<span id="759">759</span>
+<span id="760">760</span>
+<span id="761">761</span>
+<span id="762">762</span>
+<span id="763">763</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -754,10 +791,13 @@
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">config</span>::<span class="ident">build_multiaddr</span>;
 <span class="kw">use</span> <span class="ident">log</span>::<span class="ident">trace</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">chain</span>::<span class="ident">FinalityProofProvider</span>;
-<span class="kw">use</span> <span class="ident">client</span>::{<span class="self">self</span>, <span class="ident">ClientInfo</span>, <span class="ident">BlockchainEvents</span>, <span class="ident">BlockImportNotification</span>, <span class="ident">FinalityNotifications</span>, <span class="ident">FinalityNotification</span>};
-<span class="kw">use</span> <span class="ident">client</span>::{<span class="ident">in_mem</span>::<span class="ident">Backend</span> <span class="kw">as</span> <span class="ident">InMemoryBackend</span>, <span class="ident">error</span>::<span class="prelude-ty">Result</span> <span class="kw">as</span> <span class="ident">ClientResult</span>};
+<span class="kw">use</span> <span class="ident">client</span>::{
+	<span class="self">self</span>, <span class="ident">ClientInfo</span>, <span class="ident">BlockchainEvents</span>, <span class="ident">BlockImportNotification</span>, <span class="ident">FinalityNotifications</span>,
+	<span class="ident">FinalityNotification</span>, <span class="ident">LongestChain</span>
+};
+<span class="kw">use</span> <span class="ident">client</span>::<span class="ident">error</span>::<span class="prelude-ty">Result</span> <span class="kw">as</span> <span class="ident">ClientResult</span>;
 <span class="kw">use</span> <span class="ident">client</span>::<span class="ident">block_builder</span>::<span class="ident">BlockBuilder</span>;
-<span class="kw">use</span> <span class="ident">client</span>::<span class="ident">backend</span>::<span class="ident">AuxStore</span>;
+<span class="kw">use</span> <span class="ident">client</span>::<span class="ident">backend</span>::{<span class="ident">AuxStore</span>, <span class="ident">Backend</span>, <span class="ident">Finalizer</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">config</span>::<span class="ident">Roles</span>;
 <span class="kw">use</span> <span class="ident">consensus</span>::<span class="ident">import_queue</span>::<span class="ident">BasicQueue</span>;
 <span class="kw">use</span> <span class="ident">consensus</span>::<span class="ident">import_queue</span>::{
@@ -772,7 +812,7 @@
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">config</span>::{<span class="ident">NetworkConfiguration</span>, <span class="ident">TransportConfig</span>, <span class="ident">BoxFinalityProofRequestBuilder</span>};
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">PeerId</span>;
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">Mutex</span>;
-<span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">H256</span>, <span class="ident">Blake2Hasher</span>};
+<span class="kw">use</span> <span class="ident">primitives</span>::<span class="ident">H256</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">protocol</span>::{<span class="ident">Context</span>, <span class="ident">ProtocolConfig</span>};
 <span class="kw">use</span> <span class="ident">sr_primitives</span>::<span class="ident">generic</span>::{<span class="ident">BlockId</span>, <span class="ident">OpaqueDigestItemId</span>};
 <span class="kw">use</span> <span class="ident">sr_primitives</span>::<span class="ident">traits</span>::{<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">Header</span>, <span class="ident">NumberFor</span>};
@@ -782,13 +822,14 @@
 <span class="kw">use</span> <span class="ident">test_client</span>::{<span class="self">self</span>, <span class="ident">AccountKeyring</span>};
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">test_client</span>::<span class="ident">runtime</span>::{<span class="ident">Block</span>, <span class="ident">Extrinsic</span>, <span class="ident">Hash</span>, <span class="ident">Transfer</span>};
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">test_client</span>::<span class="ident">TestClient</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">test_client</span>::{<span class="ident">TestClient</span>, <span class="ident">TestClientBuilder</span>, <span class="ident">TestClientBuilderExt</span>};
 
 <span class="kw">type</span> <span class="ident">AuthorityId</span> <span class="op">=</span> <span class="ident">babe_primitives</span>::<span class="ident">AuthorityId</span>;
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">any</span>(<span class="ident">test</span>, <span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;test-helpers&quot;</span>))]</span>
 <span class="doccomment">/// A Verifier that accepts all blocks and passes them on with the configured</span>
 <span class="doccomment">/// finality to be imported.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">PassThroughVerifier</span>(<span class="kw">pub</span> <span class="ident">bool</span>);
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">any</span>(<span class="ident">test</span>, <span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;test-helpers&quot;</span>))]</span>
@@ -858,66 +899,57 @@
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">PeersClient</span> {
-	<span class="ident">Full</span>(<span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PeersFullClient</span><span class="op">&gt;</span>),
-	<span class="ident">Light</span>(<span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PeersLightClient</span><span class="op">&gt;</span>),
+	<span class="ident">Full</span>(<span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PeersFullClient</span><span class="op">&gt;</span>, <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">test_client</span>::<span class="ident">Backend</span><span class="op">&gt;</span>),
+	<span class="ident">Light</span>(<span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PeersLightClient</span><span class="op">&gt;</span>, <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">test_client</span>::<span class="ident">LightBackend</span><span class="op">&gt;</span>),
 }
 
 <span class="kw">impl</span> <span class="ident">PeersClient</span> {
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">as_full</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PeersFullClient</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 		<span class="kw">match</span> <span class="kw-2">*</span><span class="self">self</span> {
-			<span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="kw-2">ref</span> <span class="ident">client</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">client</span>.<span class="ident">clone</span>()),
+			<span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="kw-2">ref</span> <span class="ident">client</span>, <span class="kw-2">ref</span> <span class="ident">_backend</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">client</span>.<span class="ident">clone</span>()),
 			<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">None</span>,
 		}
 	}
 
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">as_block_import</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">BoxBlockImport</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> {
 		<span class="kw">match</span> <span class="kw-2">*</span><span class="self">self</span> {
-			<span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="kw-2">ref</span> <span class="ident">client</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">client</span>.<span class="ident">clone</span>()) <span class="kw">as</span> <span class="kw">_</span>,
-			<span class="ident">PeersClient</span>::<span class="ident">Light</span>(<span class="kw-2">ref</span> <span class="ident">client</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">client</span>.<span class="ident">clone</span>()) <span class="kw">as</span> <span class="kw">_</span>,
-		}
-	}
-
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">as_in_memory_backend</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">InMemoryBackend</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> {
-		<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span>
-		<span class="kw">match</span> <span class="kw-2">*</span><span class="self">self</span> {
-			<span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="kw-2">ref</span> <span class="ident">client</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">backend</span>().<span class="ident">as_in_memory</span>(),
-			<span class="ident">PeersClient</span>::<span class="ident">Light</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">unimplemented</span><span class="macro">!</span>(<span class="string">&quot;TODO&quot;</span>),
+			<span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="kw-2">ref</span> <span class="ident">client</span>, <span class="kw-2">ref</span> <span class="ident">_backend</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">client</span>.<span class="ident">clone</span>()) <span class="kw">as</span> <span class="kw">_</span>,
+			<span class="ident">PeersClient</span>::<span class="ident">Light</span>(<span class="kw-2">ref</span> <span class="ident">client</span>, <span class="kw-2">ref</span> <span class="ident">_backend</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">client</span>.<span class="ident">clone</span>()) <span class="kw">as</span> <span class="kw">_</span>,
 		}
 	}
 
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_aux</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-		<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span>
 		<span class="kw">match</span> <span class="kw-2">*</span><span class="self">self</span> {
-			<span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="kw-2">ref</span> <span class="ident">client</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">backend</span>().<span class="ident">get_aux</span>(<span class="ident">key</span>),
-			<span class="ident">PeersClient</span>::<span class="ident">Light</span>(<span class="kw-2">ref</span> <span class="ident">client</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">backend</span>().<span class="ident">get_aux</span>(<span class="ident">key</span>),
+			<span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="kw-2">ref</span> <span class="ident">client</span>, <span class="kw-2">ref</span> <span class="ident">_backend</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">get_aux</span>(<span class="ident">key</span>),
+			<span class="ident">PeersClient</span>::<span class="ident">Light</span>(<span class="kw-2">ref</span> <span class="ident">client</span>, <span class="kw-2">ref</span> <span class="ident">_backend</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">get_aux</span>(<span class="ident">key</span>),
 		}
 	}
 
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">info</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientInfo</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> {
 		<span class="kw">match</span> <span class="kw-2">*</span><span class="self">self</span> {
-			<span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="kw-2">ref</span> <span class="ident">client</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">info</span>(),
-			<span class="ident">PeersClient</span>::<span class="ident">Light</span>(<span class="kw-2">ref</span> <span class="ident">client</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">info</span>(),
+			<span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="kw-2">ref</span> <span class="ident">client</span>, <span class="kw-2">ref</span> <span class="ident">_backend</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">info</span>(),
+			<span class="ident">PeersClient</span>::<span class="ident">Light</span>(<span class="kw-2">ref</span> <span class="ident">client</span>, <span class="kw-2">ref</span> <span class="ident">_backend</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">info</span>(),
 		}
 	}
 
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">header</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span><span class="op">&gt;</span>::<span class="ident">Header</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 		<span class="kw">match</span> <span class="kw-2">*</span><span class="self">self</span> {
-			<span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="kw-2">ref</span> <span class="ident">client</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">header</span>(<span class="ident">block</span>),
-			<span class="ident">PeersClient</span>::<span class="ident">Light</span>(<span class="kw-2">ref</span> <span class="ident">client</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">header</span>(<span class="ident">block</span>),
+			<span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="kw-2">ref</span> <span class="ident">client</span>, <span class="kw-2">ref</span> <span class="ident">_backend</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">header</span>(<span class="ident">block</span>),
+			<span class="ident">PeersClient</span>::<span class="ident">Light</span>(<span class="kw-2">ref</span> <span class="ident">client</span>, <span class="kw-2">ref</span> <span class="ident">_backend</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">header</span>(<span class="ident">block</span>),
 		}
 	}
 
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">justification</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Justification</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 		<span class="kw">match</span> <span class="kw-2">*</span><span class="self">self</span> {
-			<span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="kw-2">ref</span> <span class="ident">client</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">justification</span>(<span class="ident">block</span>),
-			<span class="ident">PeersClient</span>::<span class="ident">Light</span>(<span class="kw-2">ref</span> <span class="ident">client</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">justification</span>(<span class="ident">block</span>),
+			<span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="kw-2">ref</span> <span class="ident">client</span>, <span class="kw-2">ref</span> <span class="ident">_backend</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">justification</span>(<span class="ident">block</span>),
+			<span class="ident">PeersClient</span>::<span class="ident">Light</span>(<span class="kw-2">ref</span> <span class="ident">client</span>, <span class="kw-2">ref</span> <span class="ident">_backend</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">justification</span>(<span class="ident">block</span>),
 		}
 	}
 
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">finality_notification_stream</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">FinalityNotifications</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> {
 		<span class="kw">match</span> <span class="kw-2">*</span><span class="self">self</span> {
-			<span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="kw-2">ref</span> <span class="ident">client</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">finality_notification_stream</span>(),
-			<span class="ident">PeersClient</span>::<span class="ident">Light</span>(<span class="kw-2">ref</span> <span class="ident">client</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">finality_notification_stream</span>(),
+			<span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="kw-2">ref</span> <span class="ident">client</span>, <span class="kw-2">ref</span> <span class="ident">_backend</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">finality_notification_stream</span>(),
+			<span class="ident">PeersClient</span>::<span class="ident">Light</span>(<span class="kw-2">ref</span> <span class="ident">client</span>, <span class="kw-2">ref</span> <span class="ident">_backend</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">finality_notification_stream</span>(),
 		}
 	}
 
@@ -928,8 +960,8 @@
 		<span class="ident">notify</span>: <span class="ident">bool</span>
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
 		<span class="kw">match</span> <span class="kw-2">*</span><span class="self">self</span> {
-			<span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="kw-2">ref</span> <span class="ident">client</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">finalize_block</span>(<span class="ident">id</span>, <span class="ident">justification</span>, <span class="ident">notify</span>),
-			<span class="ident">PeersClient</span>::<span class="ident">Light</span>(<span class="kw-2">ref</span> <span class="ident">client</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">finalize_block</span>(<span class="ident">id</span>, <span class="ident">justification</span>, <span class="ident">notify</span>),
+			<span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="kw-2">ref</span> <span class="ident">client</span>, <span class="kw-2">ref</span> <span class="ident">_backend</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">finalize_block</span>(<span class="ident">id</span>, <span class="ident">justification</span>, <span class="ident">notify</span>),
+			<span class="ident">PeersClient</span>::<span class="ident">Light</span>(<span class="kw-2">ref</span> <span class="ident">client</span>, <span class="kw-2">ref</span> <span class="ident">_backend</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">client</span>.<span class="ident">finalize_block</span>(<span class="ident">id</span>, <span class="ident">justification</span>, <span class="ident">notify</span>),
 		}
 	}
 }
@@ -943,6 +975,8 @@
 	<span class="doccomment">/// We keep a copy of the block_import so that we can invoke it for locally-generated blocks,</span>
 	<span class="doccomment">/// instead of going through the import queue.</span>
 	<span class="ident">block_import</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">BlockImport</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ConsensusError</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">select_chain</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">LongestChain</span><span class="op">&lt;</span><span class="ident">test_client</span>::<span class="ident">Backend</span>, <span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">backend</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">test_client</span>::<span class="ident">Backend</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">network</span>: <span class="ident">NetworkWorker</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">S</span>, <span class="op">&lt;</span><span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span><span class="op">&gt;</span>::<span class="ident">Hash</span><span class="op">&gt;</span>,
 	<span class="ident">imported_blocks_stream</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">BlockImportNotification</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>, <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span>,
 	<span class="ident">finality_notification_stream</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">FinalityNotification</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>, <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span>,
@@ -952,6 +986,11 @@
 	<span class="doccomment">/// Returns true if we&#39;re major syncing.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_major_syncing</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
 		<span class="self">self</span>.<span class="ident">network</span>.<span class="ident">service</span>().<span class="ident">is_major_syncing</span>()
+	}
+
+	<span class="comment">// Returns a clone of the local SelectChain, only available on full nodes</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">select_chain</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">LongestChain</span><span class="op">&lt;</span><span class="ident">test_client</span>::<span class="ident">Backend</span>, <span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+		<span class="self">self</span>.<span class="ident">select_chain</span>.<span class="ident">clone</span>()
 	}
 
 	<span class="doccomment">/// Returns the number of peers we&#39;re connected to.</span>
@@ -1068,6 +1107,33 @@
 	<span class="doccomment">/// Get a reference to the network service.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">network_service</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">NetworkService</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">S</span>, <span class="op">&lt;</span><span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span><span class="op">&gt;</span>::<span class="ident">Hash</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 		<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">network</span>.<span class="ident">service</span>()
+	}
+
+	<span class="doccomment">/// Test helper to compare the blockchain state of multiple (networked)</span>
+	<span class="doccomment">/// clients.</span>
+	<span class="doccomment">/// Potentially costly, as it creates in-memory copies of both blockchains in order</span>
+	<span class="doccomment">/// to compare them. If you have easier/softer checks that are sufficient, e.g. </span>
+	<span class="doccomment">/// by using .info(), you should probably use it instead of this.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">blockchain_canon_equals</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+		<span class="kw">if</span> <span class="kw">let</span> (<span class="prelude-val">Some</span>(<span class="ident">mine</span>), <span class="prelude-val">Some</span>(<span class="ident">others</span>)) <span class="op">=</span> (<span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">clone</span>(), <span class="ident">other</span>.<span class="ident">backend</span>.<span class="ident">clone</span>()) {
+			<span class="ident">mine</span>.<span class="ident">as_in_memory</span>().<span class="ident">blockchain</span>()
+				.<span class="ident">canon_equals_to</span>(<span class="ident">others</span>.<span class="ident">as_in_memory</span>().<span class="ident">blockchain</span>())
+		} <span class="kw">else</span> {
+			<span class="bool-val">false</span>
+		}
+	}
+
+	<span class="doccomment">/// Count the current number of known blocks. Note that:</span>
+	<span class="doccomment">///  1. this might be expensive as it creates an in-memory-copy of the chain</span>
+	<span class="doccomment">///     to count the blocks, thus if you have a different way of testing this</span>
+	<span class="doccomment">///     (e.g. `info.best_hash`) - use that.</span>
+	<span class="doccomment">///  2. This is not always increasing nor accurate, as the</span>
+	<span class="doccomment">///     orphaned and proven-to-never-finalized blocks may be pruned at any time.</span>
+	<span class="doccomment">///     Therefore, this number can drop again.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">blocks_count</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+		<span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(
+			<span class="op">|</span><span class="ident">backend</span><span class="op">|</span> <span class="ident">backend</span>.<span class="ident">as_in_memory</span>().<span class="ident">blockchain</span>().<span class="ident">blocks_count</span>()
+		).<span class="ident">unwrap_or</span>(<span class="number">0</span>)
 	}
 }
 
@@ -1194,11 +1260,14 @@
 
 	<span class="doccomment">/// Add a full peer.</span>
 	<span class="kw">fn</span> <span class="ident">add_full_peer</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">config</span>: <span class="kw-2">&amp;</span><span class="ident">ProtocolConfig</span>) {
-		<span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">test_client</span>::<span class="ident">new</span>());
-		<span class="kw">let</span> <span class="ident">verifier</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">make_verifier</span>(<span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="ident">client</span>.<span class="ident">clone</span>()), <span class="ident">config</span>);
+		<span class="kw">let</span> <span class="ident">test_client_builder</span> <span class="op">=</span> <span class="ident">TestClientBuilder</span>::<span class="ident">with_default_backend</span>();
+		<span class="kw">let</span> <span class="ident">backend</span> <span class="op">=</span> <span class="ident">test_client_builder</span>.<span class="ident">backend</span>();
+		<span class="kw">let</span> (<span class="ident">c</span>, <span class="ident">longest_chain</span>) <span class="op">=</span> <span class="ident">test_client_builder</span>.<span class="ident">build_with_longest_chain</span>();
+		<span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">c</span>);
+		<span class="kw">let</span> <span class="ident">verifier</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">make_verifier</span>(<span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="ident">client</span>.<span class="ident">clone</span>(), <span class="ident">backend</span>.<span class="ident">clone</span>()), <span class="ident">config</span>);
 		<span class="kw">let</span> <span class="ident">verifier</span> <span class="op">=</span> <span class="ident">VerifierAdapter</span>(<span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Mutex</span>::<span class="ident">new</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">verifier</span>) <span class="kw">as</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span>)));
 		<span class="kw">let</span> (<span class="ident">block_import</span>, <span class="ident">justification_import</span>, <span class="ident">finality_proof_import</span>, <span class="ident">finality_proof_request_builder</span>, <span class="ident">data</span>)
-			<span class="op">=</span> <span class="self">self</span>.<span class="ident">make_block_import</span>(<span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="ident">client</span>.<span class="ident">clone</span>()));
+			<span class="op">=</span> <span class="self">self</span>.<span class="ident">make_block_import</span>(<span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="ident">client</span>.<span class="ident">clone</span>(), <span class="ident">backend</span>.<span class="ident">clone</span>()));
 		<span class="kw">let</span> <span class="ident">block_import</span> <span class="op">=</span> <span class="ident">BlockImportAdapter</span>(<span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Mutex</span>::<span class="ident">new</span>(<span class="ident">block_import</span>)));
 
 		<span class="kw">let</span> <span class="ident">import_queue</span> <span class="op">=</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">BasicQueue</span>::<span class="ident">new</span>(
@@ -1218,7 +1287,7 @@
 				..<span class="ident">NetworkConfiguration</span>::<span class="ident">default</span>()
 			},
 			<span class="ident">chain</span>: <span class="ident">client</span>.<span class="ident">clone</span>(),
-			<span class="ident">finality_proof_provider</span>: <span class="self">self</span>.<span class="ident">make_finality_proof_provider</span>(<span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="ident">client</span>.<span class="ident">clone</span>())),
+			<span class="ident">finality_proof_provider</span>: <span class="self">self</span>.<span class="ident">make_finality_proof_provider</span>(<span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="ident">client</span>.<span class="ident">clone</span>(), <span class="ident">backend</span>.<span class="ident">clone</span>())),
 			<span class="ident">finality_proof_request_builder</span>,
 			<span class="ident">on_demand</span>: <span class="prelude-val">None</span>,
 			<span class="ident">transaction_pool</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">EmptyTransactionPool</span>),
@@ -1239,7 +1308,9 @@
 
 			<span class="ident">peers</span>.<span class="ident">push</span>(<span class="ident">Peer</span> {
 				<span class="ident">data</span>,
-				<span class="ident">client</span>: <span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="ident">client</span>),
+				<span class="ident">client</span>: <span class="ident">PeersClient</span>::<span class="ident">Full</span>(<span class="ident">client</span>, <span class="ident">backend</span>.<span class="ident">clone</span>()),
+				<span class="ident">select_chain</span>: <span class="prelude-val">Some</span>(<span class="ident">longest_chain</span>),
+				<span class="ident">backend</span>: <span class="prelude-val">Some</span>(<span class="ident">backend</span>),
 				<span class="ident">imported_blocks_stream</span>,
 				<span class="ident">finality_notification_stream</span>,
 				<span class="ident">block_import</span>: <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">block_import</span>),
@@ -1254,11 +1325,12 @@
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">config</span>.<span class="ident">clone</span>();
 		<span class="ident">config</span>.<span class="ident">roles</span> <span class="op">=</span> <span class="ident">Roles</span>::<span class="ident">LIGHT</span>;
 
-		<span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">test_client</span>::<span class="ident">new_light</span>());
-		<span class="kw">let</span> <span class="ident">verifier</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">make_verifier</span>(<span class="ident">PeersClient</span>::<span class="ident">Light</span>(<span class="ident">client</span>.<span class="ident">clone</span>()), <span class="kw-2">&amp;</span><span class="ident">config</span>);
+		<span class="kw">let</span> (<span class="ident">c</span>, <span class="ident">backend</span>) <span class="op">=</span> <span class="ident">test_client</span>::<span class="ident">new_light</span>();
+		<span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">c</span>);
+		<span class="kw">let</span> <span class="ident">verifier</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">make_verifier</span>(<span class="ident">PeersClient</span>::<span class="ident">Light</span>(<span class="ident">client</span>.<span class="ident">clone</span>(), <span class="ident">backend</span>.<span class="ident">clone</span>()), <span class="kw-2">&amp;</span><span class="ident">config</span>);
 		<span class="kw">let</span> <span class="ident">verifier</span> <span class="op">=</span> <span class="ident">VerifierAdapter</span>(<span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Mutex</span>::<span class="ident">new</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">verifier</span>) <span class="kw">as</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span>)));
 		<span class="kw">let</span> (<span class="ident">block_import</span>, <span class="ident">justification_import</span>, <span class="ident">finality_proof_import</span>, <span class="ident">finality_proof_request_builder</span>, <span class="ident">data</span>)
-			<span class="op">=</span> <span class="self">self</span>.<span class="ident">make_block_import</span>(<span class="ident">PeersClient</span>::<span class="ident">Light</span>(<span class="ident">client</span>.<span class="ident">clone</span>()));
+			<span class="op">=</span> <span class="self">self</span>.<span class="ident">make_block_import</span>(<span class="ident">PeersClient</span>::<span class="ident">Light</span>(<span class="ident">client</span>.<span class="ident">clone</span>(), <span class="ident">backend</span>.<span class="ident">clone</span>()));
 		<span class="kw">let</span> <span class="ident">block_import</span> <span class="op">=</span> <span class="ident">BlockImportAdapter</span>(<span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Mutex</span>::<span class="ident">new</span>(<span class="ident">block_import</span>)));
 
 		<span class="kw">let</span> <span class="ident">import_queue</span> <span class="op">=</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">BasicQueue</span>::<span class="ident">new</span>(
@@ -1278,7 +1350,7 @@
 				..<span class="ident">NetworkConfiguration</span>::<span class="ident">default</span>()
 			},
 			<span class="ident">chain</span>: <span class="ident">client</span>.<span class="ident">clone</span>(),
-			<span class="ident">finality_proof_provider</span>: <span class="self">self</span>.<span class="ident">make_finality_proof_provider</span>(<span class="ident">PeersClient</span>::<span class="ident">Light</span>(<span class="ident">client</span>.<span class="ident">clone</span>())),
+			<span class="ident">finality_proof_provider</span>: <span class="self">self</span>.<span class="ident">make_finality_proof_provider</span>(<span class="ident">PeersClient</span>::<span class="ident">Light</span>(<span class="ident">client</span>.<span class="ident">clone</span>(), <span class="ident">backend</span>.<span class="ident">clone</span>())),
 			<span class="ident">finality_proof_request_builder</span>,
 			<span class="ident">on_demand</span>: <span class="prelude-val">None</span>,
 			<span class="ident">transaction_pool</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">EmptyTransactionPool</span>),
@@ -1300,8 +1372,10 @@
 			<span class="ident">peers</span>.<span class="ident">push</span>(<span class="ident">Peer</span> {
 				<span class="ident">data</span>,
 				<span class="ident">verifier</span>,
+				<span class="ident">select_chain</span>: <span class="prelude-val">None</span>,
+				<span class="ident">backend</span>: <span class="prelude-val">None</span>,
 				<span class="ident">block_import</span>: <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">block_import</span>),
-				<span class="ident">client</span>: <span class="ident">PeersClient</span>::<span class="ident">Light</span>(<span class="ident">client</span>),
+				<span class="ident">client</span>: <span class="ident">PeersClient</span>::<span class="ident">Light</span>(<span class="ident">client</span>, <span class="ident">backend</span>),
 				<span class="ident">imported_blocks_stream</span>,
 				<span class="ident">finality_notification_stream</span>,
 				<span class="ident">network</span>,
