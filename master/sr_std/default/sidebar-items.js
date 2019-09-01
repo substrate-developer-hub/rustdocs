@@ -1,1 +1,1 @@
-initSidebarItems({"trait":[["Default","A trait for giving a type a useful default value."]]});
+initSidebarItems({"macro":[["Default","Derive macro generating an impl of the trait `Default`."]],"trait":[["Default","A trait for giving a type a useful default value."]]});

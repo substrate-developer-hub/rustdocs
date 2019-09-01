@@ -1,1 +1,1 @@
-initSidebarItems({"macro":[["expr","Paste identifiers within a macro invocation that expands to an expression."]]});
+initSidebarItems({"macro":[["expr","Paste identifiers within a macro invocation that expands to an expression."],["item_with_macros","Paste identifiers within a macro invocation that expands to one or more macro_rules macros or items containing macros."]]});
