@@ -971,6 +971,12 @@
 <span id="971">971</span>
 <span id="972">972</span>
 <span id="973">973</span>
+<span id="974">974</span>
+<span id="975">975</span>
+<span id="976">976</span>
+<span id="977">977</span>
+<span id="978">978</span>
+<span id="979">979</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1084,6 +1090,8 @@
 	<span class="doccomment">/// Known changes trie roots for the range of blocks [tries_roots.0..max_block].</span>
 	<span class="doccomment">/// Proofs for roots of ascendants of tries_roots.0 are provided by the remote node.</span>
 	<span class="kw">pub</span> <span class="ident">tries_roots</span>: (<span class="ident">Header</span>::<span class="ident">Number</span>, <span class="ident">Header</span>::<span class="ident">Hash</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Header</span>::<span class="ident">Hash</span><span class="op">&gt;</span>),
+	<span class="doccomment">/// Optional Child Storage key to read.</span>
+	<span class="kw">pub</span> <span class="ident">storage_key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// Storage key to read.</span>
 	<span class="kw">pub</span> <span class="ident">key</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// Number of times to retry request. None means that default RETRY_COUNT is used.</span>
@@ -1281,6 +1289,7 @@
 				<span class="ident">number</span>: <span class="ident">request</span>.<span class="ident">last_block</span>.<span class="number">0</span>,
 			},
 			<span class="ident">remote_max_block</span>,
+			<span class="ident">request</span>.<span class="ident">storage_key</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="ident">Vec</span>::<span class="ident">as_slice</span>),
 			<span class="kw-2">&amp;</span><span class="ident">request</span>.<span class="ident">key</span>)
 		.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> <span class="ident">ClientError</span>::<span class="ident">ChangesTrieAccessFailed</span>(<span class="ident">err</span>))
 	}
@@ -1723,7 +1732,7 @@
 			<span class="comment">// &#39;fetch&#39; changes proof from remote node</span>
 			<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">StorageKey</span>(<span class="ident">key</span>);
 			<span class="kw">let</span> <span class="ident">remote_proof</span> <span class="op">=</span> <span class="ident">remote_client</span>.<span class="ident">key_changes_proof</span>(
-				<span class="ident">begin_hash</span>, <span class="ident">end_hash</span>, <span class="ident">begin_hash</span>, <span class="ident">max_hash</span>, <span class="kw-2">&amp;</span><span class="ident">key</span>
+				<span class="ident">begin_hash</span>, <span class="ident">end_hash</span>, <span class="ident">begin_hash</span>, <span class="ident">max_hash</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span><span class="ident">key</span>
 			).<span class="ident">unwrap</span>();
 
 			<span class="comment">// check proof on local client</span>
@@ -1735,6 +1744,7 @@
 				<span class="ident">max_block</span>: (<span class="ident">max</span>, <span class="ident">max_hash</span>),
 				<span class="ident">tries_roots</span>: (<span class="ident">begin</span>, <span class="ident">begin_hash</span>, <span class="ident">local_roots_range</span>),
 				<span class="ident">key</span>: <span class="ident">key</span>.<span class="number">0</span>,
+				<span class="ident">storage_key</span>: <span class="prelude-val">None</span>,
 				<span class="ident">retry_count</span>: <span class="prelude-val">None</span>,
 			};
 			<span class="kw">let</span> <span class="ident">local_result</span> <span class="op">=</span> <span class="ident">local_checker</span>.<span class="ident">check_changes_proof</span>(<span class="kw-2">&amp;</span><span class="ident">request</span>, <span class="ident">ChangesProof</span> {
@@ -1769,7 +1779,7 @@
 		<span class="kw">let</span> <span class="ident">b3</span> <span class="op">=</span> <span class="ident">remote_client</span>.<span class="ident">block_hash_from_id</span>(<span class="kw-2">&amp;</span><span class="ident">BlockId</span>::<span class="ident">Number</span>(<span class="number">3</span>)).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>();
 		<span class="kw">let</span> <span class="ident">b4</span> <span class="op">=</span> <span class="ident">remote_client</span>.<span class="ident">block_hash_from_id</span>(<span class="kw-2">&amp;</span><span class="ident">BlockId</span>::<span class="ident">Number</span>(<span class="number">4</span>)).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>();
 		<span class="kw">let</span> <span class="ident">remote_proof</span> <span class="op">=</span> <span class="ident">remote_client</span>.<span class="ident">key_changes_proof_with_cht_size</span>(
-			<span class="ident">b1</span>, <span class="ident">b4</span>, <span class="ident">b3</span>, <span class="ident">b4</span>, <span class="kw-2">&amp;</span><span class="ident">dave</span>, <span class="number">4</span>
+			<span class="ident">b1</span>, <span class="ident">b4</span>, <span class="ident">b3</span>, <span class="ident">b4</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span><span class="ident">dave</span>, <span class="number">4</span>
 		).<span class="ident">unwrap</span>();
 
 		<span class="comment">// prepare local checker, having a root of changes trie CHT#0</span>
@@ -1788,6 +1798,7 @@
 			<span class="ident">last_block</span>: (<span class="number">4</span>, <span class="ident">b4</span>),
 			<span class="ident">max_block</span>: (<span class="number">4</span>, <span class="ident">b4</span>),
 			<span class="ident">tries_roots</span>: (<span class="number">3</span>, <span class="ident">b3</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">remote_roots</span>[<span class="number">2</span>].<span class="ident">clone</span>(), <span class="ident">remote_roots</span>[<span class="number">3</span>].<span class="ident">clone</span>()]),
+			<span class="ident">storage_key</span>: <span class="prelude-val">None</span>,
 			<span class="ident">key</span>: <span class="ident">dave</span>.<span class="number">0</span>,
 			<span class="ident">retry_count</span>: <span class="prelude-val">None</span>,
 		};
@@ -1819,7 +1830,7 @@
 		<span class="comment">// &#39;fetch&#39; changes proof from remote node</span>
 		<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">StorageKey</span>(<span class="ident">key</span>);
 		<span class="kw">let</span> <span class="ident">remote_proof</span> <span class="op">=</span> <span class="ident">remote_client</span>.<span class="ident">key_changes_proof</span>(
-			<span class="ident">begin_hash</span>, <span class="ident">end_hash</span>, <span class="ident">begin_hash</span>, <span class="ident">max_hash</span>, <span class="kw-2">&amp;</span><span class="ident">key</span>).<span class="ident">unwrap</span>();
+			<span class="ident">begin_hash</span>, <span class="ident">end_hash</span>, <span class="ident">begin_hash</span>, <span class="ident">max_hash</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span><span class="ident">key</span>).<span class="ident">unwrap</span>();
 
 		<span class="kw">let</span> <span class="ident">local_roots_range</span> <span class="op">=</span> <span class="ident">local_roots</span>.<span class="ident">clone</span>()[(<span class="ident">begin</span> <span class="op">-</span> <span class="number">1</span>) <span class="kw">as</span> <span class="ident">usize</span>..].<span class="ident">to_vec</span>();
 		<span class="kw">let</span> <span class="ident">request</span> <span class="op">=</span> <span class="ident">RemoteChangesRequest</span>::<span class="op">&lt;</span><span class="ident">Header</span><span class="op">&gt;</span> {
@@ -1828,6 +1839,7 @@
 			<span class="ident">last_block</span>: (<span class="ident">end</span>, <span class="ident">end_hash</span>),
 			<span class="ident">max_block</span>: (<span class="ident">max</span>, <span class="ident">max_hash</span>),
 			<span class="ident">tries_roots</span>: (<span class="ident">begin</span>, <span class="ident">begin_hash</span>, <span class="ident">local_roots_range</span>.<span class="ident">clone</span>()),
+			<span class="ident">storage_key</span>: <span class="prelude-val">None</span>,
 			<span class="ident">key</span>: <span class="ident">key</span>.<span class="number">0</span>,
 			<span class="ident">retry_count</span>: <span class="prelude-val">None</span>,
 		};
@@ -1881,7 +1893,7 @@
 		<span class="kw">let</span> <span class="ident">b3</span> <span class="op">=</span> <span class="ident">remote_client</span>.<span class="ident">block_hash_from_id</span>(<span class="kw-2">&amp;</span><span class="ident">BlockId</span>::<span class="ident">Number</span>(<span class="number">3</span>)).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>();
 		<span class="kw">let</span> <span class="ident">b4</span> <span class="op">=</span> <span class="ident">remote_client</span>.<span class="ident">block_hash_from_id</span>(<span class="kw-2">&amp;</span><span class="ident">BlockId</span>::<span class="ident">Number</span>(<span class="number">4</span>)).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>();
 		<span class="kw">let</span> <span class="ident">remote_proof</span> <span class="op">=</span> <span class="ident">remote_client</span>.<span class="ident">key_changes_proof_with_cht_size</span>(
-			<span class="ident">b1</span>, <span class="ident">b4</span>, <span class="ident">b3</span>, <span class="ident">b4</span>, <span class="kw-2">&amp;</span><span class="ident">dave</span>, <span class="number">4</span>
+			<span class="ident">b1</span>, <span class="ident">b4</span>, <span class="ident">b3</span>, <span class="ident">b4</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span><span class="ident">dave</span>, <span class="number">4</span>
 		).<span class="ident">unwrap</span>();
 
 		<span class="comment">// fails when changes trie CHT is missing from the local db</span>

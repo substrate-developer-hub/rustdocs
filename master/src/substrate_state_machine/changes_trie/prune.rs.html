@@ -316,6 +316,49 @@
 <span id="316">316</span>
 <span id="317">317</span>
 <span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
+<span id="361">361</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -343,6 +386,8 @@
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">trie_backend_essence</span>::<span class="ident">TrieBackendEssence</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">changes_trie</span>::{<span class="ident">AnchorBlockId</span>, <span class="ident">Configuration</span>, <span class="ident">Storage</span>, <span class="ident">BlockNumber</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">changes_trie</span>::<span class="ident">storage</span>::<span class="ident">TrieBackendAdapter</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">changes_trie</span>::<span class="ident">input</span>::{<span class="ident">ChildIndex</span>, <span class="ident">InputKey</span>};
+<span class="kw">use</span> <span class="ident">codec</span>::<span class="ident">Decode</span>;
 
 <span class="doccomment">/// Get number of oldest block for which changes trie is not pruned</span>
 <span class="doccomment">/// given changes trie configuration, pruning parameter and number of</span>
@@ -373,6 +418,7 @@
 	<span class="ident">current_block</span>: <span class="kw-2">&amp;</span><span class="ident">AnchorBlockId</span><span class="op">&lt;</span><span class="ident">H</span>::<span class="ident">Out</span>, <span class="ident">Number</span><span class="op">&gt;</span>,
 	<span class="kw-2">mut</span> <span class="ident">remove_trie_node</span>: <span class="ident">F</span>,
 ) {
+
 	<span class="comment">// select range for pruning</span>
 	<span class="kw">let</span> (<span class="ident">first</span>, <span class="ident">last</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">pruning_range</span>(<span class="ident">config</span>, <span class="ident">min_blocks_to_keep</span>, <span class="ident">current_block</span>.<span class="ident">number</span>.<span class="ident">clone</span>()) {
 		<span class="prelude-val">Some</span>((<span class="ident">first</span>, <span class="ident">last</span>)) <span class="op">=</span><span class="op">&gt;</span> (<span class="ident">first</span>, <span class="ident">last</span>),
@@ -400,23 +446,55 @@
 				<span class="kw">continue</span>;
 			},
 		};
+		<span class="kw">let</span> <span class="ident">children_roots</span> <span class="op">=</span> {
+			<span class="kw">let</span> <span class="ident">trie_storage</span> <span class="op">=</span> <span class="ident">TrieBackendEssence</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">H</span><span class="op">&gt;</span>::<span class="ident">new</span>(
+				<span class="kw">crate</span>::<span class="ident">changes_trie</span>::<span class="ident">TrieBackendStorageAdapter</span>(<span class="ident">storage</span>),
+				<span class="ident">root</span>,
+			);
+			<span class="kw">let</span> <span class="ident">child_prefix</span> <span class="op">=</span> <span class="ident">ChildIndex</span>::<span class="ident">key_neutral_prefix</span>(<span class="ident">block</span>.<span class="ident">clone</span>());
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">children_roots</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+			<span class="ident">trie_storage</span>.<span class="ident">for_key_values_with_prefix</span>(<span class="kw-2">&amp;</span><span class="ident">child_prefix</span>, <span class="op">|</span><span class="ident">key</span>, <span class="ident">value</span><span class="op">|</span> {
+				<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">InputKey</span>::<span class="ident">ChildIndex</span>::<span class="op">&lt;</span><span class="ident">Number</span><span class="op">&gt;</span>(<span class="ident">_trie_key</span>)) <span class="op">=</span> <span class="ident">Decode</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="ident">key</span>[..]) {
+					<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">value</span>) <span class="op">=</span> <span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="ident">value</span>[..]) {
+						<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">trie_root</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">H</span> <span class="kw">as</span> <span class="ident">Hasher</span><span class="op">&gt;</span>::<span class="ident">Out</span>::<span class="ident">default</span>();
+						<span class="ident">trie_root</span>.<span class="ident">as_mut</span>().<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">value</span>[..]);
+						<span class="ident">children_roots</span>.<span class="ident">push</span>(<span class="ident">trie_root</span>);
+					}
+				}
+			});
 
-		<span class="comment">// enumerate all changes trie&#39; keys, recording all nodes that have been &#39;touched&#39;</span>
-		<span class="comment">// (effectively - all changes trie nodes)</span>
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">proof_recorder</span>: <span class="ident">Recorder</span><span class="op">&lt;</span><span class="ident">H</span>::<span class="ident">Out</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Default</span>::<span class="ident">default</span>();
-		{
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">trie</span> <span class="op">=</span> <span class="ident">ProvingBackendEssence</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">H</span><span class="op">&gt;</span> {
-				<span class="ident">backend</span>: <span class="kw-2">&amp;</span><span class="ident">TrieBackendEssence</span>::<span class="ident">new</span>(<span class="ident">TrieBackendAdapter</span>::<span class="ident">new</span>(<span class="ident">storage</span>), <span class="ident">root</span>),
-				<span class="ident">proof_recorder</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">proof_recorder</span>,
-			};
-			<span class="ident">trie</span>.<span class="ident">record_all_keys</span>();
+			<span class="ident">children_roots</span>
+		};
+		<span class="kw">for</span> <span class="ident">root</span> <span class="kw">in</span> <span class="ident">children_roots</span>.<span class="ident">into_iter</span>() {
+			<span class="ident">prune_trie</span>(<span class="ident">storage</span>, <span class="ident">root</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">remove_trie_node</span>);
 		}
 
-		<span class="comment">// all nodes of this changes trie should be pruned</span>
-		<span class="ident">remove_trie_node</span>(<span class="ident">root</span>);
-		<span class="kw">for</span> <span class="ident">node</span> <span class="kw">in</span> <span class="ident">proof_recorder</span>.<span class="ident">drain</span>().<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">n</span><span class="op">|</span> <span class="ident">n</span>.<span class="ident">hash</span>) {
-			<span class="ident">remove_trie_node</span>(<span class="ident">node</span>);
-		}
+		<span class="ident">prune_trie</span>(<span class="ident">storage</span>, <span class="ident">root</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">remove_trie_node</span>);
+	}
+}
+
+<span class="comment">// Prune a trie.</span>
+<span class="kw">fn</span> <span class="ident">prune_trie</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">Storage</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">Number</span><span class="op">&gt;</span>, <span class="ident">H</span>: <span class="ident">Hasher</span>, <span class="ident">Number</span>: <span class="ident">BlockNumber</span>, <span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">H</span>::<span class="ident">Out</span>)<span class="op">&gt;</span>(
+	<span class="ident">storage</span>: <span class="kw-2">&amp;</span><span class="ident">S</span>,
+	<span class="ident">root</span>: <span class="ident">H</span>::<span class="ident">Out</span>,
+	<span class="ident">remove_trie_node</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">F</span>,
+) {
+
+	<span class="comment">// enumerate all changes trie&#39; keys, recording all nodes that have been &#39;touched&#39;</span>
+	<span class="comment">// (effectively - all changes trie nodes)</span>
+	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">proof_recorder</span>: <span class="ident">Recorder</span><span class="op">&lt;</span><span class="ident">H</span>::<span class="ident">Out</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Default</span>::<span class="ident">default</span>();
+	{
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">trie</span> <span class="op">=</span> <span class="ident">ProvingBackendEssence</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">H</span><span class="op">&gt;</span> {
+			<span class="ident">backend</span>: <span class="kw-2">&amp;</span><span class="ident">TrieBackendEssence</span>::<span class="ident">new</span>(<span class="ident">TrieBackendAdapter</span>::<span class="ident">new</span>(<span class="ident">storage</span>), <span class="ident">root</span>),
+			<span class="ident">proof_recorder</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">proof_recorder</span>,
+		};
+		<span class="ident">trie</span>.<span class="ident">record_all_keys</span>();
+	}
+
+	<span class="comment">// all nodes of this changes trie should be pruned</span>
+	<span class="ident">remove_trie_node</span>(<span class="ident">root</span>);
+	<span class="kw">for</span> <span class="ident">node</span> <span class="kw">in</span> <span class="ident">proof_recorder</span>.<span class="ident">drain</span>().<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">n</span><span class="op">|</span> <span class="ident">n</span>.<span class="ident">hash</span>) {
+		<span class="ident">remove_trie_node</span>(<span class="ident">node</span>);
 	}
 }
 
@@ -488,6 +566,7 @@
 	<span class="kw">use</span> <span class="ident">primitives</span>::<span class="ident">Blake2Hasher</span>;
 	<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">insert_into_memory_db</span>;
 	<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">changes_trie</span>::<span class="ident">storage</span>::<span class="ident">InMemoryStorage</span>;
+	<span class="kw">use</span> <span class="ident">codec</span>::<span class="ident">Encode</span>;
 	<span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 
 	<span class="kw">fn</span> <span class="ident">config</span>(<span class="ident">interval</span>: <span class="ident">u32</span>, <span class="ident">levels</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Configuration</span> {
@@ -512,12 +591,19 @@
 	<span class="attribute">#[<span class="ident">test</span>]</span>
 	<span class="kw">fn</span> <span class="ident">prune_works</span>() {
 		<span class="kw">fn</span> <span class="ident">prepare_storage</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">InMemoryStorage</span><span class="op">&lt;</span><span class="ident">Blake2Hasher</span>, <span class="ident">u64</span><span class="op">&gt;</span> {
+
+			<span class="kw">let</span> <span class="ident">child_key</span> <span class="op">=</span> <span class="ident">ChildIndex</span> { <span class="ident">block</span>: <span class="number">67u64</span>, <span class="ident">storage_key</span>: <span class="string">b&quot;1&quot;</span>.<span class="ident">to_vec</span>() }.<span class="ident">encode</span>();
 			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mdb1</span> <span class="op">=</span> <span class="ident">MemoryDB</span>::<span class="op">&lt;</span><span class="ident">Blake2Hasher</span><span class="op">&gt;</span>::<span class="ident">default</span>();
 			<span class="kw">let</span> <span class="ident">root1</span> <span class="op">=</span> <span class="ident">insert_into_memory_db</span>::<span class="op">&lt;</span><span class="ident">Blake2Hasher</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">mdb1</span>, <span class="macro">vec</span><span class="macro">!</span>[(<span class="macro">vec</span><span class="macro">!</span>[<span class="number">10</span>], <span class="macro">vec</span><span class="macro">!</span>[<span class="number">20</span>])]).<span class="ident">unwrap</span>();
 			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mdb2</span> <span class="op">=</span> <span class="ident">MemoryDB</span>::<span class="op">&lt;</span><span class="ident">Blake2Hasher</span><span class="op">&gt;</span>::<span class="ident">default</span>();
 			<span class="kw">let</span> <span class="ident">root2</span> <span class="op">=</span> <span class="ident">insert_into_memory_db</span>::<span class="op">&lt;</span><span class="ident">Blake2Hasher</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">mdb2</span>, <span class="macro">vec</span><span class="macro">!</span>[(<span class="macro">vec</span><span class="macro">!</span>[<span class="number">11</span>], <span class="macro">vec</span><span class="macro">!</span>[<span class="number">21</span>]), (<span class="macro">vec</span><span class="macro">!</span>[<span class="number">12</span>], <span class="macro">vec</span><span class="macro">!</span>[<span class="number">22</span>])]).<span class="ident">unwrap</span>();
 			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mdb3</span> <span class="op">=</span> <span class="ident">MemoryDB</span>::<span class="op">&lt;</span><span class="ident">Blake2Hasher</span><span class="op">&gt;</span>::<span class="ident">default</span>();
-			<span class="kw">let</span> <span class="ident">root3</span> <span class="op">=</span> <span class="ident">insert_into_memory_db</span>::<span class="op">&lt;</span><span class="ident">Blake2Hasher</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">mdb3</span>, <span class="macro">vec</span><span class="macro">!</span>[(<span class="macro">vec</span><span class="macro">!</span>[<span class="number">13</span>], <span class="macro">vec</span><span class="macro">!</span>[<span class="number">23</span>]), (<span class="macro">vec</span><span class="macro">!</span>[<span class="number">14</span>], <span class="macro">vec</span><span class="macro">!</span>[<span class="number">24</span>])]).<span class="ident">unwrap</span>();
+			<span class="kw">let</span> <span class="ident">ch_root3</span> <span class="op">=</span> <span class="ident">insert_into_memory_db</span>::<span class="op">&lt;</span><span class="ident">Blake2Hasher</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">mdb3</span>, <span class="macro">vec</span><span class="macro">!</span>[(<span class="macro">vec</span><span class="macro">!</span>[<span class="number">110</span>], <span class="macro">vec</span><span class="macro">!</span>[<span class="number">120</span>])]).<span class="ident">unwrap</span>();
+			<span class="kw">let</span> <span class="ident">root3</span> <span class="op">=</span> <span class="ident">insert_into_memory_db</span>::<span class="op">&lt;</span><span class="ident">Blake2Hasher</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">mdb3</span>, <span class="macro">vec</span><span class="macro">!</span>[
+				(<span class="macro">vec</span><span class="macro">!</span>[<span class="number">13</span>], <span class="macro">vec</span><span class="macro">!</span>[<span class="number">23</span>]),
+				(<span class="macro">vec</span><span class="macro">!</span>[<span class="number">14</span>], <span class="macro">vec</span><span class="macro">!</span>[<span class="number">24</span>]),
+				(<span class="ident">child_key</span>, <span class="ident">ch_root3</span>.<span class="ident">as_ref</span>().<span class="ident">encode</span>()),
+			]).<span class="ident">unwrap</span>();
 			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mdb4</span> <span class="op">=</span> <span class="ident">MemoryDB</span>::<span class="op">&lt;</span><span class="ident">Blake2Hasher</span><span class="op">&gt;</span>::<span class="ident">default</span>();
 			<span class="kw">let</span> <span class="ident">root4</span> <span class="op">=</span> <span class="ident">insert_into_memory_db</span>::<span class="op">&lt;</span><span class="ident">Blake2Hasher</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">mdb4</span>, <span class="macro">vec</span><span class="macro">!</span>[(<span class="macro">vec</span><span class="macro">!</span>[<span class="number">15</span>], <span class="macro">vec</span><span class="macro">!</span>[<span class="number">25</span>])]).<span class="ident">unwrap</span>();
 			<span class="kw">let</span> <span class="ident">storage</span> <span class="op">=</span> <span class="ident">InMemoryStorage</span>::<span class="ident">new</span>();
