@@ -473,7 +473,7 @@
 
 <span class="doccomment">/// Future, returned by `dialer_select_proto`, which selects a protocol and dialer</span>
 <span class="doccomment">/// either sequentially of by considering all protocols in parallel.</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">DialerSelectFuture</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">I</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Either</span><span class="op">&lt;</span><span class="ident">DialerSelectSeq</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">I</span><span class="op">&gt;</span>, <span class="ident">DialerSelectPar</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">I</span><span class="op">&gt;&gt;</span>;
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">DialerSelectFuture</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">I</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Either</span><span class="op">&lt;</span><span class="ident">DialerSelectSeq</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">I</span><span class="op">&gt;</span>, <span class="ident">DialerSelectPar</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">I</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
 <span class="doccomment">/// Helps selecting a protocol amongst the ones supported.</span>
 <span class="doccomment">///</span>
@@ -486,7 +486,7 @@
 <span class="doccomment">/// remote, and the protocol name that we passed (so that you don&#39;t have to clone the name). On</span>
 <span class="doccomment">/// success, the function returns the identifier (of type `P`), plus the socket which now uses that</span>
 <span class="doccomment">/// chosen protocol.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">dialer_select_proto</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">I</span><span class="op">&gt;</span>(<span class="ident">inner</span>: <span class="ident">R</span>, <span class="ident">protocols</span>: <span class="ident">I</span>) <span class="op">-&gt;</span> <span class="ident">DialerSelectFuture</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">I</span>::<span class="ident">IntoIter</span><span class="op">&gt;</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">dialer_select_proto</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">I</span><span class="op">&gt;</span>(<span class="ident">inner</span>: <span class="ident">R</span>, <span class="ident">protocols</span>: <span class="ident">I</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">DialerSelectFuture</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">I</span>::<span class="ident">IntoIter</span><span class="op">&gt;</span>
 <span class="kw">where</span>
     <span class="ident">R</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span>,
     <span class="ident">I</span>: <span class="ident">IntoIterator</span>,
@@ -494,7 +494,7 @@
 {
     <span class="kw">let</span> <span class="ident">iter</span> <span class="op">=</span> <span class="ident">protocols</span>.<span class="ident">into_iter</span>();
     <span class="comment">// We choose between the &quot;serial&quot; and &quot;parallel&quot; strategies based on the number of protocols.</span>
-    <span class="kw">if</span> <span class="ident">iter</span>.<span class="ident">size_hint</span>().<span class="number">1</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">n</span><span class="op">|</span> <span class="ident">n</span> <span class="op">&lt;=</span> <span class="number">3</span>).<span class="ident">unwrap_or</span>(<span class="bool-val">false</span>) {
+    <span class="kw">if</span> <span class="ident">iter</span>.<span class="ident">size_hint</span>().<span class="number">1</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">n</span><span class="op">|</span> <span class="ident">n</span> <span class="op">&lt;</span><span class="op">=</span> <span class="number">3</span>).<span class="ident">unwrap_or</span>(<span class="bool-val">false</span>) {
         <span class="ident">Either</span>::<span class="ident">A</span>(<span class="ident">dialer_select_proto_serial</span>(<span class="ident">inner</span>, <span class="ident">iter</span>))
     } <span class="kw">else</span> {
         <span class="ident">Either</span>::<span class="ident">B</span>(<span class="ident">dialer_select_proto_parallel</span>(<span class="ident">inner</span>, <span class="ident">iter</span>))
@@ -505,7 +505,7 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// Same as `dialer_select_proto`. Tries protocols one by one. The iterator doesn&#39;t need to produce</span>
 <span class="doccomment">/// match functions, because it&#39;s not needed.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">dialer_select_proto_serial</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">I</span><span class="op">&gt;</span>(<span class="ident">inner</span>: <span class="ident">R</span>, <span class="ident">protocols</span>: <span class="ident">I</span>) <span class="op">-&gt;</span> <span class="ident">DialerSelectSeq</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">I</span>::<span class="ident">IntoIter</span><span class="op">&gt;</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">dialer_select_proto_serial</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">I</span><span class="op">&gt;</span>(<span class="ident">inner</span>: <span class="ident">R</span>, <span class="ident">protocols</span>: <span class="ident">I</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">DialerSelectSeq</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">I</span>::<span class="ident">IntoIter</span><span class="op">&gt;</span>
 <span class="kw">where</span>
     <span class="ident">R</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span>,
     <span class="ident">I</span>: <span class="ident">IntoIterator</span>,
@@ -550,7 +550,7 @@
         <span class="ident">protocols</span>: <span class="ident">I</span>
     },
     <span class="ident">AwaitProtocol</span> {
-        <span class="ident">stream</span>: <span class="ident">StreamFuture</span><span class="op">&lt;</span><span class="ident">Dialer</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">I</span>::<span class="ident">Item</span><span class="op">&gt;&gt;</span>,
+        <span class="ident">stream</span>: <span class="ident">StreamFuture</span><span class="op">&lt;</span><span class="ident">Dialer</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">I</span>::<span class="ident">Item</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">proto_name</span>: <span class="ident">I</span>::<span class="ident">Item</span>,
         <span class="ident">protocols</span>: <span class="ident">I</span>
     },
@@ -566,13 +566,13 @@
     <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> (<span class="ident">I</span>::<span class="ident">Item</span>, <span class="ident">Negotiated</span><span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;</span>);
     <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ProtocolChoiceError</span>;
 
-    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Item</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Item</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="kw">loop</span> {
             <span class="kw">match</span> <span class="ident">mem</span>::<span class="ident">replace</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">inner</span>, <span class="ident">DialerSelectSeqState</span>::<span class="ident">Undefined</span>) {
-                <span class="ident">DialerSelectSeqState</span>::<span class="ident">AwaitDialer</span> { <span class="kw-2">mut</span> <span class="ident">dialer_fut</span>, <span class="kw-2">mut</span> <span class="ident">protocols</span> } <span class="op">=&gt;</span> {
+                <span class="ident">DialerSelectSeqState</span>::<span class="ident">AwaitDialer</span> { <span class="kw-2">mut</span> <span class="ident">dialer_fut</span>, <span class="kw-2">mut</span> <span class="ident">protocols</span> } <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="kw">let</span> <span class="ident">dialer</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">dialer_fut</span>.<span class="ident">poll</span>()<span class="question-mark">?</span> {
-                        <span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">d</span>) <span class="op">=&gt;</span> <span class="ident">d</span>,
-                        <span class="ident">Async</span>::<span class="ident">NotReady</span> <span class="op">=&gt;</span> {
+                        <span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">d</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">d</span>,
+                        <span class="ident">Async</span>::<span class="ident">NotReady</span> <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="self">self</span>.<span class="ident">inner</span> <span class="op">=</span> <span class="ident">DialerSelectSeqState</span>::<span class="ident">AwaitDialer</span> { <span class="ident">dialer_fut</span>, <span class="ident">protocols</span> };
                             <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>)
                         }
@@ -584,20 +584,20 @@
                         <span class="ident">proto_name</span>
                     }
                 }
-                <span class="ident">DialerSelectSeqState</span>::<span class="ident">NextProtocol</span> { <span class="kw-2">mut</span> <span class="ident">dialer</span>, <span class="ident">protocols</span>, <span class="ident">proto_name</span> } <span class="op">=&gt;</span> {
+                <span class="ident">DialerSelectSeqState</span>::<span class="ident">NextProtocol</span> { <span class="kw-2">mut</span> <span class="ident">dialer</span>, <span class="ident">protocols</span>, <span class="ident">proto_name</span> } <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;sending {:?}&quot;</span>, <span class="ident">proto_name</span>.<span class="ident">as_ref</span>());
                     <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">DialerToListenerMessage</span>::<span class="ident">ProtocolRequest</span> {
                         <span class="ident">name</span>: <span class="ident">proto_name</span>.<span class="ident">clone</span>()
                     };
                     <span class="kw">match</span> <span class="ident">dialer</span>.<span class="ident">start_send</span>(<span class="ident">req</span>)<span class="question-mark">?</span> {
-                        <span class="ident">AsyncSink</span>::<span class="ident">Ready</span> <span class="op">=&gt;</span> {
+                        <span class="ident">AsyncSink</span>::<span class="ident">Ready</span> <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="self">self</span>.<span class="ident">inner</span> <span class="op">=</span> <span class="ident">DialerSelectSeqState</span>::<span class="ident">FlushProtocol</span> {
                                 <span class="ident">dialer</span>,
                                 <span class="ident">proto_name</span>,
                                 <span class="ident">protocols</span>
                             }
                         }
-                        <span class="ident">AsyncSink</span>::<span class="ident">NotReady</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> {
+                        <span class="ident">AsyncSink</span>::<span class="ident">NotReady</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="self">self</span>.<span class="ident">inner</span> <span class="op">=</span> <span class="ident">DialerSelectSeqState</span>::<span class="ident">NextProtocol</span> {
                                 <span class="ident">dialer</span>,
                                 <span class="ident">protocols</span>,
@@ -607,9 +607,9 @@
                         }
                     }
                 }
-                <span class="ident">DialerSelectSeqState</span>::<span class="ident">FlushProtocol</span> { <span class="kw-2">mut</span> <span class="ident">dialer</span>, <span class="ident">proto_name</span>, <span class="ident">protocols</span> } <span class="op">=&gt;</span> {
+                <span class="ident">DialerSelectSeqState</span>::<span class="ident">FlushProtocol</span> { <span class="kw-2">mut</span> <span class="ident">dialer</span>, <span class="ident">proto_name</span>, <span class="ident">protocols</span> } <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="kw">match</span> <span class="ident">dialer</span>.<span class="ident">poll_complete</span>()<span class="question-mark">?</span> {
-                        <span class="ident">Async</span>::<span class="ident">Ready</span>(()) <span class="op">=&gt;</span> {
+                        <span class="ident">Async</span>::<span class="ident">Ready</span>(()) <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="kw">let</span> <span class="ident">stream</span> <span class="op">=</span> <span class="ident">dialer</span>.<span class="ident">into_future</span>();
                             <span class="self">self</span>.<span class="ident">inner</span> <span class="op">=</span> <span class="ident">DialerSelectSeqState</span>::<span class="ident">AwaitProtocol</span> {
                                 <span class="ident">stream</span>,
@@ -617,7 +617,7 @@
                                 <span class="ident">protocols</span>
                             }
                         }
-                        <span class="ident">Async</span>::<span class="ident">NotReady</span> <span class="op">=&gt;</span> {
+                        <span class="ident">Async</span>::<span class="ident">NotReady</span> <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="self">self</span>.<span class="ident">inner</span> <span class="op">=</span> <span class="ident">DialerSelectSeqState</span>::<span class="ident">FlushProtocol</span> {
                                 <span class="ident">dialer</span>,
                                 <span class="ident">proto_name</span>,
@@ -627,10 +627,10 @@
                         }
                     }
                 }
-                <span class="ident">DialerSelectSeqState</span>::<span class="ident">AwaitProtocol</span> { <span class="kw-2">mut</span> <span class="ident">stream</span>, <span class="ident">proto_name</span>, <span class="kw-2">mut</span> <span class="ident">protocols</span> } <span class="op">=&gt;</span> {
+                <span class="ident">DialerSelectSeqState</span>::<span class="ident">AwaitProtocol</span> { <span class="kw-2">mut</span> <span class="ident">stream</span>, <span class="ident">proto_name</span>, <span class="kw-2">mut</span> <span class="ident">protocols</span> } <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="kw">let</span> (<span class="ident">m</span>, <span class="ident">r</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">stream</span>.<span class="ident">poll</span>() {
-                        <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">x</span>)) <span class="op">=&gt;</span> <span class="ident">x</span>,
-                        <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=&gt;</span> {
+                        <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">x</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">x</span>,
+                        <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="self">self</span>.<span class="ident">inner</span> <span class="op">=</span> <span class="ident">DialerSelectSeqState</span>::<span class="ident">AwaitProtocol</span> {
                                 <span class="ident">stream</span>,
                                 <span class="ident">proto_name</span>,
@@ -638,16 +638,16 @@
                             };
                             <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>)
                         }
-                        <span class="prelude-val">Err</span>((<span class="ident">e</span>, <span class="kw">_</span>)) <span class="op">=&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">ProtocolChoiceError</span>::<span class="ident">from</span>(<span class="ident">e</span>))
+                        <span class="prelude-val">Err</span>((<span class="ident">e</span>, <span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">ProtocolChoiceError</span>::<span class="ident">from</span>(<span class="ident">e</span>))
                     };
                     <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;received {:?}&quot;</span>, <span class="ident">m</span>);
                     <span class="kw">match</span> <span class="ident">m</span>.<span class="ident">ok_or</span>(<span class="ident">ProtocolChoiceError</span>::<span class="ident">UnexpectedMessage</span>)<span class="question-mark">?</span> {
                         <span class="ident">ListenerToDialerMessage</span>::<span class="ident">ProtocolAck</span> { <span class="kw-2">ref</span> <span class="ident">name</span> }
-                            <span class="kw">if</span> <span class="ident">name</span>.<span class="ident">as_ref</span>() <span class="op">==</span> <span class="ident">proto_name</span>.<span class="ident">as_ref</span>() <span class="op">=&gt;</span>
+                            <span class="kw">if</span> <span class="ident">name</span>.<span class="ident">as_ref</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">proto_name</span>.<span class="ident">as_ref</span>() <span class="op">=</span><span class="op">&gt;</span>
                         {
                             <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>((<span class="ident">proto_name</span>, <span class="ident">Negotiated</span>(<span class="ident">r</span>.<span class="ident">into_inner</span>()))))
                         }
-                        <span class="ident">ListenerToDialerMessage</span>::<span class="ident">NotAvailable</span> <span class="op">=&gt;</span> {
+                        <span class="ident">ListenerToDialerMessage</span>::<span class="ident">NotAvailable</span> <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="kw">let</span> <span class="ident">proto_name</span> <span class="op">=</span> <span class="ident">protocols</span>.<span class="ident">next</span>()
                                 .<span class="ident">ok_or</span>(<span class="ident">ProtocolChoiceError</span>::<span class="ident">NoProtocolFound</span>)<span class="question-mark">?</span>;
                             <span class="self">self</span>.<span class="ident">inner</span> <span class="op">=</span> <span class="ident">DialerSelectSeqState</span>::<span class="ident">NextProtocol</span> {
@@ -656,10 +656,10 @@
                                 <span class="ident">proto_name</span>
                             }
                         }
-                        <span class="kw">_</span> <span class="op">=&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">ProtocolChoiceError</span>::<span class="ident">UnexpectedMessage</span>)
+                        <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">ProtocolChoiceError</span>::<span class="ident">UnexpectedMessage</span>)
                     }
                 }
-                <span class="ident">DialerSelectSeqState</span>::<span class="ident">Undefined</span> <span class="op">=&gt;</span>
+                <span class="ident">DialerSelectSeqState</span>::<span class="ident">Undefined</span> <span class="op">=</span><span class="op">&gt;</span>
                     <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;DialerSelectSeqState::poll called after completion&quot;</span>)
             }
         }
@@ -670,7 +670,7 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// Same as `dialer_select_proto`. Queries the list of supported protocols from the remote, then</span>
 <span class="doccomment">/// chooses the most appropriate one.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">dialer_select_proto_parallel</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">I</span><span class="op">&gt;</span>(<span class="ident">inner</span>: <span class="ident">R</span>, <span class="ident">protocols</span>: <span class="ident">I</span>) <span class="op">-&gt;</span> <span class="ident">DialerSelectPar</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">I</span>::<span class="ident">IntoIter</span><span class="op">&gt;</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">dialer_select_proto_parallel</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">I</span><span class="op">&gt;</span>(<span class="ident">inner</span>: <span class="ident">R</span>, <span class="ident">protocols</span>: <span class="ident">I</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">DialerSelectPar</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">I</span>::<span class="ident">IntoIter</span><span class="op">&gt;</span>
 <span class="kw">where</span>
     <span class="ident">R</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span>,
     <span class="ident">I</span>: <span class="ident">IntoIterator</span>,
@@ -714,7 +714,7 @@
         <span class="ident">protocols</span>: <span class="ident">I</span>
     },
     <span class="ident">AwaitListResponse</span> {
-        <span class="ident">stream</span>: <span class="ident">StreamFuture</span><span class="op">&lt;</span><span class="ident">Dialer</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">I</span>::<span class="ident">Item</span><span class="op">&gt;&gt;</span>,
+        <span class="ident">stream</span>: <span class="ident">StreamFuture</span><span class="op">&lt;</span><span class="ident">Dialer</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">I</span>::<span class="ident">Item</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">protocols</span>: <span class="ident">I</span>,
     },
     <span class="ident">Protocol</span> {
@@ -726,7 +726,7 @@
         <span class="ident">proto_name</span>: <span class="ident">I</span>::<span class="ident">Item</span>
     },
     <span class="ident">AwaitProtocol</span> {
-        <span class="ident">stream</span>: <span class="ident">StreamFuture</span><span class="op">&lt;</span><span class="ident">Dialer</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">I</span>::<span class="ident">Item</span><span class="op">&gt;&gt;</span>,
+        <span class="ident">stream</span>: <span class="ident">StreamFuture</span><span class="op">&lt;</span><span class="ident">Dialer</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">I</span>::<span class="ident">Item</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">proto_name</span>: <span class="ident">I</span>::<span class="ident">Item</span>
     },
     <span class="ident">Undefined</span>
@@ -741,44 +741,44 @@
     <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> (<span class="ident">I</span>::<span class="ident">Item</span>, <span class="ident">Negotiated</span><span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;</span>);
     <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ProtocolChoiceError</span>;
 
-    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Item</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Item</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="kw">loop</span> {
             <span class="kw">match</span> <span class="ident">mem</span>::<span class="ident">replace</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">inner</span>, <span class="ident">DialerSelectParState</span>::<span class="ident">Undefined</span>) {
-                <span class="ident">DialerSelectParState</span>::<span class="ident">AwaitDialer</span> { <span class="kw-2">mut</span> <span class="ident">dialer_fut</span>, <span class="ident">protocols</span> } <span class="op">=&gt;</span> {
+                <span class="ident">DialerSelectParState</span>::<span class="ident">AwaitDialer</span> { <span class="kw-2">mut</span> <span class="ident">dialer_fut</span>, <span class="ident">protocols</span> } <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="kw">match</span> <span class="ident">dialer_fut</span>.<span class="ident">poll</span>()<span class="question-mark">?</span> {
-                        <span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">dialer</span>) <span class="op">=&gt;</span> {
+                        <span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">dialer</span>) <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="self">self</span>.<span class="ident">inner</span> <span class="op">=</span> <span class="ident">DialerSelectParState</span>::<span class="ident">ProtocolList</span> { <span class="ident">dialer</span>, <span class="ident">protocols</span> }
                         }
-                        <span class="ident">Async</span>::<span class="ident">NotReady</span> <span class="op">=&gt;</span> {
+                        <span class="ident">Async</span>::<span class="ident">NotReady</span> <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="self">self</span>.<span class="ident">inner</span> <span class="op">=</span> <span class="ident">DialerSelectParState</span>::<span class="ident">AwaitDialer</span> { <span class="ident">dialer_fut</span>, <span class="ident">protocols</span> };
                             <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>)
                         }
                     }
                 }
-                <span class="ident">DialerSelectParState</span>::<span class="ident">ProtocolList</span> { <span class="kw-2">mut</span> <span class="ident">dialer</span>, <span class="ident">protocols</span> } <span class="op">=&gt;</span> {
+                <span class="ident">DialerSelectParState</span>::<span class="ident">ProtocolList</span> { <span class="kw-2">mut</span> <span class="ident">dialer</span>, <span class="ident">protocols</span> } <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;requesting protocols list&quot;</span>);
                     <span class="kw">match</span> <span class="ident">dialer</span>.<span class="ident">start_send</span>(<span class="ident">DialerToListenerMessage</span>::<span class="ident">ProtocolsListRequest</span>)<span class="question-mark">?</span> {
-                        <span class="ident">AsyncSink</span>::<span class="ident">Ready</span> <span class="op">=&gt;</span> {
+                        <span class="ident">AsyncSink</span>::<span class="ident">Ready</span> <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="self">self</span>.<span class="ident">inner</span> <span class="op">=</span> <span class="ident">DialerSelectParState</span>::<span class="ident">FlushListRequest</span> {
                                 <span class="ident">dialer</span>,
                                 <span class="ident">protocols</span>
                             }
                         }
-                        <span class="ident">AsyncSink</span>::<span class="ident">NotReady</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> {
+                        <span class="ident">AsyncSink</span>::<span class="ident">NotReady</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="self">self</span>.<span class="ident">inner</span> <span class="op">=</span> <span class="ident">DialerSelectParState</span>::<span class="ident">ProtocolList</span> { <span class="ident">dialer</span>, <span class="ident">protocols</span> };
                             <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>)
                         }
                     }
                 }
-                <span class="ident">DialerSelectParState</span>::<span class="ident">FlushListRequest</span> { <span class="kw-2">mut</span> <span class="ident">dialer</span>, <span class="ident">protocols</span> } <span class="op">=&gt;</span> {
+                <span class="ident">DialerSelectParState</span>::<span class="ident">FlushListRequest</span> { <span class="kw-2">mut</span> <span class="ident">dialer</span>, <span class="ident">protocols</span> } <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="kw">match</span> <span class="ident">dialer</span>.<span class="ident">poll_complete</span>()<span class="question-mark">?</span> {
-                        <span class="ident">Async</span>::<span class="ident">Ready</span>(()) <span class="op">=&gt;</span> {
+                        <span class="ident">Async</span>::<span class="ident">Ready</span>(()) <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="self">self</span>.<span class="ident">inner</span> <span class="op">=</span> <span class="ident">DialerSelectParState</span>::<span class="ident">AwaitListResponse</span> {
                                 <span class="ident">stream</span>: <span class="ident">dialer</span>.<span class="ident">into_future</span>(),
                                 <span class="ident">protocols</span>
                             }
                         }
-                        <span class="ident">Async</span>::<span class="ident">NotReady</span> <span class="op">=&gt;</span> {
+                        <span class="ident">Async</span>::<span class="ident">NotReady</span> <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="self">self</span>.<span class="ident">inner</span> <span class="op">=</span> <span class="ident">DialerSelectParState</span>::<span class="ident">FlushListRequest</span> {
                                 <span class="ident">dialer</span>,
                                 <span class="ident">protocols</span>
@@ -787,14 +787,14 @@
                         }
                     }
                 }
-                <span class="ident">DialerSelectParState</span>::<span class="ident">AwaitListResponse</span> { <span class="kw-2">mut</span> <span class="ident">stream</span>, <span class="ident">protocols</span> } <span class="op">=&gt;</span> {
+                <span class="ident">DialerSelectParState</span>::<span class="ident">AwaitListResponse</span> { <span class="kw-2">mut</span> <span class="ident">stream</span>, <span class="ident">protocols</span> } <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="kw">let</span> (<span class="ident">resp</span>, <span class="ident">dialer</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">stream</span>.<span class="ident">poll</span>() {
-                        <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">x</span>)) <span class="op">=&gt;</span> <span class="ident">x</span>,
-                        <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=&gt;</span> {
+                        <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">x</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">x</span>,
+                        <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="self">self</span>.<span class="ident">inner</span> <span class="op">=</span> <span class="ident">DialerSelectParState</span>::<span class="ident">AwaitListResponse</span> { <span class="ident">stream</span>, <span class="ident">protocols</span> };
                             <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>)
                         }
-                        <span class="prelude-val">Err</span>((<span class="ident">e</span>, <span class="kw">_</span>)) <span class="op">=&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">ProtocolChoiceError</span>::<span class="ident">from</span>(<span class="ident">e</span>))
+                        <span class="prelude-val">Err</span>((<span class="ident">e</span>, <span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">ProtocolChoiceError</span>::<span class="ident">from</span>(<span class="ident">e</span>))
                     };
                     <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;protocols list response: {:?}&quot;</span>, <span class="ident">resp</span>);
                     <span class="kw">let</span> <span class="ident">list</span> <span class="op">=</span>
@@ -806,7 +806,7 @@
                     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">found</span> <span class="op">=</span> <span class="prelude-val">None</span>;
                     <span class="kw">for</span> <span class="ident">local_name</span> <span class="kw">in</span> <span class="ident">protocols</span> {
                         <span class="kw">for</span> <span class="ident">remote_name</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">list</span> {
-                            <span class="kw">if</span> <span class="ident">remote_name</span>.<span class="ident">as_ref</span>() <span class="op">==</span> <span class="ident">local_name</span>.<span class="ident">as_ref</span>() {
+                            <span class="kw">if</span> <span class="ident">remote_name</span>.<span class="ident">as_ref</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">local_name</span>.<span class="ident">as_ref</span>() {
                                 <span class="ident">found</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">local_name</span>);
                                 <span class="kw">break</span>;
                             }
@@ -818,55 +818,55 @@
                     <span class="kw">let</span> <span class="ident">proto_name</span> <span class="op">=</span> <span class="ident">found</span>.<span class="ident">ok_or</span>(<span class="ident">ProtocolChoiceError</span>::<span class="ident">NoProtocolFound</span>)<span class="question-mark">?</span>;
                     <span class="self">self</span>.<span class="ident">inner</span> <span class="op">=</span> <span class="ident">DialerSelectParState</span>::<span class="ident">Protocol</span> { <span class="ident">dialer</span>, <span class="ident">proto_name</span> }
                 }
-                <span class="ident">DialerSelectParState</span>::<span class="ident">Protocol</span> { <span class="kw-2">mut</span> <span class="ident">dialer</span>, <span class="ident">proto_name</span> } <span class="op">=&gt;</span> {
+                <span class="ident">DialerSelectParState</span>::<span class="ident">Protocol</span> { <span class="kw-2">mut</span> <span class="ident">dialer</span>, <span class="ident">proto_name</span> } <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;requesting protocol: {:?}&quot;</span>, <span class="ident">proto_name</span>.<span class="ident">as_ref</span>());
                     <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">DialerToListenerMessage</span>::<span class="ident">ProtocolRequest</span> {
                         <span class="ident">name</span>: <span class="ident">proto_name</span>.<span class="ident">clone</span>()
                     };
                     <span class="kw">match</span> <span class="ident">dialer</span>.<span class="ident">start_send</span>(<span class="ident">req</span>)<span class="question-mark">?</span> {
-                        <span class="ident">AsyncSink</span>::<span class="ident">Ready</span> <span class="op">=&gt;</span> {
+                        <span class="ident">AsyncSink</span>::<span class="ident">Ready</span> <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="self">self</span>.<span class="ident">inner</span> <span class="op">=</span> <span class="ident">DialerSelectParState</span>::<span class="ident">FlushProtocol</span> { <span class="ident">dialer</span>, <span class="ident">proto_name</span> }
                         }
-                        <span class="ident">AsyncSink</span>::<span class="ident">NotReady</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> {
+                        <span class="ident">AsyncSink</span>::<span class="ident">NotReady</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="self">self</span>.<span class="ident">inner</span> <span class="op">=</span> <span class="ident">DialerSelectParState</span>::<span class="ident">Protocol</span> { <span class="ident">dialer</span>, <span class="ident">proto_name</span> };
                             <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>)
                         }
                     }
                 }
-                <span class="ident">DialerSelectParState</span>::<span class="ident">FlushProtocol</span> { <span class="kw-2">mut</span> <span class="ident">dialer</span>, <span class="ident">proto_name</span> } <span class="op">=&gt;</span> {
+                <span class="ident">DialerSelectParState</span>::<span class="ident">FlushProtocol</span> { <span class="kw-2">mut</span> <span class="ident">dialer</span>, <span class="ident">proto_name</span> } <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="kw">match</span> <span class="ident">dialer</span>.<span class="ident">poll_complete</span>()<span class="question-mark">?</span> {
-                        <span class="ident">Async</span>::<span class="ident">Ready</span>(()) <span class="op">=&gt;</span> {
+                        <span class="ident">Async</span>::<span class="ident">Ready</span>(()) <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="self">self</span>.<span class="ident">inner</span> <span class="op">=</span> <span class="ident">DialerSelectParState</span>::<span class="ident">AwaitProtocol</span> {
                                 <span class="ident">stream</span>: <span class="ident">dialer</span>.<span class="ident">into_future</span>(),
                                 <span class="ident">proto_name</span>
                             }
                         }
-                        <span class="ident">Async</span>::<span class="ident">NotReady</span> <span class="op">=&gt;</span> {
+                        <span class="ident">Async</span>::<span class="ident">NotReady</span> <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="self">self</span>.<span class="ident">inner</span> <span class="op">=</span> <span class="ident">DialerSelectParState</span>::<span class="ident">FlushProtocol</span> { <span class="ident">dialer</span>, <span class="ident">proto_name</span> };
                             <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>)
                         }
                     }
                 }
-                <span class="ident">DialerSelectParState</span>::<span class="ident">AwaitProtocol</span> { <span class="kw-2">mut</span> <span class="ident">stream</span>, <span class="ident">proto_name</span> } <span class="op">=&gt;</span> {
+                <span class="ident">DialerSelectParState</span>::<span class="ident">AwaitProtocol</span> { <span class="kw-2">mut</span> <span class="ident">stream</span>, <span class="ident">proto_name</span> } <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="kw">let</span> (<span class="ident">resp</span>, <span class="ident">dialer</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">stream</span>.<span class="ident">poll</span>() {
-                        <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">x</span>)) <span class="op">=&gt;</span> <span class="ident">x</span>,
-                        <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=&gt;</span> {
+                        <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">x</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">x</span>,
+                        <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="self">self</span>.<span class="ident">inner</span> <span class="op">=</span> <span class="ident">DialerSelectParState</span>::<span class="ident">AwaitProtocol</span> { <span class="ident">stream</span>, <span class="ident">proto_name</span> };
                             <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>)
                         }
-                        <span class="prelude-val">Err</span>((<span class="ident">e</span>, <span class="kw">_</span>)) <span class="op">=&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">ProtocolChoiceError</span>::<span class="ident">from</span>(<span class="ident">e</span>))
+                        <span class="prelude-val">Err</span>((<span class="ident">e</span>, <span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">ProtocolChoiceError</span>::<span class="ident">from</span>(<span class="ident">e</span>))
                     };
                     <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;received {:?}&quot;</span>, <span class="ident">resp</span>);
                     <span class="kw">match</span> <span class="ident">resp</span> {
                         <span class="prelude-val">Some</span>(<span class="ident">ListenerToDialerMessage</span>::<span class="ident">ProtocolAck</span> { <span class="kw-2">ref</span> <span class="ident">name</span> })
-                            <span class="kw">if</span> <span class="ident">name</span>.<span class="ident">as_ref</span>() <span class="op">==</span> <span class="ident">proto_name</span>.<span class="ident">as_ref</span>() <span class="op">=&gt;</span>
+                            <span class="kw">if</span> <span class="ident">name</span>.<span class="ident">as_ref</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">proto_name</span>.<span class="ident">as_ref</span>() <span class="op">=</span><span class="op">&gt;</span>
                         {
                             <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>((<span class="ident">proto_name</span>, <span class="ident">Negotiated</span>(<span class="ident">dialer</span>.<span class="ident">into_inner</span>()))))
                         }
-                        <span class="kw">_</span> <span class="op">=&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">ProtocolChoiceError</span>::<span class="ident">UnexpectedMessage</span>)
+                        <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">ProtocolChoiceError</span>::<span class="ident">UnexpectedMessage</span>)
                     }
                 }
-                <span class="ident">DialerSelectParState</span>::<span class="ident">Undefined</span> <span class="op">=&gt;</span>
+                <span class="ident">DialerSelectParState</span>::<span class="ident">Undefined</span> <span class="op">=</span><span class="op">&gt;</span>
                     <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;DialerSelectParState::poll called after completion&quot;</span>)
             }
         }

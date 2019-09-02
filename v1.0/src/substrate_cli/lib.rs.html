@@ -974,7 +974,7 @@
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">traits</span>::{<span class="ident">GetLogFilter</span>, <span class="ident">AugmentClap</span>};
 <span class="kw">use</span> <span class="ident">app_dirs</span>::{<span class="ident">AppInfo</span>, <span class="ident">AppDataType</span>};
 <span class="kw">use</span> <span class="ident">error_chain</span>::<span class="ident">bail</span>;
-<span class="kw">use</span> <span class="ident">log</span>::<span class="ident">info</span>;
+<span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">info</span>, <span class="ident">SetLoggerError</span>};
 <span class="kw">use</span> <span class="ident">lazy_static</span>::<span class="ident">lazy_static</span>;
 
 <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">Future</span>;
@@ -1016,17 +1016,17 @@
 	<span class="doccomment">/// Exit signal type.</span>
 	<span class="kw">type</span> <span class="ident">Exit</span>: <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span>(),<span class="ident">Error</span><span class="op">=</span>()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>;
 	<span class="doccomment">/// Convert into exit signal.</span>
-	<span class="kw">fn</span> <span class="ident">into_exit</span>(<span class="self">self</span>) <span class="op">-&gt;</span> <span class="self">Self</span>::<span class="ident">Exit</span>;
+	<span class="kw">fn</span> <span class="ident">into_exit</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>::<span class="ident">Exit</span>;
 }
 
-<span class="kw">fn</span> <span class="ident">get_chain_key</span>(<span class="ident">cli</span>: <span class="kw-2">&amp;</span><span class="ident">SharedParams</span>) <span class="op">-&gt;</span> <span class="ident">String</span> {
+<span class="kw">fn</span> <span class="ident">get_chain_key</span>(<span class="ident">cli</span>: <span class="kw-2">&amp;</span><span class="ident">SharedParams</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
 	<span class="kw">match</span> <span class="ident">cli</span>.<span class="ident">chain</span> {
-		<span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">chain</span>) <span class="op">=&gt;</span> <span class="ident">chain</span>.<span class="ident">clone</span>(),
-		<span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="kw">if</span> <span class="ident">cli</span>.<span class="ident">dev</span> { <span class="string">&quot;dev&quot;</span>.<span class="ident">into</span>() } <span class="kw">else</span> { <span class="string">&quot;&quot;</span>.<span class="ident">into</span>() }
+		<span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">chain</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">chain</span>.<span class="ident">clone</span>(),
+		<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">if</span> <span class="ident">cli</span>.<span class="ident">dev</span> { <span class="string">&quot;dev&quot;</span>.<span class="ident">into</span>() } <span class="kw">else</span> { <span class="string">&quot;&quot;</span>.<span class="ident">into</span>() }
 	}
 }
 
-<span class="kw">fn</span> <span class="ident">generate_node_name</span>() <span class="op">-&gt;</span> <span class="ident">String</span> {
+<span class="kw">fn</span> <span class="ident">generate_node_name</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
 	<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="kw">loop</span> {
 		<span class="kw">let</span> <span class="ident">node_name</span> <span class="op">=</span> <span class="ident">Generator</span>::<span class="ident">with_naming</span>(<span class="ident">Name</span>::<span class="ident">Numbered</span>).<span class="ident">next</span>().<span class="ident">unwrap</span>();
 		<span class="kw">let</span> <span class="ident">count</span> <span class="op">=</span> <span class="ident">node_name</span>.<span class="ident">chars</span>().<span class="ident">count</span>();
@@ -1039,20 +1039,20 @@
 	<span class="ident">result</span>
 }
 
-<span class="kw">fn</span> <span class="ident">load_spec</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">G</span><span class="op">&gt;</span>(<span class="ident">cli</span>: <span class="kw-2">&amp;</span><span class="ident">SharedParams</span>, <span class="ident">factory</span>: <span class="ident">F</span>) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">G</span><span class="op">&gt;&gt;</span>
-	<span class="kw">where</span> <span class="ident">G</span>: <span class="ident">RuntimeGenesis</span>, <span class="ident">F</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">G</span><span class="op">&gt;&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span>,
+<span class="kw">fn</span> <span class="ident">load_spec</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">G</span><span class="op">&gt;</span>(<span class="ident">cli</span>: <span class="kw-2">&amp;</span><span class="ident">SharedParams</span>, <span class="ident">factory</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">G</span><span class="op">&gt;</span><span class="op">&gt;</span>
+	<span class="kw">where</span> <span class="ident">G</span>: <span class="ident">RuntimeGenesis</span>, <span class="ident">F</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">G</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span>,
 {
 	<span class="kw">let</span> <span class="ident">chain_key</span> <span class="op">=</span> <span class="ident">get_chain_key</span>(<span class="ident">cli</span>);
 	<span class="kw">let</span> <span class="ident">spec</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">factory</span>(<span class="kw-2">&amp;</span><span class="ident">chain_key</span>)<span class="question-mark">?</span> {
-		<span class="prelude-val">Some</span>(<span class="ident">spec</span>) <span class="op">=&gt;</span> <span class="ident">spec</span>,
-		<span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="ident">ChainSpec</span>::<span class="ident">from_json_file</span>(<span class="ident">PathBuf</span>::<span class="ident">from</span>(<span class="ident">chain_key</span>))<span class="question-mark">?</span>
+		<span class="prelude-val">Some</span>(<span class="ident">spec</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">spec</span>,
+		<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ChainSpec</span>::<span class="ident">from_json_file</span>(<span class="ident">PathBuf</span>::<span class="ident">from</span>(<span class="ident">chain_key</span>))<span class="question-mark">?</span>
 	};
 	<span class="prelude-val">Ok</span>(<span class="ident">spec</span>)
 }
 
-<span class="kw">fn</span> <span class="ident">base_path</span>(<span class="ident">cli</span>: <span class="kw-2">&amp;</span><span class="ident">SharedParams</span>, <span class="ident">version</span>: <span class="kw-2">&amp;</span><span class="ident">VersionInfo</span>) <span class="op">-&gt;</span> <span class="ident">PathBuf</span> {
+<span class="kw">fn</span> <span class="ident">base_path</span>(<span class="ident">cli</span>: <span class="kw-2">&amp;</span><span class="ident">SharedParams</span>, <span class="ident">version</span>: <span class="kw-2">&amp;</span><span class="ident">VersionInfo</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">PathBuf</span> {
 	<span class="ident">cli</span>.<span class="ident">base_path</span>.<span class="ident">clone</span>()
-		.<span class="ident">unwrap_or_else</span>(<span class="op">||</span>
+		.<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span>
 			<span class="ident">app_dirs</span>::<span class="ident">get_app_root</span>(
 				<span class="ident">AppDataType</span>::<span class="ident">UserData</span>,
 				<span class="kw-2">&amp;</span><span class="ident">AppInfo</span> {
@@ -1063,14 +1063,14 @@
 		)
 }
 
-<span class="kw">fn</span> <span class="ident">input_err</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;&gt;</span>(<span class="ident">msg</span>: <span class="ident">T</span>) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="ident">Error</span> {
+<span class="kw">fn</span> <span class="ident">input_err</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="ident">msg</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="ident">Error</span> {
 	<span class="ident">error</span>::<span class="ident">ErrorKind</span>::<span class="ident">Input</span>(<span class="ident">msg</span>.<span class="ident">into</span>()).<span class="ident">into</span>()
 }
 
 <span class="doccomment">/// Check whether a node name is considered as valid</span>
-<span class="kw">fn</span> <span class="ident">is_node_name_valid</span>(<span class="ident">_name</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span> {
+<span class="kw">fn</span> <span class="ident">is_node_name_valid</span>(<span class="ident">_name</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span> {
 	<span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">_name</span>.<span class="ident">to_string</span>();
-	<span class="kw">if</span> <span class="ident">name</span>.<span class="ident">chars</span>().<span class="ident">count</span>() <span class="op">&gt;=</span> <span class="ident">NODE_NAME_MAX_LENGTH</span> {
+	<span class="kw">if</span> <span class="ident">name</span>.<span class="ident">chars</span>().<span class="ident">count</span>() <span class="op">&gt;</span><span class="op">=</span> <span class="ident">NODE_NAME_MAX_LENGTH</span> {
 		<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="string">&quot;Node name too long&quot;</span>);
 	}
 
@@ -1111,14 +1111,14 @@
 	<span class="ident">args</span>: <span class="ident">I</span>,
 	<span class="ident">exit</span>: <span class="ident">E</span>,
 	<span class="ident">run_service</span>: <span class="ident">RS</span>,
-) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;&gt;</span>
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span><span class="op">&gt;</span>
 <span class="kw">where</span>
 	<span class="ident">F</span>: <span class="ident">ServiceFactory</span>,
-	<span class="ident">S</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">FactoryGenesis</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span>,
+	<span class="ident">S</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">FactoryGenesis</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span>,
 	<span class="ident">CC</span>: <span class="ident">StructOpt</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">GetLogFilter</span>,
 	<span class="ident">RP</span>: <span class="ident">StructOpt</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">AugmentClap</span>,
 	<span class="ident">E</span>: <span class="ident">IntoExit</span>,
-	<span class="ident">RS</span>: <span class="ident">FnOnce</span>(<span class="ident">E</span>, <span class="ident">RP</span>, <span class="ident">FactoryFullConfiguration</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">String</span><span class="op">&gt;</span>,
+	<span class="ident">RS</span>: <span class="ident">FnOnce</span>(<span class="ident">E</span>, <span class="ident">RP</span>, <span class="ident">FactoryFullConfiguration</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">String</span><span class="op">&gt;</span>,
 	<span class="ident">I</span>: <span class="ident">IntoIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">T</span><span class="op">&gt;</span>,
 	<span class="ident">T</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">std</span>::<span class="ident">ffi</span>::<span class="ident">OsString</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Clone</span>,
 {
@@ -1140,54 +1140,54 @@
 		.<span class="ident">get_matches_from</span>(<span class="ident">args</span>);
 	<span class="kw">let</span> <span class="ident">cli_args</span> <span class="op">=</span> <span class="ident">CoreParams</span>::<span class="op">&lt;</span><span class="ident">CC</span>, <span class="ident">RP</span><span class="op">&gt;</span>::<span class="ident">from_clap</span>(<span class="kw-2">&amp;</span><span class="ident">matches</span>);
 
-	<span class="ident">init_logger</span>(<span class="ident">cli_args</span>.<span class="ident">get_log_filter</span>().<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="ident">v</span>.<span class="ident">as_ref</span>()).<span class="ident">unwrap_or</span>(<span class="string">&quot;&quot;</span>));
+	<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">init_logger</span>(<span class="ident">cli_args</span>.<span class="ident">get_log_filter</span>().<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="ident">v</span>.<span class="ident">as_ref</span>()).<span class="ident">unwrap_or</span>(<span class="string">&quot;&quot;</span>));
 	<span class="ident">fdlimit</span>::<span class="ident">raise_fd_limit</span>();
 
 	<span class="kw">match</span> <span class="ident">cli_args</span> {
-		<span class="ident">params</span>::<span class="ident">CoreParams</span>::<span class="ident">Run</span>(<span class="ident">params</span>) <span class="op">=&gt;</span> <span class="ident">run_node</span>::<span class="op">&lt;</span><span class="ident">F</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(
+		<span class="ident">params</span>::<span class="ident">CoreParams</span>::<span class="ident">Run</span>(<span class="ident">params</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">run_node</span>::<span class="op">&lt;</span><span class="ident">F</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(
 			<span class="ident">params</span>, <span class="ident">spec_factory</span>, <span class="ident">exit</span>, <span class="ident">run_service</span>, <span class="ident">impl_name</span>, <span class="ident">version</span>,
 		).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">None</span>),
-		<span class="ident">params</span>::<span class="ident">CoreParams</span>::<span class="ident">BuildSpec</span>(<span class="ident">params</span>) <span class="op">=&gt;</span>
+		<span class="ident">params</span>::<span class="ident">CoreParams</span>::<span class="ident">BuildSpec</span>(<span class="ident">params</span>) <span class="op">=</span><span class="op">&gt;</span>
 			<span class="ident">build_spec</span>::<span class="op">&lt;</span><span class="ident">F</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="ident">params</span>, <span class="ident">spec_factory</span>, <span class="ident">version</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">None</span>),
-		<span class="ident">params</span>::<span class="ident">CoreParams</span>::<span class="ident">ExportBlocks</span>(<span class="ident">params</span>) <span class="op">=&gt;</span>
+		<span class="ident">params</span>::<span class="ident">CoreParams</span>::<span class="ident">ExportBlocks</span>(<span class="ident">params</span>) <span class="op">=</span><span class="op">&gt;</span>
 			<span class="ident">export_blocks</span>::<span class="op">&lt;</span><span class="ident">F</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="ident">params</span>, <span class="ident">spec_factory</span>, <span class="ident">exit</span>, <span class="ident">version</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">None</span>),
-		<span class="ident">params</span>::<span class="ident">CoreParams</span>::<span class="ident">ImportBlocks</span>(<span class="ident">params</span>) <span class="op">=&gt;</span>
+		<span class="ident">params</span>::<span class="ident">CoreParams</span>::<span class="ident">ImportBlocks</span>(<span class="ident">params</span>) <span class="op">=</span><span class="op">&gt;</span>
 			<span class="ident">import_blocks</span>::<span class="op">&lt;</span><span class="ident">F</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="ident">params</span>, <span class="ident">spec_factory</span>, <span class="ident">exit</span>, <span class="ident">version</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">None</span>),
-		<span class="ident">params</span>::<span class="ident">CoreParams</span>::<span class="ident">PurgeChain</span>(<span class="ident">params</span>) <span class="op">=&gt;</span>
+		<span class="ident">params</span>::<span class="ident">CoreParams</span>::<span class="ident">PurgeChain</span>(<span class="ident">params</span>) <span class="op">=</span><span class="op">&gt;</span>
 			<span class="ident">purge_chain</span>::<span class="op">&lt;</span><span class="ident">F</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="ident">params</span>, <span class="ident">spec_factory</span>, <span class="ident">version</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">None</span>),
-		<span class="ident">params</span>::<span class="ident">CoreParams</span>::<span class="ident">Revert</span>(<span class="ident">params</span>) <span class="op">=&gt;</span>
+		<span class="ident">params</span>::<span class="ident">CoreParams</span>::<span class="ident">Revert</span>(<span class="ident">params</span>) <span class="op">=</span><span class="op">&gt;</span>
 			<span class="ident">revert_chain</span>::<span class="op">&lt;</span><span class="ident">F</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="ident">params</span>, <span class="ident">spec_factory</span>, <span class="ident">version</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">None</span>),
-		<span class="ident">params</span>::<span class="ident">CoreParams</span>::<span class="ident">Custom</span>(<span class="ident">params</span>) <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">params</span>)),
+		<span class="ident">params</span>::<span class="ident">CoreParams</span>::<span class="ident">Custom</span>(<span class="ident">params</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">params</span>)),
 	}
 }
 
 <span class="doccomment">/// Create a `NodeKeyConfig` from the given `NodeKeyParams` in the context</span>
 <span class="doccomment">/// of an optional network config storage directory.</span>
 <span class="kw">fn</span> <span class="ident">node_key_config</span><span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>(<span class="ident">params</span>: <span class="ident">NodeKeyParams</span>, <span class="ident">net_config_dir</span>: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>)
-	<span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">NodeKeyConfig</span><span class="op">&gt;</span>
+	<span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">NodeKeyConfig</span><span class="op">&gt;</span>
 <span class="kw">where</span>
 	<span class="ident">P</span>: <span class="ident">AsRef</span><span class="op">&lt;</span><span class="ident">Path</span><span class="op">&gt;</span>
 {
 	<span class="kw">match</span> <span class="ident">params</span>.<span class="ident">node_key_type</span> {
-		<span class="ident">NodeKeyType</span>::<span class="ident">Secp256k1</span> <span class="op">=&gt;</span>
-			<span class="ident">params</span>.<span class="ident">node_key</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="ident">parse_secp256k1_secret</span>).<span class="ident">unwrap_or_else</span>(<span class="op">||</span>
+		<span class="ident">NodeKeyType</span>::<span class="ident">Secp256k1</span> <span class="op">=</span><span class="op">&gt;</span>
+			<span class="ident">params</span>.<span class="ident">node_key</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="ident">parse_secp256k1_secret</span>).<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span>
 				<span class="prelude-val">Ok</span>(<span class="ident">params</span>.<span class="ident">node_key_file</span>
-					.<span class="ident">or_else</span>(<span class="op">||</span> <span class="ident">net_config_file</span>(<span class="ident">net_config_dir</span>, <span class="ident">NODE_KEY_SECP256K1_FILE</span>))
+					.<span class="ident">or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">net_config_file</span>(<span class="ident">net_config_dir</span>, <span class="ident">NODE_KEY_SECP256K1_FILE</span>))
 					.<span class="ident">map</span>(<span class="ident">network</span>::<span class="ident">Secret</span>::<span class="ident">File</span>)
 					.<span class="ident">unwrap_or</span>(<span class="ident">network</span>::<span class="ident">Secret</span>::<span class="ident">New</span>)))
 				.<span class="ident">map</span>(<span class="ident">NodeKeyConfig</span>::<span class="ident">Secp256k1</span>),
 
-		<span class="ident">NodeKeyType</span>::<span class="ident">Ed25519</span> <span class="op">=&gt;</span>
-			<span class="ident">params</span>.<span class="ident">node_key</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="ident">parse_ed25519_secret</span>).<span class="ident">unwrap_or_else</span>(<span class="op">||</span>
+		<span class="ident">NodeKeyType</span>::<span class="ident">Ed25519</span> <span class="op">=</span><span class="op">&gt;</span>
+			<span class="ident">params</span>.<span class="ident">node_key</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="ident">parse_ed25519_secret</span>).<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span>
 				<span class="prelude-val">Ok</span>(<span class="ident">params</span>.<span class="ident">node_key_file</span>
-					.<span class="ident">or_else</span>(<span class="op">||</span> <span class="ident">net_config_file</span>(<span class="ident">net_config_dir</span>, <span class="ident">NODE_KEY_ED25519_FILE</span>))
+					.<span class="ident">or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">net_config_file</span>(<span class="ident">net_config_dir</span>, <span class="ident">NODE_KEY_ED25519_FILE</span>))
 					.<span class="ident">map</span>(<span class="ident">network</span>::<span class="ident">Secret</span>::<span class="ident">File</span>)
 					.<span class="ident">unwrap_or</span>(<span class="ident">network</span>::<span class="ident">Secret</span>::<span class="ident">New</span>)))
 				.<span class="ident">map</span>(<span class="ident">NodeKeyConfig</span>::<span class="ident">Ed25519</span>)
 	}
 }
 
-<span class="kw">fn</span> <span class="ident">net_config_file</span><span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>(<span class="ident">net_config_dir</span>: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>, <span class="ident">name</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span>
+<span class="kw">fn</span> <span class="ident">net_config_file</span><span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>(<span class="ident">net_config_dir</span>: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>, <span class="ident">name</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span>
 <span class="kw">where</span>
 	<span class="ident">P</span>: <span class="ident">AsRef</span><span class="op">&lt;</span><span class="ident">Path</span><span class="op">&gt;</span>
 {
@@ -1195,12 +1195,12 @@
 }
 
 <span class="doccomment">/// Create an error caused by an invalid node key argument.</span>
-<span class="kw">fn</span> <span class="ident">invalid_node_key</span>(<span class="ident">e</span>: <span class="kw">impl</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Display</span>) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="ident">Error</span> {
+<span class="kw">fn</span> <span class="ident">invalid_node_key</span>(<span class="ident">e</span>: <span class="kw">impl</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Display</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="ident">Error</span> {
 	<span class="ident">input_err</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Invalid node key: {}&quot;</span>, <span class="ident">e</span>))
 }
 
 <span class="doccomment">/// Parse a Secp256k1 secret key from a hex string into a `network::Secret`.</span>
-<span class="kw">fn</span> <span class="ident">parse_secp256k1_secret</span>(<span class="ident">hex</span>: <span class="kw-2">&amp;</span><span class="ident">String</span>) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">network</span>::<span class="ident">Secp256k1Secret</span><span class="op">&gt;</span> {
+<span class="kw">fn</span> <span class="ident">parse_secp256k1_secret</span>(<span class="ident">hex</span>: <span class="kw-2">&amp;</span><span class="ident">String</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">network</span>::<span class="ident">Secp256k1Secret</span><span class="op">&gt;</span> {
 	<span class="ident">H256</span>::<span class="ident">from_str</span>(<span class="ident">hex</span>).<span class="ident">map_err</span>(<span class="ident">invalid_node_key</span>).<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">bytes</span><span class="op">|</span>
 		<span class="ident">network</span>::<span class="ident">identity</span>::<span class="ident">secp256k1</span>::<span class="ident">SecretKey</span>::<span class="ident">from_bytes</span>(<span class="ident">bytes</span>)
 			.<span class="ident">map</span>(<span class="ident">network</span>::<span class="ident">Secret</span>::<span class="ident">Input</span>)
@@ -1208,7 +1208,7 @@
 }
 
 <span class="doccomment">/// Parse a Ed25519 secret key from a hex string into a `network::Secret`.</span>
-<span class="kw">fn</span> <span class="ident">parse_ed25519_secret</span>(<span class="ident">hex</span>: <span class="kw-2">&amp;</span><span class="ident">String</span>) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">network</span>::<span class="ident">Ed25519Secret</span><span class="op">&gt;</span> {
+<span class="kw">fn</span> <span class="ident">parse_ed25519_secret</span>(<span class="ident">hex</span>: <span class="kw-2">&amp;</span><span class="ident">String</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">network</span>::<span class="ident">Ed25519Secret</span><span class="op">&gt;</span> {
 	<span class="ident">H256</span>::<span class="ident">from_str</span>(<span class="kw-2">&amp;</span><span class="ident">hex</span>).<span class="ident">map_err</span>(<span class="ident">invalid_node_key</span>).<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">bytes</span><span class="op">|</span>
 		<span class="ident">network</span>::<span class="ident">identity</span>::<span class="ident">ed25519</span>::<span class="ident">SecretKey</span>::<span class="ident">from_bytes</span>(<span class="ident">bytes</span>)
 			.<span class="ident">map</span>(<span class="ident">network</span>::<span class="ident">Secret</span>::<span class="ident">Input</span>)
@@ -1219,7 +1219,7 @@
 <span class="kw">fn</span> <span class="ident">fill_transaction_pool_configuration</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">ServiceFactory</span><span class="op">&gt;</span>(
 	<span class="ident">options</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FactoryFullConfiguration</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>,
 	<span class="ident">params</span>: <span class="ident">TransactionPoolParams</span>,
-) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
 	<span class="comment">// ready queue</span>
 	<span class="ident">options</span>.<span class="ident">transaction_pool</span>.<span class="ident">ready</span>.<span class="ident">count</span> <span class="op">=</span> <span class="ident">params</span>.<span class="ident">pool_limit</span>;
 	<span class="ident">options</span>.<span class="ident">transaction_pool</span>.<span class="ident">ready</span>.<span class="ident">total_bytes</span> <span class="op">=</span> <span class="ident">params</span>.<span class="ident">pool_kbytes</span> <span class="op">*</span> <span class="number">1024</span>;
@@ -1240,7 +1240,7 @@
 	<span class="ident">config</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">NetworkConfiguration</span>,
 	<span class="ident">client_id</span>: <span class="ident">String</span>,
 	<span class="ident">is_dev</span>: <span class="ident">bool</span>,
-) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
 	<span class="ident">config</span>.<span class="ident">boot_nodes</span>.<span class="ident">extend</span>(<span class="ident">cli</span>.<span class="ident">bootnodes</span>.<span class="ident">into_iter</span>());
 	<span class="ident">config</span>.<span class="ident">config_path</span> <span class="op">=</span> <span class="prelude-val">Some</span>(
 		<span class="ident">network_path</span>(<span class="kw-2">&amp;</span><span class="ident">base_path</span>, <span class="ident">chain_spec_id</span>).<span class="ident">to_string_lossy</span>().<span class="ident">into</span>()
@@ -1258,8 +1258,8 @@
 
 	<span class="kw">if</span> <span class="ident">config</span>.<span class="ident">listen_addresses</span>.<span class="ident">is_empty</span>() {
 		<span class="kw">let</span> <span class="ident">port</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">cli</span>.<span class="ident">port</span> {
-			<span class="prelude-val">Some</span>(<span class="ident">port</span>) <span class="op">=&gt;</span> <span class="ident">port</span>,
-			<span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="number">30333</span>,
+			<span class="prelude-val">Some</span>(<span class="ident">port</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">port</span>,
+			<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="number">30333</span>,
 		};
 
 		<span class="ident">config</span>.<span class="ident">listen_addresses</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[
@@ -1277,17 +1277,17 @@
 	<span class="ident">config</span>.<span class="ident">in_peers</span> <span class="op">=</span> <span class="ident">cli</span>.<span class="ident">in_peers</span>;
 	<span class="ident">config</span>.<span class="ident">out_peers</span> <span class="op">=</span> <span class="ident">cli</span>.<span class="ident">out_peers</span>;
 
-	<span class="ident">config</span>.<span class="ident">enable_mdns</span> <span class="op">=</span> <span class="op">!</span><span class="ident">is_dev</span> <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">cli</span>.<span class="ident">no_mdns</span>;
+	<span class="ident">config</span>.<span class="ident">enable_mdns</span> <span class="op">=</span> <span class="op">!</span><span class="ident">is_dev</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="op">!</span><span class="ident">cli</span>.<span class="ident">no_mdns</span>;
 
 	<span class="prelude-val">Ok</span>(())
 }
 
 <span class="kw">fn</span> <span class="ident">create_run_node_config</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">S</span><span class="op">&gt;</span>(
 	<span class="ident">cli</span>: <span class="ident">RunCmd</span>, <span class="ident">spec_factory</span>: <span class="ident">S</span>, <span class="ident">impl_name</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>, <span class="ident">version</span>: <span class="kw-2">&amp;</span><span class="ident">VersionInfo</span>
-) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">FactoryFullConfiguration</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;&gt;</span>
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">FactoryFullConfiguration</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span><span class="op">&gt;</span>
 <span class="kw">where</span>
 	<span class="ident">F</span>: <span class="ident">ServiceFactory</span>,
-	<span class="ident">S</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">FactoryGenesis</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span>,
+	<span class="ident">S</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">FactoryGenesis</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span>,
 {
 	<span class="kw">let</span> <span class="ident">spec</span> <span class="op">=</span> <span class="ident">load_spec</span>(<span class="kw-2">&amp;</span><span class="ident">cli</span>.<span class="ident">shared_params</span>, <span class="ident">spec_factory</span>)<span class="question-mark">?</span>;
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">service</span>::<span class="ident">Configuration</span>::<span class="ident">default_with_spec</span>(<span class="ident">spec</span>.<span class="ident">clone</span>());
@@ -1297,12 +1297,12 @@
 	<span class="ident">config</span>.<span class="ident">impl_version</span> <span class="op">=</span> <span class="ident">version</span>.<span class="ident">version</span>;
 
 	<span class="ident">config</span>.<span class="ident">name</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">cli</span>.<span class="ident">name</span>.<span class="ident">or</span>(<span class="ident">cli</span>.<span class="ident">keyring</span>.<span class="ident">account</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">a</span><span class="op">|</span> <span class="ident">a</span>.<span class="ident">to_string</span>())) {
-		<span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="ident">generate_node_name</span>(),
-		<span class="prelude-val">Some</span>(<span class="ident">name</span>) <span class="op">=&gt;</span> <span class="ident">name</span>,
+		<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">generate_node_name</span>(),
+		<span class="prelude-val">Some</span>(<span class="ident">name</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">name</span>,
 	};
 	<span class="kw">match</span> <span class="ident">is_node_name_valid</span>(<span class="kw-2">&amp;</span><span class="ident">config</span>.<span class="ident">name</span>) {
-		<span class="prelude-val">Ok</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> (),
-		<span class="prelude-val">Err</span>(<span class="ident">msg</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(
+		<span class="prelude-val">Ok</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> (),
+		<span class="prelude-val">Err</span>(<span class="ident">msg</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(
 			<span class="ident">input_err</span>(
 				<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Invalid node name &#39;{}&#39;. Reason: {}. If unsure, use none.&quot;</span>,
 					<span class="ident">config</span>.<span class="ident">name</span>,
@@ -1315,7 +1315,7 @@
 	<span class="kw">let</span> <span class="ident">base_path</span> <span class="op">=</span> <span class="ident">base_path</span>(<span class="kw-2">&amp;</span><span class="ident">cli</span>.<span class="ident">shared_params</span>, <span class="ident">version</span>);
 
 	<span class="ident">config</span>.<span class="ident">keystore_path</span> <span class="op">=</span> <span class="ident">cli</span>.<span class="ident">keystore_path</span>
-		.<span class="ident">unwrap_or_else</span>(<span class="op">||</span> <span class="ident">keystore_path</span>(<span class="kw-2">&amp;</span><span class="ident">base_path</span>, <span class="ident">config</span>.<span class="ident">chain_spec</span>.<span class="ident">id</span>()))
+		.<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">keystore_path</span>(<span class="kw-2">&amp;</span><span class="ident">base_path</span>, <span class="ident">config</span>.<span class="ident">chain_spec</span>.<span class="ident">id</span>()))
 		.<span class="ident">to_string_lossy</span>()
 		.<span class="ident">into</span>();
 
@@ -1323,9 +1323,9 @@
 		<span class="ident">db_path</span>(<span class="kw-2">&amp;</span><span class="ident">base_path</span>, <span class="ident">config</span>.<span class="ident">chain_spec</span>.<span class="ident">id</span>()).<span class="ident">to_string_lossy</span>().<span class="ident">into</span>();
 	<span class="ident">config</span>.<span class="ident">database_cache_size</span> <span class="op">=</span> <span class="ident">cli</span>.<span class="ident">database_cache_size</span>;
 	<span class="ident">config</span>.<span class="ident">pruning</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">cli</span>.<span class="ident">pruning</span> {
-		<span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">s</span>) <span class="kw">if</span> <span class="ident">s</span> <span class="op">==</span> <span class="string">&quot;archive&quot;</span> <span class="op">=&gt;</span> <span class="ident">PruningMode</span>::<span class="ident">ArchiveAll</span>,
-		<span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="ident">PruningMode</span>::<span class="ident">default</span>(),
-		<span class="prelude-val">Some</span>(<span class="ident">s</span>) <span class="op">=&gt;</span> <span class="ident">PruningMode</span>::<span class="ident">keep_blocks</span>(
+		<span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">s</span>) <span class="kw">if</span> <span class="ident">s</span> <span class="op">=</span><span class="op">=</span> <span class="string">&quot;archive&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">PruningMode</span>::<span class="ident">ArchiveAll</span>,
+		<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">PruningMode</span>::<span class="ident">default</span>(),
+		<span class="prelude-val">Some</span>(<span class="ident">s</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">PruningMode</span>::<span class="ident">keep_blocks</span>(
 			<span class="ident">s</span>.<span class="ident">parse</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">input_err</span>(<span class="string">&quot;Invalid pruning mode specified&quot;</span>))<span class="question-mark">?</span>
 		),
 	};
@@ -1333,7 +1333,7 @@
 	<span class="kw">let</span> <span class="ident">role</span> <span class="op">=</span>
 		<span class="kw">if</span> <span class="ident">cli</span>.<span class="ident">light</span> {
 			<span class="ident">service</span>::<span class="ident">Roles</span>::<span class="ident">LIGHT</span>
-		} <span class="kw">else</span> <span class="kw">if</span> <span class="ident">cli</span>.<span class="ident">validator</span> <span class="op">||</span> <span class="ident">cli</span>.<span class="ident">shared_params</span>.<span class="ident">dev</span> {
+		} <span class="kw">else</span> <span class="kw">if</span> <span class="ident">cli</span>.<span class="ident">validator</span> <span class="op">|</span><span class="op">|</span> <span class="ident">cli</span>.<span class="ident">shared_params</span>.<span class="ident">dev</span> {
 			<span class="ident">service</span>::<span class="ident">Roles</span>::<span class="ident">AUTHORITY</span>
 		} <span class="kw">else</span> {
 			<span class="ident">service</span>::<span class="ident">Roles</span>::<span class="ident">FULL</span>
@@ -1349,10 +1349,10 @@
 	};
 
 	<span class="ident">config</span>.<span class="ident">offchain_worker</span> <span class="op">=</span> <span class="kw">match</span> (<span class="ident">cli</span>.<span class="ident">offchain_worker</span>, <span class="ident">role</span>) {
-		(<span class="ident">params</span>::<span class="ident">OffchainWorkerEnabled</span>::<span class="ident">WhenValidating</span>, <span class="ident">service</span>::<span class="ident">Roles</span>::<span class="ident">AUTHORITY</span>) <span class="op">=&gt;</span> <span class="bool-val">true</span>,
-		(<span class="ident">params</span>::<span class="ident">OffchainWorkerEnabled</span>::<span class="ident">Always</span>, <span class="kw">_</span>) <span class="op">=&gt;</span> <span class="bool-val">true</span>,
-		(<span class="ident">params</span>::<span class="ident">OffchainWorkerEnabled</span>::<span class="ident">Never</span>, <span class="kw">_</span>) <span class="op">=&gt;</span> <span class="bool-val">false</span>,
-		(<span class="ident">params</span>::<span class="ident">OffchainWorkerEnabled</span>::<span class="ident">WhenValidating</span>, <span class="kw">_</span>) <span class="op">=&gt;</span> <span class="bool-val">false</span>,
+		(<span class="ident">params</span>::<span class="ident">OffchainWorkerEnabled</span>::<span class="ident">WhenValidating</span>, <span class="ident">service</span>::<span class="ident">Roles</span>::<span class="ident">AUTHORITY</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">true</span>,
+		(<span class="ident">params</span>::<span class="ident">OffchainWorkerEnabled</span>::<span class="ident">Always</span>, <span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">true</span>,
+		(<span class="ident">params</span>::<span class="ident">OffchainWorkerEnabled</span>::<span class="ident">Never</span>, <span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">false</span>,
+		(<span class="ident">params</span>::<span class="ident">OffchainWorkerEnabled</span>::<span class="ident">WhenValidating</span>, <span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">false</span>,
 	};
 
 	<span class="ident">config</span>.<span class="ident">roles</span> <span class="op">=</span> <span class="ident">role</span>;
@@ -1416,13 +1416,13 @@
 	<span class="ident">run_service</span>: <span class="ident">RS</span>,
 	<span class="ident">impl_name</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>,
 	<span class="ident">version</span>: <span class="kw-2">&amp;</span><span class="ident">VersionInfo</span>,
-) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
 <span class="kw">where</span>
 	<span class="ident">RP</span>: <span class="ident">StructOpt</span> <span class="op">+</span> <span class="ident">Clone</span>,
 	<span class="ident">F</span>: <span class="ident">ServiceFactory</span>,
 	<span class="ident">E</span>: <span class="ident">IntoExit</span>,
-	<span class="ident">S</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">FactoryGenesis</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span>,
-	<span class="ident">RS</span>: <span class="ident">FnOnce</span>(<span class="ident">E</span>, <span class="ident">RP</span>, <span class="ident">FactoryFullConfiguration</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">String</span><span class="op">&gt;</span>,
+	<span class="ident">S</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">FactoryGenesis</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span>,
+	<span class="ident">RS</span>: <span class="ident">FnOnce</span>(<span class="ident">E</span>, <span class="ident">RP</span>, <span class="ident">FactoryFullConfiguration</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">String</span><span class="op">&gt;</span>,
  {
 	<span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">create_run_node_config</span>::<span class="op">&lt;</span><span class="ident">F</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="ident">cli</span>.<span class="ident">left</span>, <span class="ident">spec_factory</span>, <span class="ident">impl_name</span>, <span class="ident">version</span>)<span class="question-mark">?</span>;
 
@@ -1438,10 +1438,10 @@
 <span class="comment">// 9926-9949		Unassigned</span>
 
 <span class="kw">fn</span> <span class="ident">with_default_boot_node</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(
-	<span class="ident">spec</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">FactoryGenesis</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;&gt;</span>,
+	<span class="ident">spec</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">FactoryGenesis</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">cli</span>: <span class="ident">BuildSpecCmd</span>,
 	<span class="ident">version</span>: <span class="kw-2">&amp;</span><span class="ident">VersionInfo</span>,
-) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
 <span class="kw">where</span>
 	<span class="ident">F</span>: <span class="ident">ServiceFactory</span>
 {
@@ -1465,16 +1465,16 @@
 	<span class="ident">cli</span>: <span class="ident">BuildSpecCmd</span>,
 	<span class="ident">spec_factory</span>: <span class="ident">S</span>,
 	<span class="ident">version</span>: <span class="kw-2">&amp;</span><span class="ident">VersionInfo</span>,
-) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
 <span class="kw">where</span>
 	<span class="ident">F</span>: <span class="ident">ServiceFactory</span>,
-	<span class="ident">S</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">FactoryGenesis</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span>,
+	<span class="ident">S</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">FactoryGenesis</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span>,
 {
 	<span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;Building chain spec&quot;</span>);
 	<span class="kw">let</span> <span class="ident">raw_output</span> <span class="op">=</span> <span class="ident">cli</span>.<span class="ident">raw</span>;
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">spec</span> <span class="op">=</span> <span class="ident">load_spec</span>(<span class="kw-2">&amp;</span><span class="ident">cli</span>.<span class="ident">shared_params</span>, <span class="ident">spec_factory</span>)<span class="question-mark">?</span>;
 	<span class="ident">with_default_boot_node</span>::<span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">spec</span>, <span class="ident">cli</span>, <span class="ident">version</span>)<span class="question-mark">?</span>;
-	<span class="kw">let</span> <span class="ident">json</span> <span class="op">=</span> <span class="ident">service</span>::<span class="ident">chain_ops</span>::<span class="ident">build_spec</span>::<span class="op">&lt;</span><span class="ident">FactoryGenesis</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;&gt;</span>(<span class="ident">spec</span>, <span class="ident">raw_output</span>)<span class="question-mark">?</span>;
+	<span class="kw">let</span> <span class="ident">json</span> <span class="op">=</span> <span class="ident">service</span>::<span class="ident">chain_ops</span>::<span class="ident">build_spec</span>::<span class="op">&lt;</span><span class="ident">FactoryGenesis</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="ident">spec</span>, <span class="ident">raw_output</span>)<span class="question-mark">?</span>;
 
 	<span class="macro">print</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">json</span>);
 
@@ -1483,10 +1483,10 @@
 
 <span class="kw">fn</span> <span class="ident">create_config_with_db_path</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">S</span><span class="op">&gt;</span>(
 	<span class="ident">spec_factory</span>: <span class="ident">S</span>, <span class="ident">cli</span>: <span class="kw-2">&amp;</span><span class="ident">SharedParams</span>, <span class="ident">version</span>: <span class="kw-2">&amp;</span><span class="ident">VersionInfo</span>,
-) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">FactoryFullConfiguration</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;&gt;</span>
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">FactoryFullConfiguration</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span><span class="op">&gt;</span>
 <span class="kw">where</span>
 	<span class="ident">F</span>: <span class="ident">ServiceFactory</span>,
-	<span class="ident">S</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">FactoryGenesis</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span>,
+	<span class="ident">S</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">FactoryGenesis</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span>,
 {
 	<span class="kw">let</span> <span class="ident">spec</span> <span class="op">=</span> <span class="ident">load_spec</span>(<span class="ident">cli</span>, <span class="ident">spec_factory</span>)<span class="question-mark">?</span>;
 	<span class="kw">let</span> <span class="ident">base_path</span> <span class="op">=</span> <span class="ident">base_path</span>(<span class="ident">cli</span>, <span class="ident">version</span>);
@@ -1502,11 +1502,11 @@
 	<span class="ident">spec_factory</span>: <span class="ident">S</span>,
 	<span class="ident">exit</span>: <span class="ident">E</span>,
 	<span class="ident">version</span>: <span class="kw-2">&amp;</span><span class="ident">VersionInfo</span>,
-) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
 <span class="kw">where</span>
 	<span class="ident">F</span>: <span class="ident">ServiceFactory</span>,
 	<span class="ident">E</span>: <span class="ident">IntoExit</span>,
-	<span class="ident">S</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">FactoryGenesis</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span>,
+	<span class="ident">S</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">FactoryGenesis</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span>,
 {
 	<span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">create_config_with_db_path</span>::<span class="op">&lt;</span><span class="ident">F</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="ident">spec_factory</span>, <span class="kw-2">&amp;</span><span class="ident">cli</span>.<span class="ident">shared_params</span>, <span class="ident">version</span>)<span class="question-mark">?</span>;
 
@@ -1516,8 +1516,8 @@
 	<span class="kw">let</span> <span class="ident">json</span> <span class="op">=</span> <span class="ident">cli</span>.<span class="ident">json</span>;
 
 	<span class="kw">let</span> <span class="ident">file</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="ident">Write</span><span class="op">&gt;</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">cli</span>.<span class="ident">output</span> {
-		<span class="prelude-val">Some</span>(<span class="ident">filename</span>) <span class="op">=&gt;</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">File</span>::<span class="ident">create</span>(<span class="ident">filename</span>)<span class="question-mark">?</span>),
-		<span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">stdout</span>()),
+		<span class="prelude-val">Some</span>(<span class="ident">filename</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">File</span>::<span class="ident">create</span>(<span class="ident">filename</span>)<span class="question-mark">?</span>),
+		<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">stdout</span>()),
 	};
 
 	<span class="ident">service</span>::<span class="ident">chain_ops</span>::<span class="ident">export_blocks</span>::<span class="op">&lt;</span><span class="ident">F</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(
@@ -1530,17 +1530,17 @@
 	<span class="ident">spec_factory</span>: <span class="ident">S</span>,
 	<span class="ident">exit</span>: <span class="ident">E</span>,
 	<span class="ident">version</span>: <span class="kw-2">&amp;</span><span class="ident">VersionInfo</span>,
-) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
 <span class="kw">where</span>
 	<span class="ident">F</span>: <span class="ident">ServiceFactory</span>,
 	<span class="ident">E</span>: <span class="ident">IntoExit</span>,
-	<span class="ident">S</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">FactoryGenesis</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span>,
+	<span class="ident">S</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">FactoryGenesis</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span>,
 {
 	<span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">create_config_with_db_path</span>::<span class="op">&lt;</span><span class="ident">F</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="ident">spec_factory</span>, <span class="kw-2">&amp;</span><span class="ident">cli</span>.<span class="ident">shared_params</span>, <span class="ident">version</span>)<span class="question-mark">?</span>;
 
 	<span class="kw">let</span> <span class="ident">file</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="ident">Read</span><span class="op">&gt;</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">cli</span>.<span class="ident">input</span> {
-		<span class="prelude-val">Some</span>(<span class="ident">filename</span>) <span class="op">=&gt;</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">File</span>::<span class="ident">open</span>(<span class="ident">filename</span>)<span class="question-mark">?</span>),
-		<span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">stdin</span>()),
+		<span class="prelude-val">Some</span>(<span class="ident">filename</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">File</span>::<span class="ident">open</span>(<span class="ident">filename</span>)<span class="question-mark">?</span>),
+		<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">stdin</span>()),
 	};
 
 	<span class="ident">service</span>::<span class="ident">chain_ops</span>::<span class="ident">import_blocks</span>::<span class="op">&lt;</span><span class="ident">F</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="ident">config</span>, <span class="ident">exit</span>.<span class="ident">into_exit</span>(), <span class="ident">file</span>).<span class="ident">map_err</span>(<span class="ident">Into</span>::<span class="ident">into</span>)
@@ -1550,10 +1550,10 @@
 	<span class="ident">cli</span>: <span class="ident">RevertCmd</span>,
 	<span class="ident">spec_factory</span>: <span class="ident">S</span>,
 	<span class="ident">version</span>: <span class="kw-2">&amp;</span><span class="ident">VersionInfo</span>,
-) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
 <span class="kw">where</span>
 	<span class="ident">F</span>: <span class="ident">ServiceFactory</span>,
-	<span class="ident">S</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">FactoryGenesis</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span>,
+	<span class="ident">S</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">FactoryGenesis</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span>,
 {
 	<span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">create_config_with_db_path</span>::<span class="op">&lt;</span><span class="ident">F</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="ident">spec_factory</span>, <span class="kw-2">&amp;</span><span class="ident">cli</span>.<span class="ident">shared_params</span>, <span class="ident">version</span>)<span class="question-mark">?</span>;
 	<span class="kw">let</span> <span class="ident">blocks</span> <span class="op">=</span> <span class="ident">cli</span>.<span class="ident">num</span>;
@@ -1564,15 +1564,15 @@
 	<span class="ident">cli</span>: <span class="ident">PurgeChainCmd</span>,
 	<span class="ident">spec_factory</span>: <span class="ident">S</span>,
 	<span class="ident">version</span>: <span class="kw-2">&amp;</span><span class="ident">VersionInfo</span>,
-) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
 <span class="kw">where</span>
 	<span class="ident">F</span>: <span class="ident">ServiceFactory</span>,
-	<span class="ident">S</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">FactoryGenesis</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span>,
+	<span class="ident">S</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">FactoryGenesis</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span>,
 {
 	<span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">create_config_with_db_path</span>::<span class="op">&lt;</span><span class="ident">F</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="ident">spec_factory</span>, <span class="kw-2">&amp;</span><span class="ident">cli</span>.<span class="ident">shared_params</span>, <span class="ident">version</span>)<span class="question-mark">?</span>;
 	<span class="kw">let</span> <span class="ident">db_path</span> <span class="op">=</span> <span class="ident">config</span>.<span class="ident">database_path</span>;
 
-	<span class="kw">if</span> <span class="ident">cli</span>.<span class="ident">yes</span> <span class="op">==</span> <span class="bool-val">false</span> {
+	<span class="kw">if</span> <span class="ident">cli</span>.<span class="ident">yes</span> <span class="op">=</span><span class="op">=</span> <span class="bool-val">false</span> {
 		<span class="macro">print</span><span class="macro">!</span>(<span class="string">&quot;Are you sure to remove {:?}? (y/n)&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">db_path</span>);
 		<span class="ident">stdout</span>().<span class="ident">flush</span>().<span class="ident">expect</span>(<span class="string">&quot;failed to flush stdout&quot;</span>);
 
@@ -1581,8 +1581,8 @@
 		<span class="kw">let</span> <span class="ident">input</span> <span class="op">=</span> <span class="ident">input</span>.<span class="ident">trim</span>();
 
 		<span class="kw">match</span> <span class="ident">input</span>.<span class="ident">chars</span>().<span class="ident">nth</span>(<span class="number">0</span>) {
-			<span class="prelude-val">Some</span>(<span class="string">&#39;y&#39;</span>) <span class="op">|</span> <span class="prelude-val">Some</span>(<span class="string">&#39;Y&#39;</span>) <span class="op">=&gt;</span> {},
-			<span class="kw">_</span> <span class="op">=&gt;</span> {
+			<span class="prelude-val">Some</span>(<span class="string">&#39;y&#39;</span>) <span class="op">|</span> <span class="prelude-val">Some</span>(<span class="string">&#39;Y&#39;</span>) <span class="op">=</span><span class="op">&gt;</span> {},
+			<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;Aborted&quot;</span>);
 				<span class="kw">return</span> <span class="prelude-val">Ok</span>(());
 			},
@@ -1590,22 +1590,22 @@
 	}
 
 	<span class="kw">match</span> <span class="ident">fs</span>::<span class="ident">remove_dir_all</span>(<span class="kw-2">&amp;</span><span class="ident">db_path</span>) {
-		<span class="prelude-ty">Result</span>::<span class="prelude-val">Ok</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> {
+		<span class="prelude-ty">Result</span>::<span class="prelude-val">Ok</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
 			<span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{:?} removed.&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">db_path</span>);
 			<span class="prelude-val">Ok</span>(())
 		},
-		<span class="prelude-ty">Result</span>::<span class="prelude-val">Err</span>(<span class="kw-2">ref</span> <span class="ident">err</span>) <span class="kw">if</span> <span class="ident">err</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="ident">ErrorKind</span>::<span class="ident">NotFound</span> <span class="op">=&gt;</span> {
+		<span class="prelude-ty">Result</span>::<span class="prelude-val">Err</span>(<span class="kw-2">ref</span> <span class="ident">err</span>) <span class="kw">if</span> <span class="ident">err</span>.<span class="ident">kind</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">ErrorKind</span>::<span class="ident">NotFound</span> <span class="op">=</span><span class="op">&gt;</span> {
 			<span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{:?} did not exist.&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">db_path</span>);
 			<span class="prelude-val">Ok</span>(())
 		},
-		<span class="prelude-ty">Result</span>::<span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=&gt;</span> <span class="prelude-ty">Result</span>::<span class="prelude-val">Err</span>(<span class="ident">err</span>.<span class="ident">into</span>())
+		<span class="prelude-ty">Result</span>::<span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span>::<span class="prelude-val">Err</span>(<span class="ident">err</span>.<span class="ident">into</span>())
 	}
 }
 
 <span class="kw">fn</span> <span class="ident">parse_address</span>(
 	<span class="ident">address</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
 	<span class="ident">port</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">u16</span><span class="op">&gt;</span>,
-) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SocketAddr</span>, <span class="ident">String</span><span class="op">&gt;</span> {
+) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SocketAddr</span>, <span class="ident">String</span><span class="op">&gt;</span> {
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">address</span>: <span class="ident">SocketAddr</span> <span class="op">=</span> <span class="ident">address</span>.<span class="ident">parse</span>().<span class="ident">map_err</span>(
 		<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Invalid address: {}&quot;</span>, <span class="ident">address</span>)
 	)<span class="question-mark">?</span>;
@@ -1616,7 +1616,7 @@
 	<span class="prelude-val">Ok</span>(<span class="ident">address</span>)
 }
 
-<span class="kw">fn</span> <span class="ident">keystore_path</span>(<span class="ident">base_path</span>: <span class="kw-2">&amp;</span><span class="ident">Path</span>, <span class="ident">chain_id</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="ident">PathBuf</span> {
+<span class="kw">fn</span> <span class="ident">keystore_path</span>(<span class="ident">base_path</span>: <span class="kw-2">&amp;</span><span class="ident">Path</span>, <span class="ident">chain_id</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">PathBuf</span> {
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">path</span> <span class="op">=</span> <span class="ident">base_path</span>.<span class="ident">to_owned</span>();
 	<span class="ident">path</span>.<span class="ident">push</span>(<span class="string">&quot;chains&quot;</span>);
 	<span class="ident">path</span>.<span class="ident">push</span>(<span class="ident">chain_id</span>);
@@ -1624,7 +1624,7 @@
 	<span class="ident">path</span>
 }
 
-<span class="kw">fn</span> <span class="ident">db_path</span>(<span class="ident">base_path</span>: <span class="kw-2">&amp;</span><span class="ident">Path</span>, <span class="ident">chain_id</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="ident">PathBuf</span> {
+<span class="kw">fn</span> <span class="ident">db_path</span>(<span class="ident">base_path</span>: <span class="kw-2">&amp;</span><span class="ident">Path</span>, <span class="ident">chain_id</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">PathBuf</span> {
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">path</span> <span class="op">=</span> <span class="ident">base_path</span>.<span class="ident">to_owned</span>();
 	<span class="ident">path</span>.<span class="ident">push</span>(<span class="string">&quot;chains&quot;</span>);
 	<span class="ident">path</span>.<span class="ident">push</span>(<span class="ident">chain_id</span>);
@@ -1632,7 +1632,7 @@
 	<span class="ident">path</span>
 }
 
-<span class="kw">fn</span> <span class="ident">network_path</span>(<span class="ident">base_path</span>: <span class="kw-2">&amp;</span><span class="ident">Path</span>, <span class="ident">chain_id</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="ident">PathBuf</span> {
+<span class="kw">fn</span> <span class="ident">network_path</span>(<span class="ident">base_path</span>: <span class="kw-2">&amp;</span><span class="ident">Path</span>, <span class="ident">chain_id</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">PathBuf</span> {
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">path</span> <span class="op">=</span> <span class="ident">base_path</span>.<span class="ident">to_owned</span>();
 	<span class="ident">path</span>.<span class="ident">push</span>(<span class="string">&quot;chains&quot;</span>);
 	<span class="ident">path</span>.<span class="ident">push</span>(<span class="ident">chain_id</span>);
@@ -1640,7 +1640,7 @@
 	<span class="ident">path</span>
 }
 
-<span class="kw">fn</span> <span class="ident">init_logger</span>(<span class="ident">pattern</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) {
+<span class="kw">fn</span> <span class="ident">init_logger</span>(<span class="ident">pattern</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SetLoggerError</span><span class="op">&gt;</span> {
 	<span class="kw">use</span> <span class="ident">ansi_term</span>::<span class="ident">Colour</span>;
 
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">builder</span> <span class="op">=</span> <span class="ident">env_logger</span>::<span class="ident">Builder</span>::<span class="ident">new</span>();
@@ -1664,7 +1664,7 @@
 			<span class="ident">time</span>::<span class="ident">strftime</span>(<span class="string">&quot;%Y-%m-%d %H:%M:%S&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">now</span>)
 				.<span class="ident">expect</span>(<span class="string">&quot;Error formatting log timestamp&quot;</span>);
 
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">output</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">log</span>::<span class="ident">max_level</span>() <span class="op">&lt;=</span> <span class="ident">log</span>::<span class="ident">LevelFilter</span>::<span class="ident">Info</span> {
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">output</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">log</span>::<span class="ident">max_level</span>() <span class="op">&lt;</span><span class="op">=</span> <span class="ident">log</span>::<span class="ident">LevelFilter</span>::<span class="ident">Info</span> {
 			<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{} {}&quot;</span>, <span class="ident">Colour</span>::<span class="ident">Black</span>.<span class="ident">bold</span>().<span class="ident">paint</span>(<span class="ident">timestamp</span>), <span class="ident">record</span>.<span class="ident">args</span>())
 		} <span class="kw">else</span> {
 			<span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> ::<span class="ident">std</span>::<span class="ident">thread</span>::<span class="ident">current</span>()
@@ -1686,17 +1686,17 @@
 			<span class="ident">output</span> <span class="op">=</span> <span class="ident">kill_color</span>(<span class="ident">output</span>.<span class="ident">as_ref</span>());
 		}
 
-		<span class="kw">if</span> <span class="op">!</span><span class="ident">isatty</span> <span class="op">&amp;&amp;</span> <span class="ident">record</span>.<span class="ident">level</span>() <span class="op">&lt;=</span> <span class="ident">log</span>::<span class="ident">Level</span>::<span class="ident">Info</span> <span class="op">&amp;&amp;</span> <span class="ident">atty</span>::<span class="ident">is</span>(<span class="ident">atty</span>::<span class="ident">Stream</span>::<span class="ident">Stdout</span>) {
+		<span class="kw">if</span> <span class="op">!</span><span class="ident">isatty</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">record</span>.<span class="ident">level</span>() <span class="op">&lt;</span><span class="op">=</span> <span class="ident">log</span>::<span class="ident">Level</span>::<span class="ident">Info</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">atty</span>::<span class="ident">is</span>(<span class="ident">atty</span>::<span class="ident">Stream</span>::<span class="ident">Stdout</span>) {
 			<span class="comment">// duplicate INFO/WARN output to console</span>
 			<span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">output</span>);
 		}
 		<span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">buf</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">output</span>)
 	});
 
-	<span class="ident">builder</span>.<span class="ident">init</span>();
+	<span class="ident">builder</span>.<span class="ident">try_init</span>()
 }
 
-<span class="kw">fn</span> <span class="ident">kill_color</span>(<span class="ident">s</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="ident">String</span> {
+<span class="kw">fn</span> <span class="ident">kill_color</span>(<span class="ident">s</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
 	<span class="macro">lazy_static</span><span class="macro">!</span> {
 		<span class="kw">static</span> <span class="kw-2">ref</span> <span class="ident">RE</span>: <span class="ident">Regex</span> <span class="op">=</span> <span class="ident">Regex</span>::<span class="ident">new</span>(<span class="string">&quot;\x1b\\[[^m]+m&quot;</span>).<span class="ident">expect</span>(<span class="string">&quot;Error initializing color regex&quot;</span>);
 	}
@@ -1726,12 +1726,12 @@
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
 	<span class="kw">fn</span> <span class="ident">test_node_key_config_input</span>() {
-		<span class="kw">fn</span> <span class="ident">secret_input</span>(<span class="ident">net_config_dir</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+		<span class="kw">fn</span> <span class="ident">secret_input</span>(<span class="ident">net_config_dir</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
 			<span class="ident">NodeKeyType</span>::<span class="ident">variants</span>().<span class="ident">into_iter</span>().<span class="ident">try_for_each</span>(<span class="op">|</span><span class="ident">t</span><span class="op">|</span> {
 				<span class="kw">let</span> <span class="ident">node_key_type</span> <span class="op">=</span> <span class="ident">NodeKeyType</span>::<span class="ident">from_str</span>(<span class="ident">t</span>).<span class="ident">unwrap</span>();
 				<span class="kw">let</span> <span class="ident">sk</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">node_key_type</span> {
-					<span class="ident">NodeKeyType</span>::<span class="ident">Secp256k1</span> <span class="op">=&gt;</span> <span class="ident">secp256k1</span>::<span class="ident">SecretKey</span>::<span class="ident">generate</span>().<span class="ident">as_ref</span>().<span class="ident">to_vec</span>(),
-					<span class="ident">NodeKeyType</span>::<span class="ident">Ed25519</span> <span class="op">=&gt;</span> <span class="ident">ed25519</span>::<span class="ident">SecretKey</span>::<span class="ident">generate</span>().<span class="ident">as_ref</span>().<span class="ident">to_vec</span>()
+					<span class="ident">NodeKeyType</span>::<span class="ident">Secp256k1</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">secp256k1</span>::<span class="ident">SecretKey</span>::<span class="ident">generate</span>().<span class="ident">as_ref</span>().<span class="ident">to_vec</span>(),
+					<span class="ident">NodeKeyType</span>::<span class="ident">Ed25519</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ed25519</span>::<span class="ident">SecretKey</span>::<span class="ident">generate</span>().<span class="ident">as_ref</span>().<span class="ident">to_vec</span>()
 				};
 				<span class="kw">let</span> <span class="ident">params</span> <span class="op">=</span> <span class="ident">NodeKeyParams</span> {
 					<span class="ident">node_key_type</span>,
@@ -1740,12 +1740,12 @@
 				};
 				<span class="ident">node_key_config</span>(<span class="ident">params</span>, <span class="kw-2">&amp;</span><span class="ident">net_config_dir</span>).<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">c</span> {
 					<span class="ident">NodeKeyConfig</span>::<span class="ident">Secp256k1</span>(<span class="ident">network</span>::<span class="ident">Secret</span>::<span class="ident">Input</span>(<span class="kw-2">ref</span> <span class="ident">ski</span>))
-						<span class="kw">if</span> <span class="ident">node_key_type</span> <span class="op">==</span> <span class="ident">NodeKeyType</span>::<span class="ident">Secp256k1</span> <span class="op">&amp;&amp;</span>
-							<span class="kw-2">&amp;</span><span class="ident">sk</span>[..] <span class="op">==</span> <span class="ident">ski</span>.<span class="ident">as_ref</span>() <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(()),
+						<span class="kw">if</span> <span class="ident">node_key_type</span> <span class="op">=</span><span class="op">=</span> <span class="ident">NodeKeyType</span>::<span class="ident">Secp256k1</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span>
+							<span class="kw-2">&amp;</span><span class="ident">sk</span>[..] <span class="op">=</span><span class="op">=</span> <span class="ident">ski</span>.<span class="ident">as_ref</span>() <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
 					<span class="ident">NodeKeyConfig</span>::<span class="ident">Ed25519</span>(<span class="ident">network</span>::<span class="ident">Secret</span>::<span class="ident">Input</span>(<span class="kw-2">ref</span> <span class="ident">ski</span>))
-						<span class="kw">if</span> <span class="ident">node_key_type</span> <span class="op">==</span> <span class="ident">NodeKeyType</span>::<span class="ident">Ed25519</span> <span class="op">&amp;&amp;</span>
-							<span class="kw-2">&amp;</span><span class="ident">sk</span>[..] <span class="op">==</span> <span class="ident">ski</span>.<span class="ident">as_ref</span>() <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(()),
-					<span class="kw">_</span> <span class="op">=&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">input_err</span>(<span class="string">&quot;Unexpected node key config&quot;</span>))
+						<span class="kw">if</span> <span class="ident">node_key_type</span> <span class="op">=</span><span class="op">=</span> <span class="ident">NodeKeyType</span>::<span class="ident">Ed25519</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span>
+							<span class="kw-2">&amp;</span><span class="ident">sk</span>[..] <span class="op">=</span><span class="op">=</span> <span class="ident">ski</span>.<span class="ident">as_ref</span>() <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
+					<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">input_err</span>(<span class="string">&quot;Unexpected node key config&quot;</span>))
 				})
 			})
 		}
@@ -1756,7 +1756,7 @@
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
 	<span class="kw">fn</span> <span class="ident">test_node_key_config_file</span>() {
-		<span class="kw">fn</span> <span class="ident">secret_file</span>(<span class="ident">net_config_dir</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+		<span class="kw">fn</span> <span class="ident">secret_file</span>(<span class="ident">net_config_dir</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
 			<span class="ident">NodeKeyType</span>::<span class="ident">variants</span>().<span class="ident">into_iter</span>().<span class="ident">try_for_each</span>(<span class="op">|</span><span class="ident">t</span><span class="op">|</span> {
 				<span class="kw">let</span> <span class="ident">node_key_type</span> <span class="op">=</span> <span class="ident">NodeKeyType</span>::<span class="ident">from_str</span>(<span class="ident">t</span>).<span class="ident">unwrap</span>();
 				<span class="kw">let</span> <span class="ident">tmp</span> <span class="op">=</span> <span class="ident">TempDir</span>::<span class="ident">new</span>(<span class="string">&quot;alice&quot;</span>)<span class="question-mark">?</span>;
@@ -1768,10 +1768,10 @@
 				};
 				<span class="ident">node_key_config</span>(<span class="ident">params</span>, <span class="kw-2">&amp;</span><span class="ident">net_config_dir</span>).<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">c</span> {
 					<span class="ident">NodeKeyConfig</span>::<span class="ident">Secp256k1</span>(<span class="ident">network</span>::<span class="ident">Secret</span>::<span class="ident">File</span>(<span class="kw-2">ref</span> <span class="ident">f</span>))
-						<span class="kw">if</span> <span class="ident">node_key_type</span> <span class="op">==</span> <span class="ident">NodeKeyType</span>::<span class="ident">Secp256k1</span> <span class="op">&amp;&amp;</span> <span class="ident">f</span> <span class="op">==</span> <span class="kw-2">&amp;</span><span class="ident">file</span> <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(()),
+						<span class="kw">if</span> <span class="ident">node_key_type</span> <span class="op">=</span><span class="op">=</span> <span class="ident">NodeKeyType</span>::<span class="ident">Secp256k1</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">f</span> <span class="op">=</span><span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">file</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
 					<span class="ident">NodeKeyConfig</span>::<span class="ident">Ed25519</span>(<span class="ident">network</span>::<span class="ident">Secret</span>::<span class="ident">File</span>(<span class="kw-2">ref</span> <span class="ident">f</span>))
-						<span class="kw">if</span> <span class="ident">node_key_type</span> <span class="op">==</span> <span class="ident">NodeKeyType</span>::<span class="ident">Ed25519</span> <span class="op">&amp;&amp;</span> <span class="ident">f</span> <span class="op">==</span> <span class="kw-2">&amp;</span><span class="ident">file</span> <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(()),
-					<span class="kw">_</span> <span class="op">=&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">input_err</span>(<span class="string">&quot;Unexpected node key config&quot;</span>))
+						<span class="kw">if</span> <span class="ident">node_key_type</span> <span class="op">=</span><span class="op">=</span> <span class="ident">NodeKeyType</span>::<span class="ident">Ed25519</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">f</span> <span class="op">=</span><span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">file</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
+					<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">input_err</span>(<span class="string">&quot;Unexpected node key config&quot;</span>))
 				})
 			})
 		}
@@ -1782,9 +1782,9 @@
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
 	<span class="kw">fn</span> <span class="ident">test_node_key_config_default</span>() {
-		<span class="kw">fn</span> <span class="ident">with_def_params</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(<span class="ident">f</span>: <span class="ident">F</span>) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
+		<span class="kw">fn</span> <span class="ident">with_def_params</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(<span class="ident">f</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
 		<span class="kw">where</span>
-			<span class="ident">F</span>: <span class="ident">Fn</span>(<span class="ident">NodeKeyParams</span>) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
+			<span class="ident">F</span>: <span class="ident">Fn</span>(<span class="ident">NodeKeyParams</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
 		{
 			<span class="ident">NodeKeyType</span>::<span class="ident">variants</span>().<span class="ident">into_iter</span>().<span class="ident">try_for_each</span>(<span class="op">|</span><span class="ident">t</span><span class="op">|</span> {
 				<span class="kw">let</span> <span class="ident">node_key_type</span> <span class="op">=</span> <span class="ident">NodeKeyType</span>::<span class="ident">from_str</span>(<span class="ident">t</span>).<span class="ident">unwrap</span>();
@@ -1796,33 +1796,33 @@
 			})
 		}
 
-		<span class="kw">fn</span> <span class="ident">no_config_dir</span>() <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+		<span class="kw">fn</span> <span class="ident">no_config_dir</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
 			<span class="ident">with_def_params</span>(<span class="op">|</span><span class="ident">params</span><span class="op">|</span> {
 				<span class="kw">let</span> <span class="ident">typ</span> <span class="op">=</span> <span class="ident">params</span>.<span class="ident">node_key_type</span>;
 				<span class="ident">node_key_config</span>::<span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>(<span class="ident">params</span>, <span class="kw-2">&amp;</span><span class="prelude-val">None</span>)
 					.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">c</span> {
 						<span class="ident">NodeKeyConfig</span>::<span class="ident">Secp256k1</span>(<span class="ident">network</span>::<span class="ident">Secret</span>::<span class="ident">New</span>)
-							<span class="kw">if</span> <span class="ident">typ</span> <span class="op">==</span> <span class="ident">NodeKeyType</span>::<span class="ident">Secp256k1</span> <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(()),
+							<span class="kw">if</span> <span class="ident">typ</span> <span class="op">=</span><span class="op">=</span> <span class="ident">NodeKeyType</span>::<span class="ident">Secp256k1</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
 						<span class="ident">NodeKeyConfig</span>::<span class="ident">Ed25519</span>(<span class="ident">network</span>::<span class="ident">Secret</span>::<span class="ident">New</span>)
-							<span class="kw">if</span> <span class="ident">typ</span> <span class="op">==</span> <span class="ident">NodeKeyType</span>::<span class="ident">Ed25519</span> <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(()),
-						<span class="kw">_</span> <span class="op">=&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">input_err</span>(<span class="string">&quot;Unexpected node key config&quot;</span>))
+							<span class="kw">if</span> <span class="ident">typ</span> <span class="op">=</span><span class="op">=</span> <span class="ident">NodeKeyType</span>::<span class="ident">Ed25519</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
+						<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">input_err</span>(<span class="string">&quot;Unexpected node key config&quot;</span>))
 					})
 			})
 		}
 
-		<span class="kw">fn</span> <span class="ident">some_config_dir</span>(<span class="ident">net_config_dir</span>: <span class="ident">String</span>) <span class="op">-&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+		<span class="kw">fn</span> <span class="ident">some_config_dir</span>(<span class="ident">net_config_dir</span>: <span class="ident">String</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
 			<span class="ident">with_def_params</span>(<span class="op">|</span><span class="ident">params</span><span class="op">|</span> {
 				<span class="kw">let</span> <span class="ident">dir</span> <span class="op">=</span> <span class="ident">PathBuf</span>::<span class="ident">from</span>(<span class="ident">net_config_dir</span>.<span class="ident">clone</span>());
 				<span class="kw">let</span> <span class="ident">typ</span> <span class="op">=</span> <span class="ident">params</span>.<span class="ident">node_key_type</span>;
 				<span class="ident">node_key_config</span>(<span class="ident">params</span>, <span class="kw-2">&amp;</span><span class="prelude-val">Some</span>(<span class="ident">net_config_dir</span>.<span class="ident">clone</span>()))
 					.<span class="ident">and_then</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">c</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">c</span> {
 						<span class="ident">NodeKeyConfig</span>::<span class="ident">Secp256k1</span>(<span class="ident">network</span>::<span class="ident">Secret</span>::<span class="ident">File</span>(<span class="kw-2">ref</span> <span class="ident">f</span>))
-							<span class="kw">if</span> <span class="ident">typ</span> <span class="op">==</span> <span class="ident">NodeKeyType</span>::<span class="ident">Secp256k1</span> <span class="op">&amp;&amp;</span>
-								<span class="ident">f</span> <span class="op">==</span> <span class="kw-2">&amp;</span><span class="ident">dir</span>.<span class="ident">join</span>(<span class="ident">NODE_KEY_SECP256K1_FILE</span>) <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(()),
+							<span class="kw">if</span> <span class="ident">typ</span> <span class="op">=</span><span class="op">=</span> <span class="ident">NodeKeyType</span>::<span class="ident">Secp256k1</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span>
+								<span class="ident">f</span> <span class="op">=</span><span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">dir</span>.<span class="ident">join</span>(<span class="ident">NODE_KEY_SECP256K1_FILE</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
 						<span class="ident">NodeKeyConfig</span>::<span class="ident">Ed25519</span>(<span class="ident">network</span>::<span class="ident">Secret</span>::<span class="ident">File</span>(<span class="kw-2">ref</span> <span class="ident">f</span>))
-							<span class="kw">if</span> <span class="ident">typ</span> <span class="op">==</span> <span class="ident">NodeKeyType</span>::<span class="ident">Ed25519</span> <span class="op">&amp;&amp;</span>
-								<span class="ident">f</span> <span class="op">==</span> <span class="kw-2">&amp;</span><span class="ident">dir</span>.<span class="ident">join</span>(<span class="ident">NODE_KEY_ED25519_FILE</span>) <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(()),
-						<span class="kw">_</span> <span class="op">=&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">input_err</span>(<span class="string">&quot;Unexpected node key config&quot;</span>))
+							<span class="kw">if</span> <span class="ident">typ</span> <span class="op">=</span><span class="op">=</span> <span class="ident">NodeKeyType</span>::<span class="ident">Ed25519</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span>
+								<span class="ident">f</span> <span class="op">=</span><span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">dir</span>.<span class="ident">join</span>(<span class="ident">NODE_KEY_ED25519_FILE</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
+						<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">input_err</span>(<span class="string">&quot;Unexpected node key config&quot;</span>))
 				})
 			})
 		}
