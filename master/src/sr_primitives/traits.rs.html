@@ -1408,6 +1408,23 @@
 <span id="1408">1408</span>
 <span id="1409">1409</span>
 <span id="1410">1410</span>
+<span id="1411">1411</span>
+<span id="1412">1412</span>
+<span id="1413">1413</span>
+<span id="1414">1414</span>
+<span id="1415">1415</span>
+<span id="1416">1416</span>
+<span id="1417">1417</span>
+<span id="1418">1418</span>
+<span id="1419">1419</span>
+<span id="1420">1420</span>
+<span id="1421">1421</span>
+<span id="1422">1422</span>
+<span id="1423">1423</span>
+<span id="1424">1424</span>
+<span id="1425">1425</span>
+<span id="1426">1426</span>
+<span id="1427">1427</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1434,7 +1451,9 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>)]</span> <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">de</span>::<span class="ident">DeserializeOwned</span>};
 <span class="kw">use</span> <span class="ident">primitives</span>::{<span class="self">self</span>, <span class="ident">Hasher</span>, <span class="ident">Blake2Hasher</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">codec</span>::{<span class="ident">Codec</span>, <span class="ident">Encode</span>, <span class="ident">Decode</span>, <span class="ident">HasCompact</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">transaction_validity</span>::{<span class="ident">ValidTransaction</span>, <span class="ident">TransactionValidity</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">transaction_validity</span>::{
+	<span class="ident">ValidTransaction</span>, <span class="ident">TransactionValidity</span>, <span class="ident">TransactionValidityError</span>, <span class="ident">UnknownTransaction</span>,
+};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">generic</span>::{<span class="ident">Digest</span>, <span class="ident">DigestItem</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">weights</span>::<span class="ident">DispatchInfo</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">integer_sqrt</span>::<span class="ident">IntegerSquareRoot</span>;
@@ -1504,16 +1523,42 @@
 	}
 }
 
+<span class="doccomment">/// An error type that indicates that the origin is invalid.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Encode</span>, <span class="ident">Decode</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">InvalidOrigin</span>;
+
+<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">InvalidOrigin</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> {
+	<span class="kw">fn</span> <span class="ident">from</span>(<span class="kw">_</span>: <span class="ident">InvalidOrigin</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> {
+		<span class="string">&quot;Invalid origin&quot;</span>
+	}
+}
+
 <span class="doccomment">/// Some sort of check on the origin is performed by this object.</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">EnsureOrigin</span><span class="op">&lt;</span><span class="ident">OuterOrigin</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// A return type.</span>
 	<span class="kw">type</span> <span class="ident">Success</span>;
 	<span class="doccomment">/// Perform the origin check.</span>
-	<span class="kw">fn</span> <span class="ident">ensure_origin</span>(<span class="ident">o</span>: <span class="ident">OuterOrigin</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Success</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span> {
-		<span class="self">Self</span>::<span class="ident">try_origin</span>(<span class="ident">o</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Invalid origin&quot;</span>)
+	<span class="kw">fn</span> <span class="ident">ensure_origin</span>(<span class="ident">o</span>: <span class="ident">OuterOrigin</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Success</span>, <span class="ident">InvalidOrigin</span><span class="op">&gt;</span> {
+		<span class="self">Self</span>::<span class="ident">try_origin</span>(<span class="ident">o</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">InvalidOrigin</span>)
 	}
 	<span class="doccomment">/// Perform the origin check.</span>
 	<span class="kw">fn</span> <span class="ident">try_origin</span>(<span class="ident">o</span>: <span class="ident">OuterOrigin</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Success</span>, <span class="ident">OuterOrigin</span><span class="op">&gt;</span>;
+}
+
+<span class="doccomment">/// An error that indicates that a lookup failed.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Encode</span>, <span class="ident">Decode</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">LookupError</span>;
+
+<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">LookupError</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> {
+	<span class="kw">fn</span> <span class="ident">from</span>(<span class="kw">_</span>: <span class="ident">LookupError</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> {
+		<span class="string">&quot;Can not lookup&quot;</span>
+	}
+}
+
+<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">LookupError</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">TransactionValidityError</span> {
+	<span class="kw">fn</span> <span class="ident">from</span>(<span class="kw">_</span>: <span class="ident">LookupError</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+		<span class="ident">UnknownTransaction</span>::<span class="ident">CannotLookup</span>.<span class="ident">into</span>()
+	}
 }
 
 <span class="doccomment">/// Means of changing one type into another in a manner dependent on the source type.</span>
@@ -1523,7 +1568,7 @@
 	<span class="doccomment">/// Type to lookup into.</span>
 	<span class="kw">type</span> <span class="ident">Target</span>;
 	<span class="doccomment">/// Attempt a lookup.</span>
-	<span class="kw">fn</span> <span class="ident">lookup</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="self">Self</span>::<span class="ident">Source</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Target</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span>;
+	<span class="kw">fn</span> <span class="ident">lookup</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="self">Self</span>::<span class="ident">Source</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Target</span>, <span class="ident">LookupError</span><span class="op">&gt;</span>;
 }
 
 <span class="doccomment">/// Means of changing one type into another in a manner dependent on the source type.</span>
@@ -1535,7 +1580,7 @@
 	<span class="doccomment">/// Type to lookup into.</span>
 	<span class="kw">type</span> <span class="ident">Target</span>;
 	<span class="doccomment">/// Attempt a lookup.</span>
-	<span class="kw">fn</span> <span class="ident">lookup</span>(<span class="ident">s</span>: <span class="self">Self</span>::<span class="ident">Source</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Target</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span>;
+	<span class="kw">fn</span> <span class="ident">lookup</span>(<span class="ident">s</span>: <span class="self">Self</span>::<span class="ident">Source</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Target</span>, <span class="ident">LookupError</span><span class="op">&gt;</span>;
 	<span class="doccomment">/// Convert from Target back to Source.</span>
 	<span class="kw">fn</span> <span class="ident">unlookup</span>(<span class="ident">t</span>: <span class="self">Self</span>::<span class="ident">Target</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>::<span class="ident">Source</span>;
 }
@@ -1546,13 +1591,14 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Codec</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">PartialEq</span> <span class="op">+</span> <span class="ident">MaybeDebug</span><span class="op">&gt;</span> <span class="ident">StaticLookup</span> <span class="kw">for</span> <span class="ident">IdentityLookup</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
 	<span class="kw">type</span> <span class="ident">Source</span> <span class="op">=</span> <span class="ident">T</span>;
 	<span class="kw">type</span> <span class="ident">Target</span> <span class="op">=</span> <span class="ident">T</span>;
-	<span class="kw">fn</span> <span class="ident">lookup</span>(<span class="ident">x</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span> { <span class="prelude-val">Ok</span>(<span class="ident">x</span>) }
+	<span class="kw">fn</span> <span class="ident">lookup</span>(<span class="ident">x</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">LookupError</span><span class="op">&gt;</span> { <span class="prelude-val">Ok</span>(<span class="ident">x</span>) }
 	<span class="kw">fn</span> <span class="ident">unlookup</span>(<span class="ident">x</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">T</span> { <span class="ident">x</span> }
 }
+
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Lookup</span> <span class="kw">for</span> <span class="ident">IdentityLookup</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
 	<span class="kw">type</span> <span class="ident">Source</span> <span class="op">=</span> <span class="ident">T</span>;
 	<span class="kw">type</span> <span class="ident">Target</span> <span class="op">=</span> <span class="ident">T</span>;
-	<span class="kw">fn</span> <span class="ident">lookup</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span> { <span class="prelude-val">Ok</span>(<span class="ident">x</span>) }
+	<span class="kw">fn</span> <span class="ident">lookup</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">LookupError</span><span class="op">&gt;</span> { <span class="prelude-val">Ok</span>(<span class="ident">x</span>) }
 }
 
 <span class="doccomment">/// Extensible conversion trait. Generic over both source and destination types.</span>
@@ -2192,7 +2238,7 @@
 	<span class="kw">type</span> <span class="ident">Checked</span>;
 
 	<span class="doccomment">/// Check self, given an instance of Context.</span>
-	<span class="kw">fn</span> <span class="ident">check</span>(<span class="self">self</span>, <span class="ident">c</span>: <span class="kw-2">&amp;</span><span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Checked</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span>;
+	<span class="kw">fn</span> <span class="ident">check</span>(<span class="self">self</span>, <span class="ident">c</span>: <span class="kw-2">&amp;</span><span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Checked</span>, <span class="ident">TransactionValidityError</span><span class="op">&gt;</span>;
 }
 
 <span class="doccomment">/// A &quot;checkable&quot; piece of information, used by the standard Substrate Executive in order to</span>
@@ -2204,61 +2250,21 @@
 	<span class="kw">type</span> <span class="ident">Checked</span>;
 
 	<span class="doccomment">/// Check self.</span>
-	<span class="kw">fn</span> <span class="ident">check</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Checked</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span>;
+	<span class="kw">fn</span> <span class="ident">check</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Checked</span>, <span class="ident">TransactionValidityError</span><span class="op">&gt;</span>;
 }
 
 <span class="comment">// Every `BlindCheckable` is also a `StaticCheckable` for arbitrary `Context`.</span>
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">BlindCheckable</span>, <span class="ident">Context</span><span class="op">&gt;</span> <span class="ident">Checkable</span><span class="op">&lt;</span><span class="ident">Context</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">T</span> {
 	<span class="kw">type</span> <span class="ident">Checked</span> <span class="op">=</span> <span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="ident">BlindCheckable</span><span class="op">&gt;</span>::<span class="ident">Checked</span>;
-	<span class="kw">fn</span> <span class="ident">check</span>(<span class="self">self</span>, <span class="ident">_c</span>: <span class="kw-2">&amp;</span><span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Checked</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span> {
+
+	<span class="kw">fn</span> <span class="ident">check</span>(<span class="self">self</span>, <span class="ident">_c</span>: <span class="kw-2">&amp;</span><span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Checked</span>, <span class="ident">TransactionValidityError</span><span class="op">&gt;</span> {
 		<span class="ident">BlindCheckable</span>::<span class="ident">check</span>(<span class="self">self</span>)
-	}
-}
-
-<span class="doccomment">/// An abstract error concerning an attempt to verify, check or dispatch the transaction. This</span>
-<span class="doccomment">/// cannot be more concrete because it&#39;s designed to work reasonably well over a broad range of</span>
-<span class="doccomment">/// possible transaction types.</span>
-<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>, <span class="ident">derive</span>(<span class="ident">PartialEq</span>, <span class="ident">Debug</span>))]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">DispatchError</span> {
-	<span class="doccomment">/// General error to do with the inability to pay some fees (e.g. account balance too low).</span>
-	<span class="ident">Payment</span>,
-
-	<span class="doccomment">/// General error to do with the exhaustion of block resources.</span>
-	<span class="ident">Exhausted</span>,
-
-	<span class="doccomment">/// General error to do with the permissions of the sender.</span>
-	<span class="ident">NoPermission</span>,
-
-	<span class="doccomment">/// General error to do with the state of the system in general.</span>
-	<span class="ident">BadState</span>,
-
-	<span class="doccomment">/// General error to do with the transaction being outdated (e.g. nonce too low).</span>
-	<span class="ident">Stale</span>,
-
-	<span class="doccomment">/// General error to do with the transaction not yet being valid (e.g. nonce too high).</span>
-	<span class="ident">Future</span>,
-
-	<span class="doccomment">/// General error to do with the transaction&#39;s proofs (e.g. signature).</span>
-	<span class="ident">BadProof</span>,
-}
-
-<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">DispatchError</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">i8</span> {
-	<span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">e</span>: <span class="ident">DispatchError</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i8</span> {
-		<span class="kw">match</span> <span class="ident">e</span> {
-			<span class="ident">DispatchError</span>::<span class="ident">Payment</span> <span class="op">=</span><span class="op">&gt;</span> <span class="op">-</span><span class="number">64</span>,
-			<span class="ident">DispatchError</span>::<span class="ident">Exhausted</span> <span class="op">=</span><span class="op">&gt;</span> <span class="op">-</span><span class="number">65</span>,
-			<span class="ident">DispatchError</span>::<span class="ident">NoPermission</span> <span class="op">=</span><span class="op">&gt;</span> <span class="op">-</span><span class="number">66</span>,
-			<span class="ident">DispatchError</span>::<span class="ident">BadState</span> <span class="op">=</span><span class="op">&gt;</span> <span class="op">-</span><span class="number">67</span>,
-			<span class="ident">DispatchError</span>::<span class="ident">Stale</span> <span class="op">=</span><span class="op">&gt;</span> <span class="op">-</span><span class="number">68</span>,
-			<span class="ident">DispatchError</span>::<span class="ident">Future</span> <span class="op">=</span><span class="op">&gt;</span> <span class="op">-</span><span class="number">69</span>,
-			<span class="ident">DispatchError</span>::<span class="ident">BadProof</span> <span class="op">=</span><span class="op">&gt;</span> <span class="op">-</span><span class="number">70</span>,
-		}
 	}
 }
 
 <span class="doccomment">/// Result of a module function call; either nothing (functions are only called for &quot;side effects&quot;)</span>
 <span class="doccomment">/// or an error message.</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">DispatchResult</span> <span class="op">=</span> <span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span>;
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">DispatchResult</span><span class="op">&lt;</span><span class="ident">Error</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span>;
 
 <span class="doccomment">/// A lazy call (module function and argument values) that can be executed via its `dispatch`</span>
 <span class="doccomment">/// method.</span>
@@ -2269,15 +2275,15 @@
 	<span class="kw">type</span> <span class="ident">Origin</span>;
 	<span class="doccomment">/// ...</span>
 	<span class="kw">type</span> <span class="ident">Trait</span>;
+	<span class="doccomment">/// The error type returned by this dispatchable.</span>
+	<span class="kw">type</span> <span class="ident">Error</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="kw">crate</span>::<span class="ident">DispatchError</span><span class="op">&gt;</span>;
 	<span class="doccomment">/// Actually dispatch this call and result the result of it.</span>
-	<span class="kw">fn</span> <span class="ident">dispatch</span>(<span class="self">self</span>, <span class="ident">origin</span>: <span class="self">Self</span>::<span class="ident">Origin</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">DispatchResult</span>;
+	<span class="kw">fn</span> <span class="ident">dispatch</span>(<span class="self">self</span>, <span class="ident">origin</span>: <span class="self">Self</span>::<span class="ident">Origin</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">DispatchResult</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
 }
 
 <span class="doccomment">/// Means by which a transaction may be extended. This type embodies both the data and the logic</span>
 <span class="doccomment">/// that should be additionally associated with the transaction. It should be plain old data.</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">SignedExtension</span>:
-	<span class="ident">Codec</span> <span class="op">+</span> <span class="ident">MaybeDebug</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Eq</span> <span class="op">+</span> <span class="ident">PartialEq</span>
-{
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">SignedExtension</span>: <span class="ident">Codec</span> <span class="op">+</span> <span class="ident">MaybeDebug</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Eq</span> <span class="op">+</span> <span class="ident">PartialEq</span> {
 	<span class="doccomment">/// The type which encodes the sender identity.</span>
 	<span class="kw">type</span> <span class="ident">AccountId</span>;
 
@@ -2293,7 +2299,7 @@
 
 	<span class="doccomment">/// Construct any additional data that should be in the signed payload of the transaction. Can</span>
 	<span class="doccomment">/// also perform any pre-signature-verification checks and return an error if needed.</span>
-	<span class="kw">fn</span> <span class="ident">additional_signed</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">AdditionalSigned</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span>;
+	<span class="kw">fn</span> <span class="ident">additional_signed</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">AdditionalSigned</span>, <span class="ident">TransactionValidityError</span><span class="op">&gt;</span>;
 
 	<span class="doccomment">/// Validate a signed transaction for the transaction queue.</span>
 	<span class="doccomment">///</span>
@@ -2310,8 +2316,8 @@
 		<span class="ident">_call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>,
 		<span class="ident">_info</span>: <span class="ident">DispatchInfo</span>,
 		<span class="ident">_len</span>: <span class="ident">usize</span>,
-	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ValidTransaction</span>, <span class="ident">DispatchError</span><span class="op">&gt;</span> {
-		<span class="prelude-val">Ok</span>(<span class="ident">Default</span>::<span class="ident">default</span>())
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TransactionValidity</span> {
+		<span class="prelude-val">Ok</span>(<span class="ident">ValidTransaction</span>::<span class="ident">default</span>())
 	}
 
 	<span class="doccomment">/// Do any pre-flight stuff for a signed transaction.</span>
@@ -2328,8 +2334,10 @@
 		<span class="ident">call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>,
 		<span class="ident">info</span>: <span class="ident">DispatchInfo</span>,
 		<span class="ident">len</span>: <span class="ident">usize</span>,
-	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Pre</span>, <span class="ident">DispatchError</span><span class="op">&gt;</span> {
-		<span class="self">self</span>.<span class="ident">validate</span>(<span class="ident">who</span>, <span class="ident">call</span>, <span class="ident">info</span>, <span class="ident">len</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="self">Self</span>::<span class="ident">Pre</span>::<span class="ident">default</span>())
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Pre</span>, <span class="kw">crate</span>::<span class="ident">ApplyError</span><span class="op">&gt;</span> {
+		<span class="self">self</span>.<span class="ident">validate</span>(<span class="ident">who</span>, <span class="ident">call</span>, <span class="ident">info</span>, <span class="ident">len</span>)
+			.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="self">Self</span>::<span class="ident">Pre</span>::<span class="ident">default</span>())
+			.<span class="ident">map_err</span>(<span class="ident">Into</span>::<span class="ident">into</span>)
 	}
 
 	<span class="doccomment">/// Validate an unsigned transaction for the transaction queue.</span>
@@ -2347,7 +2355,9 @@
 		<span class="ident">_call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>,
 		<span class="ident">_info</span>: <span class="ident">DispatchInfo</span>,
 		<span class="ident">_len</span>: <span class="ident">usize</span>,
-	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ValidTransaction</span>, <span class="ident">DispatchError</span><span class="op">&gt;</span> { <span class="prelude-val">Ok</span>(<span class="ident">Default</span>::<span class="ident">default</span>()) }
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TransactionValidity</span> {
+		<span class="prelude-val">Ok</span>(<span class="ident">ValidTransaction</span>::<span class="ident">default</span>())
+	}
 
 	<span class="doccomment">/// Do any pre-flight stuff for a unsigned transaction.</span>
 	<span class="doccomment">///</span>
@@ -2361,16 +2371,25 @@
 		<span class="ident">call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>,
 		<span class="ident">info</span>: <span class="ident">DispatchInfo</span>,
 		<span class="ident">len</span>: <span class="ident">usize</span>,
-	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Pre</span>, <span class="ident">DispatchError</span><span class="op">&gt;</span> {
-		<span class="self">Self</span>::<span class="ident">validate_unsigned</span>(<span class="ident">call</span>, <span class="ident">info</span>, <span class="ident">len</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="self">Self</span>::<span class="ident">Pre</span>::<span class="ident">default</span>())
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Pre</span>, <span class="kw">crate</span>::<span class="ident">ApplyError</span><span class="op">&gt;</span> {
+		<span class="self">Self</span>::<span class="ident">validate_unsigned</span>(<span class="ident">call</span>, <span class="ident">info</span>, <span class="ident">len</span>)
+			.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="self">Self</span>::<span class="ident">Pre</span>::<span class="ident">default</span>())
+			.<span class="ident">map_err</span>(<span class="ident">Into</span>::<span class="ident">into</span>)
 	}
 
 	<span class="doccomment">/// Do any post-flight stuff for a transaction.</span>
-	<span class="kw">fn</span> <span class="ident">post_dispatch</span>(
-		<span class="ident">_pre</span>: <span class="self">Self</span>::<span class="ident">Pre</span>,
-		<span class="ident">_info</span>: <span class="ident">DispatchInfo</span>,
-		<span class="ident">_len</span>: <span class="ident">usize</span>,
-	) { }
+	<span class="kw">fn</span> <span class="ident">post_dispatch</span>(<span class="ident">_pre</span>: <span class="self">Self</span>::<span class="ident">Pre</span>, <span class="ident">_info</span>: <span class="ident">DispatchInfo</span>, <span class="ident">_len</span>: <span class="ident">usize</span>) { }
+}
+
+<span class="doccomment">/// An error that is returned by a dispatchable function of a module.</span>
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">ModuleDispatchError</span> {
+	<span class="doccomment">/// Convert this error to an `u8`.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// The `u8` corresponds to the index of the variant in the error enum.</span>
+	<span class="kw">fn</span> <span class="ident">as_u8</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u8</span>;
+
+	<span class="doccomment">/// Convert the error to a `&amp;&#39;static str`.</span>
+	<span class="kw">fn</span> <span class="ident">as_str</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>;
 }
 
 <span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">tuple_impl_indexed</span> {
@@ -2385,10 +2404,10 @@
 		<span class="op">&gt;</span> <span class="ident">SignedExtension</span> <span class="kw">for</span> ($(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">direct</span>),<span class="op">+</span>,) {
 			<span class="kw">type</span> <span class="ident">AccountId</span> <span class="op">=</span> <span class="ident">AccountId</span>;
 			<span class="kw">type</span> <span class="ident">Call</span> <span class="op">=</span> <span class="ident">Call</span>;
-			<span class="kw">type</span> <span class="ident">AdditionalSigned</span> <span class="op">=</span> ($(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">direct</span>::<span class="ident">AdditionalSigned</span>,)<span class="op">+</span>);
+			<span class="kw">type</span> <span class="ident">AdditionalSigned</span> <span class="op">=</span> ( $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">direct</span>::<span class="ident">AdditionalSigned</span>, )<span class="op">+</span> );
 			<span class="kw">type</span> <span class="ident">Pre</span> <span class="op">=</span>  ($(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">direct</span>::<span class="ident">Pre</span>,)<span class="op">+</span>);
-			<span class="kw">fn</span> <span class="ident">additional_signed</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">AdditionalSigned</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span> {
-				<span class="prelude-val">Ok</span>(( $(<span class="self">self</span>.<span class="macro-nonterminal">$</span><span class="macro-nonterminal">index</span>.<span class="ident">additional_signed</span>()<span class="question-mark">?</span>,)<span class="op">+</span> ))
+			<span class="kw">fn</span> <span class="ident">additional_signed</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">AdditionalSigned</span>, <span class="ident">TransactionValidityError</span><span class="op">&gt;</span> {
+				<span class="prelude-val">Ok</span>(( $( <span class="self">self</span>.<span class="macro-nonterminal">$</span><span class="macro-nonterminal">index</span>.<span class="ident">additional_signed</span>()<span class="question-mark">?</span>, )<span class="op">+</span> ))
 			}
 			<span class="kw">fn</span> <span class="ident">validate</span>(
 				<span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -2396,9 +2415,16 @@
 				<span class="ident">call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>,
 				<span class="ident">info</span>: <span class="ident">DispatchInfo</span>,
 				<span class="ident">len</span>: <span class="ident">usize</span>,
-			) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ValidTransaction</span>, <span class="ident">DispatchError</span><span class="op">&gt;</span> {
-				<span class="kw">let</span> <span class="ident">aggregator</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[$(<span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">direct</span> <span class="kw">as</span> <span class="ident">SignedExtension</span><span class="op">&gt;</span>::<span class="ident">validate</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="macro-nonterminal">$</span><span class="macro-nonterminal">index</span>, <span class="ident">who</span>, <span class="ident">call</span>, <span class="ident">info</span>, <span class="ident">len</span>)<span class="question-mark">?</span>),<span class="op">+</span>];
-				<span class="prelude-val">Ok</span>(<span class="ident">aggregator</span>.<span class="ident">into_iter</span>().<span class="ident">fold</span>(<span class="ident">ValidTransaction</span>::<span class="ident">default</span>(), <span class="op">|</span><span class="ident">acc</span>, <span class="ident">a</span><span class="op">|</span> <span class="ident">acc</span>.<span class="ident">combine_with</span>(<span class="ident">a</span>)))
+			) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TransactionValidity</span> {
+				<span class="kw">let</span> <span class="ident">aggregator</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[
+					$( <span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">direct</span> <span class="kw">as</span> <span class="ident">SignedExtension</span><span class="op">&gt;</span>::<span class="ident">validate</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="macro-nonterminal">$</span><span class="macro-nonterminal">index</span>, <span class="ident">who</span>, <span class="ident">call</span>, <span class="ident">info</span>, <span class="ident">len</span>)<span class="question-mark">?</span> ),<span class="op">+</span>
+				];
+				<span class="prelude-val">Ok</span>(
+					<span class="ident">aggregator</span>.<span class="ident">into_iter</span>().<span class="ident">fold</span>(
+						<span class="ident">ValidTransaction</span>::<span class="ident">default</span>(),
+						<span class="op">|</span><span class="ident">acc</span>, <span class="ident">a</span><span class="op">|</span> <span class="ident">acc</span>.<span class="ident">combine_with</span>(<span class="ident">a</span>),
+					)
+				)
 			}
 			<span class="kw">fn</span> <span class="ident">pre_dispatch</span>(
 				<span class="self">self</span>,
@@ -2406,22 +2432,28 @@
 				<span class="ident">call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>,
 				<span class="ident">info</span>: <span class="ident">DispatchInfo</span>,
 				<span class="ident">len</span>: <span class="ident">usize</span>,
-			) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Pre</span>, <span class="ident">DispatchError</span><span class="op">&gt;</span> {
+			) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Pre</span>, <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">ApplyError</span><span class="op">&gt;</span> {
 				<span class="prelude-val">Ok</span>(($(<span class="self">self</span>.<span class="macro-nonterminal">$</span><span class="macro-nonterminal">index</span>.<span class="ident">pre_dispatch</span>(<span class="ident">who</span>, <span class="ident">call</span>, <span class="ident">info</span>, <span class="ident">len</span>)<span class="question-mark">?</span>,)<span class="op">+</span>))
 			}
 			<span class="kw">fn</span> <span class="ident">validate_unsigned</span>(
 				<span class="ident">call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>,
 				<span class="ident">info</span>: <span class="ident">DispatchInfo</span>,
 				<span class="ident">len</span>: <span class="ident">usize</span>,
-			) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ValidTransaction</span>, <span class="ident">DispatchError</span><span class="op">&gt;</span> {
-				<span class="kw">let</span> <span class="ident">aggregator</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[$(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">direct</span>::<span class="ident">validate_unsigned</span>(<span class="ident">call</span>, <span class="ident">info</span>, <span class="ident">len</span>)<span class="question-mark">?</span>),<span class="op">+</span>];
-				<span class="prelude-val">Ok</span>(<span class="ident">aggregator</span>.<span class="ident">into_iter</span>().<span class="ident">fold</span>(<span class="ident">ValidTransaction</span>::<span class="ident">default</span>(), <span class="op">|</span><span class="ident">acc</span>, <span class="ident">a</span><span class="op">|</span> <span class="ident">acc</span>.<span class="ident">combine_with</span>(<span class="ident">a</span>)))
+			) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TransactionValidity</span> {
+				<span class="kw">let</span> <span class="ident">aggregator</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[ $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">direct</span>::<span class="ident">validate_unsigned</span>(<span class="ident">call</span>, <span class="ident">info</span>, <span class="ident">len</span>)<span class="question-mark">?</span> ),<span class="op">+</span> ];
+
+				<span class="prelude-val">Ok</span>(
+					<span class="ident">aggregator</span>.<span class="ident">into_iter</span>().<span class="ident">fold</span>(
+						<span class="ident">ValidTransaction</span>::<span class="ident">default</span>(),
+						<span class="op">|</span><span class="ident">acc</span>, <span class="ident">a</span><span class="op">|</span> <span class="ident">acc</span>.<span class="ident">combine_with</span>(<span class="ident">a</span>),
+					)
+				)
 			}
 			<span class="kw">fn</span> <span class="ident">pre_dispatch_unsigned</span>(
 				<span class="ident">call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>,
 				<span class="ident">info</span>: <span class="ident">DispatchInfo</span>,
 				<span class="ident">len</span>: <span class="ident">usize</span>,
-			) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Pre</span>, <span class="ident">DispatchError</span><span class="op">&gt;</span> {
+			) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Pre</span>, <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">ApplyError</span><span class="op">&gt;</span> {
 				<span class="prelude-val">Ok</span>(($(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">direct</span>::<span class="ident">pre_dispatch_unsigned</span>(<span class="ident">call</span>, <span class="ident">info</span>, <span class="ident">len</span>)<span class="question-mark">?</span>,)<span class="op">+</span>))
 			}
 			<span class="kw">fn</span> <span class="ident">post_dispatch</span>(
@@ -2458,7 +2490,7 @@
 	<span class="kw">type</span> <span class="ident">AdditionalSigned</span> <span class="op">=</span> ();
 	<span class="kw">type</span> <span class="ident">Call</span> <span class="op">=</span> ();
 	<span class="kw">type</span> <span class="ident">Pre</span> <span class="op">=</span> ();
-	<span class="kw">fn</span> <span class="ident">additional_signed</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">rstd</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span> { <span class="prelude-val">Ok</span>(()) }
+	<span class="kw">fn</span> <span class="ident">additional_signed</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">rstd</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">TransactionValidityError</span><span class="op">&gt;</span> { <span class="prelude-val">Ok</span>(()) }
 }
 
 <span class="doccomment">/// An &quot;executable&quot; piece of information, used by the standard Substrate Executive in order to</span>
@@ -2478,17 +2510,19 @@
 	<span class="kw">fn</span> <span class="ident">sender</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">AccountId</span><span class="op">&gt;</span>;
 
 	<span class="doccomment">/// Checks to see if this is a valid *transaction*. It returns information on it if so.</span>
-	<span class="kw">fn</span> <span class="ident">validate</span><span class="op">&lt;</span><span class="ident">V</span>: <span class="ident">ValidateUnsigned</span><span class="op">&lt;</span><span class="ident">Call</span><span class="op">=</span><span class="self">Self</span>::<span class="ident">Call</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>,
+	<span class="kw">fn</span> <span class="ident">validate</span><span class="op">&lt;</span><span class="ident">V</span>: <span class="ident">ValidateUnsigned</span><span class="op">&lt;</span><span class="ident">Call</span><span class="op">=</span><span class="self">Self</span>::<span class="ident">Call</span><span class="op">&gt;</span><span class="op">&gt;</span>(
+		<span class="kw-2">&amp;</span><span class="self">self</span>,
 		<span class="ident">info</span>: <span class="ident">DispatchInfo</span>,
 		<span class="ident">len</span>: <span class="ident">usize</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TransactionValidity</span>;
 
 	<span class="doccomment">/// Executes all necessary logic needed prior to dispatch and deconstructs into function call,</span>
 	<span class="doccomment">/// index and sender.</span>
-	<span class="kw">fn</span> <span class="ident">dispatch</span>(<span class="self">self</span>,
+	<span class="kw">fn</span> <span class="ident">apply</span>(
+		<span class="self">self</span>,
 		<span class="ident">info</span>: <span class="ident">DispatchInfo</span>,
 		<span class="ident">len</span>: <span class="ident">usize</span>,
-	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">DispatchResult</span>, <span class="ident">DispatchError</span><span class="op">&gt;</span>;
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">crate</span>::<span class="ident">ApplyResult</span>;
 }
 
 <span class="doccomment">/// Auxiliary wrapper that holds an api instance and binds it to the given lifetime.</span>

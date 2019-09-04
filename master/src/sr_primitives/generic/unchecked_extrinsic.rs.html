@@ -380,6 +380,11 @@
 <span id="380">380</span>
 <span id="381">381</span>
 <span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -404,9 +409,11 @@
 
 <span class="kw">use</span> <span class="ident">rstd</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">runtime_io</span>::<span class="ident">blake2_256</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">codec</span>::{<span class="ident">Decode</span>, <span class="ident">Encode</span>, <span class="ident">Input</span>, <span class="ident">Error</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">traits</span>::{<span class="self">self</span>, <span class="ident">Member</span>, <span class="ident">MaybeDisplay</span>, <span class="ident">SignedExtension</span>, <span class="ident">Checkable</span>, <span class="ident">Extrinsic</span>};
-<span class="kw">use</span> <span class="kw">super</span>::<span class="ident">CheckedExtrinsic</span>;
+<span class="kw">use</span> <span class="ident">codec</span>::{<span class="ident">Decode</span>, <span class="ident">Encode</span>, <span class="ident">Input</span>, <span class="ident">Error</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::{
+	<span class="ident">traits</span>::{<span class="self">self</span>, <span class="ident">Member</span>, <span class="ident">MaybeDisplay</span>, <span class="ident">SignedExtension</span>, <span class="ident">Checkable</span>, <span class="ident">Extrinsic</span>},
+	<span class="ident">generic</span>::<span class="ident">CheckedExtrinsic</span>, <span class="ident">transaction_validity</span>::{<span class="ident">TransactionValidityError</span>, <span class="ident">InvalidTransaction</span>},
+};
 
 <span class="kw">const</span> <span class="ident">TRANSACTION_VERSION</span>: <span class="ident">u8</span> <span class="op">=</span> <span class="number">3</span>;
 
@@ -484,11 +491,11 @@
 	<span class="ident">Signature</span>: <span class="ident">Member</span> <span class="op">+</span> <span class="ident">traits</span>::<span class="ident">Verify</span><span class="op">&lt;</span><span class="ident">Signer</span><span class="op">=</span><span class="ident">AccountId</span><span class="op">&gt;</span>,
 	<span class="ident">Extra</span>: <span class="ident">SignedExtension</span><span class="op">&lt;</span><span class="ident">AccountId</span><span class="op">=</span><span class="ident">AccountId</span><span class="op">&gt;</span>,
 	<span class="ident">AccountId</span>: <span class="ident">Member</span> <span class="op">+</span> <span class="ident">MaybeDisplay</span>,
-	<span class="ident">Lookup</span>: <span class="ident">traits</span>::<span class="ident">Lookup</span><span class="op">&lt;</span><span class="ident">Source</span><span class="op">=</span><span class="ident">Address</span>, <span class="ident">Target</span><span class="op">=</span><span class="ident">AccountId</span><span class="op">&gt;</span>
+	<span class="ident">Lookup</span>: <span class="ident">traits</span>::<span class="ident">Lookup</span><span class="op">&lt;</span><span class="ident">Source</span><span class="op">=</span><span class="ident">Address</span>, <span class="ident">Target</span><span class="op">=</span><span class="ident">AccountId</span><span class="op">&gt;</span>,
 {
 	<span class="kw">type</span> <span class="ident">Checked</span> <span class="op">=</span> <span class="ident">CheckedExtrinsic</span><span class="op">&lt;</span><span class="ident">AccountId</span>, <span class="ident">Call</span>, <span class="ident">Extra</span><span class="op">&gt;</span>;
 
-	<span class="kw">fn</span> <span class="ident">check</span>(<span class="self">self</span>, <span class="ident">lookup</span>: <span class="kw-2">&amp;</span><span class="ident">Lookup</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Checked</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">check</span>(<span class="self">self</span>, <span class="ident">lookup</span>: <span class="kw-2">&amp;</span><span class="ident">Lookup</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Checked</span>, <span class="ident">TransactionValidityError</span><span class="op">&gt;</span> {
 		<span class="prelude-val">Ok</span>(<span class="kw">match</span> <span class="self">self</span>.<span class="ident">signature</span> {
 			<span class="prelude-val">Some</span>((<span class="ident">signed</span>, <span class="ident">signature</span>, <span class="ident">extra</span>)) <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="kw">let</span> <span class="ident">signed</span> <span class="op">=</span> <span class="ident">lookup</span>.<span class="ident">lookup</span>(<span class="ident">signed</span>)<span class="question-mark">?</span>;
@@ -496,7 +503,7 @@
 				<span class="kw">if</span> <span class="op">!</span><span class="ident">raw_payload</span>.<span class="ident">using_encoded</span>(<span class="op">|</span><span class="ident">payload</span><span class="op">|</span> {
 					<span class="ident">signature</span>.<span class="ident">verify</span>(<span class="ident">payload</span>, <span class="kw-2">&amp;</span><span class="ident">signed</span>)
 				}) {
-					<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="kw">crate</span>::<span class="ident">BAD_SIGNATURE</span>)
+					<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">InvalidTransaction</span>::<span class="ident">BadProof</span>.<span class="ident">into</span>())
 				}
 
 				<span class="kw">let</span> (<span class="ident">function</span>, <span class="ident">extra</span>, <span class="kw">_</span>) <span class="op">=</span> <span class="ident">raw_payload</span>.<span class="ident">deconstruct</span>();
@@ -519,9 +526,9 @@
 <span class="doccomment">/// is going to be different than the `SignaturePayload` - so the thing the extrinsic</span>
 <span class="doccomment">/// actually contains.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SignedPayload</span><span class="op">&lt;</span><span class="ident">Call</span>, <span class="ident">Extra</span>: <span class="ident">SignedExtension</span><span class="op">&gt;</span>((
-		<span class="ident">Call</span>,
-		<span class="ident">Extra</span>,
-		<span class="ident">Extra</span>::<span class="ident">AdditionalSigned</span>,
+	<span class="ident">Call</span>,
+	<span class="ident">Extra</span>,
+	<span class="ident">Extra</span>::<span class="ident">AdditionalSigned</span>,
 ));
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Call</span>, <span class="ident">Extra</span><span class="op">&gt;</span> <span class="ident">SignedPayload</span><span class="op">&lt;</span><span class="ident">Call</span>, <span class="ident">Extra</span><span class="op">&gt;</span> <span class="kw">where</span>
@@ -531,7 +538,7 @@
 	<span class="doccomment">/// Create new `SignedPayload`.</span>
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// This function may fail if `additional_signed` of `Extra` is not available.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">call</span>: <span class="ident">Call</span>, <span class="ident">extra</span>: <span class="ident">Extra</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span> {
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">call</span>: <span class="ident">Call</span>, <span class="ident">extra</span>: <span class="ident">Extra</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">TransactionValidityError</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">additional_signed</span> <span class="op">=</span> <span class="ident">extra</span>.<span class="ident">additional_signed</span>()<span class="question-mark">?</span>;
 		<span class="kw">let</span> <span class="ident">raw_payload</span> <span class="op">=</span> (<span class="ident">call</span>, <span class="ident">extra</span>, <span class="ident">additional_signed</span>);
 		<span class="prelude-val">Ok</span>(<span class="self">Self</span>(<span class="ident">raw_payload</span>))
@@ -639,7 +646,12 @@
 	<span class="ident">Extra</span>: <span class="ident">SignedExtension</span>,
 {
 	<span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
-		<span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;UncheckedExtrinsic({:?}, {:?})&quot;</span>, <span class="self">self</span>.<span class="ident">signature</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> (<span class="kw-2">&amp;</span><span class="ident">x</span>.<span class="number">0</span>, <span class="kw-2">&amp;</span><span class="ident">x</span>.<span class="number">2</span>)), <span class="self">self</span>.<span class="ident">function</span>)
+		<span class="macro">write</span><span class="macro">!</span>(
+			<span class="ident">f</span>,
+			<span class="string">&quot;UncheckedExtrinsic({:?}, {:?})&quot;</span>,
+			<span class="self">self</span>.<span class="ident">signature</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> (<span class="kw-2">&amp;</span><span class="ident">x</span>.<span class="number">0</span>, <span class="kw-2">&amp;</span><span class="ident">x</span>.<span class="number">2</span>)),
+			<span class="self">self</span>.<span class="ident">function</span>,
+		)
 	}
 }
 
@@ -648,15 +660,10 @@
 	<span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 	<span class="kw">use</span> <span class="ident">runtime_io</span>::<span class="ident">blake2_256</span>;
 	<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">codec</span>::{<span class="ident">Encode</span>, <span class="ident">Decode</span>};
-	<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">traits</span>::{<span class="ident">SignedExtension</span>, <span class="ident">Lookup</span>};
+	<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">traits</span>::{<span class="ident">SignedExtension</span>, <span class="ident">IdentityLookup</span>};
 	<span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Serialize</span>, <span class="ident">Deserialize</span>};
 
-	<span class="kw">struct</span> <span class="ident">TestContext</span>;
-	<span class="kw">impl</span> <span class="ident">Lookup</span> <span class="kw">for</span> <span class="ident">TestContext</span> {
-		<span class="kw">type</span> <span class="ident">Source</span> <span class="op">=</span> <span class="ident">u64</span>;
-		<span class="kw">type</span> <span class="ident">Target</span> <span class="op">=</span> <span class="ident">u64</span>;
-		<span class="kw">fn</span> <span class="ident">lookup</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u64</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u64</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span> { <span class="prelude-val">Ok</span>(<span class="ident">s</span>) }
-	}
+	<span class="kw">type</span> <span class="ident">TestContext</span> <span class="op">=</span> <span class="ident">IdentityLookup</span><span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>;
 
 	<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Eq</span>, <span class="ident">PartialEq</span>, <span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">Encode</span>, <span class="ident">Decode</span>)]</span>
 	<span class="kw">struct</span> <span class="ident">TestSig</span>(<span class="ident">u64</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>);
@@ -681,7 +688,7 @@
 		<span class="kw">type</span> <span class="ident">AdditionalSigned</span> <span class="op">=</span> ();
 		<span class="kw">type</span> <span class="ident">Pre</span> <span class="op">=</span> ();
 
-		<span class="kw">fn</span> <span class="ident">additional_signed</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">rstd</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span> { <span class="prelude-val">Ok</span>(()) }
+		<span class="kw">fn</span> <span class="ident">additional_signed</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">rstd</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">TransactionValidityError</span><span class="op">&gt;</span> { <span class="prelude-val">Ok</span>(()) }
 	}
 
 	<span class="kw">type</span> <span class="ident">Ex</span> <span class="op">=</span> <span class="ident">UncheckedExtrinsic</span><span class="op">&lt;</span><span class="ident">TestAccountId</span>, <span class="ident">TestCall</span>, <span class="ident">TestSig</span>, <span class="ident">TestExtra</span><span class="op">&gt;</span>;
@@ -723,7 +730,7 @@
 	<span class="kw">fn</span> <span class="ident">unsigned_check_should_work</span>() {
 		<span class="kw">let</span> <span class="ident">ux</span> <span class="op">=</span> <span class="ident">Ex</span>::<span class="ident">new_unsigned</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="number">0u8</span>; <span class="number">0</span>]);
 		<span class="macro">assert</span><span class="macro">!</span>(<span class="op">!</span><span class="ident">ux</span>.<span class="ident">is_signed</span>().<span class="ident">unwrap_or</span>(<span class="bool-val">false</span>));
-		<span class="macro">assert</span><span class="macro">!</span>(<span class="op">&lt;</span><span class="ident">Ex</span> <span class="kw">as</span> <span class="ident">Checkable</span><span class="op">&lt;</span><span class="ident">TestContext</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">check</span>(<span class="ident">ux</span>, <span class="kw-2">&amp;</span><span class="ident">TestContext</span>).<span class="ident">is_ok</span>());
+		<span class="macro">assert</span><span class="macro">!</span>(<span class="op">&lt;</span><span class="ident">Ex</span> <span class="kw">as</span> <span class="ident">Checkable</span><span class="op">&lt;</span><span class="ident">TestContext</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">check</span>(<span class="ident">ux</span>, <span class="kw-2">&amp;</span><span class="ident">Default</span>::<span class="ident">default</span>()).<span class="ident">is_ok</span>());
 	}
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
@@ -732,10 +739,13 @@
 			<span class="macro">vec</span><span class="macro">!</span>[<span class="number">0u8</span>; <span class="number">0</span>],
 			<span class="ident">TEST_ACCOUNT</span>,
 			<span class="ident">TestSig</span>(<span class="ident">TEST_ACCOUNT</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="number">0u8</span>; <span class="number">0</span>]),
-			<span class="ident">TestExtra</span>
+			<span class="ident">TestExtra</span>,
 		);
 		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">ux</span>.<span class="ident">is_signed</span>().<span class="ident">unwrap_or</span>(<span class="bool-val">false</span>));
-		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="op">&lt;</span><span class="ident">Ex</span> <span class="kw">as</span> <span class="ident">Checkable</span><span class="op">&lt;</span><span class="ident">TestContext</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">check</span>(<span class="ident">ux</span>, <span class="kw-2">&amp;</span><span class="ident">TestContext</span>), <span class="prelude-val">Err</span>(<span class="kw">crate</span>::<span class="ident">BAD_SIGNATURE</span>));
+		<span class="macro">assert_eq</span><span class="macro">!</span>(
+			<span class="op">&lt;</span><span class="ident">Ex</span> <span class="kw">as</span> <span class="ident">Checkable</span><span class="op">&lt;</span><span class="ident">TestContext</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">check</span>(<span class="ident">ux</span>, <span class="kw-2">&amp;</span><span class="ident">Default</span>::<span class="ident">default</span>()),
+			<span class="prelude-val">Err</span>(<span class="ident">InvalidTransaction</span>::<span class="ident">BadProof</span>.<span class="ident">into</span>()),
+		);
 	}
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
@@ -744,12 +754,12 @@
 			<span class="macro">vec</span><span class="macro">!</span>[<span class="number">0u8</span>; <span class="number">0</span>],
 			<span class="ident">TEST_ACCOUNT</span>,
 			<span class="ident">TestSig</span>(<span class="ident">TEST_ACCOUNT</span>, (<span class="macro">vec</span><span class="macro">!</span>[<span class="number">0u8</span>; <span class="number">0</span>], <span class="ident">TestExtra</span>).<span class="ident">encode</span>()),
-			<span class="ident">TestExtra</span>
+			<span class="ident">TestExtra</span>,
 		);
 		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">ux</span>.<span class="ident">is_signed</span>().<span class="ident">unwrap_or</span>(<span class="bool-val">false</span>));
 		<span class="macro">assert_eq</span><span class="macro">!</span>(
-			<span class="op">&lt;</span><span class="ident">Ex</span> <span class="kw">as</span> <span class="ident">Checkable</span><span class="op">&lt;</span><span class="ident">TestContext</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">check</span>(<span class="ident">ux</span>, <span class="kw-2">&amp;</span><span class="ident">TestContext</span>),
-			<span class="prelude-val">Ok</span>(<span class="ident">CEx</span> { <span class="ident">signed</span>: <span class="prelude-val">Some</span>((<span class="ident">TEST_ACCOUNT</span>, <span class="ident">TestExtra</span>)), <span class="ident">function</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="number">0u8</span>; <span class="number">0</span>] })
+			<span class="op">&lt;</span><span class="ident">Ex</span> <span class="kw">as</span> <span class="ident">Checkable</span><span class="op">&lt;</span><span class="ident">TestContext</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">check</span>(<span class="ident">ux</span>, <span class="kw-2">&amp;</span><span class="ident">Default</span>::<span class="ident">default</span>()),
+			<span class="prelude-val">Ok</span>(<span class="ident">CEx</span> { <span class="ident">signed</span>: <span class="prelude-val">Some</span>((<span class="ident">TEST_ACCOUNT</span>, <span class="ident">TestExtra</span>)), <span class="ident">function</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="number">0u8</span>; <span class="number">0</span>] }),
 		);
 	}
 
