@@ -1313,6 +1313,13 @@
 <span id="1313">1313</span>
 <span id="1314">1314</span>
 <span id="1315">1315</span>
+<span id="1316">1316</span>
+<span id="1317">1317</span>
+<span id="1318">1318</span>
+<span id="1319">1319</span>
+<span id="1320">1320</span>
+<span id="1321">1321</span>
+<span id="1322">1322</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1366,10 +1373,12 @@
 	<span class="ident">Storage</span> <span class="kw">as</span> <span class="ident">ChangesTrieStorage</span>,
 	<span class="ident">RootsStorage</span> <span class="kw">as</span> <span class="ident">ChangesTrieRootsStorage</span>,
 	<span class="ident">InMemoryStorage</span> <span class="kw">as</span> <span class="ident">InMemoryChangesTrieStorage</span>,
+	<span class="ident">BuildCache</span> <span class="kw">as</span> <span class="ident">ChangesTrieBuildCache</span>,
+	<span class="ident">CacheAction</span> <span class="kw">as</span> <span class="ident">ChangesTrieCacheAction</span>,
 	<span class="ident">ConfigurationRange</span> <span class="kw">as</span> <span class="ident">ChangesTrieConfigurationRange</span>,
 	<span class="ident">key_changes</span>, <span class="ident">key_changes_proof</span>, <span class="ident">key_changes_proof_check</span>,
 	<span class="ident">prune</span> <span class="kw">as</span> <span class="ident">prune_changes_tries</span>,
-	<span class="ident">oldest_non_pruned_trie</span> <span class="kw">as</span> <span class="ident">oldest_non_pruned_changes_trie</span>
+	<span class="ident">oldest_non_pruned_trie</span> <span class="kw">as</span> <span class="ident">oldest_non_pruned_changes_trie</span>,
 };
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">overlayed_changes</span>::<span class="ident">OverlayedChanges</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">proving_backend</span>::{
@@ -1379,6 +1388,11 @@
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">trie_backend_essence</span>::{<span class="ident">TrieBackendStorage</span>, <span class="ident">Storage</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">trie_backend</span>::<span class="ident">TrieBackend</span>;
 
+<span class="doccomment">/// Type of changes trie transaction.</span>
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">ChangesTrieTransaction</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span> <span class="op">=</span> (
+	<span class="ident">MemoryDB</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span>,
+	<span class="ident">ChangesTrieCacheAction</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">H</span> <span class="kw">as</span> <span class="ident">Hasher</span><span class="op">&gt;</span>::<span class="ident">Out</span>, <span class="ident">N</span><span class="op">&gt;</span>,
+);
 
 <span class="doccomment">/// A wrapper around a child storage key.</span>
 <span class="doccomment">///</span>
@@ -1829,7 +1843,7 @@
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">execute</span>(
 		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
 		<span class="ident">strategy</span>: <span class="ident">ExecutionStrategy</span>,
-	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, (<span class="ident">B</span>::<span class="ident">Transaction</span>, <span class="ident">H</span>::<span class="ident">Out</span>), <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">MemoryDB</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span><span class="op">&gt;</span>), <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, (<span class="ident">B</span>::<span class="ident">Transaction</span>, <span class="ident">H</span>::<span class="ident">Out</span>), <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChangesTrieTransaction</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span><span class="op">&gt;</span>), <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 		<span class="comment">// We are not giving a native call and thus we are sure that the result can never be a native</span>
 		<span class="comment">// value.</span>
 		<span class="self">self</span>.<span class="ident">execute_using_consensus_failure_handler</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">NeverNativeValue</span>, <span class="kw">fn</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="kw">_</span><span class="op">&gt;</span>(
@@ -1853,7 +1867,7 @@
 		<span class="ident">CallResult</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">Exec</span>::<span class="ident">Error</span><span class="op">&gt;</span>,
 		<span class="ident">bool</span>,
 		<span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">B</span>::<span class="ident">Transaction</span>, <span class="ident">H</span>::<span class="ident">Out</span>)<span class="op">&gt;</span>,
-		<span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">MemoryDB</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+		<span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChangesTrieTransaction</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	) <span class="kw">where</span>
 		<span class="ident">R</span>: <span class="ident">Decode</span> <span class="op">+</span> <span class="ident">Encode</span> <span class="op">+</span> <span class="ident">PartialEq</span>,
 		<span class="ident">NC</span>: <span class="ident">FnOnce</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">UnwindSafe</span>,
@@ -1887,7 +1901,7 @@
 		<span class="kw-2">mut</span> <span class="ident">native_call</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">NC</span><span class="op">&gt;</span>,
 		<span class="ident">orig_prospective</span>: <span class="ident">OverlayedChangeSet</span>,
 		<span class="ident">on_consensus_failure</span>: <span class="ident">Handler</span>,
-	) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">CallResult</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">Exec</span>::<span class="ident">Error</span><span class="op">&gt;</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">B</span>::<span class="ident">Transaction</span>, <span class="ident">H</span>::<span class="ident">Out</span>)<span class="op">&gt;</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">MemoryDB</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span><span class="op">&gt;</span>) <span class="kw">where</span>
+	) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">CallResult</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">Exec</span>::<span class="ident">Error</span><span class="op">&gt;</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">B</span>::<span class="ident">Transaction</span>, <span class="ident">H</span>::<span class="ident">Out</span>)<span class="op">&gt;</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChangesTrieTransaction</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span><span class="op">&gt;</span>) <span class="kw">where</span>
 		<span class="ident">R</span>: <span class="ident">Decode</span> <span class="op">+</span> <span class="ident">Encode</span> <span class="op">+</span> <span class="ident">PartialEq</span>,
 		<span class="ident">NC</span>: <span class="ident">FnOnce</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">UnwindSafe</span>,
 		<span class="ident">Handler</span>: <span class="ident">FnOnce</span>(
@@ -1918,7 +1932,7 @@
 		<span class="ident">compute_tx</span>: <span class="ident">bool</span>,
 		<span class="kw-2">mut</span> <span class="ident">native_call</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">NC</span><span class="op">&gt;</span>,
 		<span class="ident">orig_prospective</span>: <span class="ident">OverlayedChangeSet</span>,
-	) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">CallResult</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">Exec</span>::<span class="ident">Error</span><span class="op">&gt;</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">B</span>::<span class="ident">Transaction</span>, <span class="ident">H</span>::<span class="ident">Out</span>)<span class="op">&gt;</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">MemoryDB</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span><span class="op">&gt;</span>) <span class="kw">where</span>
+	) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">CallResult</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">Exec</span>::<span class="ident">Error</span><span class="op">&gt;</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">B</span>::<span class="ident">Transaction</span>, <span class="ident">H</span>::<span class="ident">Out</span>)<span class="op">&gt;</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChangesTrieTransaction</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span><span class="op">&gt;</span>) <span class="kw">where</span>
 		<span class="ident">R</span>: <span class="ident">Decode</span> <span class="op">+</span> <span class="ident">Encode</span> <span class="op">+</span> <span class="ident">PartialEq</span>,
 		<span class="ident">NC</span>: <span class="ident">FnOnce</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">UnwindSafe</span>,
 	{
@@ -1949,7 +1963,7 @@
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(
 		<span class="ident">NativeOrEncoded</span><span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;</span>,
 		<span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">B</span>::<span class="ident">Transaction</span>, <span class="ident">H</span>::<span class="ident">Out</span>)<span class="op">&gt;</span>,
-		<span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">MemoryDB</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span><span class="op">&gt;</span>
+		<span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChangesTrieTransaction</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	), <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="kw">where</span>
 		<span class="ident">R</span>: <span class="ident">Decode</span> <span class="op">+</span> <span class="ident">Encode</span> <span class="op">+</span> <span class="ident">PartialEq</span>,
 		<span class="ident">NC</span>: <span class="ident">FnOnce</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">UnwindSafe</span>,

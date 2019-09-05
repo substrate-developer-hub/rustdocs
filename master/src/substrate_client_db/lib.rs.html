@@ -2217,6 +2217,30 @@
 <span id="2217">2217</span>
 <span id="2218">2218</span>
 <span id="2219">2219</span>
+<span id="2220">2220</span>
+<span id="2221">2221</span>
+<span id="2222">2222</span>
+<span id="2223">2223</span>
+<span id="2224">2224</span>
+<span id="2225">2225</span>
+<span id="2226">2226</span>
+<span id="2227">2227</span>
+<span id="2228">2228</span>
+<span id="2229">2229</span>
+<span id="2230">2230</span>
+<span id="2231">2231</span>
+<span id="2232">2232</span>
+<span id="2233">2233</span>
+<span id="2234">2234</span>
+<span id="2235">2235</span>
+<span id="2236">2236</span>
+<span id="2237">2237</span>
+<span id="2238">2238</span>
+<span id="2239">2239</span>
+<span id="2240">2240</span>
+<span id="2241">2241</span>
+<span id="2242">2242</span>
+<span id="2243">2243</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -2256,7 +2280,7 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">path</span>::<span class="ident">PathBuf</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">io</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::{<span class="ident">HashMap</span>, <span class="ident">HashSet</span>};
 
 <span class="kw">use</span> <span class="ident">client</span>::<span class="ident">backend</span>::<span class="ident">NewBlockState</span>;
 <span class="kw">use</span> <span class="ident">client</span>::<span class="ident">blockchain</span>::<span class="ident">HeaderBackend</span>;
@@ -2278,7 +2302,7 @@
 };
 <span class="kw">use</span> <span class="ident">state_machine</span>::<span class="ident">backend</span>::<span class="ident">Backend</span> <span class="kw">as</span> <span class="ident">StateBackend</span>;
 <span class="kw">use</span> <span class="ident">executor</span>::<span class="ident">RuntimeInfo</span>;
-<span class="kw">use</span> <span class="ident">state_machine</span>::{<span class="ident">CodeExecutor</span>, <span class="ident">DBValue</span>};
+<span class="kw">use</span> <span class="ident">state_machine</span>::{<span class="ident">CodeExecutor</span>, <span class="ident">DBValue</span>, <span class="ident">ChangesTrieTransaction</span>, <span class="ident">ChangesTrieCacheAction</span>, <span class="ident">ChangesTrieBuildCache</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">utils</span>::{<span class="ident">Meta</span>, <span class="ident">db_err</span>, <span class="ident">meta_keys</span>, <span class="ident">read_db</span>, <span class="ident">block_id_to_lookup_key</span>, <span class="ident">read_meta</span>};
 <span class="kw">use</span> <span class="ident">client</span>::<span class="ident">leaves</span>::{<span class="ident">LeafSet</span>, <span class="ident">FinalizationDisplaced</span>};
 <span class="kw">use</span> <span class="ident">client</span>::<span class="ident">children</span>;
@@ -2625,6 +2649,7 @@
 	<span class="ident">storage_updates</span>: <span class="ident">StorageCollection</span>,
 	<span class="ident">child_storage_updates</span>: <span class="ident">ChildStorageCollection</span>,
 	<span class="ident">changes_trie_updates</span>: <span class="ident">MemoryDB</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span>,
+	<span class="ident">changes_trie_cache_update</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChangesTrieCacheAction</span><span class="op">&lt;</span><span class="ident">H</span>::<span class="ident">Out</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">pending_block</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PendingBlock</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">aux_ops</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
 	<span class="ident">finalized_blocks</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Justification</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
@@ -2707,8 +2732,12 @@
 		<span class="prelude-val">Ok</span>(<span class="ident">root</span>)
 	}
 
-	<span class="kw">fn</span> <span class="ident">update_changes_trie</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">update</span>: <span class="ident">MemoryDB</span><span class="op">&lt;</span><span class="ident">Blake2Hasher</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">client</span>::<span class="ident">error</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
-		<span class="self">self</span>.<span class="ident">changes_trie_updates</span> <span class="op">=</span> <span class="ident">update</span>;
+	<span class="kw">fn</span> <span class="ident">update_changes_trie</span>(
+		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+		<span class="ident">update</span>: <span class="ident">ChangesTrieTransaction</span><span class="op">&lt;</span><span class="ident">Blake2Hasher</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">client</span>::<span class="ident">error</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+		<span class="self">self</span>.<span class="ident">changes_trie_updates</span> <span class="op">=</span> <span class="ident">update</span>.<span class="number">0</span>;
+		<span class="self">self</span>.<span class="ident">changes_trie_cache_update</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">update</span>.<span class="number">1</span>);
 		<span class="prelude-val">Ok</span>(())
 	}
 
@@ -2785,6 +2814,7 @@
 	<span class="ident">db</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">KeyValueDB</span><span class="op">&gt;</span>,
 	<span class="ident">meta</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">RwLock</span><span class="op">&lt;</span><span class="ident">Meta</span><span class="op">&lt;</span><span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>, <span class="ident">Block</span>::<span class="ident">Hash</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">min_blocks_to_keep</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>,
+	<span class="ident">cache</span>: <span class="ident">RwLock</span><span class="op">&lt;</span><span class="ident">ChangesTrieBuildCache</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">_phantom</span>: ::<span class="ident">std</span>::<span class="ident">marker</span>::<span class="ident">PhantomData</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 }
 
@@ -2794,6 +2824,11 @@
 		<span class="kw">for</span> (<span class="ident">key</span>, (<span class="ident">val</span>, <span class="kw">_</span>)) <span class="kw">in</span> <span class="ident">changes_trie</span>.<span class="ident">drain</span>() {
 			<span class="ident">tx</span>.<span class="ident">put</span>(<span class="ident">columns</span>::<span class="ident">CHANGES_TRIE</span>, <span class="kw-2">&amp;</span><span class="ident">key</span>[..], <span class="kw-2">&amp;</span><span class="ident">val</span>);
 		}
+	}
+
+	<span class="doccomment">/// Commit changes into changes trie build cache.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">commit_cache</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">cache_update</span>: <span class="ident">ChangesTrieCacheAction</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>) {
+		<span class="self">self</span>.<span class="ident">cache</span>.<span class="ident">write</span>().<span class="ident">perform</span>(<span class="ident">cache_update</span>);
 	}
 
 	<span class="doccomment">/// Prune obsolete changes tries.</span>
@@ -2919,6 +2954,14 @@
 		<span class="self">self</span>
 	}
 
+	<span class="kw">fn</span> <span class="ident">with_cached_changed_keys</span>(
+		<span class="kw-2">&amp;</span><span class="self">self</span>,
+		<span class="ident">root</span>: <span class="kw-2">&amp;</span><span class="ident">H256</span>,
+		<span class="ident">functor</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">FnMut</span>(<span class="kw-2">&amp;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>),
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+		<span class="self">self</span>.<span class="ident">cache</span>.<span class="ident">read</span>().<span class="ident">with_changed_keys</span>(<span class="ident">root</span>, <span class="ident">functor</span>)
+	}
+
 	<span class="kw">fn</span> <span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span><span class="ident">H256</span>, <span class="ident">_prefix</span>: <span class="ident">Prefix</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">DBValue</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span> {
 		<span class="self">self</span>.<span class="ident">db</span>.<span class="ident">get</span>(<span class="ident">columns</span>::<span class="ident">CHANGES_TRIE</span>, <span class="kw-2">&amp;</span><span class="ident">key</span>[..])
 			.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">err</span>))
@@ -3003,6 +3046,7 @@
 			<span class="ident">db</span>,
 			<span class="ident">meta</span>,
 			<span class="ident">min_blocks_to_keep</span>: <span class="kw">if</span> <span class="ident">is_archive_pruning</span> { <span class="prelude-val">None</span> } <span class="kw">else</span> { <span class="prelude-val">Some</span>(<span class="ident">MIN_BLOCKS_TO_KEEP_CHANGES_TRIES_FOR</span>) },
+			<span class="ident">cache</span>: <span class="ident">RwLock</span>::<span class="ident">new</span>(<span class="ident">ChangesTrieBuildCache</span>::<span class="ident">new</span>()),
 			<span class="ident">_phantom</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
 		};
 
@@ -3318,7 +3362,6 @@
 			<span class="self">self</span>.<span class="ident">changes_tries_storage</span>.<span class="ident">commit</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">transaction</span>, <span class="ident">changes_trie_updates</span>);
 			<span class="kw">let</span> <span class="ident">cache</span> <span class="op">=</span> <span class="ident">operation</span>.<span class="ident">old_state</span>.<span class="ident">release</span>(); <span class="comment">// release state reference so that it can be finalized</span>
 
-
 			<span class="kw">if</span> <span class="ident">finalized</span> {
 				<span class="comment">// TODO: ensure best chain contains this block.</span>
 				<span class="self">self</span>.<span class="ident">ensure_sequential_finalization</span>(<span class="ident">header</span>, <span class="prelude-val">Some</span>(<span class="ident">last_finalized_hash</span>))<span class="question-mark">?</span>;
@@ -3374,6 +3417,10 @@
 		};
 
 		<span class="kw">let</span> <span class="ident">write_result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">storage</span>.<span class="ident">db</span>.<span class="ident">write</span>(<span class="ident">transaction</span>).<span class="ident">map_err</span>(<span class="ident">db_err</span>);
+
+		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">changes_trie_cache_update</span>) <span class="op">=</span> <span class="ident">operation</span>.<span class="ident">changes_trie_cache_update</span> {
+			<span class="self">self</span>.<span class="ident">changes_tries_storage</span>.<span class="ident">commit_cache</span>(<span class="ident">changes_trie_cache_update</span>);
+		}
 
 		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">number</span>, <span class="ident">hash</span>, <span class="ident">enacted</span>, <span class="ident">retracted</span>, <span class="ident">displaced_leaf</span>, <span class="ident">is_best</span>, <span class="kw-2">mut</span> <span class="ident">cache</span>)) <span class="op">=</span> <span class="ident">imported</span> {
 			<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span> <span class="ident">write_result</span> {
@@ -3508,6 +3555,7 @@
 			<span class="ident">storage_updates</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
 			<span class="ident">child_storage_updates</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
 			<span class="ident">changes_trie_updates</span>: <span class="ident">MemoryDB</span>::<span class="ident">default</span>(),
+			<span class="ident">changes_trie_cache_update</span>: <span class="prelude-val">None</span>,
 			<span class="ident">aux_ops</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
 			<span class="ident">finalized_blocks</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
 			<span class="ident">set_head</span>: <span class="prelude-val">None</span>,
@@ -3735,7 +3783,7 @@
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">op</span> <span class="op">=</span> <span class="ident">backend</span>.<span class="ident">begin_operation</span>().<span class="ident">unwrap</span>();
 		<span class="ident">backend</span>.<span class="ident">begin_state_operation</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">op</span>, <span class="ident">block_id</span>).<span class="ident">unwrap</span>();
 		<span class="ident">op</span>.<span class="ident">set_block_data</span>(<span class="ident">header</span>, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, <span class="ident">NewBlockState</span>::<span class="ident">Best</span>).<span class="ident">unwrap</span>();
-		<span class="ident">op</span>.<span class="ident">update_changes_trie</span>(<span class="ident">changes_trie_update</span>).<span class="ident">unwrap</span>();
+		<span class="ident">op</span>.<span class="ident">update_changes_trie</span>((<span class="ident">changes_trie_update</span>, <span class="ident">ChangesTrieCacheAction</span>::<span class="ident">Clear</span>)).<span class="ident">unwrap</span>();
 		<span class="ident">backend</span>.<span class="ident">commit_operation</span>(<span class="ident">op</span>).<span class="ident">unwrap</span>();
 
 		<span class="ident">header_hash</span>

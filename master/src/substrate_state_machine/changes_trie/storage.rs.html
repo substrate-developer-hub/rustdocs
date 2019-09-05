@@ -191,6 +191,21 @@
 <span id="191">191</span>
 <span id="192">192</span>
 <span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
+<span id="197">197</span>
+<span id="198">198</span>
+<span id="199">199</span>
+<span id="200">200</span>
+<span id="201">201</span>
+<span id="202">202</span>
+<span id="203">203</span>
+<span id="204">204</span>
+<span id="205">205</span>
+<span id="206">206</span>
+<span id="207">207</span>
+<span id="208">208</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -210,16 +225,14 @@
 
 <span class="doccomment">//! Changes trie storage utilities.</span>
 
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">BTreeMap</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::{<span class="ident">BTreeMap</span>, <span class="ident">HashSet</span>, <span class="ident">HashMap</span>};
 <span class="kw">use</span> <span class="ident">hash_db</span>::{<span class="ident">Hasher</span>, <span class="ident">Prefix</span>, <span class="ident">EMPTY_PREFIX</span>};
 <span class="kw">use</span> <span class="ident">trie</span>::<span class="ident">DBValue</span>;
 <span class="kw">use</span> <span class="ident">trie</span>::<span class="ident">MemoryDB</span>;
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">RwLock</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">changes_trie</span>::{<span class="ident">RootsStorage</span>, <span class="ident">Storage</span>, <span class="ident">AnchorBlockId</span>, <span class="ident">BlockNumber</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">changes_trie</span>::{<span class="ident">BuildCache</span>, <span class="ident">RootsStorage</span>, <span class="ident">Storage</span>, <span class="ident">AnchorBlockId</span>, <span class="ident">BlockNumber</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">trie_backend_essence</span>::<span class="ident">TrieBackendStorage</span>;
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashSet</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">insert_into_memory_db</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
@@ -228,6 +241,7 @@
 <span class="doccomment">/// In-memory implementation of changes trie storage.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">InMemoryStorage</span><span class="op">&lt;</span><span class="ident">H</span>: <span class="ident">Hasher</span>, <span class="ident">Number</span>: <span class="ident">BlockNumber</span><span class="op">&gt;</span> {
 	<span class="ident">data</span>: <span class="ident">RwLock</span><span class="op">&lt;</span><span class="ident">InMemoryStorageData</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">Number</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">cache</span>: <span class="ident">BuildCache</span><span class="op">&lt;</span><span class="ident">H</span>::<span class="ident">Out</span>, <span class="ident">Number</span><span class="op">&gt;</span>,
 }
 
 <span class="doccomment">/// Adapter for using changes trie storage as a TrieBackendEssence&#39; storage.</span>
@@ -249,6 +263,7 @@
 				<span class="ident">roots</span>: <span class="ident">BTreeMap</span>::<span class="ident">new</span>(),
 				<span class="ident">mdb</span>,
 			}),
+			<span class="ident">cache</span>: <span class="ident">BuildCache</span>::<span class="ident">new</span>(),
 		}
 	}
 
@@ -268,6 +283,11 @@
 		<span class="self">Self</span>::<span class="ident">with_db</span>(<span class="ident">proof_db</span>)
 	}
 
+	<span class="doccomment">/// Get mutable cache reference.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">cache_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">BuildCache</span><span class="op">&lt;</span><span class="ident">H</span>::<span class="ident">Out</span>, <span class="ident">Number</span><span class="op">&gt;</span> {
+		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">cache</span>
+	}
+
 	<span class="doccomment">/// Create the storage with given blocks.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_blocks</span>(<span class="ident">blocks</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">Number</span>, <span class="ident">H</span>::<span class="ident">Out</span>)<span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
 		<span class="self">Self</span> {
@@ -275,6 +295,7 @@
 				<span class="ident">roots</span>: <span class="ident">blocks</span>.<span class="ident">into_iter</span>().<span class="ident">collect</span>(),
 				<span class="ident">mdb</span>: <span class="ident">MemoryDB</span>::<span class="ident">default</span>(),
 			}),
+			<span class="ident">cache</span>: <span class="ident">BuildCache</span>::<span class="ident">new</span>(),
 		}
 	}
 
@@ -316,6 +337,7 @@
 				<span class="ident">roots</span>,
 				<span class="ident">mdb</span>,
 			}),
+			<span class="ident">cache</span>: <span class="ident">BuildCache</span>::<span class="ident">new</span>(),
 		}
 	}
 
@@ -361,6 +383,14 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">H</span>: <span class="ident">Hasher</span>, <span class="ident">Number</span>: <span class="ident">BlockNumber</span><span class="op">&gt;</span> <span class="ident">Storage</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">Number</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">InMemoryStorage</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">Number</span><span class="op">&gt;</span> {
 	<span class="kw">fn</span> <span class="ident">as_roots_storage</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">RootsStorage</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">Number</span><span class="op">&gt;</span> {
 		<span class="self">self</span>
+	}
+
+	<span class="kw">fn</span> <span class="ident">with_cached_changed_keys</span>(
+		<span class="kw-2">&amp;</span><span class="self">self</span>,
+		<span class="ident">root</span>: <span class="kw-2">&amp;</span><span class="ident">H</span>::<span class="ident">Out</span>,
+		<span class="ident">functor</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">FnMut</span>(<span class="kw-2">&amp;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>),
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+		<span class="self">self</span>.<span class="ident">cache</span>.<span class="ident">with_changed_keys</span>(<span class="ident">root</span>, <span class="ident">functor</span>)
 	}
 
 	<span class="kw">fn</span> <span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span><span class="ident">H</span>::<span class="ident">Out</span>, <span class="ident">prefix</span>: <span class="ident">Prefix</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">DBValue</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span> {
