@@ -967,6 +967,21 @@
 <span id="967">967</span>
 <span id="968">968</span>
 <span id="969">969</span>
+<span id="970">970</span>
+<span id="971">971</span>
+<span id="972">972</span>
+<span id="973">973</span>
+<span id="974">974</span>
+<span id="975">975</span>
+<span id="976">976</span>
+<span id="977">977</span>
+<span id="978">978</span>
+<span id="979">979</span>
+<span id="980">980</span>
+<span id="981">981</span>
+<span id="982">982</span>
+<span id="983">983</span>
+<span id="984">984</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1009,7 +1024,7 @@
 <span class="kw">use</span> <span class="ident">exit_future</span>::<span class="ident">Signal</span>;
 <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">futures03</span>::<span class="ident">stream</span>::{<span class="ident">StreamExt</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">TryStreamExt</span> <span class="kw">as</span> <span class="kw">_</span>};
-<span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">NetworkService</span>, <span class="ident">NetworkState</span>, <span class="ident">specialization</span>::<span class="ident">NetworkSpecialization</span>};
+<span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">NetworkService</span>, <span class="ident">NetworkState</span>, <span class="ident">specialization</span>::<span class="ident">NetworkSpecialization</span>, <span class="ident">Event</span>, <span class="ident">DhtEvent</span>};
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">log</span>, <span class="ident">warn</span>, <span class="ident">debug</span>, <span class="ident">error</span>, <span class="ident">Level</span>};
 <span class="kw">use</span> <span class="ident">codec</span>::{<span class="ident">Encode</span>, <span class="ident">Decode</span>};
 <span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">Blake2Hasher</span>, <span class="ident">H256</span>};
@@ -1124,7 +1139,8 @@
 			<span class="ident">finality_proof_provider</span>,
 			<span class="ident">network_protocol</span>,
 			<span class="ident">transaction_pool</span>,
-			<span class="ident">rpc_extensions</span>
+			<span class="ident">rpc_extensions</span>,
+			<span class="ident">dht_event_tx</span>,
 		) <span class="op">=</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">build_components</span>(<span class="kw-2">&amp;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">config</span>)<span class="question-mark">?</span>;
 		<span class="kw">let</span> <span class="ident">import_queue</span> <span class="op">=</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">import_queue</span>);
 		<span class="kw">let</span> <span class="ident">chain_info</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">info</span>().<span class="ident">chain</span>;
@@ -1207,6 +1223,7 @@
 							<span class="kw-2">&amp;</span><span class="ident">BlockId</span>::<span class="ident">hash</span>(<span class="ident">notification</span>.<span class="ident">hash</span>),
 							<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">client</span>,
 							<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">txpool</span>,
+							<span class="kw-2">&amp;</span><span class="ident">notification</span>.<span class="ident">retracted</span>,
 						).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;Pool error processing new block: {:?}&quot;</span>, <span class="ident">e</span>))<span class="question-mark">?</span>;
 					}
 
@@ -1327,12 +1344,14 @@
 		<span class="kw">let</span> <span class="ident">rpc_handlers</span> <span class="op">=</span> <span class="ident">gen_handler</span>();
 		<span class="kw">let</span> <span class="ident">rpc</span> <span class="op">=</span> <span class="ident">start_rpc_servers</span>(<span class="kw-2">&amp;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">config</span>, <span class="ident">gen_handler</span>)<span class="question-mark">?</span>;
 
+
 		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">to_spawn_tx</span>.<span class="ident">unbounded_send</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">build_network_future</span>(
 			<span class="ident">network_mut</span>,
 			<span class="ident">client</span>.<span class="ident">clone</span>(),
 			<span class="ident">network_status_sinks</span>.<span class="ident">clone</span>(),
 			<span class="ident">system_rpc_rx</span>,
-			<span class="ident">has_bootnodes</span>
+			<span class="ident">has_bootnodes</span>,
+			<span class="ident">dht_event_tx</span>,
 		)
 			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
 			.<span class="ident">select</span>(<span class="ident">exit</span>.<span class="ident">clone</span>())
@@ -1623,6 +1642,7 @@
 	<span class="ident">status_sinks</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">mpsc</span>::<span class="ident">UnboundedSender</span><span class="op">&lt;</span>(<span class="ident">NetworkStatus</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">NetworkState</span>)<span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">rpc_rx</span>: <span class="ident">futures03</span>::<span class="ident">channel</span>::<span class="ident">mpsc</span>::<span class="ident">UnboundedReceiver</span><span class="op">&lt;</span><span class="ident">rpc</span>::<span class="ident">system</span>::<span class="ident">Request</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">should_have_peers</span>: <span class="ident">bool</span>,
+	<span class="ident">dht_event_tx</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">mpsc</span>::<span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">DhtEvent</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> {
 	<span class="comment">// Compatibility shim while we&#39;re transitionning to stable Futures.</span>
 	<span class="comment">// See https://github.com/paritytech/substrate/issues/3099</span>
@@ -1700,11 +1720,21 @@
 		}
 
 		<span class="comment">// Main network polling.</span>
-		<span class="kw">match</span> <span class="ident">network</span>.<span class="ident">poll</span>() {
-			<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> {}
-			<span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">warn</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;service&quot;</span>, <span class="string">&quot;Error in network: {:?}&quot;</span>, <span class="ident">err</span>),
-			<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(())) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">warn</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;service&quot;</span>, <span class="string">&quot;Network service finished&quot;</span>),
-		}
+		<span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">Event</span>::<span class="ident">Dht</span>(<span class="ident">event</span>)))) <span class="op">=</span> <span class="ident">network</span>.<span class="ident">poll</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> {
+			<span class="macro">warn</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;service&quot;</span>, <span class="string">&quot;Error in network: {:?}&quot;</span>, <span class="ident">err</span>);
+		}) {
+			<span class="comment">// Given that core/authority-discovery is the only upper stack consumer of Dht events at the moment, all Dht</span>
+			<span class="comment">// events are being passed on to the authority-discovery module. In the future there might be multiple</span>
+			<span class="comment">// consumers of these events. In that case this would need to be refactored to properly dispatch the events,</span>
+			<span class="comment">// e.g. via a subscriber model.</span>
+			<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(<span class="ident">e</span>)) <span class="op">=</span> <span class="ident">dht_event_tx</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> <span class="ident">c</span>.<span class="ident">clone</span>().<span class="ident">try_send</span>(<span class="ident">event</span>)) {
+				<span class="kw">if</span> <span class="ident">e</span>.<span class="ident">is_full</span>() {
+					<span class="macro">warn</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;service&quot;</span>, <span class="string">&quot;Dht event channel to authority discovery is full, dropping event.&quot;</span>);
+				} <span class="kw">else</span> <span class="kw">if</span> <span class="ident">e</span>.<span class="ident">is_disconnected</span>() {
+					<span class="macro">warn</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;service&quot;</span>, <span class="string">&quot;Dht event channel to authority discovery is disconnected, dropping event.&quot;</span>);
+				}
+			}
+		};
 
 		<span class="comment">// Now some diagnostic for performances.</span>
 		<span class="kw">let</span> <span class="ident">polling_dur</span> <span class="op">=</span> <span class="ident">before_polling</span>.<span class="ident">elapsed</span>();

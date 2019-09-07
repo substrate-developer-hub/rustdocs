@@ -1,1 +1,1 @@
-initSidebarItems({"trait":[["AuthorityDiscoveryApi","The authority discovery api."]]});
+initSidebarItems({"struct":[["AuthorityId",""],["Signature",""]],"trait":[["AuthorityDiscoveryApi","The authority discovery api."]]});
