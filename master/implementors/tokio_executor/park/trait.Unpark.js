@@ -8,5 +8,4 @@ implementors["tokio_threadpool"] = [{text:"impl <a class=\"trait\" href=\"tokio_
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

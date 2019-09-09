@@ -6,5 +6,4 @@ implementors["ed25519_dalek"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

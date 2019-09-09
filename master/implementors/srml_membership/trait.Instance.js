@@ -6,5 +6,4 @@ implementors["srml_membership"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

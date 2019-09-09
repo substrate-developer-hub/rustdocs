@@ -9,5 +9,4 @@ implementors["toml"] = [{text:"impl <a class=\"trait\" href=\"serde/de/trait.Err
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

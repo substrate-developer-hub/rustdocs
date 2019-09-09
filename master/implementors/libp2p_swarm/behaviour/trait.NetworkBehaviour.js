@@ -10,5 +10,4 @@ implementors["libp2p_ping"] = [{text:"impl&lt;TSubstream&gt; <a class=\"trait\" 
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

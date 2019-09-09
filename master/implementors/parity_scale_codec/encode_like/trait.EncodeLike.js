@@ -52,5 +52,4 @@ implementors["substrate_test_runtime"] = [{text:"impl <a class=\"trait\" href=\"
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

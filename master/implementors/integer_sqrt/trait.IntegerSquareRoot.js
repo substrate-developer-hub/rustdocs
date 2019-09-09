@@ -6,5 +6,4 @@ implementors["integer_sqrt"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

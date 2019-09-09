@@ -6,5 +6,4 @@ implementors["bitvec"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

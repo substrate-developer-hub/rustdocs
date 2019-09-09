@@ -6,5 +6,4 @@ implementors["libp2p_swarm"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

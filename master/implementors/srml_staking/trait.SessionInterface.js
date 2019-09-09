@@ -6,5 +6,4 @@ implementors["srml_staking"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

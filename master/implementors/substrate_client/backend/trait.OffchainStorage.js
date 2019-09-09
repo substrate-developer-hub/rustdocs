@@ -7,5 +7,4 @@ implementors["substrate_client_db"] = [{text:"impl <a class=\"trait\" href=\"sub
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

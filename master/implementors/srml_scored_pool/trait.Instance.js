@@ -6,5 +6,4 @@ implementors["srml_scored_pool"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

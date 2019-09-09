@@ -6,5 +6,4 @@ implementors["substrate_test_runtime_client"] = [{text:"impl <a class=\"trait\" 
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

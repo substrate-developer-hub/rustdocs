@@ -9,5 +9,4 @@ implementors["websocket"] = [{text:"impl <a class=\"trait\" href=\"tokio_io/code
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

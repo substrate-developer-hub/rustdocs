@@ -6,5 +6,4 @@ implementors["clear_on_drop"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

@@ -6,5 +6,4 @@ implementors["futures_util"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

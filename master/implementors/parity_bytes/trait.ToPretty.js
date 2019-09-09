@@ -6,5 +6,4 @@ implementors["parity_bytes"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

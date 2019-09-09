@@ -9,5 +9,4 @@ implementors["rand_isaac"] = [{text:"impl <a class=\"trait\" href=\"rand_core/bl
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

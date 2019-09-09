@@ -6,5 +6,4 @@ implementors["srml_support"] = [{text:"impl <a class=\"trait\" href=\"srml_suppo
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

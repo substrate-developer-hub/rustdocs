@@ -6,5 +6,4 @@ implementors["substrate_authority_discovery"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

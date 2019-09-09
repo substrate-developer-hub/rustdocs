@@ -6,5 +6,4 @@ implementors["substrate_test_runtime"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

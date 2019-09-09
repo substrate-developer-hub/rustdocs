@@ -6,5 +6,4 @@ implementors["substrate_rpc"] = [{text:"impl&lt;B, E, P, RA&gt; <a class=\"trait
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

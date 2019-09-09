@@ -43,5 +43,4 @@ implementors["wasm_bindgen_futures"] = [{text:"impl <a class=\"trait\" href=\"fu
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

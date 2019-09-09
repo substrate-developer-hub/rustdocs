@@ -7,5 +7,4 @@ implementors["substrate_cli"] = [{text:"impl <a class=\"trait\" href=\"structopt
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

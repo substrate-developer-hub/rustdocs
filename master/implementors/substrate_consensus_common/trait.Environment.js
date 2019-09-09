@@ -6,5 +6,4 @@ implementors["substrate_basic_authorship"] = [{text:"impl&lt;B, E, Block, RA, A&
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

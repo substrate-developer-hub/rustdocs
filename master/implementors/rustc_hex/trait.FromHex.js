@@ -6,5 +6,4 @@ implementors["rustc_hex"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

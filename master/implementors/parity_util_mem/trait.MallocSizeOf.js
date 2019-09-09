@@ -6,5 +6,4 @@ implementors["parity_util_mem"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

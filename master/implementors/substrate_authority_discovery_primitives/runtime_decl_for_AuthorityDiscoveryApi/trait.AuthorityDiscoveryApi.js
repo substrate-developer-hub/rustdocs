@@ -6,5 +6,4 @@ implementors["node_runtime"] = [{text:"impl AuthorityDiscoveryApi&lt;<a class=\"
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

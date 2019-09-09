@@ -6,5 +6,4 @@ implementors["fs2"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

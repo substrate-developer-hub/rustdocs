@@ -7,5 +7,4 @@ implementors["percent_encoding"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

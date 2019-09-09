@@ -6,5 +6,4 @@ implementors["base58"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

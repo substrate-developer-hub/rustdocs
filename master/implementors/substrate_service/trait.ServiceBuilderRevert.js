@@ -6,5 +6,4 @@ implementors["substrate_service"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

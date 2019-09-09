@@ -6,5 +6,4 @@ implementors["libp2p_kad"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

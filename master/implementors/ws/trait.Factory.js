@@ -6,5 +6,4 @@ implementors["ws"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

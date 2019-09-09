@@ -6,5 +6,4 @@ implementors["byte_slice_cast"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

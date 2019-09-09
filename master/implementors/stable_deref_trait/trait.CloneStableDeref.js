@@ -6,5 +6,4 @@ implementors["stable_deref_trait"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

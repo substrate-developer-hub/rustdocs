@@ -7,5 +7,4 @@ implementors["libp2p_wasm_ext"] = [{text:"impl WasmDescribe for <a class=\"struc
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

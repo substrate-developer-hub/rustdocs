@@ -6,5 +6,4 @@ implementors["libp2p"] = [{text:"impl&lt;C, F, O&gt; <a class=\"trait\" href=\"l
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

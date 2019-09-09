@@ -6,5 +6,4 @@ implementors["libp2p"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

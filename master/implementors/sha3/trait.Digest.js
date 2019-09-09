@@ -6,5 +6,4 @@ implementors["sha3"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

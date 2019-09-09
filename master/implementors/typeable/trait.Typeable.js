@@ -6,5 +6,4 @@ implementors["typeable"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

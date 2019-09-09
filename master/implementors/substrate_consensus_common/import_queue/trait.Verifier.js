@@ -9,5 +9,4 @@ implementors["substrate_network"] = [{text:"impl&lt;B:&nbsp;<a class=\"trait\" h
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

@@ -10,5 +10,4 @@ implementors["srml_timestamp"] = [{text:"impl <a class=\"trait\" href=\"substrat
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

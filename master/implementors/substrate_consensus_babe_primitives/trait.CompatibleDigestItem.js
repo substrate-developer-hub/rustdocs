@@ -6,5 +6,4 @@ implementors["substrate_consensus_babe_primitives"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

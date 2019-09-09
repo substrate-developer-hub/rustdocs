@@ -6,5 +6,4 @@ implementors["jsonrpc_http_server"] = [{text:"impl&lt;M:&nbsp;<a class=\"trait\"
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

@@ -6,5 +6,4 @@ implementors["substrate_test_runtime"] = [{text:"impl AuraApi&lt;<a class=\"stru
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

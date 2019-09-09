@@ -6,5 +6,4 @@ implementors["tokio_dns"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

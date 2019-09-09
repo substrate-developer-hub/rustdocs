@@ -6,5 +6,4 @@ implementors["yaml_rust"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

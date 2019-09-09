@@ -6,5 +6,4 @@ implementors["srml_collective"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

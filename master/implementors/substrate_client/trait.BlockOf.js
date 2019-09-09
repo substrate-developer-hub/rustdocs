@@ -6,5 +6,4 @@ implementors["substrate_client"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

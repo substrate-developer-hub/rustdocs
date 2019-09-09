@@ -6,5 +6,4 @@ implementors["substrate_keyring"] = [{text:"impl <a class=\"trait\" href=\"strum
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

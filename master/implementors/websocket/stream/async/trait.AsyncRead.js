@@ -6,5 +6,4 @@ implementors["websocket"] = [{text:"impl&lt;R, W&gt; <a class=\"trait\" href=\"w
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

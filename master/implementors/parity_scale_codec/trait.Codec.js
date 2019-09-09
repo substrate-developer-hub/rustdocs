@@ -6,5 +6,4 @@ implementors["parity_scale_codec"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

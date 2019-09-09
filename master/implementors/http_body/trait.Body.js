@@ -7,5 +7,4 @@ implementors["hyper"] = [{text:"impl <a class=\"trait\" href=\"http_body/trait.B
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

@@ -7,5 +7,4 @@ implementors["digest"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

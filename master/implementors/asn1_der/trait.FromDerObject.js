@@ -6,5 +6,4 @@ implementors["asn1_der"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

@@ -8,5 +8,4 @@ implementors["substrate_test_runtime"] = [{text:"impl TaggedTransactionQueue&lt;
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

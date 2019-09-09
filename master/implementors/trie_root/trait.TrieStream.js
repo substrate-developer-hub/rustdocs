@@ -6,5 +6,4 @@ implementors["substrate_trie"] = [{text:"impl <a class=\"trait\" href=\"trie_roo
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

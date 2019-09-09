@@ -6,5 +6,4 @@ implementors["trie_db"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

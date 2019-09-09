@@ -6,5 +6,4 @@ implementors["substrate_trie"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

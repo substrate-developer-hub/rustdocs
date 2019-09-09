@@ -6,5 +6,4 @@ implementors["sr_primitives"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

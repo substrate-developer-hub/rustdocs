@@ -9,5 +9,4 @@ implementors["sha3"] = [{text:"impl <a class=\"trait\" href=\"digest/trait.Block
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

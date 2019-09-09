@@ -6,5 +6,4 @@ implementors["srml_im_online"] = [{text:"impl&lt;Offender:&nbsp;<a class=\"trait
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

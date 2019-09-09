@@ -6,5 +6,4 @@ implementors["substrate_transaction_pool"] = [{text:"impl&lt;T, Block&gt; <a cla
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

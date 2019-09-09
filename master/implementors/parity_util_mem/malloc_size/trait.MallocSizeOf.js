@@ -6,5 +6,4 @@ implementors["memory_db"] = [{text:"impl&lt;H, KF, T&gt; <a class=\"trait\" href
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

@@ -24,5 +24,4 @@ implementors["yamux"] = [{text:"impl&lt;T&gt; <a class=\"trait\" href=\"tokio_io
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

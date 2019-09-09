@@ -8,5 +8,4 @@ implementors["substrate_test_runtime"] = [{text:"impl Core&lt;<a class=\"struct\
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

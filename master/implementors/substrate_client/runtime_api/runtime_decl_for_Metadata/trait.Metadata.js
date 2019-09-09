@@ -8,5 +8,4 @@ implementors["substrate_test_runtime"] = [{text:"impl Metadata&lt;<a class=\"str
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

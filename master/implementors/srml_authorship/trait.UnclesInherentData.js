@@ -6,5 +6,4 @@ implementors["srml_authorship"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

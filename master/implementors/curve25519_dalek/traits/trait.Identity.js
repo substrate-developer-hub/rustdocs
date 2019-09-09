@@ -6,5 +6,4 @@ implementors["curve25519_dalek"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

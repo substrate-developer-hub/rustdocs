@@ -6,5 +6,4 @@ implementors["memory_units"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

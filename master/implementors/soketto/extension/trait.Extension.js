@@ -6,5 +6,4 @@ implementors["soketto"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

@@ -6,5 +6,4 @@ implementors["substrate_rpc_api"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

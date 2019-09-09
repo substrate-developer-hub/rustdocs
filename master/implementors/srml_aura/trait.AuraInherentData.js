@@ -6,5 +6,4 @@ implementors["srml_aura"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

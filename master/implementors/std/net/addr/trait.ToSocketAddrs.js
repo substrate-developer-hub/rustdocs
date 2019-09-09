@@ -6,5 +6,4 @@ implementors["url"] = [{text:"impl&lt;S:&nbsp;<a class=\"trait\" href=\"https://
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

@@ -6,5 +6,4 @@ implementors["sr_primitives"] = [{text:"impl <a class=\"trait\" href=\"parity_sc
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

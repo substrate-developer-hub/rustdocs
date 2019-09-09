@@ -6,5 +6,4 @@ implementors["parity_wasm"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

@@ -6,5 +6,4 @@ implementors["libp2p_swarm"] = [{text:"impl&lt;TProtoHandler&gt; <a class=\"trai
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

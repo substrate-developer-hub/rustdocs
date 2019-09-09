@@ -7,5 +7,4 @@ implementors["substrate_transaction_pool"] = [{text:"impl <a class=\"trait\" hre
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

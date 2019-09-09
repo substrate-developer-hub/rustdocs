@@ -6,5 +6,4 @@ implementors["libp2p_noise"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

@@ -7,5 +7,4 @@ implementors["substrate_inherents"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

@@ -6,5 +6,4 @@ implementors["protobuf"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

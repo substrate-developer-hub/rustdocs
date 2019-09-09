@@ -7,5 +7,4 @@ implementors["twofish"] = [{text:"impl <a class=\"trait\" href=\"block_cipher_tr
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

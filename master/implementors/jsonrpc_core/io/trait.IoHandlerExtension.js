@@ -6,5 +6,4 @@ implementors["jsonrpc_pubsub"] = [{text:"impl&lt;T, M&gt; <a class=\"trait\" hre
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

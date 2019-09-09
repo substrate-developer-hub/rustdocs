@@ -6,5 +6,4 @@ implementors["srml_finality_tracker"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

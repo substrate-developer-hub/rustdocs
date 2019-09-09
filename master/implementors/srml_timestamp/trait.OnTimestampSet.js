@@ -8,5 +8,4 @@ implementors["srml_timestamp"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

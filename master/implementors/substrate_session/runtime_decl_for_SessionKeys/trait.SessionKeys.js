@@ -8,5 +8,4 @@ implementors["substrate_test_runtime"] = [{text:"impl SessionKeys&lt;<a class=\"
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

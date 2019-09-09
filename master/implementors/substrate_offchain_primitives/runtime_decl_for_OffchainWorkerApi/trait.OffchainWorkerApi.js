@@ -8,5 +8,4 @@ implementors["substrate_test_runtime"] = [{text:"impl OffchainWorkerApi&lt;<a cl
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

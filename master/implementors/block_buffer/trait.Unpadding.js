@@ -6,5 +6,4 @@ implementors["block_buffer"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

@@ -23,5 +23,4 @@ implementors["tokio_io"] = [{text:"impl&lt;T:&nbsp;<a class=\"trait\" href=\"htt
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

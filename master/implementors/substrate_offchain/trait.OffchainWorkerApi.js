@@ -6,5 +6,4 @@ implementors["substrate_offchain"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

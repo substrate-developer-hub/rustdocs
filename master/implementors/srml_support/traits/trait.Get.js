@@ -10,5 +10,4 @@ implementors["substrate_test_runtime"] = [{text:"impl&lt;I:&nbsp;<a class=\"trai
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

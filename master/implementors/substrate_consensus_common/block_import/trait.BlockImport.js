@@ -8,5 +8,4 @@ implementors["substrate_consensus_common"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

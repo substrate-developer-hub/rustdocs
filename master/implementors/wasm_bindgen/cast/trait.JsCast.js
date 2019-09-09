@@ -7,5 +7,4 @@ implementors["libp2p_wasm_ext"] = [{text:"impl <a class=\"trait\" href=\"wasm_bi
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

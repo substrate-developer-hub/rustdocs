@@ -6,5 +6,4 @@ implementors["sysinfo"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

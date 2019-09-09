@@ -6,5 +6,4 @@ implementors["substrate_service"] = [{text:"impl&lt;B, H, C, PoolApi, E&gt; <a c
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

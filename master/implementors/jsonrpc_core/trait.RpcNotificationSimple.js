@@ -6,5 +6,4 @@ implementors["jsonrpc_core"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

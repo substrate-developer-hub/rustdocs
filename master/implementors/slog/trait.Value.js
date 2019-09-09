@@ -7,5 +7,4 @@ implementors["substrate_network"] = [{text:"impl <a class=\"trait\" href=\"slog/
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

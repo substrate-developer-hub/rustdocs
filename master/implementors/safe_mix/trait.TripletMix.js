@@ -6,5 +6,4 @@ implementors["safe_mix"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

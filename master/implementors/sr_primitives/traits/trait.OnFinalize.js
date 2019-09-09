@@ -31,5 +31,4 @@ implementors["srml_treasury"] = [{text:"impl&lt;T:&nbsp;<a class=\"trait\" href=
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

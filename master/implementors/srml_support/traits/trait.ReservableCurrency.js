@@ -7,5 +7,4 @@ implementors["srml_generic_asset"] = [{text:"impl&lt;T, U&gt; <a class=\"trait\"
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

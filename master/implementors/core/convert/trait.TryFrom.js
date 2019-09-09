@@ -13,5 +13,4 @@ implementors["substrate_primitives"] = [{text:"impl <a class=\"trait\" href=\"ht
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

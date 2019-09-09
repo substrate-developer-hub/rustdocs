@@ -6,5 +6,4 @@ implementors["node_runtime"] = [{text:"impl <a class=\"trait\" href=\"srml_contr
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

@@ -6,5 +6,4 @@ implementors["srml_generic_asset"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

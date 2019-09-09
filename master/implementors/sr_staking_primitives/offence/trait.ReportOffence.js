@@ -8,5 +8,4 @@ implementors["srml_staking"] = [{text:"impl&lt;T, Reporter, Offender, R, O&gt; <
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

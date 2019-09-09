@@ -6,5 +6,4 @@ implementors["substrate_consensus_babe"] = [{text:"impl <a class=\"trait\" href=
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

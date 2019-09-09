@@ -6,5 +6,4 @@ implementors["blake2"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

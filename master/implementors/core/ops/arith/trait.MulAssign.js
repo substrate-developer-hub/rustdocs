@@ -10,5 +10,4 @@ implementors["secp256k1"] = [{text:"impl&lt;'a&gt; <a class=\"trait\" href=\"htt
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

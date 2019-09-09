@@ -6,5 +6,4 @@ implementors["srml_contracts"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

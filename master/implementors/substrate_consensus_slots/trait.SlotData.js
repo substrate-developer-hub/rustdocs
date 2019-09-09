@@ -7,5 +7,4 @@ implementors["substrate_consensus_slots"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

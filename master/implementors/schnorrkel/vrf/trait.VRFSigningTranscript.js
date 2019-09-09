@@ -6,5 +6,4 @@ implementors["schnorrkel"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

@@ -8,5 +8,4 @@ implementors["libp2p_yamux"] = [{text:"impl&lt;C&gt; <a class=\"trait\" href=\"l
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

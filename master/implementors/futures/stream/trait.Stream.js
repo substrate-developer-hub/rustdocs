@@ -30,5 +30,4 @@ implementors["yamux"] = [{text:"impl&lt;T&gt; <a class=\"trait\" href=\"futures/
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

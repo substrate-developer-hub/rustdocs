@@ -6,5 +6,4 @@ implementors["ipnet"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

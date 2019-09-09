@@ -6,5 +6,4 @@ implementors["substrate_finality_grandpa"] = [{text:"impl&lt;B, Block&gt; <a cla
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

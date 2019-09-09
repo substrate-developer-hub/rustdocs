@@ -6,5 +6,4 @@ implementors["substrate_rpc"] = [{text:"impl <a class=\"trait\" href=\"jsonrpc_p
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

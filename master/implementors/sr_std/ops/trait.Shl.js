@@ -6,5 +6,4 @@ implementors["sr_std"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

@@ -6,5 +6,4 @@ implementors["owning_ref"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

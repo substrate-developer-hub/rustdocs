@@ -6,5 +6,4 @@ implementors["node_runtime"] = [{text:"impl AccountNonceApi&lt;<a class=\"struct
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

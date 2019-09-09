@@ -6,5 +6,4 @@ implementors["hash_db"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

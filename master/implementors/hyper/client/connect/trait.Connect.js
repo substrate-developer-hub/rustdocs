@@ -7,5 +7,4 @@ implementors["hyper_tls"] = [{text:"impl&lt;T&gt; <a class=\"trait\" href=\"hype
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

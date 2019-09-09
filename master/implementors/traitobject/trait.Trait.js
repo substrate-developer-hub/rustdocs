@@ -6,5 +6,4 @@ implementors["traitobject"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

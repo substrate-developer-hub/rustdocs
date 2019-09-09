@@ -6,5 +6,4 @@ implementors["finality_grandpa"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

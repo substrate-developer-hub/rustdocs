@@ -6,5 +6,4 @@ implementors["srml_democracy"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

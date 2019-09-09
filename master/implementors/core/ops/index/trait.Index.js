@@ -26,5 +26,4 @@ implementors["yaml_rust"] = [{text:"impl&lt;'a&gt; <a class=\"trait\" href=\"htt
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

@@ -6,5 +6,4 @@ implementors["substrate_client"] = [{text:"impl&lt;B, Block&gt; <a class=\"trait
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

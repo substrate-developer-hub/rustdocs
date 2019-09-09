@@ -7,5 +7,4 @@ implementors["kvdb_rocksdb"] = [{text:"impl <a class=\"trait\" href=\"kvdb/trait
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

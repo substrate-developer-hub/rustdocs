@@ -6,5 +6,4 @@ implementors["arc_swap"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

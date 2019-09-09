@@ -7,5 +7,4 @@ implementors["node_template_runtime"] = [{text:"impl&lt;RuntimeApiImplCall:&nbsp
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

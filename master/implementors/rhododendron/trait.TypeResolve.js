@@ -6,5 +6,4 @@ implementors["rhododendron"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

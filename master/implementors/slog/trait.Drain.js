@@ -8,5 +8,4 @@ implementors["slog_json"] = [{text:"impl&lt;W&gt; <a class=\"trait\" href=\"slog
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

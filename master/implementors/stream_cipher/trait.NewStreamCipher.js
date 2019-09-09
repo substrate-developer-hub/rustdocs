@@ -6,5 +6,4 @@ implementors["ctr"] = [{text:"impl&lt;C&gt; <a class=\"trait\" href=\"stream_cip
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

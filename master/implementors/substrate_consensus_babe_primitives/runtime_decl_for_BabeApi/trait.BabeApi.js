@@ -8,5 +8,4 @@ implementors["substrate_test_runtime"] = [{text:"impl BabeApi&lt;<a class=\"stru
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

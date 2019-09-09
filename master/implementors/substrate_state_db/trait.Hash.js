@@ -6,5 +6,4 @@ implementors["substrate_state_db"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

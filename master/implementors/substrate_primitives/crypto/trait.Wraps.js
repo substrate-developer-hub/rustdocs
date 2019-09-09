@@ -6,5 +6,4 @@ implementors["substrate_application_crypto"] = [{text:"impl <a class=\"trait\" h
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

@@ -6,5 +6,4 @@ implementors["blake2"] = [{text:"impl <a class=\"trait\" href=\"crypto_mac/trait
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

@@ -9,5 +9,4 @@ implementors["same_file"] = [{text:"impl <a class=\"trait\" href=\"https://doc.r
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

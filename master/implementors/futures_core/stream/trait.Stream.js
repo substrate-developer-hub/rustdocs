@@ -11,5 +11,4 @@ implementors["substrate_telemetry"] = [{text:"impl <a class=\"trait\" href=\"fut
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

@@ -6,5 +6,4 @@ implementors["tokio_codec"] = [{text:"impl <a class=\"trait\" href=\"tokio_codec
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

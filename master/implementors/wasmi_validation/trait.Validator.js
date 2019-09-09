@@ -6,5 +6,4 @@ implementors["wasmi_validation"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

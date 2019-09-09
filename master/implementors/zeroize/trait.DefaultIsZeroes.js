@@ -6,5 +6,4 @@ implementors["zeroize"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

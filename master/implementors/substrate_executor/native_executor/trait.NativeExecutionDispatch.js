@@ -6,5 +6,4 @@ implementors["node_executor"] = [{text:"impl <a class=\"trait\" href=\"substrate
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

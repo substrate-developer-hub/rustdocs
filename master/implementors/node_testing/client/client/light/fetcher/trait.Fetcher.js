@@ -6,5 +6,4 @@ implementors["node_testing"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

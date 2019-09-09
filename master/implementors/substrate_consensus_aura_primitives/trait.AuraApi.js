@@ -6,5 +6,4 @@ implementors["substrate_test_runtime"] = [{text:"impl&lt;RuntimeApiImplCall:&nbs
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

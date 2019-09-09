@@ -7,5 +7,4 @@ implementors["node_template_runtime"] = [{text:"impl GrandpaApi&lt;<a class=\"st
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

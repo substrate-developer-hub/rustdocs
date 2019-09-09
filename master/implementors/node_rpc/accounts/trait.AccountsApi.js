@@ -6,5 +6,4 @@ implementors["node_rpc"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

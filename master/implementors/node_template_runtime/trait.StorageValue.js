@@ -6,5 +6,4 @@ implementors["node_template_runtime"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

@@ -8,5 +8,4 @@ implementors["substrate_state_machine"] = [{text:"impl <a class=\"trait\" href=\
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

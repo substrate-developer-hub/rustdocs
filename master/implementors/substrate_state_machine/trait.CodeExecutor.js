@@ -6,5 +6,4 @@ implementors["substrate_executor"] = [{text:"impl&lt;D:&nbsp;<a class=\"trait\" 
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

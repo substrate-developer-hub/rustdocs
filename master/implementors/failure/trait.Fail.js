@@ -12,5 +12,4 @@ implementors["snow"] = [{text:"impl <a class=\"trait\" href=\"failure/trait.Fail
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

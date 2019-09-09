@@ -6,5 +6,4 @@ implementors["futures_timer"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

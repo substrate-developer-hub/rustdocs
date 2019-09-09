@@ -6,5 +6,4 @@ implementors["srml_system"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

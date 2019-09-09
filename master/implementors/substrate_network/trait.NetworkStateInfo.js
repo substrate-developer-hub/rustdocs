@@ -6,5 +6,4 @@ implementors["substrate_network"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

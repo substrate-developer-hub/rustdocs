@@ -7,5 +7,4 @@ implementors["substrate_primitives"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()

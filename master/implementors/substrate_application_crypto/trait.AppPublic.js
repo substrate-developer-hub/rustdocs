@@ -6,5 +6,4 @@ implementors["substrate_application_crypto"] = [];
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()
