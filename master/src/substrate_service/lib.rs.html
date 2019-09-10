@@ -982,6 +982,11 @@
 <span id="982">982</span>
 <span id="983">983</span>
 <span id="984">984</span>
+<span id="985">985</span>
+<span id="986">986</span>
+<span id="987">987</span>
+<span id="988">988</span>
+<span id="989">989</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1096,13 +1101,15 @@
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SpawnTaskHandle</span> {
 	<span class="ident">sender</span>: <span class="ident">mpsc</span>::<span class="ident">UnboundedSender</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">on_exit</span>: <span class="ident">exit_future</span>::<span class="ident">Exit</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">Executor</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">SpawnTaskHandle</span> {
 	<span class="kw">fn</span> <span class="ident">execute</span>(
 		<span class="kw-2">&amp;</span><span class="self">self</span>,
-		<span class="ident">future</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span>
+		<span class="ident">future</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">ExecuteError</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+		<span class="kw">let</span> <span class="ident">future</span> <span class="op">=</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">future</span>.<span class="ident">select</span>(<span class="self">self</span>.<span class="ident">on_exit</span>.<span class="ident">clone</span>()).<span class="ident">then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(())));
 		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">unbounded_send</span>(<span class="ident">future</span>) {
 			<span class="kw">let</span> <span class="ident">kind</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">ExecuteErrorKind</span>::<span class="ident">Shutdown</span>;
 			<span class="prelude-val">Err</span>(<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">ExecuteError</span>::<span class="ident">new</span>(<span class="ident">kind</span>, <span class="ident">err</span>.<span class="ident">into_inner</span>()))
@@ -1335,7 +1342,7 @@
 				<span class="comment">//light_components.clone(),</span>
 				<span class="ident">system_rpc_tx</span>.<span class="ident">clone</span>(),
 				<span class="ident">system_info</span>.<span class="ident">clone</span>(),
-				<span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">SpawnTaskHandle</span> { <span class="ident">sender</span>: <span class="ident">to_spawn_tx</span>.<span class="ident">clone</span>() }),
+				<span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">SpawnTaskHandle</span> { <span class="ident">sender</span>: <span class="ident">to_spawn_tx</span>.<span class="ident">clone</span>(), <span class="ident">on_exit</span>: <span class="ident">exit</span>.<span class="ident">clone</span>() }),
 				<span class="ident">transaction_pool</span>.<span class="ident">clone</span>(),
 				<span class="ident">rpc_extensions</span>.<span class="ident">clone</span>(),
 				<span class="ident">keystore</span>.<span class="ident">clone</span>(),
@@ -1529,22 +1536,25 @@
 	}
 
 	<span class="kw">fn</span> <span class="ident">spawn_task</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">task</span>: <span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>) {
+		<span class="kw">let</span> <span class="ident">task</span> <span class="op">=</span> <span class="ident">task</span>.<span class="ident">select</span>(<span class="self">self</span>.<span class="ident">on_exit</span>()).<span class="ident">then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()));
 		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">to_spawn_tx</span>.<span class="ident">unbounded_send</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">task</span>));
 	}
 
 	<span class="kw">fn</span> <span class="ident">spawn_essential_task</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">task</span>: <span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>) {
 		<span class="kw">let</span> <span class="ident">essential_failed</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">essential_failed</span>.<span class="ident">clone</span>();
-		<span class="kw">let</span> <span class="ident">essential_task</span> <span class="op">=</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">task</span>.<span class="ident">map_err</span>(<span class="kw">move</span> <span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
+		<span class="kw">let</span> <span class="ident">essential_task</span> <span class="op">=</span> <span class="ident">task</span>.<span class="ident">map_err</span>(<span class="kw">move</span> <span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
 			<span class="macro">error</span><span class="macro">!</span>(<span class="string">&quot;Essential task failed. Shutting down service.&quot;</span>);
 			<span class="ident">essential_failed</span>.<span class="ident">store</span>(<span class="bool-val">true</span>, <span class="ident">Ordering</span>::<span class="ident">Relaxed</span>);
-		}));
+		});
+		<span class="kw">let</span> <span class="ident">task</span> <span class="op">=</span> <span class="ident">essential_task</span>.<span class="ident">select</span>(<span class="self">self</span>.<span class="ident">on_exit</span>()).<span class="ident">then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()));
 
-		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">to_spawn_tx</span>.<span class="ident">unbounded_send</span>(<span class="ident">essential_task</span>);
+		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">to_spawn_tx</span>.<span class="ident">unbounded_send</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">task</span>));
 	}
 
 	<span class="kw">fn</span> <span class="ident">spawn_task_handle</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">SpawnTaskHandle</span> {
 		<span class="ident">SpawnTaskHandle</span> {
 			<span class="ident">sender</span>: <span class="self">self</span>.<span class="ident">to_spawn_tx</span>.<span class="ident">clone</span>(),
+			<span class="ident">on_exit</span>: <span class="self">self</span>.<span class="ident">on_exit</span>(),
 		}
 	}
 
@@ -1574,7 +1584,7 @@
 		<span class="self">self</span>.<span class="ident">transaction_pool</span>.<span class="ident">clone</span>()
 	}
 
-	<span class="kw">fn</span> <span class="ident">on_exit</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> ::<span class="ident">exit_future</span>::<span class="ident">Exit</span> {
+	<span class="kw">fn</span> <span class="ident">on_exit</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">exit_future</span>::<span class="ident">Exit</span> {
 		<span class="self">self</span>.<span class="ident">exit</span>.<span class="ident">clone</span>()
 	}
 }

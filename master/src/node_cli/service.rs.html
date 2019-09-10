@@ -525,14 +525,6 @@
 <span id="525">525</span>
 <span id="526">526</span>
 <span id="527">527</span>
-<span id="528">528</span>
-<span id="529">529</span>
-<span id="530">530</span>
-<span id="531">531</span>
-<span id="532">532</span>
-<span id="533">533</span>
-<span id="534">534</span>
-<span id="535">535</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -638,7 +630,6 @@
 <span class="doccomment">/// concrete types instead.</span>
 <span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">new_full</span> {
 	(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">config</span>:<span class="ident">expr</span>) <span class="op">=</span><span class="op">&gt;</span> {{
-		<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">Future</span>;
 		<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">sync</span>::<span class="ident">mpsc</span>;
 		<span class="kw">use</span> <span class="ident">network</span>::<span class="ident">DhtEvent</span>;
 
@@ -654,7 +645,7 @@
 			<span class="macro-nonterminal">$</span><span class="macro-nonterminal">config</span>.<span class="ident">disable_grandpa</span>
 		);
 
-		<span class="kw">let</span> (<span class="ident">builder</span>, <span class="kw-2">mut</span> <span class="ident">import_setup</span>, <span class="ident">inherent_data_providers</span>, <span class="kw-2">mut</span> <span class="ident">tasks_to_spawn</span>) <span class="op">=</span> <span class="macro">new_full_start</span><span class="macro">!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">config</span>);
+		<span class="kw">let</span> (<span class="ident">builder</span>, <span class="kw-2">mut</span> <span class="ident">import_setup</span>, <span class="ident">inherent_data_providers</span>, <span class="ident">tasks_to_spawn</span>) <span class="op">=</span> <span class="macro">new_full_start</span><span class="macro">!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">config</span>);
 
 		<span class="comment">// Dht event channel from the network to the authority discovery module. Use bounded channel to ensure</span>
 		<span class="comment">// back-pressure. Authority discovery is triggering one event per authority within the current authority set.</span>
@@ -674,13 +665,7 @@
 				.<span class="ident">expect</span>(<span class="string">&quot;Link Half and Block Import are present for Full Services or setup failed before. qed&quot;</span>);
 
 		<span class="comment">// spawn any futures that were created in the previous setup steps</span>
-		<span class="kw">for</span> <span class="ident">task</span> <span class="kw">in</span> <span class="ident">tasks_to_spawn</span>.<span class="ident">drain</span>(..) {
-			<span class="ident">service</span>.<span class="ident">spawn_task</span>(
-				<span class="ident">task</span>.<span class="ident">select</span>(<span class="ident">service</span>.<span class="ident">on_exit</span>())
-					.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
-					.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
-			);
-		}
+		<span class="ident">tasks_to_spawn</span>.<span class="ident">into_iter</span>().<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">t</span><span class="op">|</span> <span class="ident">service</span>.<span class="ident">spawn_task</span>(<span class="ident">t</span>));
 
 		<span class="kw">if</span> <span class="ident">is_authority</span> {
 			<span class="kw">let</span> <span class="ident">proposer</span> <span class="op">=</span> <span class="ident">substrate_basic_authorship</span>::<span class="ident">ProposerFactory</span> {
@@ -706,15 +691,14 @@
 			};
 
 			<span class="kw">let</span> <span class="ident">babe</span> <span class="op">=</span> <span class="ident">babe</span>::<span class="ident">start_babe</span>(<span class="ident">babe_config</span>)<span class="question-mark">?</span>;
-			<span class="kw">let</span> <span class="ident">select</span> <span class="op">=</span> <span class="ident">babe</span>.<span class="ident">select</span>(<span class="ident">service</span>.<span class="ident">on_exit</span>()).<span class="ident">then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()));
-			<span class="ident">service</span>.<span class="ident">spawn_task</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">select</span>));
+			<span class="ident">service</span>.<span class="ident">spawn_essential_task</span>(<span class="ident">babe</span>);
 
 			<span class="kw">let</span> <span class="ident">authority_discovery</span> <span class="op">=</span> <span class="ident">authority_discovery</span>::<span class="ident">AuthorityDiscovery</span>::<span class="ident">new</span>(
 				<span class="ident">service</span>.<span class="ident">client</span>(),
 				<span class="ident">service</span>.<span class="ident">network</span>(),
 				<span class="ident">dht_event_rx</span>,
 			);
-			<span class="ident">service</span>.<span class="ident">spawn_task</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">authority_discovery</span>));
+			<span class="ident">service</span>.<span class="ident">spawn_task</span>(<span class="ident">authority_discovery</span>);
 		}
 
 		<span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">grandpa</span>::<span class="ident">Config</span> {
