@@ -1,1 +1,1 @@
-initSidebarItems({"trait":[["BareCryptoStore","Something that generates, stores and provides access to keys."]],"type":[["BareCryptoStorePtr","A pointer to the key store."]]});
+initSidebarItems({"trait":[["BareCryptoStore","Something that generates, stores and provides access to keys."],["CodeExecutor","Code execution engine."],["Externalities","Externalities: pinned to specific active address."]],"type":[["BareCryptoStorePtr","A pointer to the key store."]]});
