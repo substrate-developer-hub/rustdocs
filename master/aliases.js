@@ -386,6 +386,7 @@ ALIASES["substrate_transaction_pool"] = {};
 ALIASES["substrate_trie"] = {};
 ALIASES["substrate_wasm_builder"] = {};
 ALIASES["substrate_wasm_builder_runner"] = {};
+ALIASES["substrate_wasm_interface"] = {};
 ALIASES["subtle"] = {};
 ALIASES["syn"] = {};
 ALIASES["synstructure"] = {};
