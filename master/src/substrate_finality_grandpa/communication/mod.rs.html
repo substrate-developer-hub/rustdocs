@@ -1316,18 +1316,12 @@
 		<span class="self">self</span>.<span class="ident">validator</span>.<span class="ident">note_set</span>(
 			<span class="ident">set_id</span>,
 			<span class="ident">voters</span>.<span class="ident">voters</span>().<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">v</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">v</span>.<span class="ident">clone</span>()).<span class="ident">collect</span>(),
-			<span class="op">|</span><span class="ident">to</span>, <span class="ident">neighbor</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">service</span>.<span class="ident">send_message</span>(
-				<span class="ident">to</span>,
-				<span class="ident">GossipMessage</span>::<span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>::<span class="ident">from</span>(<span class="ident">neighbor</span>).<span class="ident">encode</span>()
-			),
+			<span class="op">|</span><span class="ident">to</span>, <span class="ident">neighbor</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">neighbor_sender</span>.<span class="ident">send</span>(<span class="ident">to</span>, <span class="ident">neighbor</span>),
 		);
 
 		<span class="self">self</span>.<span class="ident">validator</span>.<span class="ident">note_round</span>(
 			<span class="ident">round</span>,
-			<span class="op">|</span><span class="ident">to</span>, <span class="ident">neighbor</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">service</span>.<span class="ident">send_message</span>(
-				<span class="ident">to</span>,
-				<span class="ident">GossipMessage</span>::<span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>::<span class="ident">from</span>(<span class="ident">neighbor</span>).<span class="ident">encode</span>()
-			),
+			<span class="op">|</span><span class="ident">to</span>, <span class="ident">neighbor</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">neighbor_sender</span>.<span class="ident">send</span>(<span class="ident">to</span>, <span class="ident">neighbor</span>),
 		);
 	}
 
@@ -1443,18 +1437,25 @@
 		<span class="self">self</span>.<span class="ident">validator</span>.<span class="ident">note_set</span>(
 			<span class="ident">set_id</span>,
 			<span class="ident">voters</span>.<span class="ident">voters</span>().<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">v</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">v</span>.<span class="ident">clone</span>()).<span class="ident">collect</span>(),
-			<span class="op">|</span><span class="ident">to</span>, <span class="ident">neighbor</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">service</span>.<span class="ident">send_message</span>(<span class="ident">to</span>, <span class="ident">GossipMessage</span>::<span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>::<span class="ident">from</span>(<span class="ident">neighbor</span>).<span class="ident">encode</span>()),
+			<span class="op">|</span><span class="ident">to</span>, <span class="ident">neighbor</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">neighbor_sender</span>.<span class="ident">send</span>(<span class="ident">to</span>, <span class="ident">neighbor</span>),
 		);
 
 		<span class="kw">let</span> <span class="ident">service</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">service</span>.<span class="ident">clone</span>();
 		<span class="kw">let</span> <span class="ident">topic</span> <span class="op">=</span> <span class="ident">global_topic</span>::<span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>(<span class="ident">set_id</span>.<span class="number">0</span>);
-		<span class="kw">let</span> <span class="ident">incoming</span> <span class="op">=</span> <span class="ident">incoming_global</span>(<span class="ident">service</span>, <span class="ident">topic</span>, <span class="ident">voters</span>, <span class="self">self</span>.<span class="ident">validator</span>.<span class="ident">clone</span>());
+		<span class="kw">let</span> <span class="ident">incoming</span> <span class="op">=</span> <span class="ident">incoming_global</span>(
+			<span class="ident">service</span>,
+			<span class="ident">topic</span>,
+			<span class="ident">voters</span>,
+			<span class="self">self</span>.<span class="ident">validator</span>.<span class="ident">clone</span>(),
+			<span class="self">self</span>.<span class="ident">neighbor_sender</span>.<span class="ident">clone</span>(),
+		);
 
 		<span class="kw">let</span> <span class="ident">outgoing</span> <span class="op">=</span> <span class="ident">CommitsOut</span>::<span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">N</span><span class="op">&gt;</span>::<span class="ident">new</span>(
 			<span class="self">self</span>.<span class="ident">service</span>.<span class="ident">clone</span>(),
 			<span class="ident">set_id</span>.<span class="number">0</span>,
 			<span class="ident">is_voter</span>,
 			<span class="self">self</span>.<span class="ident">validator</span>.<span class="ident">clone</span>(),
+			<span class="self">self</span>.<span class="ident">neighbor_sender</span>.<span class="ident">clone</span>(),
 		);
 
 		<span class="kw">let</span> <span class="ident">outgoing</span> <span class="op">=</span> <span class="ident">outgoing</span>.<span class="ident">with</span>(<span class="op">|</span><span class="ident">out</span><span class="op">|</span> {
@@ -1471,6 +1472,7 @@
 	<span class="ident">topic</span>: <span class="ident">B</span>::<span class="ident">Hash</span>,
 	<span class="ident">voters</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">VoterSet</span><span class="op">&lt;</span><span class="ident">AuthorityId</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">gossip_validator</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">GossipValidator</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">neighbor_sender</span>: <span class="ident">periodic</span>::<span class="ident">NeighborPacketSender</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">CommunicationIn</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span><span class="op">&gt;</span> {
 	<span class="kw">let</span> <span class="ident">process_commit</span> <span class="op">=</span> <span class="kw">move</span> <span class="op">|</span>
 		<span class="ident">msg</span>: <span class="ident">FullCommitMessage</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
@@ -1508,6 +1510,7 @@
 		<span class="kw">let</span> <span class="ident">finalized_number</span> <span class="op">=</span> <span class="ident">commit</span>.<span class="ident">target_number</span>;
 		<span class="kw">let</span> <span class="ident">gossip_validator</span> <span class="op">=</span> <span class="ident">gossip_validator</span>.<span class="ident">clone</span>();
 		<span class="kw">let</span> <span class="ident">service</span> <span class="op">=</span> <span class="ident">service</span>.<span class="ident">clone</span>();
+		<span class="kw">let</span> <span class="ident">neighbor_sender</span> <span class="op">=</span> <span class="ident">neighbor_sender</span>.<span class="ident">clone</span>();
 		<span class="kw">let</span> <span class="ident">cb</span> <span class="op">=</span> <span class="kw">move</span> <span class="op">|</span><span class="ident">outcome</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">outcome</span> {
 			<span class="ident">voter</span>::<span class="ident">CommitProcessingOutcome</span>::<span class="ident">Good</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="comment">// if it checks out, gossip it. not accounting for</span>
@@ -1515,10 +1518,7 @@
 				<span class="comment">// finalized number.</span>
 				<span class="ident">gossip_validator</span>.<span class="ident">note_commit_finalized</span>(
 					<span class="ident">finalized_number</span>,
-					<span class="op">|</span><span class="ident">to</span>, <span class="ident">neighbor_msg</span><span class="op">|</span> <span class="ident">service</span>.<span class="ident">send_message</span>(
-						<span class="ident">to</span>,
-						<span class="ident">GossipMessage</span>::<span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>::<span class="ident">from</span>(<span class="ident">neighbor_msg</span>).<span class="ident">encode</span>(),
-					),
+					<span class="op">|</span><span class="ident">to</span>, <span class="ident">neighbor</span><span class="op">|</span> <span class="ident">neighbor_sender</span>.<span class="ident">send</span>(<span class="ident">to</span>, <span class="ident">neighbor</span>),
 				);
 
 				<span class="ident">service</span>.<span class="ident">gossip_message</span>(<span class="ident">topic</span>, <span class="ident">notification</span>.<span class="ident">message</span>.<span class="ident">clone</span>(), <span class="bool-val">false</span>);
@@ -1903,6 +1903,7 @@
 	<span class="ident">set_id</span>: <span class="ident">SetId</span>,
 	<span class="ident">is_voter</span>: <span class="ident">bool</span>,
 	<span class="ident">gossip_validator</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">GossipValidator</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">neighbor_sender</span>: <span class="ident">periodic</span>::<span class="ident">NeighborPacketSender</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">BlockT</span>, <span class="ident">N</span>: <span class="ident">Network</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">CommitsOut</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">N</span><span class="op">&gt;</span> {
@@ -1912,12 +1913,14 @@
 		<span class="ident">set_id</span>: <span class="ident">SetIdNumber</span>,
 		<span class="ident">is_voter</span>: <span class="ident">bool</span>,
 		<span class="ident">gossip_validator</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">GossipValidator</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+		<span class="ident">neighbor_sender</span>: <span class="ident">periodic</span>::<span class="ident">NeighborPacketSender</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
 		<span class="ident">CommitsOut</span> {
 			<span class="ident">network</span>,
 			<span class="ident">set_id</span>: <span class="ident">SetId</span>(<span class="ident">set_id</span>),
 			<span class="ident">is_voter</span>,
 			<span class="ident">gossip_validator</span>,
+			<span class="ident">neighbor_sender</span>,
 		}
 	}
 }
@@ -1960,10 +1963,7 @@
 		<span class="comment">// before gossiping</span>
 		<span class="self">self</span>.<span class="ident">gossip_validator</span>.<span class="ident">note_commit_finalized</span>(
 			<span class="ident">commit</span>.<span class="ident">target_number</span>,
-			<span class="op">|</span><span class="ident">to</span>, <span class="ident">neighbor</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">network</span>.<span class="ident">send_message</span>(
-				<span class="ident">to</span>,
-				<span class="ident">GossipMessage</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>::<span class="ident">from</span>(<span class="ident">neighbor</span>).<span class="ident">encode</span>(),
-			),
+			<span class="op">|</span><span class="ident">to</span>, <span class="ident">neighbor</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">neighbor_sender</span>.<span class="ident">send</span>(<span class="ident">to</span>, <span class="ident">neighbor</span>),
 		);
 		<span class="self">self</span>.<span class="ident">network</span>.<span class="ident">gossip_message</span>(<span class="ident">topic</span>, <span class="ident">message</span>.<span class="ident">encode</span>(), <span class="bool-val">false</span>);
 
