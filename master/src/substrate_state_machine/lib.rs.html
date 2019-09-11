@@ -1024,6 +1024,33 @@
 <span id="1024">1024</span>
 <span id="1025">1025</span>
 <span id="1026">1026</span>
+<span id="1027">1027</span>
+<span id="1028">1028</span>
+<span id="1029">1029</span>
+<span id="1030">1030</span>
+<span id="1031">1031</span>
+<span id="1032">1032</span>
+<span id="1033">1033</span>
+<span id="1034">1034</span>
+<span id="1035">1035</span>
+<span id="1036">1036</span>
+<span id="1037">1037</span>
+<span id="1038">1038</span>
+<span id="1039">1039</span>
+<span id="1040">1040</span>
+<span id="1041">1041</span>
+<span id="1042">1042</span>
+<span id="1043">1043</span>
+<span id="1044">1044</span>
+<span id="1045">1045</span>
+<span id="1046">1046</span>
+<span id="1047">1047</span>
+<span id="1048">1048</span>
+<span id="1049">1049</span>
+<span id="1050">1050</span>
+<span id="1051">1051</span>
+<span id="1052">1052</span>
+<span id="1053">1053</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1116,13 +1143,26 @@
 	<span class="ident">NativeElseWasm</span>,
 }
 
+<span class="doccomment">/// Storage backend trust level.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>)]</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">BackendTrustLevel</span> {
+	<span class="doccomment">/// Panics from trusted backends are considered justified, and never caught.</span>
+	<span class="ident">Trusted</span>,
+	<span class="doccomment">/// Panics from untrusted backend are caught and interpreted as runtime error.</span>
+	<span class="doccomment">/// Untrusted backend may be missing some parts of the trie, so panics are not considered</span>
+	<span class="doccomment">/// fatal.</span>
+	<span class="ident">Untrusted</span>,
+}
+
 <span class="doccomment">/// Like `ExecutionStrategy` only it also stores a handler in case of consensus failure.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">ExecutionManager</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Execute with the native equivalent if it is compatible with the given wasm module; otherwise fall back to the wasm.</span>
 	<span class="ident">NativeWhenPossible</span>,
-	<span class="doccomment">/// Use the given wasm module.</span>
-	<span class="ident">AlwaysWasm</span>,
+	<span class="doccomment">/// Use the given wasm module. The backend on which code is executed code could be</span>
+	<span class="doccomment">/// trusted to provide all storage or not (i.e. the light client cannot be trusted to provide</span>
+	<span class="doccomment">/// for all storage queries since the storage entries it has come from an external node).</span>
+	<span class="ident">AlwaysWasm</span>(<span class="ident">BackendTrustLevel</span>),
 	<span class="doccomment">/// Run with both the wasm and the native variant (if compatible). Call `F` in the case of any discrepency.</span>
 	<span class="ident">Both</span>(<span class="ident">F</span>),
 	<span class="doccomment">/// First native, then if that fails or is not possible, wasm.</span>
@@ -1133,7 +1173,7 @@
 	<span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">s</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">ExecutionManager</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
 		<span class="kw">match</span> <span class="kw-2">*</span><span class="ident">s</span> {
 			<span class="ident">ExecutionManager</span>::<span class="ident">NativeWhenPossible</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ExecutionStrategy</span>::<span class="ident">NativeWhenPossible</span>,
-			<span class="ident">ExecutionManager</span>::<span class="ident">AlwaysWasm</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ExecutionStrategy</span>::<span class="ident">AlwaysWasm</span>,
+			<span class="ident">ExecutionManager</span>::<span class="ident">AlwaysWasm</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ExecutionStrategy</span>::<span class="ident">AlwaysWasm</span>,
 			<span class="ident">ExecutionManager</span>::<span class="ident">NativeElseWasm</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ExecutionStrategy</span>::<span class="ident">NativeElseWasm</span>,
 			<span class="ident">ExecutionManager</span>::<span class="ident">Both</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ExecutionStrategy</span>::<span class="ident">Both</span>,
 		}
@@ -1146,7 +1186,7 @@
 		<span class="self">self</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ExecutionManager</span><span class="op">&lt;</span><span class="ident">DefaultHandler</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 		<span class="kw">match</span> <span class="self">self</span> {
-			<span class="ident">ExecutionStrategy</span>::<span class="ident">AlwaysWasm</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ExecutionManager</span>::<span class="ident">AlwaysWasm</span>,
+			<span class="ident">ExecutionStrategy</span>::<span class="ident">AlwaysWasm</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ExecutionManager</span>::<span class="ident">AlwaysWasm</span>(<span class="ident">BackendTrustLevel</span>::<span class="ident">Trusted</span>),
 			<span class="ident">ExecutionStrategy</span>::<span class="ident">NativeWhenPossible</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ExecutionManager</span>::<span class="ident">NativeWhenPossible</span>,
 			<span class="ident">ExecutionStrategy</span>::<span class="ident">NativeElseWasm</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ExecutionManager</span>::<span class="ident">NativeElseWasm</span>,
 			<span class="ident">ExecutionStrategy</span>::<span class="ident">Both</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ExecutionManager</span>::<span class="ident">Both</span>(<span class="op">|</span><span class="ident">wasm_result</span>, <span class="ident">native_result</span><span class="op">|</span> {
@@ -1164,6 +1204,16 @@
 <span class="doccomment">/// Evaluate to ExecutionManager::NativeElseWasm, without having to figure out the type.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">native_else_wasm</span><span class="op">&lt;</span><span class="ident">E</span>, <span class="ident">R</span>: <span class="ident">Decode</span><span class="op">&gt;</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ExecutionManager</span><span class="op">&lt;</span><span class="ident">DefaultHandler</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 	<span class="ident">ExecutionManager</span>::<span class="ident">NativeElseWasm</span>
+}
+
+<span class="doccomment">/// Evaluate to ExecutionManager::AlwaysWasm with trusted backend, without having to figure out the type.</span>
+<span class="kw">fn</span> <span class="ident">always_wasm</span><span class="op">&lt;</span><span class="ident">E</span>, <span class="ident">R</span>: <span class="ident">Decode</span><span class="op">&gt;</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ExecutionManager</span><span class="op">&lt;</span><span class="ident">DefaultHandler</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+	<span class="ident">ExecutionManager</span>::<span class="ident">AlwaysWasm</span>(<span class="ident">BackendTrustLevel</span>::<span class="ident">Trusted</span>)
+}
+
+<span class="doccomment">/// Evaluate ExecutionManager::AlwaysWasm with untrusted backend, without having to figure out the type.</span>
+<span class="kw">fn</span> <span class="ident">always_untrusted_wasm</span><span class="op">&lt;</span><span class="ident">E</span>, <span class="ident">R</span>: <span class="ident">Decode</span><span class="op">&gt;</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ExecutionManager</span><span class="op">&lt;</span><span class="ident">DefaultHandler</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+	<span class="ident">ExecutionManager</span>::<span class="ident">AlwaysWasm</span>(<span class="ident">BackendTrustLevel</span>::<span class="ident">Untrusted</span>)
 }
 
 <span class="doccomment">/// The substrate state machine.</span>
@@ -1402,7 +1452,11 @@
 						<span class="ident">orig_prospective</span>,
 					)
 				},
-				<span class="ident">ExecutionManager</span>::<span class="ident">AlwaysWasm</span> <span class="op">=</span><span class="op">&gt;</span> {
+				<span class="ident">ExecutionManager</span>::<span class="ident">AlwaysWasm</span>(<span class="ident">trust_level</span>) <span class="op">=</span><span class="op">&gt;</span> {
+					<span class="kw">let</span> <span class="ident">_abort_guard</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">trust_level</span> {
+						<span class="ident">BackendTrustLevel</span>::<span class="ident">Trusted</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">None</span>,
+						<span class="ident">BackendTrustLevel</span>::<span class="ident">Untrusted</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">panic_handler</span>::<span class="ident">AbortGuard</span>::<span class="ident">never_abort</span>()),
+					};
 					<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">execute_aux</span>(<span class="ident">compute_tx</span>, <span class="bool-val">false</span>, <span class="ident">native_call</span>);
 					(<span class="ident">res</span>.<span class="number">0</span>, <span class="ident">res</span>.<span class="number">2</span>, <span class="ident">res</span>.<span class="number">3</span>)
 				},
@@ -1471,7 +1525,7 @@
 	);
 
 	<span class="kw">let</span> (<span class="ident">result</span>, <span class="kw">_</span>, <span class="kw">_</span>) <span class="op">=</span> <span class="ident">sm</span>.<span class="ident">execute_using_consensus_failure_handler</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">NeverNativeValue</span>, <span class="kw">fn</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="kw">_</span><span class="op">&gt;</span>(
-		<span class="ident">native_else_wasm</span>(),
+		<span class="ident">always_wasm</span>(),
 		<span class="bool-val">false</span>,
 		<span class="prelude-val">None</span>,
 	)<span class="question-mark">?</span>;
@@ -1517,7 +1571,7 @@
 	);
 
 	<span class="ident">sm</span>.<span class="ident">execute_using_consensus_failure_handler</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">NeverNativeValue</span>, <span class="kw">fn</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="kw">_</span><span class="op">&gt;</span>(
-		<span class="ident">native_else_wasm</span>(),
+		<span class="ident">always_untrusted_wasm</span>(),
 		<span class="bool-val">false</span>,
 		<span class="prelude-val">None</span>,
 	).<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">result</span>, <span class="kw">_</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">result</span>.<span class="ident">into_encoded</span>())
