@@ -118,6 +118,7 @@ ALIASES["hyper_tls"] = {};
 ALIASES["idna"] = {};
 ALIASES["impl_codec"] = {};
 ALIASES["impl_serde"] = {};
+ALIASES["impl_trait_for_tuples"] = {};
 ALIASES["indexmap"] = {};
 ALIASES["integer_sqrt"] = {};
 ALIASES["interleaved_ordered"] = {};
