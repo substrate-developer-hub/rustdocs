@@ -1599,6 +1599,10 @@
 <span id="1599">1599</span>
 <span id="1600">1600</span>
 <span id="1601">1601</span>
+<span id="1602">1602</span>
+<span id="1603">1603</span>
+<span id="1604">1604</span>
+<span id="1605">1605</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1894,24 +1898,27 @@
 <span class="doccomment">/// Counter for the number of eras that have passed.</span>
 <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">EraIndex</span> <span class="op">=</span> <span class="ident">u32</span>;
 
+<span class="doccomment">/// Counter for the number of &quot;reward&quot; points earned by a given validator.</span>
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">Points</span> <span class="op">=</span> <span class="ident">u32</span>;
+
 <span class="doccomment">/// Reward points of an era. Used to split era total payout between validators.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Encode</span>, <span class="ident">Decode</span>, <span class="ident">Default</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">EraRewards</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">EraPoints</span> {
 	<span class="doccomment">/// Total number of points. Equals the sum of reward points for each validator.</span>
-	<span class="ident">total</span>: <span class="ident">u32</span>,
-	<span class="doccomment">/// Reward at one index correspond to reward for validator in current_elected of this index.</span>
-	<span class="doccomment">/// Thus this reward vec is only valid for one elected set.</span>
-	<span class="ident">rewards</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>,
+	<span class="ident">total</span>: <span class="ident">Points</span>,
+	<span class="doccomment">/// The reward points earned by a given validator. The index of this vec corresponds to the</span>
+	<span class="doccomment">/// index into the current validator set.</span>
+	<span class="ident">individual</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Points</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span> <span class="ident">EraRewards</span> {
+<span class="kw">impl</span> <span class="ident">EraPoints</span> {
 	<span class="doccomment">/// Add the reward to the validator at the given index. Index must be valid</span>
 	<span class="doccomment">/// (i.e. `index &lt; current_elected.len()`).</span>
 	<span class="kw">fn</span> <span class="ident">add_points_to_index</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">index</span>: <span class="ident">u32</span>, <span class="ident">points</span>: <span class="ident">u32</span>) {
 		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">new_total</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">total</span>.<span class="ident">checked_add</span>(<span class="ident">points</span>) {
 			<span class="self">self</span>.<span class="ident">total</span> <span class="op">=</span> <span class="ident">new_total</span>;
-			<span class="self">self</span>.<span class="ident">rewards</span>.<span class="ident">resize</span>((<span class="ident">index</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">+</span> <span class="number">1</span>).<span class="ident">max</span>(<span class="self">self</span>.<span class="ident">rewards</span>.<span class="ident">len</span>()), <span class="number">0</span>);
-			<span class="self">self</span>.<span class="ident">rewards</span>[<span class="ident">index</span> <span class="kw">as</span> <span class="ident">usize</span>] <span class="op">+</span><span class="op">=</span> <span class="ident">points</span>; <span class="comment">// Addition is less than total</span>
+			<span class="self">self</span>.<span class="ident">individual</span>.<span class="ident">resize</span>((<span class="ident">index</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">+</span> <span class="number">1</span>).<span class="ident">max</span>(<span class="self">self</span>.<span class="ident">individual</span>.<span class="ident">len</span>()), <span class="number">0</span>);
+			<span class="self">self</span>.<span class="ident">individual</span>[<span class="ident">index</span> <span class="kw">as</span> <span class="ident">usize</span>] <span class="op">+</span><span class="op">=</span> <span class="ident">points</span>; <span class="comment">// Addition is less than total</span>
 		}
 	}
 }
@@ -2192,7 +2199,7 @@
 		<span class="kw">pub</span> <span class="ident">CurrentEraStartSessionIndex</span> <span class="ident">get</span>(<span class="ident">current_era_start_session_index</span>): <span class="ident">SessionIndex</span>;
 
 		<span class="doccomment">/// Rewards for the current era. Using indices of current elected set.</span>
-		<span class="ident">CurrentEraRewards</span> <span class="ident">get</span>(<span class="ident">current_era_reward</span>): <span class="ident">EraRewards</span>;
+		<span class="ident">CurrentEraPointsEarned</span> <span class="ident">get</span>(<span class="ident">current_era_reward</span>): <span class="ident">EraPoints</span>;
 
 		<span class="doccomment">/// The amount of balance actively at stake for each validator slot, currently.</span>
 		<span class="doccomment">///</span>
@@ -2763,7 +2770,7 @@
 	<span class="doccomment">/// get a chance to set their session keys.</span>
 	<span class="kw">fn</span> <span class="ident">new_era</span>(<span class="ident">start_session_index</span>: <span class="ident">SessionIndex</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">AccountId</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 		<span class="comment">// Payout</span>
-		<span class="kw">let</span> <span class="ident">rewards</span> <span class="op">=</span> <span class="ident">CurrentEraRewards</span>::<span class="ident">take</span>();
+		<span class="kw">let</span> <span class="ident">points</span> <span class="op">=</span> <span class="ident">CurrentEraPointsEarned</span>::<span class="ident">take</span>();
 		<span class="kw">let</span> <span class="ident">now</span> <span class="op">=</span> <span class="ident">T</span>::<span class="ident">Time</span>::<span class="ident">now</span>();
 		<span class="kw">let</span> <span class="ident">previous_era_start</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">CurrentEraStart</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">mutate</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> {
 			<span class="ident">rstd</span>::<span class="ident">mem</span>::<span class="ident">replace</span>(<span class="ident">v</span>, <span class="ident">now</span>)
@@ -2778,21 +2785,22 @@
 			<span class="kw">let</span> <span class="ident">total_payout</span> <span class="op">=</span> <span class="ident">inflation</span>::<span class="ident">compute_total_payout</span>(
 				<span class="ident">total_rewarded_stake</span>.<span class="ident">clone</span>(),
 				<span class="ident">T</span>::<span class="ident">Currency</span>::<span class="ident">total_issuance</span>(),
-				<span class="comment">// Era of duration more than u32::MAX is rewarded as u32::MAX.</span>
-				<span class="op">&lt;</span><span class="ident">BalanceOf</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">from</span>(<span class="ident">era_duration</span>.<span class="ident">saturated_into</span>::<span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>()),
+				<span class="comment">// Duration of era; more than u64::MAX is rewarded as u64::MAX.</span>
+				<span class="ident">era_duration</span>.<span class="ident">saturated_into</span>::<span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>(),
 			);
 
 			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">total_imbalance</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">PositiveImbalanceOf</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">zero</span>();
 
-			<span class="kw">let</span> <span class="ident">total_points</span> <span class="op">=</span> <span class="ident">rewards</span>.<span class="ident">total</span>;
-			<span class="kw">for</span> (<span class="ident">v</span>, <span class="ident">points</span>) <span class="kw">in</span> <span class="ident">validators</span>.<span class="ident">iter</span>().<span class="ident">zip</span>(<span class="ident">rewards</span>.<span class="ident">rewards</span>.<span class="ident">into_iter</span>()) {
-				<span class="kw">if</span> <span class="ident">points</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span> {
-					<span class="kw">let</span> <span class="ident">reward</span> <span class="op">=</span> <span class="ident">multiply_by_rational</span>(<span class="ident">total_payout</span>, <span class="ident">points</span>, <span class="ident">total_points</span>);
+			<span class="kw">for</span> (<span class="ident">v</span>, <span class="ident">p</span>) <span class="kw">in</span> <span class="ident">validators</span>.<span class="ident">iter</span>().<span class="ident">zip</span>(<span class="ident">points</span>.<span class="ident">individual</span>.<span class="ident">into_iter</span>()) {
+				<span class="kw">if</span> <span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span> {
+					<span class="kw">let</span> <span class="ident">reward</span> <span class="op">=</span> <span class="ident">multiply_by_rational</span>(<span class="ident">total_payout</span>, <span class="ident">p</span>, <span class="ident">points</span>.<span class="ident">total</span>);
 					<span class="ident">total_imbalance</span>.<span class="ident">subsume</span>(<span class="self">Self</span>::<span class="ident">reward_validator</span>(<span class="ident">v</span>, <span class="ident">reward</span>));
 				}
 			}
 
 			<span class="kw">let</span> <span class="ident">total_reward</span> <span class="op">=</span> <span class="ident">total_imbalance</span>.<span class="ident">peek</span>();
+			<span class="comment">// assert!(total_reward &lt;= total_payout)</span>
+
 			<span class="self">Self</span>::<span class="ident">deposit_event</span>(<span class="ident">RawEvent</span>::<span class="ident">Reward</span>(<span class="ident">total_reward</span>));
 			<span class="ident">T</span>::<span class="ident">Reward</span>::<span class="ident">on_unbalanced</span>(<span class="ident">total_imbalance</span>);
 			<span class="ident">T</span>::<span class="ident">OnRewardMinted</span>::<span class="ident">on_dilution</span>(<span class="ident">total_reward</span>, <span class="ident">total_rewarded_stake</span>);
@@ -2978,7 +2986,7 @@
 	<span class="doccomment">/// COMPLEXITY: Complexity is `number_of_validator_to_reward x current_elected_len`.</span>
 	<span class="doccomment">/// If you need to reward lots of validator consider using `reward_by_indices`.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reward_by_ids</span>(<span class="ident">validators_points</span>: <span class="kw">impl</span> <span class="ident">IntoIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (<span class="ident">T</span>::<span class="ident">AccountId</span>, <span class="ident">u32</span>)<span class="op">&gt;</span>) {
-		<span class="ident">CurrentEraRewards</span>::<span class="ident">mutate</span>(<span class="op">|</span><span class="ident">rewards</span><span class="op">|</span> {
+		<span class="ident">CurrentEraPointsEarned</span>::<span class="ident">mutate</span>(<span class="op">|</span><span class="ident">rewards</span><span class="op">|</span> {
 			<span class="kw">let</span> <span class="ident">current_elected</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">current_elected</span>();
 			<span class="kw">for</span> (<span class="ident">validator</span>, <span class="ident">points</span>) <span class="kw">in</span> <span class="ident">validators_points</span>.<span class="ident">into_iter</span>() {
 				<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">index</span>) <span class="op">=</span> <span class="ident">current_elected</span>.<span class="ident">iter</span>()
@@ -2998,7 +3006,7 @@
 		<span class="comment">// TODO: This can be optimised once #3302 is implemented.</span>
 		<span class="kw">let</span> <span class="ident">current_elected_len</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">current_elected</span>().<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>;
 
-		<span class="ident">CurrentEraRewards</span>::<span class="ident">mutate</span>(<span class="op">|</span><span class="ident">rewards</span><span class="op">|</span> {
+		<span class="ident">CurrentEraPointsEarned</span>::<span class="ident">mutate</span>(<span class="op">|</span><span class="ident">rewards</span><span class="op">|</span> {
 			<span class="kw">for</span> (<span class="ident">validator_index</span>, <span class="ident">points</span>) <span class="kw">in</span> <span class="ident">validators_points</span>.<span class="ident">into_iter</span>() {
 				<span class="kw">if</span> <span class="ident">validator_index</span> <span class="op">&lt;</span> <span class="ident">current_elected_len</span> {
 					<span class="ident">rewards</span>.<span class="ident">add_points_to_index</span>(<span class="ident">validator_index</span>, <span class="ident">points</span>);
