@@ -985,6 +985,13 @@
 <span id="985">985</span>
 <span id="986">986</span>
 <span id="987">987</span>
+<span id="988">988</span>
+<span id="989">989</span>
+<span id="990">990</span>
+<span id="991">991</span>
+<span id="992">992</span>
+<span id="993">993</span>
+<span id="994">994</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1221,6 +1228,7 @@
 	<span class="ident">service</span>: <span class="ident">N</span>,
 	<span class="ident">validator</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">GossipValidator</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">neighbor_sender</span>: <span class="ident">periodic</span>::<span class="ident">NeighborPacketSender</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+	<span class="ident">announce_sender</span>: <span class="ident">periodic</span>::<span class="ident">BlockAnnounceSender</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">N</span>: <span class="ident">Network</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">NetworkBridge</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">N</span><span class="op">&gt;</span> {
@@ -1287,9 +1295,10 @@
 		}
 
 		<span class="kw">let</span> (<span class="ident">rebroadcast_job</span>, <span class="ident">neighbor_sender</span>) <span class="op">=</span> <span class="ident">periodic</span>::<span class="ident">neighbor_packet_worker</span>(<span class="ident">service</span>.<span class="ident">clone</span>());
+		<span class="kw">let</span> (<span class="ident">announce_job</span>, <span class="ident">announce_sender</span>) <span class="op">=</span> <span class="ident">periodic</span>::<span class="ident">block_announce_worker</span>(<span class="ident">service</span>.<span class="ident">clone</span>());
 		<span class="kw">let</span> <span class="ident">reporting_job</span> <span class="op">=</span> <span class="ident">report_stream</span>.<span class="ident">consume</span>(<span class="ident">service</span>.<span class="ident">clone</span>());
 
-		<span class="kw">let</span> <span class="ident">bridge</span> <span class="op">=</span> <span class="ident">NetworkBridge</span> { <span class="ident">service</span>, <span class="ident">validator</span>, <span class="ident">neighbor_sender</span> };
+		<span class="kw">let</span> <span class="ident">bridge</span> <span class="op">=</span> <span class="ident">NetworkBridge</span> { <span class="ident">service</span>, <span class="ident">validator</span>, <span class="ident">neighbor_sender</span>, <span class="ident">announce_sender</span> };
 
 		<span class="kw">let</span> <span class="ident">startup_work</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">lazy</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
 			<span class="comment">// lazily spawn these jobs onto their own tasks. the lazy future has access</span>
@@ -1297,6 +1306,8 @@
 			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">executor</span> <span class="op">=</span> <span class="ident">tokio_executor</span>::<span class="ident">DefaultExecutor</span>::<span class="ident">current</span>();
 			<span class="ident">executor</span>.<span class="ident">spawn</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">rebroadcast_job</span>.<span class="ident">select</span>(<span class="ident">on_exit</span>.<span class="ident">clone</span>()).<span class="ident">then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()))))
 				.<span class="ident">expect</span>(<span class="string">&quot;failed to spawn grandpa rebroadcast job task&quot;</span>);
+			<span class="ident">executor</span>.<span class="ident">spawn</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">announce_job</span>.<span class="ident">select</span>(<span class="ident">on_exit</span>.<span class="ident">clone</span>()).<span class="ident">then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()))))
+				.<span class="ident">expect</span>(<span class="string">&quot;failed to spawn grandpa block announce job task&quot;</span>);
 			<span class="ident">executor</span>.<span class="ident">spawn</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">reporting_job</span>.<span class="ident">select</span>(<span class="ident">on_exit</span>.<span class="ident">clone</span>()).<span class="ident">then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()))))
 				.<span class="ident">expect</span>(<span class="string">&quot;failed to spawn grandpa reporting job task&quot;</span>);
 			<span class="prelude-val">Ok</span>(())
@@ -1412,6 +1423,7 @@
 			<span class="ident">network</span>: <span class="self">self</span>.<span class="ident">service</span>.<span class="ident">clone</span>(),
 			<span class="ident">locals</span>,
 			<span class="ident">sender</span>: <span class="ident">tx</span>,
+			<span class="ident">announce_sender</span>: <span class="self">self</span>.<span class="ident">announce_sender</span>.<span class="ident">clone</span>(),
 			<span class="ident">has_voted</span>,
 		};
 
@@ -1604,6 +1616,7 @@
 			<span class="ident">service</span>: <span class="self">self</span>.<span class="ident">service</span>.<span class="ident">clone</span>(),
 			<span class="ident">validator</span>: <span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">validator</span>),
 			<span class="ident">neighbor_sender</span>: <span class="self">self</span>.<span class="ident">neighbor_sender</span>.<span class="ident">clone</span>(),
+			<span class="ident">announce_sender</span>: <span class="self">self</span>.<span class="ident">announce_sender</span>.<span class="ident">clone</span>(),
 		}
 	}
 }
@@ -1650,6 +1663,7 @@
 	<span class="ident">set_id</span>: <span class="ident">SetIdNumber</span>,
 	<span class="ident">locals</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">AuthorityPair</span>, <span class="ident">AuthorityId</span>)<span class="op">&gt;</span>,
 	<span class="ident">sender</span>: <span class="ident">mpsc</span>::<span class="ident">UnboundedSender</span><span class="op">&lt;</span><span class="ident">SignedMessage</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">announce_sender</span>: <span class="ident">periodic</span>::<span class="ident">BlockAnnounceSender</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 	<span class="ident">network</span>: <span class="ident">N</span>,
 	<span class="ident">has_voted</span>: <span class="ident">HasVoted</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 }
@@ -1707,10 +1721,10 @@
 				<span class="string">&quot;block&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="question-mark">?</span><span class="ident">target_hash</span>, <span class="string">&quot;round&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="question-mark">?</span><span class="self">self</span>.<span class="ident">round</span>, <span class="string">&quot;set_id&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="question-mark">?</span><span class="self">self</span>.<span class="ident">set_id</span>,
 			);
 
-			<span class="comment">// announce our block hash to peers and propagate the</span>
-			<span class="comment">// message.</span>
-			<span class="self">self</span>.<span class="ident">network</span>.<span class="ident">announce</span>(<span class="ident">target_hash</span>);
+			<span class="comment">// send the target block hash to the background block announcer</span>
+			<span class="self">self</span>.<span class="ident">announce_sender</span>.<span class="ident">send</span>(<span class="ident">target_hash</span>);
 
+			<span class="comment">// propagate the message to peers</span>
 			<span class="kw">let</span> <span class="ident">topic</span> <span class="op">=</span> <span class="ident">round_topic</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>(<span class="self">self</span>.<span class="ident">round</span>, <span class="self">self</span>.<span class="ident">set_id</span>);
 			<span class="self">self</span>.<span class="ident">network</span>.<span class="ident">gossip_message</span>(<span class="ident">topic</span>, <span class="ident">message</span>.<span class="ident">encode</span>(), <span class="bool-val">false</span>);
 
