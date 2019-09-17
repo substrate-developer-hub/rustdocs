@@ -514,22 +514,6 @@
 <span id="514">514</span>
 <span id="515">515</span>
 <span id="516">516</span>
-<span id="517">517</span>
-<span id="518">518</span>
-<span id="519">519</span>
-<span id="520">520</span>
-<span id="521">521</span>
-<span id="522">522</span>
-<span id="523">523</span>
-<span id="524">524</span>
-<span id="525">525</span>
-<span id="526">526</span>
-<span id="527">527</span>
-<span id="528">528</span>
-<span id="529">529</span>
-<span id="530">530</span>
-<span id="531">531</span>
-<span id="532">532</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -577,6 +561,7 @@
 <span class="doccomment">/// be able to perform chain operations.</span>
 <span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">new_full_start</span> {
 	(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">config</span>:<span class="ident">expr</span>) <span class="op">=</span><span class="op">&gt;</span> {{
+		<span class="kw">type</span> <span class="ident">RpcExtension</span> <span class="op">=</span> <span class="ident">jsonrpc_core</span>::<span class="ident">IoHandler</span><span class="op">&lt;</span><span class="ident">substrate_rpc</span>::<span class="ident">Metadata</span><span class="op">&gt;</span>;
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">import_setup</span> <span class="op">=</span> <span class="prelude-val">None</span>;
 		<span class="kw">let</span> <span class="ident">inherent_data_providers</span> <span class="op">=</span> <span class="ident">inherents</span>::<span class="ident">InherentDataProviders</span>::<span class="ident">new</span>();
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">tasks_to_spawn</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
@@ -615,14 +600,8 @@
 
 				<span class="prelude-val">Ok</span>(<span class="ident">import_queue</span>)
 			})<span class="question-mark">?</span>
-			.<span class="ident">with_rpc_extensions</span>(<span class="op">|</span><span class="ident">client</span>, <span class="ident">pool</span><span class="op">|</span> {
-				<span class="kw">use</span> <span class="ident">node_rpc</span>::<span class="ident">accounts</span>::{<span class="ident">Accounts</span>, <span class="ident">AccountsApi</span>};
-
-				<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">io</span> <span class="op">=</span> <span class="ident">jsonrpc_core</span>::<span class="ident">IoHandler</span>::<span class="op">&lt;</span><span class="ident">substrate_service</span>::<span class="ident">RpcMetadata</span><span class="op">&gt;</span>::<span class="ident">default</span>();
-				<span class="ident">io</span>.<span class="ident">extend_with</span>(
-					<span class="ident">AccountsApi</span>::<span class="ident">to_delegate</span>(<span class="ident">Accounts</span>::<span class="ident">new</span>(<span class="ident">client</span>, <span class="ident">pool</span>))
-				);
-				<span class="ident">io</span>
+			.<span class="ident">with_rpc_extensions</span>(<span class="op">|</span><span class="ident">client</span>, <span class="ident">pool</span><span class="op">|</span> <span class="op">-</span><span class="op">&gt;</span> <span class="ident">RpcExtension</span> {
+				<span class="ident">node_rpc</span>::<span class="ident">create</span>(<span class="ident">client</span>, <span class="ident">pool</span>)
 			})<span class="question-mark">?</span>;
 
 		(<span class="ident">builder</span>, <span class="ident">import_setup</span>, <span class="ident">inherent_data_providers</span>, <span class="ident">tasks_to_spawn</span>)
@@ -760,6 +739,7 @@
 <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">AbstractService</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
 	<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">Future</span>;
 
+	<span class="kw">type</span> <span class="ident">RpcExtension</span> <span class="op">=</span> <span class="ident">jsonrpc_core</span>::<span class="ident">IoHandler</span><span class="op">&lt;</span><span class="ident">substrate_rpc</span>::<span class="ident">Metadata</span><span class="op">&gt;</span>;
 	<span class="kw">let</span> <span class="ident">inherent_data_providers</span> <span class="op">=</span> <span class="ident">InherentDataProviders</span>::<span class="ident">new</span>();
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">tasks_to_spawn</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
 
@@ -801,20 +781,8 @@
 		.<span class="ident">with_finality_proof_provider</span>(<span class="op">|</span><span class="ident">client</span>, <span class="ident">backend</span><span class="op">|</span>
 			<span class="prelude-val">Ok</span>(<span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">GrandpaFinalityProofProvider</span>::<span class="ident">new</span>(<span class="ident">backend</span>, <span class="ident">client</span>)) <span class="kw">as</span> <span class="kw">_</span>)
 		)<span class="question-mark">?</span>
-		.<span class="ident">with_rpc_extensions</span>(<span class="op">|</span><span class="ident">client</span>, <span class="ident">pool</span><span class="op">|</span> {
-			<span class="kw">use</span> <span class="ident">node_rpc</span>::{
-				<span class="ident">accounts</span>::{<span class="ident">Accounts</span>, <span class="ident">AccountsApi</span>},
-				<span class="ident">contracts</span>::{<span class="ident">Contracts</span>, <span class="ident">ContractsApi</span>},
-			};
-
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">io</span> <span class="op">=</span> <span class="ident">jsonrpc_core</span>::<span class="ident">IoHandler</span>::<span class="ident">default</span>();
-			<span class="ident">io</span>.<span class="ident">extend_with</span>(
-				<span class="ident">AccountsApi</span>::<span class="ident">to_delegate</span>(<span class="ident">Accounts</span>::<span class="ident">new</span>(<span class="ident">client</span>.<span class="ident">clone</span>(), <span class="ident">pool</span>))
-			);
-			<span class="ident">io</span>.<span class="ident">extend_with</span>(
-				<span class="ident">ContractsApi</span>::<span class="ident">to_delegate</span>(<span class="ident">Contracts</span>::<span class="ident">new</span>(<span class="ident">client</span>))
-			);
-			<span class="ident">io</span>
+		.<span class="ident">with_rpc_extensions</span>(<span class="op">|</span><span class="ident">client</span>, <span class="ident">pool</span><span class="op">|</span> <span class="op">-</span><span class="op">&gt;</span> <span class="ident">RpcExtension</span> {
+			<span class="ident">node_rpc</span>::<span class="ident">create</span>(<span class="ident">client</span>, <span class="ident">pool</span>)
 		})<span class="question-mark">?</span>
 		.<span class="ident">build</span>()<span class="question-mark">?</span>;
 
