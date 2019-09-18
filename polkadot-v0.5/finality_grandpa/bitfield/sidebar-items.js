@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Bitfield","Bitfield for tracking voters who have equivocated."],["Error","Errors that can occur when using the equivocation weighting tools."]],"struct":[["Context","Context data for bitfields, shared among all live bitfield instances. (only usable under std environment.)"],["LiveBitfield","Live bitfield instance."]]});

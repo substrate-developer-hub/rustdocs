@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Error","Error that can happen in a task."],["Event","Event produced by the [`Manager`]."]],"struct":[["ClosedTask","Task after it has been closed."],["Manager","Implementation of [`Stream`] that handles a collection of nodes."],["TaskEntry","Access to a task in the collection."],["TaskId","Task identifier."]]});

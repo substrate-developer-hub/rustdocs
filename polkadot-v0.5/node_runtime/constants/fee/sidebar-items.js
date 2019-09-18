@@ -1,0 +1,1 @@
+initSidebarItems({"constant":[["TARGET_BLOCK_FULLNESS","The block saturation level. Fees will be updates based on this value."]],"struct":[["Perbill","Perbill is parts-per-billion. It stores a value between 0 and 1 in fixed point and provides a means to multiply some other value by that."]]});
