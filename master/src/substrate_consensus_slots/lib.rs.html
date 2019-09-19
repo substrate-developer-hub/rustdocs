@@ -524,7 +524,7 @@
 	<span class="kw">fn</span> <span class="ident">pre_digest_data</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">slot_number</span>: <span class="ident">u64</span>, <span class="ident">claim</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Claim</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">sr_primitives</span>::<span class="ident">DigestItem</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Hash</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
 	<span class="doccomment">/// Returns a function which produces a `BlockImportParams`.</span>
-	<span class="kw">fn</span> <span class="ident">import_block</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Fn</span>(
+	<span class="kw">fn</span> <span class="ident">block_import_params</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Fn</span>(
 		<span class="ident">B</span>::<span class="ident">Header</span>,
 		<span class="kw-2">&amp;</span><span class="ident">B</span>::<span class="ident">Hash</span>,
 		<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Extrinsic</span><span class="op">&gt;</span>,
@@ -627,7 +627,7 @@
 			<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">Either</span>::<span class="ident">Right</span>((<span class="prelude-val">Err</span>(<span class="ident">err</span>), <span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>),
 		});
 
-		<span class="kw">let</span> <span class="ident">import_block</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">import_block</span>();
+		<span class="kw">let</span> <span class="ident">block_import_params_maker</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">block_import_params</span>();
 		<span class="kw">let</span> <span class="ident">block_import</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">block_import</span>();
 		<span class="kw">let</span> <span class="ident">logging_target</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">logging_target</span>();
 
@@ -652,7 +652,7 @@
 			<span class="kw">let</span> <span class="ident">header_hash</span> <span class="op">=</span> <span class="ident">header</span>.<span class="ident">hash</span>();
 			<span class="kw">let</span> <span class="ident">parent_hash</span> <span class="op">=</span> <span class="ident">header</span>.<span class="ident">parent_hash</span>().<span class="ident">clone</span>();
 
-			<span class="kw">let</span> <span class="ident">import_block</span> <span class="op">=</span> <span class="ident">import_block</span>(
+			<span class="kw">let</span> <span class="ident">block_import_params</span> <span class="op">=</span> <span class="ident">block_import_params_maker</span>(
 				<span class="ident">header</span>,
 				<span class="kw-2">&amp;</span><span class="ident">header_hash</span>,
 				<span class="ident">body</span>,
@@ -661,17 +661,17 @@
 
 			<span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;Pre-sealed block for proposal at {}. Hash now {:?}, previously {:?}.&quot;</span>,
 					<span class="ident">header_num</span>,
-					<span class="ident">import_block</span>.<span class="ident">post_header</span>().<span class="ident">hash</span>(),
+					<span class="ident">block_import_params</span>.<span class="ident">post_header</span>().<span class="ident">hash</span>(),
 					<span class="ident">header_hash</span>,
 			);
 
 			<span class="macro">telemetry</span><span class="macro">!</span>(<span class="ident">CONSENSUS_INFO</span>; <span class="string">&quot;slots.pre_sealed_block&quot;</span>;
 				<span class="string">&quot;header_num&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="question-mark">?</span><span class="ident">header_num</span>,
-				<span class="string">&quot;hash_now&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="question-mark">?</span><span class="ident">import_block</span>.<span class="ident">post_header</span>().<span class="ident">hash</span>(),
+				<span class="string">&quot;hash_now&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="question-mark">?</span><span class="ident">block_import_params</span>.<span class="ident">post_header</span>().<span class="ident">hash</span>(),
 				<span class="string">&quot;hash_previously&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="question-mark">?</span><span class="ident">header_hash</span>,
 			);
 
-			<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="ident">block_import</span>.<span class="ident">lock</span>().<span class="ident">import_block</span>(<span class="ident">import_block</span>, <span class="ident">Default</span>::<span class="ident">default</span>()) {
+			<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="ident">block_import</span>.<span class="ident">lock</span>().<span class="ident">import_block</span>(<span class="ident">block_import_params</span>, <span class="ident">Default</span>::<span class="ident">default</span>()) {
 				<span class="macro">warn</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="ident">logging_target</span>,
 					<span class="string">&quot;Error with block built on {:?}: {:?}&quot;</span>,
 					<span class="ident">parent_hash</span>,
