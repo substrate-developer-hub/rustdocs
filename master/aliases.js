@@ -303,6 +303,7 @@ ALIASES["srml_collective"] = {};
 ALIASES["srml_contracts"] = {};
 ALIASES["srml_democracy"] = {};
 ALIASES["srml_elections"] = {};
+ALIASES["srml_elections_phragmen"] = {};
 ALIASES["srml_example"] = {};
 ALIASES["srml_executive"] = {};
 ALIASES["srml_finality_tracker"] = {};
