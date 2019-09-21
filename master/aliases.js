@@ -317,6 +317,8 @@ ALIASES["srml_offences"] = {};
 ALIASES["srml_scored_pool"] = {};
 ALIASES["srml_session"] = {};
 ALIASES["srml_staking"] = {};
+ALIASES["srml_staking_reward_curve"] = {};
+ALIASES["srml_staking_reward_curve_test"] = {};
 ALIASES["srml_sudo"] = {};
 ALIASES["srml_support"] = {"!=":[{'crate':'srml_support','ty':8,'name':'Eq','desc':'Trait for equality comparisons which are equivalence…','p':'srml_support::dispatch'},{'crate':'srml_support','ty':8,'name':'PartialEq','desc':'Trait for equality comparisons which are partial…','p':'srml_support::dispatch'}],"{}":[{'crate':'srml_support','ty':8,'name':'Display','desc':'Format trait for an empty format, `{}`.','p':'srml_support::dispatch::fmt'}],"{:?}":[{'crate':'srml_support','ty':8,'name':'Debug','desc':'`?` formatting.','p':'srml_support::dispatch::fmt'}],"==":[{'crate':'srml_support','ty':8,'name':'Eq','desc':'Trait for equality comparisons which are equivalence…','p':'srml_support::dispatch'},{'crate':'srml_support','ty':8,'name':'PartialEq','desc':'Trait for equality comparisons which are partial…','p':'srml_support::dispatch'}],};
 ALIASES["srml_support_procedural"] = {};
