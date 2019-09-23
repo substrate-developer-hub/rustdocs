@@ -158,6 +158,25 @@
 <span id="158">158</span>
 <span id="159">159</span>
 <span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -189,7 +208,7 @@
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">digest</span>::{<span class="ident">BabePreDigest</span>, <span class="ident">CompatibleDigestItem</span>};
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">digest</span>::{<span class="ident">BABE_VRF_PREFIX</span>, <span class="ident">RawBabePreDigest</span>};
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">digest</span>::{<span class="ident">BABE_VRF_PREFIX</span>, <span class="ident">RawBabePreDigest</span>, <span class="ident">NextEpochDescriptor</span>};
 
 <span class="kw">mod</span> <span class="ident">app</span> {
 	<span class="kw">use</span> <span class="ident">app_crypto</span>::{<span class="ident">app_crypto</span>, <span class="ident">key_types</span>::<span class="ident">BABE</span>, <span class="ident">sr25519</span>};
@@ -220,6 +239,11 @@
 <span class="doccomment">/// The length of the public key</span>
 <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">PUBLIC_KEY_LENGTH</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">32</span>;
 
+<span class="doccomment">/// How many blocks to wait before running the median algorithm for relative time</span>
+<span class="doccomment">/// This will not vary from chain to chain as it is not dependent on slot duration</span>
+<span class="doccomment">/// or epoch length.</span>
+<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">MEDIAN_ALGORITHM_CARDINALITY</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">1200</span>; <span class="comment">// arbitrary suggestion by w3f-research.</span>
+
 <span class="doccomment">/// The index of an authority.</span>
 <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">AuthorityIndex</span> <span class="op">=</span> <span class="ident">u32</span>;
 
@@ -241,33 +265,50 @@
 	<span class="doccomment">/// The epoch index</span>
 	<span class="kw">pub</span> <span class="ident">epoch_index</span>: <span class="ident">u64</span>,
 	<span class="doccomment">/// The starting slot of the epoch,</span>
-	<span class="kw">pub</span> <span class="ident">start_slot</span>: <span class="ident">u64</span>,
+	<span class="kw">pub</span> <span class="ident">start_slot</span>: <span class="ident">SlotNumber</span>,
 	<span class="doccomment">/// The duration of this epoch</span>
 	<span class="kw">pub</span> <span class="ident">duration</span>: <span class="ident">SlotNumber</span>,
 	<span class="doccomment">/// The authorities and their weights</span>
 	<span class="kw">pub</span> <span class="ident">authorities</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">BabeAuthorityWeight</span>)<span class="op">&gt;</span>,
 	<span class="doccomment">/// Randomness for this epoch</span>
 	<span class="kw">pub</span> <span class="ident">randomness</span>: [<span class="ident">u8</span>; <span class="ident">VRF_OUTPUT_LENGTH</span>],
-	<span class="doccomment">/// Whether secondary slot assignments should be used during the epoch.</span>
-	<span class="kw">pub</span> <span class="ident">secondary_slots</span>: <span class="ident">bool</span>,
+}
+
+<span class="kw">impl</span> <span class="ident">Epoch</span> {
+	<span class="doccomment">/// &quot;increment&quot; the epoch, with given descriptor for the next.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">increment</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">descriptor</span>: <span class="ident">NextEpochDescriptor</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Epoch</span> {
+		<span class="ident">Epoch</span> {
+			<span class="ident">epoch_index</span>: <span class="self">self</span>.<span class="ident">epoch_index</span> <span class="op">+</span> <span class="number">1</span>,
+			<span class="ident">start_slot</span>: <span class="self">self</span>.<span class="ident">start_slot</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">duration</span>,
+			<span class="ident">duration</span>: <span class="self">self</span>.<span class="ident">duration</span>,
+			<span class="ident">authorities</span>: <span class="ident">descriptor</span>.<span class="ident">authorities</span>,
+			<span class="ident">randomness</span>: <span class="ident">descriptor</span>.<span class="ident">randomness</span>,
+		}
+	}
+
+	<span class="doccomment">/// Produce the &quot;end slot&quot; of the epoch. This is NOT inclusive to the epoch,</span>
+	<span class="comment">// i.e. the slots covered by the epoch are `self.start_slot .. self.end_slot()`.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">end_slot</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">SlotNumber</span> {
+		<span class="self">self</span>.<span class="ident">start_slot</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">duration</span>
+	}
 }
 
 <span class="doccomment">/// An consensus log item for BABE.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Decode</span>, <span class="ident">Encode</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">ConsensusLog</span> {
-	<span class="doccomment">/// The epoch has changed. This provides information about the</span>
-	<span class="doccomment">/// epoch _after_ next: what slot number it will start at, who are the authorities (and their weights)</span>
-	<span class="doccomment">/// and the next epoch randomness. The information for the _next_ epoch should already</span>
-	<span class="doccomment">/// be available.</span>
+	<span class="doccomment">/// The epoch has changed. This provides information about the _next_</span>
+	<span class="doccomment">/// epoch - information about the _current_ epoch (i.e. the one we&#39;ve just</span>
+	<span class="doccomment">/// entered) should already be available earlier in the chain.</span>
 	<span class="attribute">#[<span class="ident">codec</span>(<span class="ident">index</span> <span class="op">=</span> <span class="string">&quot;1&quot;</span>)]</span>
-	<span class="ident">NextEpochData</span>(<span class="ident">Epoch</span>),
+	<span class="ident">NextEpochData</span>(<span class="ident">NextEpochDescriptor</span>),
 	<span class="doccomment">/// Disable the authority with given index.</span>
 	<span class="attribute">#[<span class="ident">codec</span>(<span class="ident">index</span> <span class="op">=</span> <span class="string">&quot;2&quot;</span>)]</span>
 	<span class="ident">OnDisabled</span>(<span class="ident">AuthorityIndex</span>),
 }
 
 <span class="doccomment">/// Configuration data used by the BABE consensus engine.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Copy</span>, <span class="ident">Clone</span>, <span class="ident">Hash</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Debug</span>, <span class="ident">Encode</span>, <span class="ident">Decode</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Encode</span>, <span class="ident">Decode</span>)]</span>
+<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">any</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>, <span class="ident">test</span>), <span class="ident">derive</span>(<span class="ident">Debug</span>))]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BabeConfiguration</span> {
 	<span class="doccomment">/// The slot duration in milliseconds for BABE. Currently, only</span>
 	<span class="doccomment">/// the value provided by this type at genesis will be used.</span>
@@ -275,35 +316,35 @@
 	<span class="doccomment">/// Dynamic slot duration may be supported in the future.</span>
 	<span class="kw">pub</span> <span class="ident">slot_duration</span>: <span class="ident">u64</span>,
 
+	<span class="doccomment">/// The duration of epochs in slots.</span>
+	<span class="kw">pub</span> <span class="ident">epoch_length</span>: <span class="ident">SlotNumber</span>,
+
 	<span class="doccomment">/// A constant value that is used in the threshold calculation formula.</span>
-	<span class="doccomment">/// Expressed as a fraction where the first member of the tuple is the</span>
-	<span class="doccomment">/// numerator and the second is the denominator. The fraction should</span>
+	<span class="doccomment">/// Expressed as a rational where the first member of the tuple is the</span>
+	<span class="doccomment">/// numerator and the second is the denominator. The rational should</span>
 	<span class="doccomment">/// represent a value between 0 and 1.</span>
 	<span class="doccomment">/// In the threshold formula calculation, `1 - c` represents the probability</span>
 	<span class="doccomment">/// of a slot being empty.</span>
 	<span class="kw">pub</span> <span class="ident">c</span>: (<span class="ident">u64</span>, <span class="ident">u64</span>),
 
-	<span class="doccomment">/// The minimum number of blocks that must be received before running the</span>
-	<span class="doccomment">/// median algorithm to compute the offset between the on-chain time and the</span>
-	<span class="doccomment">/// local time. Currently, only the value provided by this type at genesis</span>
-	<span class="doccomment">/// will be used, but this is subject to change.</span>
-	<span class="doccomment">///</span>
-	<span class="doccomment">/// Blocks less than `self.median_required_blocks` must be generated by an</span>
-	<span class="doccomment">/// *initial validator* ― that is, a node that was a validator at genesis.</span>
-	<span class="kw">pub</span> <span class="ident">median_required_blocks</span>: <span class="ident">u64</span>,
+	<span class="doccomment">/// The authorities for the genesis epoch.</span>
+	<span class="kw">pub</span> <span class="ident">genesis_authorities</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">BabeAuthorityWeight</span>)<span class="op">&gt;</span>,
+
+	<span class="doccomment">/// The randomness for the genesis epoch.</span>
+	<span class="kw">pub</span> <span class="ident">randomness</span>: [<span class="ident">u8</span>; <span class="ident">VRF_OUTPUT_LENGTH</span>],
+
+	<span class="doccomment">/// Whether this chain should run with secondary slots, which are assigned</span>
+	<span class="doccomment">/// in round-robin manner.</span>
+	<span class="kw">pub</span> <span class="ident">secondary_slots</span>: <span class="ident">bool</span>,
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>)]</span>
 <span class="kw">impl</span> <span class="ident">slots</span>::<span class="ident">SlotData</span> <span class="kw">for</span> <span class="ident">BabeConfiguration</span> {
-	<span class="doccomment">/// Return the slot duration in milliseconds for BABE. Currently, only</span>
-	<span class="doccomment">/// the value provided by this type at genesis will be used.</span>
-	<span class="doccomment">///</span>
-	<span class="doccomment">/// Dynamic slot duration may be supported in the future.</span>
 	<span class="kw">fn</span> <span class="ident">slot_duration</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u64</span> {
 		<span class="self">self</span>.<span class="ident">slot_duration</span>
 	}
 
-	<span class="kw">const</span> <span class="ident">SLOT_KEY</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> [<span class="ident">u8</span>] <span class="op">=</span> <span class="string">b&quot;babe_bootstrap_data&quot;</span>;
+	<span class="kw">const</span> <span class="ident">SLOT_KEY</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> [<span class="ident">u8</span>] <span class="op">=</span> <span class="string">b&quot;babe_configuration&quot;</span>;
 }
 
 <span class="macro">decl_runtime_apis</span><span class="macro">!</span> {
@@ -313,10 +354,7 @@
 		<span class="doccomment">/// only the value provided by this type at genesis will be used.</span>
 		<span class="doccomment">///</span>
 		<span class="doccomment">/// Dynamic configuration may be supported in the future.</span>
-		<span class="kw">fn</span> <span class="ident">startup_data</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">BabeConfiguration</span>;
-
-		<span class="doccomment">/// Get the current epoch data for Babe.</span>
-		<span class="kw">fn</span> <span class="ident">epoch</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Epoch</span>;
+		<span class="kw">fn</span> <span class="ident">configuration</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">BabeConfiguration</span>;
 	}
 }
 </pre></div>

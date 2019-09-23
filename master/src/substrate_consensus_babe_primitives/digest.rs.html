@@ -272,6 +272,17 @@
 <span id="272">272</span>
 <span id="273">273</span>
 <span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -292,12 +303,10 @@
 <span class="doccomment">//! Private implementation details of BABE digests.</span>
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>)]</span>
-<span class="kw">use</span> <span class="kw">super</span>::<span class="ident">AuthoritySignature</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>)]</span>
-<span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">BABE_ENGINE_ID</span>, <span class="ident">Epoch</span>};
+<span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">BABE_ENGINE_ID</span>, <span class="ident">AuthoritySignature</span>};
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>))]</span>
 <span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">VRF_OUTPUT_LENGTH</span>, <span class="ident">VRF_PROOF_LENGTH</span>};
-<span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">AuthorityIndex</span>, <span class="ident">BabeBlockWeight</span>, <span class="ident">SlotNumber</span>};
+<span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">AuthorityId</span>, <span class="ident">AuthorityIndex</span>, <span class="ident">SlotNumber</span>, <span class="ident">BabeAuthorityWeight</span>};
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">sr_primitives</span>::{<span class="ident">DigestItem</span>, <span class="ident">generic</span>::<span class="ident">OpaqueDigestItemId</span>};
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>)]</span>
@@ -310,6 +319,8 @@
 	<span class="ident">SignatureError</span>, <span class="ident">errors</span>::<span class="ident">MultiSignatureStage</span>,
 	<span class="ident">vrf</span>::{<span class="ident">VRFProof</span>, <span class="ident">VRFOutput</span>, <span class="ident">VRF_OUTPUT_LENGTH</span>, <span class="ident">VRF_PROOF_LENGTH</span>}
 };
+<span class="kw">use</span> <span class="ident">rstd</span>::<span class="ident">vec</span>::<span class="ident">Vec</span>;
+
 
 <span class="doccomment">/// A BABE pre-runtime digest. This contains all data required to validate a</span>
 <span class="doccomment">/// block and for the BABE runtime module. Slots can be assigned to a primary</span>
@@ -327,8 +338,6 @@
 		<span class="ident">authority_index</span>: <span class="kw">super</span>::<span class="ident">AuthorityIndex</span>,
 		<span class="doccomment">/// Slot number</span>
 		<span class="ident">slot_number</span>: <span class="ident">SlotNumber</span>,
-		<span class="doccomment">/// Chain weight (measured in number of Primary blocks)</span>
-		<span class="ident">weight</span>: <span class="ident">BabeBlockWeight</span>,
 	},
 	<span class="doccomment">/// A secondary deterministic slot assignment.</span>
 	<span class="ident">Secondary</span> {
@@ -336,8 +345,6 @@
 		<span class="ident">authority_index</span>: <span class="kw">super</span>::<span class="ident">AuthorityIndex</span>,
 		<span class="doccomment">/// Slot number</span>
 		<span class="ident">slot_number</span>: <span class="ident">SlotNumber</span>,
-		<span class="doccomment">/// Chain weight (measured in number of Primary blocks)</span>
-		<span class="ident">weight</span>: <span class="ident">BabeBlockWeight</span>,
 	},
 }
 
@@ -359,11 +366,12 @@
 		}
 	}
 
-	<span class="doccomment">/// Returns the weight of the pre digest.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">weight</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">BabeBlockWeight</span> {
+	<span class="doccomment">/// Returns the weight _added_ by this digest, not the cumulative weight</span>
+	<span class="doccomment">/// of the chain.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">added_weight</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">crate</span>::<span class="ident">BabeBlockWeight</span> {
 		<span class="kw">match</span> <span class="self">self</span> {
-			<span class="ident">BabePreDigest</span>::<span class="ident">Primary</span> { <span class="ident">weight</span>, .. } <span class="op">=</span><span class="op">&gt;</span> <span class="kw-2">*</span><span class="ident">weight</span>,
-			<span class="ident">BabePreDigest</span>::<span class="ident">Secondary</span> { <span class="ident">weight</span>, .. } <span class="op">=</span><span class="op">&gt;</span> <span class="kw-2">*</span><span class="ident">weight</span>,
+			<span class="ident">BabePreDigest</span>::<span class="ident">Primary</span> { .. } <span class="op">=</span><span class="op">&gt;</span> <span class="number">1</span>,
+			<span class="ident">BabePreDigest</span>::<span class="ident">Secondary</span> { .. } <span class="op">=</span><span class="op">&gt;</span> <span class="number">0</span>,
 		}
 	}
 }
@@ -375,26 +383,29 @@
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Copy</span>, <span class="ident">Clone</span>, <span class="ident">Encode</span>, <span class="ident">Decode</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">RawBabePreDigest</span> {
 	<span class="doccomment">/// A primary VRF-based slot assignment.</span>
+	<span class="attribute">#[<span class="ident">codec</span>(<span class="ident">index</span> <span class="op">=</span> <span class="string">&quot;1&quot;</span>)]</span>
 	<span class="ident">Primary</span> {
 		<span class="doccomment">/// Authority index</span>
 		<span class="ident">authority_index</span>: <span class="ident">AuthorityIndex</span>,
 		<span class="doccomment">/// Slot number</span>
 		<span class="ident">slot_number</span>: <span class="ident">SlotNumber</span>,
-		<span class="doccomment">/// Chain weight (measured in number of Primary blocks)</span>
-		<span class="ident">weight</span>: <span class="ident">BabeBlockWeight</span>,
 		<span class="doccomment">/// VRF output</span>
 		<span class="ident">vrf_output</span>: [<span class="ident">u8</span>; <span class="ident">VRF_OUTPUT_LENGTH</span>],
 		<span class="doccomment">/// VRF proof</span>
 		<span class="ident">vrf_proof</span>: [<span class="ident">u8</span>; <span class="ident">VRF_PROOF_LENGTH</span>],
 	},
 	<span class="doccomment">/// A secondary deterministic slot assignment.</span>
+	<span class="attribute">#[<span class="ident">codec</span>(<span class="ident">index</span> <span class="op">=</span> <span class="string">&quot;2&quot;</span>)]</span>
 	<span class="ident">Secondary</span> {
 		<span class="doccomment">/// Authority index</span>
+		<span class="doccomment">///</span>
+		<span class="doccomment">/// This is not strictly-speaking necessary, since the secondary slots</span>
+		<span class="doccomment">/// are assigned based on slot number and epoch randomness. But including</span>
+		<span class="doccomment">/// it makes things easier for higher-level users of the chain data to</span>
+		<span class="doccomment">/// be aware of the author of a secondary-slot block.</span>
 		<span class="ident">authority_index</span>: <span class="ident">AuthorityIndex</span>,
 		<span class="doccomment">/// Slot number</span>
 		<span class="ident">slot_number</span>: <span class="ident">SlotNumber</span>,
-		<span class="doccomment">/// Chain weight (measured in number of Primary blocks)</span>
-		<span class="ident">weight</span>: <span class="ident">BabeBlockWeight</span>,
 	},
 }
 
@@ -417,25 +428,21 @@
 				<span class="ident">vrf_proof</span>,
 				<span class="ident">authority_index</span>,
 				<span class="ident">slot_number</span>,
-				<span class="ident">weight</span>,
 			} <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="ident">RawBabePreDigest</span>::<span class="ident">Primary</span> {
 					<span class="ident">vrf_output</span>: <span class="kw-2">*</span><span class="ident">vrf_output</span>.<span class="ident">as_bytes</span>(),
 					<span class="ident">vrf_proof</span>: <span class="ident">vrf_proof</span>.<span class="ident">to_bytes</span>(),
 					<span class="ident">authority_index</span>: <span class="kw-2">*</span><span class="ident">authority_index</span>,
 					<span class="ident">slot_number</span>: <span class="kw-2">*</span><span class="ident">slot_number</span>,
-					<span class="ident">weight</span>: <span class="kw-2">*</span><span class="ident">weight</span>,
 				}
 			},
 			<span class="ident">BabePreDigest</span>::<span class="ident">Secondary</span> {
 				<span class="ident">authority_index</span>,
 				<span class="ident">slot_number</span>,
-				<span class="ident">weight</span>,
 			} <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="ident">RawBabePreDigest</span>::<span class="ident">Secondary</span> {
 					<span class="ident">authority_index</span>: <span class="kw-2">*</span><span class="ident">authority_index</span>,
 					<span class="ident">slot_number</span>: <span class="kw-2">*</span><span class="ident">slot_number</span>,
-					<span class="ident">weight</span>: <span class="kw-2">*</span><span class="ident">weight</span>,
 				}
 			},
 		};
@@ -451,7 +458,7 @@
 <span class="kw">impl</span> <span class="ident">Decode</span> <span class="kw">for</span> <span class="ident">BabePreDigest</span> {
 	<span class="kw">fn</span> <span class="ident">decode</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">Input</span><span class="op">&gt;</span>(<span class="ident">i</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">R</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">pre_digest</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">Decode</span>::<span class="ident">decode</span>(<span class="ident">i</span>)<span class="question-mark">?</span> {
-			<span class="ident">RawBabePreDigest</span>::<span class="ident">Primary</span> { <span class="ident">vrf_output</span>, <span class="ident">vrf_proof</span>, <span class="ident">authority_index</span>, <span class="ident">slot_number</span>, <span class="ident">weight</span> } <span class="op">=</span><span class="op">&gt;</span> {
+			<span class="ident">RawBabePreDigest</span>::<span class="ident">Primary</span> { <span class="ident">vrf_output</span>, <span class="ident">vrf_proof</span>, <span class="ident">authority_index</span>, <span class="ident">slot_number</span> } <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="comment">// Verify (at compile time) that the sizes in babe_primitives are correct</span>
 				<span class="kw">let</span> <span class="kw">_</span>: [<span class="ident">u8</span>; <span class="kw">super</span>::<span class="ident">VRF_OUTPUT_LENGTH</span>] <span class="op">=</span> <span class="ident">vrf_output</span>;
 				<span class="kw">let</span> <span class="kw">_</span>: [<span class="ident">u8</span>; <span class="kw">super</span>::<span class="ident">VRF_PROOF_LENGTH</span>] <span class="op">=</span> <span class="ident">vrf_proof</span>;
@@ -461,16 +468,27 @@
 					<span class="ident">vrf_output</span>: <span class="ident">VRFOutput</span>::<span class="ident">from_bytes</span>(<span class="kw-2">&amp;</span><span class="ident">vrf_output</span>).<span class="ident">map_err</span>(<span class="ident">convert_error</span>)<span class="question-mark">?</span>,
 					<span class="ident">authority_index</span>,
 					<span class="ident">slot_number</span>,
-					<span class="ident">weight</span>,
 				}
 			},
-			<span class="ident">RawBabePreDigest</span>::<span class="ident">Secondary</span> { <span class="ident">authority_index</span>, <span class="ident">slot_number</span>, <span class="ident">weight</span> } <span class="op">=</span><span class="op">&gt;</span> {
-				<span class="ident">BabePreDigest</span>::<span class="ident">Secondary</span> { <span class="ident">authority_index</span>, <span class="ident">slot_number</span>, <span class="ident">weight</span> }
+			<span class="ident">RawBabePreDigest</span>::<span class="ident">Secondary</span> { <span class="ident">authority_index</span>, <span class="ident">slot_number</span> } <span class="op">=</span><span class="op">&gt;</span> {
+				<span class="ident">BabePreDigest</span>::<span class="ident">Secondary</span> { <span class="ident">authority_index</span>, <span class="ident">slot_number</span> }
 			},
 		};
 
 		<span class="prelude-val">Ok</span>(<span class="ident">pre_digest</span>)
 	}
+}
+
+<span class="doccomment">/// Information about the next epoch. This is broadcast in the first block</span>
+<span class="doccomment">/// of the epoch.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Decode</span>, <span class="ident">Encode</span>, <span class="ident">Default</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Clone</span>)]</span>
+<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">any</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>, <span class="ident">test</span>), <span class="ident">derive</span>(<span class="ident">Debug</span>))]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">NextEpochDescriptor</span> {
+	<span class="doccomment">/// The authorities.</span>
+	<span class="kw">pub</span> <span class="ident">authorities</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">BabeAuthorityWeight</span>)<span class="op">&gt;</span>,
+
+	<span class="doccomment">/// The value of randomness to use for the slot-assignment.</span>
+	<span class="kw">pub</span> <span class="ident">randomness</span>: [<span class="ident">u8</span>; <span class="ident">VRF_OUTPUT_LENGTH</span>],
 }
 
 <span class="doccomment">/// A digest item which is usable with BABE consensus.</span>
@@ -489,7 +507,7 @@
 	<span class="kw">fn</span> <span class="ident">as_babe_seal</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">AuthoritySignature</span><span class="op">&gt;</span>;
 
 	<span class="doccomment">/// If this item is a BABE epoch, return it.</span>
-	<span class="kw">fn</span> <span class="ident">as_babe_epoch</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Epoch</span><span class="op">&gt;</span>;
+	<span class="kw">fn</span> <span class="ident">as_next_epoch_descriptor</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">NextEpochDescriptor</span><span class="op">&gt;</span>;
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>)]</span>
@@ -512,8 +530,12 @@
 		<span class="self">self</span>.<span class="ident">try_to</span>(<span class="ident">OpaqueDigestItemId</span>::<span class="ident">Seal</span>(<span class="kw-2">&amp;</span><span class="ident">BABE_ENGINE_ID</span>))
 	}
 
-	<span class="kw">fn</span> <span class="ident">as_babe_epoch</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Epoch</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">as_next_epoch_descriptor</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">NextEpochDescriptor</span><span class="op">&gt;</span> {
 		<span class="self">self</span>.<span class="ident">try_to</span>(<span class="ident">OpaqueDigestItemId</span>::<span class="ident">Consensus</span>(<span class="kw-2">&amp;</span><span class="ident">BABE_ENGINE_ID</span>))
+			.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">x</span>: <span class="kw">super</span>::<span class="ident">ConsensusLog</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">x</span> {
+				<span class="kw">super</span>::<span class="ident">ConsensusLog</span>::<span class="ident">NextEpochData</span>(<span class="ident">n</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">n</span>),
+				<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">None</span>,
+			})
 	}
 }
 

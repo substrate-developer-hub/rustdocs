@@ -2916,6 +2916,18 @@
 <span id="2916">2916</span>
 <span id="2917">2917</span>
 <span id="2918">2918</span>
+<span id="2919">2919</span>
+<span id="2920">2920</span>
+<span id="2921">2921</span>
+<span id="2922">2922</span>
+<span id="2923">2923</span>
+<span id="2924">2924</span>
+<span id="2925">2925</span>
+<span id="2926">2926</span>
+<span id="2927">2927</span>
+<span id="2928">2928</span>
+<span id="2929">2929</span>
+<span id="2930">2930</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -4401,6 +4413,9 @@
 	}
 }
 
+<span class="doccomment">/// NOTE: only use this implementation when you are sure there are NO consensus-level BlockImport</span>
+<span class="doccomment">/// objects. Otherwise, importing blocks directly into the client would be bypassing</span>
+<span class="doccomment">/// important verification work.</span>
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span> <span class="ident">consensus</span>::<span class="ident">BlockImport</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span> <span class="kw">where</span>
 	<span class="ident">B</span>: <span class="ident">backend</span>::<span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span>,
 	<span class="ident">E</span>: <span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
@@ -4410,6 +4425,13 @@
 
 	<span class="doccomment">/// Import a checked and validated block. If a justification is provided in</span>
 	<span class="doccomment">/// `BlockImportParams` then `finalized` *must* be true.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// NOTE: only use this implementation when there are NO consensus-level BlockImport</span>
+	<span class="doccomment">/// objects. Otherwise, importing blocks directly into the client would be bypassing</span>
+	<span class="doccomment">/// important verification work.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// If you are not sure that there are no BlockImport objects provided by the consensus</span>
+	<span class="doccomment">/// algorithm, don&#39;t use this function.</span>
 	<span class="kw">fn</span> <span class="ident">import_block</span>(
 		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
 		<span class="ident">import_block</span>: <span class="ident">BlockImportParams</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
@@ -4818,8 +4840,9 @@
 <span class="doccomment">/// Utility methods for the client.</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">utils</span> {
 	<span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-	<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">backend</span>::<span class="ident">Backend</span>, <span class="ident">blockchain</span>, <span class="ident">error</span>};
+	<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">blockchain</span>, <span class="ident">error</span>};
 	<span class="kw">use</span> <span class="ident">primitives</span>::<span class="ident">H256</span>;
+	<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">borrow</span>::<span class="ident">Borrow</span>;
 
 	<span class="doccomment">/// Returns a function for checking block ancestry, the returned function will</span>
 	<span class="doccomment">/// return `true` if the given hash (second parameter) is a descendent of the</span>
@@ -4827,15 +4850,16 @@
 	<span class="doccomment">/// represent the current block `hash` and its `parent hash`, if given the</span>
 	<span class="doccomment">/// function that&#39;s returned will assume that `hash` isn&#39;t part of the local DB</span>
 	<span class="doccomment">/// yet, and all searches in the DB will instead reference the parent.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_descendent_of</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">RA</span><span class="op">&gt;</span>(
-		<span class="ident">client</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span>,
-		<span class="ident">current</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">H256</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">H256</span>)<span class="op">&gt;</span>,
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_descendent_of</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">T</span>, <span class="ident">H</span>: <span class="ident">Borrow</span><span class="op">&lt;</span><span class="ident">H256</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;a</span><span class="op">&gt;</span>(
+		<span class="ident">client</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">T</span>,
+		<span class="ident">current</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">H</span>, <span class="ident">H</span>)<span class="op">&gt;</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">Fn</span>(<span class="kw-2">&amp;</span><span class="ident">H256</span>, <span class="kw-2">&amp;</span><span class="ident">H256</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span>, <span class="ident">error</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;a</span>
-		<span class="kw">where</span> <span class="ident">B</span>: <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span>,
-			  <span class="ident">E</span>: <span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
+		<span class="kw">where</span> <span class="ident">T</span>: <span class="ident">ChainHeaderBackend</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 	{
 		<span class="kw">move</span> <span class="op">|</span><span class="ident">base</span>, <span class="ident">hash</span><span class="op">|</span> {
 			<span class="kw">if</span> <span class="ident">base</span> <span class="op">=</span><span class="op">=</span> <span class="ident">hash</span> { <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>); }
+
+			<span class="kw">let</span> <span class="ident">current</span> <span class="op">=</span> <span class="ident">current</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">c</span>, <span class="ident">p</span>)<span class="op">|</span> (<span class="ident">c</span>.<span class="ident">borrow</span>(), <span class="ident">p</span>.<span class="ident">borrow</span>()));
 
 			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">hash</span> <span class="op">=</span> <span class="ident">hash</span>;
 			<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">current_hash</span>, <span class="ident">current_parent_hash</span>)) <span class="op">=</span> <span class="ident">current</span> {
@@ -4850,7 +4874,7 @@
 			}
 
 			<span class="kw">let</span> <span class="ident">tree_route</span> <span class="op">=</span> <span class="ident">blockchain</span>::<span class="ident">tree_route</span>(
-				<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="ident">client</span>.<span class="ident">header</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>)<span class="question-mark">?</span>.<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">UnknownBlock</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">id</span>))),
+				<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="ident">client</span>.<span class="ident">header</span>(<span class="ident">id</span>)<span class="question-mark">?</span>.<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">UnknownBlock</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">id</span>))),
 				<span class="ident">BlockId</span>::<span class="ident">Hash</span>(<span class="kw-2">*</span><span class="ident">hash</span>),
 				<span class="ident">BlockId</span>::<span class="ident">Hash</span>(<span class="kw-2">*</span><span class="ident">base</span>),
 			)<span class="question-mark">?</span>;
