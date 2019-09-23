@@ -223,6 +223,7 @@ ALIASES["parking_lot_core"] = {};
 ALIASES["paste"] = {};
 ALIASES["paste_impl"] = {};
 ALIASES["pbkdf2"] = {};
+ALIASES["pdqselect"] = {};
 ALIASES["percent_encoding"] = {};
 ALIASES["pin_utils"] = {};
 ALIASES["ppv_lite86"] = {};
