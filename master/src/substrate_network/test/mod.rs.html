@@ -796,6 +796,9 @@
 <span id="796">796</span>
 <span id="797">797</span>
 <span id="798">798</span>
+<span id="799">799</span>
+<span id="800">800</span>
+<span id="801">801</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -836,6 +839,7 @@
 <span class="kw">use</span> <span class="ident">client</span>::<span class="ident">block_builder</span>::<span class="ident">BlockBuilder</span>;
 <span class="kw">use</span> <span class="ident">client</span>::<span class="ident">backend</span>::{<span class="ident">AuxStore</span>, <span class="ident">Backend</span>, <span class="ident">Finalizer</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">config</span>::<span class="ident">Roles</span>;
+<span class="kw">use</span> <span class="ident">consensus</span>::<span class="ident">block_validation</span>::<span class="ident">DefaultBlockAnnounceValidator</span>;
 <span class="kw">use</span> <span class="ident">consensus</span>::<span class="ident">import_queue</span>::<span class="ident">BasicQueue</span>;
 <span class="kw">use</span> <span class="ident">consensus</span>::<span class="ident">import_queue</span>::{
 	<span class="ident">BoxBlockImport</span>, <span class="ident">BoxJustificationImport</span>, <span class="ident">Verifier</span>, <span class="ident">BoxFinalityProofImport</span>,
@@ -1053,8 +1057,8 @@
 	}
 
 	<span class="doccomment">/// Announces an important block on the network.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">announce_block</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">hash</span>: <span class="op">&lt;</span><span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span><span class="op">&gt;</span>::<span class="ident">Hash</span>) {
-		<span class="self">self</span>.<span class="ident">network</span>.<span class="ident">service</span>().<span class="ident">announce_block</span>(<span class="ident">hash</span>);
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">announce_block</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">hash</span>: <span class="op">&lt;</span><span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span><span class="op">&gt;</span>::<span class="ident">Hash</span>, <span class="ident">data</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) {
+		<span class="self">self</span>.<span class="ident">network</span>.<span class="ident">service</span>().<span class="ident">announce_block</span>(<span class="ident">hash</span>, <span class="ident">data</span>);
 	}
 
 	<span class="doccomment">/// Add blocks to the peer -- edit the block before adding</span>
@@ -1101,11 +1105,11 @@
 				<span class="ident">Default</span>::<span class="ident">default</span>()
 			};
 			<span class="self">self</span>.<span class="ident">block_import</span>.<span class="ident">import_block</span>(<span class="ident">import_block</span>, <span class="ident">cache</span>).<span class="ident">expect</span>(<span class="string">&quot;block_import failed&quot;</span>);
-			<span class="self">self</span>.<span class="ident">network</span>.<span class="ident">on_block_imported</span>(<span class="ident">hash</span>, <span class="ident">header</span>, <span class="bool-val">true</span>);
+			<span class="self">self</span>.<span class="ident">network</span>.<span class="ident">on_block_imported</span>(<span class="ident">hash</span>, <span class="ident">header</span>, <span class="ident">Vec</span>::<span class="ident">new</span>(), <span class="bool-val">true</span>);
 			<span class="ident">at</span> <span class="op">=</span> <span class="ident">hash</span>;
 		}
 
-		<span class="self">self</span>.<span class="ident">network</span>.<span class="ident">service</span>().<span class="ident">announce_block</span>(<span class="ident">at</span>.<span class="ident">clone</span>());
+		<span class="self">self</span>.<span class="ident">network</span>.<span class="ident">service</span>().<span class="ident">announce_block</span>(<span class="ident">at</span>.<span class="ident">clone</span>(), <span class="ident">Vec</span>::<span class="ident">new</span>());
 		<span class="ident">at</span>
 	}
 
@@ -1354,6 +1358,7 @@
 			<span class="ident">protocol_id</span>: <span class="ident">ProtocolId</span>::<span class="ident">from</span>(<span class="kw-2">&amp;</span><span class="string">b&quot;test-protocol-name&quot;</span>[..]),
 			<span class="ident">import_queue</span>,
 			<span class="ident">specialization</span>: <span class="self">self</span>::<span class="ident">SpecializationFactory</span>::<span class="ident">create</span>(),
+			<span class="ident">block_announce_validator</span>: <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">DefaultBlockAnnounceValidator</span>::<span class="ident">new</span>(<span class="ident">client</span>.<span class="ident">clone</span>()))
 		}).<span class="ident">unwrap</span>();
 
 		<span class="self">self</span>.<span class="ident">mut_peers</span>(<span class="op">|</span><span class="ident">peers</span><span class="op">|</span> {
@@ -1427,6 +1432,7 @@
 			<span class="ident">protocol_id</span>: <span class="ident">ProtocolId</span>::<span class="ident">from</span>(<span class="kw-2">&amp;</span><span class="string">b&quot;test-protocol-name&quot;</span>[..]),
 			<span class="ident">import_queue</span>,
 			<span class="ident">specialization</span>: <span class="self">self</span>::<span class="ident">SpecializationFactory</span>::<span class="ident">create</span>(),
+			<span class="ident">block_announce_validator</span>: <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">DefaultBlockAnnounceValidator</span>::<span class="ident">new</span>(<span class="ident">client</span>.<span class="ident">clone</span>()))
 		}).<span class="ident">unwrap</span>();
 
 		<span class="self">self</span>.<span class="ident">mut_peers</span>(<span class="op">|</span><span class="ident">peers</span><span class="op">|</span> {
@@ -1489,7 +1495,7 @@
 
 				<span class="comment">// We poll `imported_blocks_stream`.</span>
 				<span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">notification</span>))) <span class="op">=</span> <span class="ident">peer</span>.<span class="ident">imported_blocks_stream</span>.<span class="ident">poll</span>() {
-					<span class="ident">peer</span>.<span class="ident">network</span>.<span class="ident">on_block_imported</span>(<span class="ident">notification</span>.<span class="ident">hash</span>, <span class="ident">notification</span>.<span class="ident">header</span>, <span class="bool-val">true</span>);
+					<span class="ident">peer</span>.<span class="ident">network</span>.<span class="ident">on_block_imported</span>(<span class="ident">notification</span>.<span class="ident">hash</span>, <span class="ident">notification</span>.<span class="ident">header</span>, <span class="ident">Vec</span>::<span class="ident">new</span>(), <span class="bool-val">true</span>);
 				}
 
 				<span class="comment">// We poll `finality_notification_stream`, but we only take the last event.</span>

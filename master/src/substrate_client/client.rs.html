@@ -2806,14 +2806,6 @@
 <span id="2806">2806</span>
 <span id="2807">2807</span>
 <span id="2808">2808</span>
-<span id="2809">2809</span>
-<span id="2810">2810</span>
-<span id="2811">2811</span>
-<span id="2812">2812</span>
-<span id="2813">2813</span>
-<span id="2814">2814</span>
-<span id="2815">2815</span>
-<span id="2816">2816</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -2864,7 +2856,7 @@
 };
 <span class="kw">use</span> <span class="ident">executor</span>::{<span class="ident">RuntimeVersion</span>, <span class="ident">RuntimeInfo</span>};
 <span class="kw">use</span> <span class="ident">consensus</span>::{
-	<span class="ident">Error</span> <span class="kw">as</span> <span class="ident">ConsensusError</span>, <span class="ident">BlockImportParams</span>,
+	<span class="ident">Error</span> <span class="kw">as</span> <span class="ident">ConsensusError</span>, <span class="ident">BlockStatus</span>, <span class="ident">BlockImportParams</span>,
 	<span class="ident">ImportResult</span>, <span class="ident">BlockOrigin</span>, <span class="ident">ForkChoiceStrategy</span>,
 	<span class="ident">SelectChain</span>, <span class="self">self</span>,
 };
@@ -2986,21 +2978,6 @@
 	<span class="kw">pub</span> <span class="ident">chain</span>: <span class="ident">ChainInfo</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// State Cache Size currently used by the backend</span>
 	<span class="kw">pub</span> <span class="ident">used_state_cache_size</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>,
-}
-
-<span class="doccomment">/// Block status.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">BlockStatus</span> {
-	<span class="doccomment">/// Added to the import queue.</span>
-	<span class="ident">Queued</span>,
-	<span class="doccomment">/// Already in the blockchain and the state is available.</span>
-	<span class="ident">InChainWithState</span>,
-	<span class="doccomment">/// In the blockchain, but the state is not available.</span>
-	<span class="ident">InChainPruned</span>,
-	<span class="doccomment">/// Block or parent is known to be bad.</span>
-	<span class="ident">KnownBad</span>,
-	<span class="doccomment">/// Not in the queue or the blockchain.</span>
-	<span class="ident">Unknown</span>,
 }
 
 <span class="doccomment">/// Summary of an imported block</span>
@@ -4004,10 +3981,7 @@
 		<span class="prelude-val">Ok</span>(())
 	}
 
-	<span class="kw">fn</span> <span class="ident">notify_imported</span>(
-		<span class="kw-2">&amp;</span><span class="self">self</span>,
-		<span class="ident">notify_import</span>: <span class="ident">ImportSummary</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
-	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">notify_imported</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">notify_import</span>: <span class="ident">ImportSummary</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
 		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">storage_changes</span>) <span class="op">=</span> <span class="ident">notify_import</span>.<span class="ident">storage_changes</span> {
 			<span class="comment">// TODO [ToDr] How to handle re-orgs? Should we re-emit all storage changes?</span>
 			<span class="self">self</span>.<span class="ident">storage_notifications</span>.<span class="ident">lock</span>()
@@ -4653,6 +4627,16 @@
 
 			<span class="prelude-val">Ok</span>(<span class="ident">tree_route</span>.<span class="ident">common_block</span>().<span class="ident">hash</span> <span class="op">=</span><span class="op">=</span> <span class="kw-2">*</span><span class="ident">base</span>)
 		}
+	}
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">BE</span>, <span class="ident">E</span>, <span class="ident">B</span>, <span class="ident">RA</span><span class="op">&gt;</span> <span class="ident">consensus</span>::<span class="ident">block_validation</span>::<span class="ident">Chain</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Client</span><span class="op">&lt;</span><span class="ident">BE</span>, <span class="ident">E</span>, <span class="ident">B</span>, <span class="ident">RA</span><span class="op">&gt;</span>
+	<span class="kw">where</span> <span class="ident">BE</span>: <span class="ident">backend</span>::<span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span>,
+		  <span class="ident">E</span>: <span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span>,
+		  <span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span> <span class="op">=</span> <span class="ident">H256</span><span class="op">&gt;</span>
+{
+	<span class="kw">fn</span> <span class="ident">block_status</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">BlockStatus</span>, <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">std</span>::<span class="ident">error</span>::<span class="ident">Error</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+		<span class="ident">Client</span>::<span class="ident">block_status</span>(<span class="self">self</span>, <span class="ident">id</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">e</span>) <span class="kw">as</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span>)
 	}
 }
 

@@ -250,9 +250,6 @@
 <span id="250">250</span>
 <span id="251">251</span>
 <span id="252">252</span>
-<span id="253">253</span>
-<span id="254">254</span>
-<span id="255">255</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -374,7 +371,7 @@
 <span class="doccomment">/// A background worker for performing block announcements.</span>
 <span class="kw">struct</span> <span class="ident">BlockAnnouncer</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">N</span><span class="op">&gt;</span> {
 	<span class="ident">net</span>: <span class="ident">N</span>,
-	<span class="ident">block_rx</span>: <span class="ident">mpsc</span>::<span class="ident">UnboundedReceiver</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Hash</span><span class="op">&gt;</span>,
+	<span class="ident">block_rx</span>: <span class="ident">mpsc</span>::<span class="ident">UnboundedReceiver</span><span class="op">&lt;</span>(<span class="ident">B</span>::<span class="ident">Hash</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
 	<span class="ident">latest_voted_blocks</span>: <span class="ident">VecDeque</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Hash</span><span class="op">&gt;</span>,
 	<span class="ident">reannounce_after</span>: <span class="ident">Duration</span>,
 	<span class="ident">delay</span>: <span class="ident">Delay</span>,
@@ -455,8 +452,8 @@
 			<span class="kw">match</span> <span class="self">self</span>.<span class="ident">block_rx</span>.<span class="ident">poll</span>().<span class="ident">expect</span>(<span class="string">&quot;unbounded receivers do not error; qed&quot;</span>) {
 				<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(())),
 				<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">block</span>)) <span class="op">=</span><span class="op">&gt;</span> {
-					<span class="kw">if</span> <span class="self">self</span>.<span class="ident">note_block</span>(<span class="ident">block</span>) {
-						<span class="self">self</span>.<span class="ident">net</span>.<span class="ident">announce</span>(<span class="ident">block</span>);
+					<span class="kw">if</span> <span class="self">self</span>.<span class="ident">note_block</span>(<span class="ident">block</span>.<span class="number">0</span>) {
+						<span class="self">self</span>.<span class="ident">net</span>.<span class="ident">announce</span>(<span class="ident">block</span>.<span class="number">0</span>, <span class="ident">block</span>.<span class="number">1</span>);
 						<span class="self">self</span>.<span class="ident">reset_delay</span>();
 					}
 				},
@@ -485,7 +482,7 @@
 					);
 
 					<span class="kw">for</span> <span class="ident">block</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">latest_voted_blocks</span>.<span class="ident">iter</span>() {
-						<span class="self">self</span>.<span class="ident">net</span>.<span class="ident">announce</span>(<span class="kw-2">*</span><span class="ident">block</span>);
+						<span class="self">self</span>.<span class="ident">net</span>.<span class="ident">announce</span>(<span class="kw-2">*</span><span class="ident">block</span>, <span class="ident">Vec</span>::<span class="ident">new</span>());
 					}
 				},
 				<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>),
@@ -496,15 +493,12 @@
 
 <span class="doccomment">/// A sender used to send block hashes to announce to a background job.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct</span> <span class="ident">BlockAnnounceSender</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span>(<span class="ident">mpsc</span>::<span class="ident">UnboundedSender</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Hash</span><span class="op">&gt;</span>);
+<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct</span> <span class="ident">BlockAnnounceSender</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span>(<span class="ident">mpsc</span>::<span class="ident">UnboundedSender</span><span class="op">&lt;</span>(<span class="ident">B</span>::<span class="ident">Hash</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>)<span class="op">&gt;</span>);
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> <span class="ident">BlockAnnounceSender</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Send a block hash for the background worker to announce.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">send</span>(
-		<span class="kw-2">&amp;</span><span class="self">self</span>,
-		<span class="ident">block</span>: <span class="ident">B</span>::<span class="ident">Hash</span>,
-	) {
-		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">unbounded_send</span>(<span class="ident">block</span>) {
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">send</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block</span>: <span class="ident">B</span>::<span class="ident">Hash</span>, <span class="ident">associated_data</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) {
+		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">unbounded_send</span>((<span class="ident">block</span>, <span class="ident">associated_data</span>)) {
 			<span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;afg&quot;</span>, <span class="string">&quot;Failed to send block to background announcer: {:?}&quot;</span>, <span class="ident">err</span>);
 		}
 	}
