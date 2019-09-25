@@ -1582,23 +1582,6 @@
 <span id="1582">1582</span>
 <span id="1583">1583</span>
 <span id="1584">1584</span>
-<span id="1585">1585</span>
-<span id="1586">1586</span>
-<span id="1587">1587</span>
-<span id="1588">1588</span>
-<span id="1589">1589</span>
-<span id="1590">1590</span>
-<span id="1591">1591</span>
-<span id="1592">1592</span>
-<span id="1593">1593</span>
-<span id="1594">1594</span>
-<span id="1595">1595</span>
-<span id="1596">1596</span>
-<span id="1597">1597</span>
-<span id="1598">1598</span>
-<span id="1599">1599</span>
-<span id="1600">1600</span>
-<span id="1601">1601</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1872,7 +1855,6 @@
 		<span class="ident">SaturatedConversion</span>,
 	}
 };
-<span class="kw">use</span> <span class="ident">phragmen</span>::{<span class="ident">elect</span>, <span class="ident">equalize</span>, <span class="ident">Support</span>, <span class="ident">SupportMap</span>, <span class="ident">ExtendedBalance</span>, <span class="ident">ACCURACY</span>};
 <span class="kw">use</span> <span class="ident">sr_staking_primitives</span>::{
 	<span class="ident">SessionIndex</span>,
 	<span class="ident">offence</span>::{<span class="ident">OnOffenceHandler</span>, <span class="ident">OffenceDetails</span>, <span class="ident">Offence</span>, <span class="ident">ReportOffence</span>},
@@ -1880,6 +1862,8 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">sr_primitives</span>::{<span class="ident">Serialize</span>, <span class="ident">Deserialize</span>};
 <span class="kw">use</span> <span class="ident">system</span>::{<span class="ident">ensure_signed</span>, <span class="ident">ensure_root</span>};
+
+<span class="kw">use</span> <span class="ident">phragmen</span>::{<span class="ident">elect</span>, <span class="ident">equalize</span>, <span class="ident">ExtendedBalance</span>, <span class="ident">Support</span>, <span class="ident">SupportMap</span>, <span class="ident">PhragmenStakedAssignment</span>};
 
 <span class="kw">const</span> <span class="ident">DEFAULT_MINIMUM_VALIDATOR_COUNT</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="number">4</span>;
 <span class="kw">const</span> <span class="ident">MAX_NOMINATIONS</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">16</span>;
@@ -2792,7 +2776,7 @@
 
 			<span class="kw">for</span> (<span class="ident">v</span>, <span class="ident">p</span>) <span class="kw">in</span> <span class="ident">validators</span>.<span class="ident">iter</span>().<span class="ident">zip</span>(<span class="ident">points</span>.<span class="ident">individual</span>.<span class="ident">into_iter</span>()) {
 				<span class="kw">if</span> <span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span> {
-					<span class="kw">let</span> <span class="ident">reward</span> <span class="op">=</span> <span class="ident">multiply_by_rational</span>(<span class="ident">total_payout</span>, <span class="ident">p</span>, <span class="ident">points</span>.<span class="ident">total</span>);
+					<span class="kw">let</span> <span class="ident">reward</span> <span class="op">=</span> <span class="ident">Perbill</span>::<span class="ident">from_rational_approximation</span>(<span class="ident">p</span>, <span class="ident">points</span>.<span class="ident">total</span>) <span class="op">*</span> <span class="ident">total_payout</span>;
 					<span class="ident">total_imbalance</span>.<span class="ident">subsume</span>(<span class="self">Self</span>::<span class="ident">reward_validator</span>(<span class="ident">v</span>, <span class="ident">reward</span>));
 				}
 			}
@@ -2854,21 +2838,15 @@
 		);
 
 		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">phragmen_result</span>) <span class="op">=</span> <span class="ident">maybe_phragmen_result</span> {
-			<span class="kw">let</span> <span class="ident">elected_stashes</span> <span class="op">=</span> <span class="ident">phragmen_result</span>.<span class="ident">winners</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">s</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">s</span>.<span class="ident">clone</span>()).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">AccountId</span><span class="op">&gt;</span><span class="op">&gt;</span>();
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">assignments</span> <span class="op">=</span> <span class="ident">phragmen_result</span>.<span class="ident">assignments</span>;
+			<span class="kw">let</span> <span class="ident">elected_stashes</span> <span class="op">=</span> <span class="ident">phragmen_result</span>.<span class="ident">winners</span>.<span class="ident">iter</span>()
+				.<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">s</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">s</span>.<span class="ident">clone</span>())
+				.<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">AccountId</span><span class="op">&gt;</span><span class="op">&gt;</span>();
+			<span class="kw">let</span> <span class="ident">assignments</span> <span class="op">=</span> <span class="ident">phragmen_result</span>.<span class="ident">assignments</span>;
 
-			<span class="comment">// helper closure.</span>
-			<span class="kw">let</span> <span class="ident">to_balance</span> <span class="op">=</span> <span class="op">|</span><span class="ident">b</span>: <span class="ident">ExtendedBalance</span><span class="op">|</span>
-				<span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">CurrencyToVote</span> <span class="kw">as</span> <span class="ident">Convert</span><span class="op">&lt;</span><span class="ident">ExtendedBalance</span>, <span class="ident">BalanceOf</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">convert</span>(<span class="ident">b</span>);
 			<span class="kw">let</span> <span class="ident">to_votes</span> <span class="op">=</span> <span class="op">|</span><span class="ident">b</span>: <span class="ident">BalanceOf</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">|</span>
 				<span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">CurrencyToVote</span> <span class="kw">as</span> <span class="ident">Convert</span><span class="op">&lt;</span><span class="ident">BalanceOf</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">u64</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">convert</span>(<span class="ident">b</span>) <span class="kw">as</span> <span class="ident">ExtendedBalance</span>;
-
-			<span class="comment">// The return value of this is safe to be converted to u64.</span>
-			<span class="comment">// The original balance, `b` is within the scope of u64. It is just extended to u128</span>
-			<span class="comment">// to be properly multiplied by a ratio, which will lead to another value</span>
-			<span class="comment">// less than u64 for sure. The result can then be safely passed to `to_balance`.</span>
-			<span class="comment">// For now the backward convert is used. A simple `TryFrom&lt;u64&gt;` is also safe.</span>
-			<span class="kw">let</span> <span class="ident">ratio_of</span> <span class="op">=</span> <span class="op">|</span><span class="ident">b</span>, <span class="ident">r</span>: <span class="ident">ExtendedBalance</span><span class="op">|</span> <span class="ident">r</span>.<span class="ident">saturating_mul</span>(<span class="ident">to_votes</span>(<span class="ident">b</span>)) <span class="op">/</span> <span class="ident">ACCURACY</span>;
+			<span class="kw">let</span> <span class="ident">to_balance</span> <span class="op">=</span> <span class="op">|</span><span class="ident">e</span>: <span class="ident">ExtendedBalance</span><span class="op">|</span>
+				<span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">CurrencyToVote</span> <span class="kw">as</span> <span class="ident">Convert</span><span class="op">&lt;</span><span class="ident">ExtendedBalance</span>, <span class="ident">BalanceOf</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">convert</span>(<span class="ident">e</span>);
 
 			<span class="comment">// Initialize the support of each candidate.</span>
 			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">supports</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">SupportMap</span><span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">AccountId</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">new</span>();
@@ -2880,29 +2858,42 @@
 					<span class="ident">supports</span>.<span class="ident">insert</span>(<span class="ident">e</span>.<span class="ident">clone</span>(), <span class="ident">item</span>);
 				});
 
-			<span class="comment">// convert the ratio in-place (and replace) to the balance but still in the extended</span>
-			<span class="comment">// balance type.</span>
-			<span class="kw">for</span> (<span class="ident">n</span>, <span class="ident">assignment</span>) <span class="kw">in</span> <span class="ident">assignments</span>.<span class="ident">iter_mut</span>() {
-				<span class="kw">for</span> (<span class="ident">c</span>, <span class="ident">r</span>) <span class="kw">in</span> <span class="ident">assignment</span>.<span class="ident">iter_mut</span>() {
-					<span class="kw">let</span> <span class="ident">nominator_stake</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">slashable_balance_of</span>(<span class="ident">n</span>);
-					<span class="kw">let</span> <span class="ident">other_stake</span> <span class="op">=</span> <span class="ident">ratio_of</span>(<span class="ident">nominator_stake</span>, <span class="kw-2">*</span><span class="ident">r</span>);
+			<span class="comment">// build support struct.</span>
+			<span class="kw">for</span> (<span class="ident">n</span>, <span class="ident">assignment</span>) <span class="kw">in</span> <span class="ident">assignments</span>.<span class="ident">iter</span>() {
+				<span class="kw">for</span> (<span class="ident">c</span>, <span class="ident">per_thing</span>) <span class="kw">in</span> <span class="ident">assignment</span>.<span class="ident">iter</span>() {
+					<span class="kw">let</span> <span class="ident">nominator_stake</span> <span class="op">=</span> <span class="ident">to_votes</span>(<span class="self">Self</span>::<span class="ident">slashable_balance_of</span>(<span class="ident">n</span>));
+					<span class="comment">// AUDIT: it is crucially important for the `Mul` implementation of all</span>
+					<span class="comment">// per-things to be sound.</span>
+					<span class="kw">let</span> <span class="ident">other_stake</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">per_thing</span> <span class="op">*</span> <span class="ident">nominator_stake</span>;
 					<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">support</span>) <span class="op">=</span> <span class="ident">supports</span>.<span class="ident">get_mut</span>(<span class="ident">c</span>) {
-						<span class="comment">// This for an astronomically rich validator with more astronomically rich</span>
+						<span class="comment">// For an astronomically rich validator with more astronomically rich</span>
 						<span class="comment">// set of nominators, this might saturate.</span>
 						<span class="ident">support</span>.<span class="ident">total</span> <span class="op">=</span> <span class="ident">support</span>.<span class="ident">total</span>.<span class="ident">saturating_add</span>(<span class="ident">other_stake</span>);
 						<span class="ident">support</span>.<span class="ident">others</span>.<span class="ident">push</span>((<span class="ident">n</span>.<span class="ident">clone</span>(), <span class="ident">other_stake</span>));
 					}
-					<span class="comment">// convert the ratio to extended balance</span>
-					<span class="kw-2">*</span><span class="ident">r</span> <span class="op">=</span> <span class="ident">other_stake</span>;
 				}
 			}
 
-			<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;equalize&quot;</span>)]</span>
-			{
+			<span class="kw">if</span> <span class="macro">cfg</span><span class="macro">!</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;equalize&quot;</span>) {
+				<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">staked_assignments</span>
+					: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">T</span>::<span class="ident">AccountId</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">PhragmenStakedAssignment</span><span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">AccountId</span><span class="op">&gt;</span><span class="op">&gt;</span>)<span class="op">&gt;</span>
+					<span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">assignments</span>.<span class="ident">len</span>());
+				<span class="kw">for</span> (<span class="ident">n</span>, <span class="ident">assignment</span>) <span class="kw">in</span> <span class="ident">assignments</span>.<span class="ident">iter</span>() {
+					<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">staked_assignment</span>
+						: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">PhragmenStakedAssignment</span><span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">AccountId</span><span class="op">&gt;</span><span class="op">&gt;</span>
+						<span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">assignment</span>.<span class="ident">len</span>());
+					<span class="kw">for</span> (<span class="ident">c</span>, <span class="ident">per_thing</span>) <span class="kw">in</span> <span class="ident">assignment</span>.<span class="ident">iter</span>() {
+						<span class="kw">let</span> <span class="ident">nominator_stake</span> <span class="op">=</span> <span class="ident">to_votes</span>(<span class="self">Self</span>::<span class="ident">slashable_balance_of</span>(<span class="ident">n</span>));
+						<span class="kw">let</span> <span class="ident">other_stake</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">per_thing</span> <span class="op">*</span> <span class="ident">nominator_stake</span>;
+						<span class="ident">staked_assignment</span>.<span class="ident">push</span>((<span class="ident">c</span>.<span class="ident">clone</span>(), <span class="ident">other_stake</span>));
+					}
+					<span class="ident">staked_assignments</span>.<span class="ident">push</span>((<span class="ident">n</span>.<span class="ident">clone</span>(), <span class="ident">staked_assignment</span>));
+				}
+
 				<span class="kw">let</span> <span class="ident">tolerance</span> <span class="op">=</span> <span class="number">0_u128</span>;
 				<span class="kw">let</span> <span class="ident">iterations</span> <span class="op">=</span> <span class="number">2_usize</span>;
-				<span class="ident">equalize</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">T</span>::<span class="ident">CurrencyToVote</span><span class="op">&gt;</span>(
-					<span class="ident">assignments</span>,
+				<span class="ident">equalize</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">T</span>::<span class="ident">CurrencyToVote</span>, <span class="kw">_</span><span class="op">&gt;</span>(
+					<span class="ident">staked_assignments</span>,
 					<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">supports</span>,
 					<span class="ident">tolerance</span>,
 					<span class="ident">iterations</span>,
@@ -3050,31 +3041,6 @@
 			(<span class="ident">author</span>, <span class="number">1</span>)
 		])
 	}
-}
-
-<span class="comment">// This is guarantee not to overflow on whatever values.</span>
-<span class="comment">// `num` must be inferior to `den` otherwise it will be reduce to `den`.</span>
-<span class="kw">fn</span> <span class="ident">multiply_by_rational</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span>(<span class="ident">value</span>: <span class="ident">N</span>, <span class="ident">num</span>: <span class="ident">u32</span>, <span class="ident">den</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">N</span>
-	<span class="kw">where</span> <span class="ident">N</span>: <span class="ident">SimpleArithmetic</span> <span class="op">+</span> <span class="ident">Clone</span>
-{
-	<span class="kw">let</span> <span class="ident">num</span> <span class="op">=</span> <span class="ident">num</span>.<span class="ident">min</span>(<span class="ident">den</span>);
-
-	<span class="kw">let</span> <span class="ident">result_divisor_part</span> <span class="op">=</span> <span class="ident">value</span>.<span class="ident">clone</span>() <span class="op">/</span> <span class="ident">den</span>.<span class="ident">into</span>() <span class="op">*</span> <span class="ident">num</span>.<span class="ident">into</span>();
-
-	<span class="kw">let</span> <span class="ident">result_remainder_part</span> <span class="op">=</span> {
-		<span class="kw">let</span> <span class="ident">rem</span> <span class="op">=</span> <span class="ident">value</span> <span class="op">%</span> <span class="ident">den</span>.<span class="ident">into</span>();
-
-		<span class="comment">// Fits into u32 because den is u32 and remainder &lt; den</span>
-		<span class="kw">let</span> <span class="ident">rem_u32</span> <span class="op">=</span> <span class="ident">rem</span>.<span class="ident">saturated_into</span>::<span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>();
-
-		<span class="comment">// Multiplication fits into u64 as both term are u32</span>
-		<span class="kw">let</span> <span class="ident">rem_part</span> <span class="op">=</span> <span class="ident">rem_u32</span> <span class="kw">as</span> <span class="ident">u64</span> <span class="op">*</span> <span class="ident">num</span> <span class="kw">as</span> <span class="ident">u64</span> <span class="op">/</span> <span class="ident">den</span> <span class="kw">as</span> <span class="ident">u64</span>;
-
-		<span class="comment">// Result fits into u32 as num &lt; total_points</span>
-		(<span class="ident">rem_part</span> <span class="kw">as</span> <span class="ident">u32</span>).<span class="ident">into</span>()
-	};
-
-	<span class="ident">result_divisor_part</span> <span class="op">+</span> <span class="ident">result_remainder_part</span>
 }
 
 <span class="doccomment">/// A `Convert` implementation that finds the stash of the given controller account,</span>
