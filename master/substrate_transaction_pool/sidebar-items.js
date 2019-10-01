@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["error","Transaction pool error."]],"struct":[["ChainApi","The transaction pool logic"]]});
+initSidebarItems({"mod":[["error","Transaction pool error."]],"struct":[["FullChainApi","The transaction pool logic"]]});
