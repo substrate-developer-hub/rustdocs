@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/futures-channel-preview-0.3.0-alpha.18/src/oneshot.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>oneshot.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../futures_channel/index.html'><div class='logo-container'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form js-only"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/futures-channel-preview-0.3.0-alpha.19/src/oneshot.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>oneshot.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../futures_channel/index.html'><div class='logo-container'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form js-only"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
 <span id="4">  4</span>
@@ -596,15 +596,15 @@
         }
 
         <span class="comment">// If our other half is not gone then we need to park our current task</span>
-        <span class="comment">// and move it into the `notify_cancel` slot to get notified when it&#39;s</span>
+        <span class="comment">// and move it into the `tx_task` slot to get notified when it&#39;s</span>
         <span class="comment">// actually gone.</span>
         <span class="comment">//</span>
         <span class="comment">// If `try_lock` fails, then the `Receiver` is in the process of using</span>
         <span class="comment">// it, so we can deduce that it&#39;s now in the process of going away and</span>
         <span class="comment">// hence we&#39;re canceled. If it succeeds then we just store our handle.</span>
         <span class="comment">//</span>
-        <span class="comment">// Crucially we then check `oneshot_gone` *again* before we return.</span>
-        <span class="comment">// While we were storing our handle inside `notify_cancel` the</span>
+        <span class="comment">// Crucially we then check `complete` *again* before we return.</span>
+        <span class="comment">// While we were storing our handle inside `tx_task` the</span>
         <span class="comment">// `Receiver` may have been dropped. The first thing it does is set the</span>
         <span class="comment">// flag, and if it fails to acquire the lock it assumes that we&#39;ll see</span>
         <span class="comment">// the flag later on. So... we then try to see the flag later on!</span>
@@ -780,10 +780,10 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Return values</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// If `Ok(Ready)` is returned then the associated `Receiver` has been</span>
+    <span class="doccomment">/// If `Ready(())` is returned then the associated `Receiver` has been</span>
     <span class="doccomment">/// dropped, which means any work required for sending should be canceled.</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// If `Ok(Pending)` is returned then the associated `Receiver` is still</span>
+    <span class="doccomment">/// If `Pending` is returned then the associated `Receiver` is still</span>
     <span class="doccomment">/// alive and may be able to receive a message if sent. The current task,</span>
     <span class="doccomment">/// however, is scheduled to receive a notification if the corresponding</span>
     <span class="doccomment">/// `Receiver` goes away.</span>
