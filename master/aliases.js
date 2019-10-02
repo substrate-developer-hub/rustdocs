@@ -363,6 +363,7 @@ ALIASES["substrate_consensus_uncles"] = {};
 ALIASES["substrate_executor"] = {};
 ALIASES["substrate_finality_grandpa"] = {};
 ALIASES["substrate_finality_grandpa_primitives"] = {};
+ALIASES["substrate_header_metadata"] = {};
 ALIASES["substrate_inherents"] = {};
 ALIASES["substrate_keyring"] = {};
 ALIASES["substrate_keystore"] = {};
