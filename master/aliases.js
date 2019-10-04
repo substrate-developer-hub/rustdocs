@@ -329,6 +329,7 @@ ALIASES["srml_support_test"] = {};
 ALIASES["srml_system"] = {};
 ALIASES["srml_timestamp"] = {};
 ALIASES["srml_treasury"] = {};
+ALIASES["srml_utility"] = {};
 ALIASES["stable_deref_trait"] = {};
 ALIASES["static_assertions"] = {};
 ALIASES["static_slice"] = {};
