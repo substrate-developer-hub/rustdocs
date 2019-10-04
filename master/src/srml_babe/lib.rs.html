@@ -558,6 +558,69 @@
 <span id="558">558</span>
 <span id="559">559</span>
 <span id="560">560</span>
+<span id="561">561</span>
+<span id="562">562</span>
+<span id="563">563</span>
+<span id="564">564</span>
+<span id="565">565</span>
+<span id="566">566</span>
+<span id="567">567</span>
+<span id="568">568</span>
+<span id="569">569</span>
+<span id="570">570</span>
+<span id="571">571</span>
+<span id="572">572</span>
+<span id="573">573</span>
+<span id="574">574</span>
+<span id="575">575</span>
+<span id="576">576</span>
+<span id="577">577</span>
+<span id="578">578</span>
+<span id="579">579</span>
+<span id="580">580</span>
+<span id="581">581</span>
+<span id="582">582</span>
+<span id="583">583</span>
+<span id="584">584</span>
+<span id="585">585</span>
+<span id="586">586</span>
+<span id="587">587</span>
+<span id="588">588</span>
+<span id="589">589</span>
+<span id="590">590</span>
+<span id="591">591</span>
+<span id="592">592</span>
+<span id="593">593</span>
+<span id="594">594</span>
+<span id="595">595</span>
+<span id="596">596</span>
+<span id="597">597</span>
+<span id="598">598</span>
+<span id="599">599</span>
+<span id="600">600</span>
+<span id="601">601</span>
+<span id="602">602</span>
+<span id="603">603</span>
+<span id="604">604</span>
+<span id="605">605</span>
+<span id="606">606</span>
+<span id="607">607</span>
+<span id="608">608</span>
+<span id="609">609</span>
+<span id="610">610</span>
+<span id="611">611</span>
+<span id="612">612</span>
+<span id="613">613</span>
+<span id="614">614</span>
+<span id="615">615</span>
+<span id="616">616</span>
+<span id="617">617</span>
+<span id="618">618</span>
+<span id="619">619</span>
+<span id="620">620</span>
+<span id="621">621</span>
+<span id="622">622</span>
+<span id="623">623</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -683,8 +746,52 @@
 }
 
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Trait</span>: <span class="ident">timestamp</span>::<span class="ident">Trait</span> {
+	<span class="doccomment">/// The amount of time, in slots, that each epoch should last.</span>
 	<span class="kw">type</span> <span class="ident">EpochDuration</span>: <span class="ident">Get</span><span class="op">&lt;</span><span class="ident">SlotNumber</span><span class="op">&gt;</span>;
+
+	<span class="doccomment">/// The expected average block time at which BABE should be creating</span>
+	<span class="doccomment">/// blocks. Since BABE is probabilistic it is not trivial to figure out</span>
+	<span class="doccomment">/// what the expected average block time should be based on the slot</span>
+	<span class="doccomment">/// duration and the security parameter `c` (where `1 - c` represents</span>
+	<span class="doccomment">/// the probability of a slot being empty).</span>
 	<span class="kw">type</span> <span class="ident">ExpectedBlockTime</span>: <span class="ident">Get</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Moment</span><span class="op">&gt;</span>;
+
+	<span class="doccomment">/// BABE requires some logic to be triggered on every block to query for whether an epoch</span>
+	<span class="doccomment">/// has ended and to perform the transition to the next epoch.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// Typically, the `ExternalTrigger` type should be used. An internal trigger should only be used</span>
+	<span class="doccomment">/// when no other module is responsible for changing authority set.</span>
+	<span class="kw">type</span> <span class="ident">EpochChangeTrigger</span>: <span class="ident">EpochChangeTrigger</span>;
+}
+
+<span class="doccomment">/// Trigger an epoch change, if any should take place.</span>
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">EpochChangeTrigger</span> {
+	<span class="doccomment">/// Trigger an epoch change, if any should take place. This should be called</span>
+	<span class="doccomment">/// during every block, after initialization is done.</span>
+	<span class="kw">fn</span> <span class="ident">trigger</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Trait</span><span class="op">&gt;</span>(<span class="ident">now</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>);
+}
+
+<span class="doccomment">/// A type signifying to BABE that an external trigger</span>
+<span class="doccomment">/// for epoch changes (e.g. srml-session) is used.</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ExternalTrigger</span>;
+
+<span class="kw">impl</span> <span class="ident">EpochChangeTrigger</span> <span class="kw">for</span> <span class="ident">ExternalTrigger</span> {
+	<span class="kw">fn</span> <span class="ident">trigger</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Trait</span><span class="op">&gt;</span>(<span class="kw">_</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>) { } <span class="comment">// nothing - trigger is external.</span>
+}
+
+<span class="doccomment">/// A type signifying to BABE that it should perform epoch changes</span>
+<span class="doccomment">/// with an internal trigger, recycling the same authorities forever.</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SameAuthoritiesForever</span>;
+
+<span class="kw">impl</span> <span class="ident">EpochChangeTrigger</span> <span class="kw">for</span> <span class="ident">SameAuthoritiesForever</span> {
+	<span class="kw">fn</span> <span class="ident">trigger</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Trait</span><span class="op">&gt;</span>(<span class="ident">now</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>) {
+		<span class="kw">if</span> <span class="op">&lt;</span><span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">should_epoch_change</span>(<span class="ident">now</span>) {
+			<span class="kw">let</span> <span class="ident">authorities</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">authorities</span>();
+			<span class="kw">let</span> <span class="ident">next_authorities</span> <span class="op">=</span> <span class="ident">authorities</span>.<span class="ident">clone</span>();
+
+			<span class="op">&lt;</span><span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">enact_epoch_change</span>(<span class="ident">authorities</span>, <span class="ident">next_authorities</span>);
+		}
+	}
 }
 
 <span class="doccomment">/// The length of the BABE randomness</span>
@@ -764,8 +871,8 @@
 		<span class="kw">const</span> <span class="ident">ExpectedBlockTime</span>: <span class="ident">T</span>::<span class="ident">Moment</span> <span class="op">=</span> <span class="ident">T</span>::<span class="ident">ExpectedBlockTime</span>::<span class="ident">get</span>();
 
 		<span class="doccomment">/// Initialization</span>
-		<span class="kw">fn</span> <span class="ident">on_initialize</span>() {
-			<span class="self">Self</span>::<span class="ident">do_initialize</span>();
+		<span class="kw">fn</span> <span class="ident">on_initialize</span>(<span class="ident">now</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>) {
+			<span class="self">Self</span>::<span class="ident">do_initialize</span>(<span class="ident">now</span>);
 		}
 
 		<span class="doccomment">/// Block finalization</span>
@@ -824,21 +931,10 @@
 		<span class="comment">// it might be (and it is in current implementation) that session module is calling</span>
 		<span class="comment">// should_end_session() from it&#39;s own on_initialize() handler</span>
 		<span class="comment">// =&gt; because session on_initialize() is called earlier than ours, let&#39;s ensure</span>
-		<span class="comment">// that we have synced with digest before checking if session should be ended</span>
-		<span class="self">Self</span>::<span class="ident">do_initialize</span>();
+		<span class="comment">// that we have synced with digest before checking if session should be ended.</span>
+		<span class="self">Self</span>::<span class="ident">do_initialize</span>(<span class="ident">now</span>);
 
-		<span class="comment">// The session has technically ended during the passage of time</span>
-		<span class="comment">// between this block and the last, but we have to &quot;end&quot; the session now,</span>
-		<span class="comment">// since there is no earlier possible block we could have done it.</span>
-		<span class="comment">//</span>
-		<span class="comment">// The exception is for block 1: the genesis has slot 0, so we treat</span>
-		<span class="comment">// epoch 0 as having started at the slot of block 1. We want to use</span>
-		<span class="comment">// the same randomness and validator set as signalled in the genesis,</span>
-		<span class="comment">// so we don&#39;t rotate the session.</span>
-		<span class="ident">now</span> <span class="op">!</span><span class="op">=</span> <span class="ident">sr_primitives</span>::<span class="ident">traits</span>::<span class="ident">One</span>::<span class="ident">one</span>() <span class="kw-2">&amp;</span><span class="op">&amp;</span> {
-			<span class="kw">let</span> <span class="ident">diff</span> <span class="op">=</span> <span class="ident">CurrentSlot</span>::<span class="ident">get</span>().<span class="ident">saturating_sub</span>(<span class="self">Self</span>::<span class="ident">current_epoch_start</span>());
-			<span class="ident">diff</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">T</span>::<span class="ident">EpochDuration</span>::<span class="ident">get</span>()
-		}
+		<span class="self">Self</span>::<span class="ident">should_epoch_change</span>(<span class="ident">now</span>)
 	}
 }
 
@@ -897,6 +993,69 @@
 		<span class="op">&lt;</span><span class="ident">T</span> <span class="kw">as</span> <span class="ident">timestamp</span>::<span class="ident">Trait</span><span class="op">&gt;</span>::<span class="ident">MinimumPeriod</span>::<span class="ident">get</span>().<span class="ident">saturating_mul</span>(<span class="number">2</span>.<span class="ident">into</span>())
 	}
 
+	<span class="doccomment">/// Determine whether an epoch change should take place at this block.</span>
+	<span class="doccomment">/// Assumes that initialization has already taken place.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">should_epoch_change</span>(<span class="ident">now</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+		<span class="comment">// The epoch has technically ended during the passage of time</span>
+		<span class="comment">// between this block and the last, but we have to &quot;end&quot; the epoch now,</span>
+		<span class="comment">// since there is no earlier possible block we could have done it.</span>
+		<span class="comment">//</span>
+		<span class="comment">// The exception is for block 1: the genesis has slot 0, so we treat</span>
+		<span class="comment">// epoch 0 as having started at the slot of block 1. We want to use</span>
+		<span class="comment">// the same randomness and validator set as signalled in the genesis,</span>
+		<span class="comment">// so we don&#39;t rotate the epoch.</span>
+		<span class="ident">now</span> <span class="op">!</span><span class="op">=</span> <span class="ident">sr_primitives</span>::<span class="ident">traits</span>::<span class="ident">One</span>::<span class="ident">one</span>() <span class="kw-2">&amp;</span><span class="op">&amp;</span> {
+			<span class="kw">let</span> <span class="ident">diff</span> <span class="op">=</span> <span class="ident">CurrentSlot</span>::<span class="ident">get</span>().<span class="ident">saturating_sub</span>(<span class="self">Self</span>::<span class="ident">current_epoch_start</span>());
+			<span class="ident">diff</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">T</span>::<span class="ident">EpochDuration</span>::<span class="ident">get</span>()
+		}
+	}
+
+	<span class="doccomment">/// DANGEROUS: Enact an epoch change. Should be done on every block where `should_epoch_change` has returned `true`,</span>
+	<span class="doccomment">/// and the caller is the only caller of this function.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// Typically, this is not handled directly by the user, but by higher-level validator-set manager logic like</span>
+	<span class="doccomment">/// `srml-session`.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">enact_epoch_change</span>(
+		<span class="ident">authorities</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">BabeAuthorityWeight</span>)<span class="op">&gt;</span>,
+		<span class="ident">next_authorities</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">BabeAuthorityWeight</span>)<span class="op">&gt;</span>,
+	) {
+		<span class="comment">// PRECONDITION: caller has done initialization and is guaranteed</span>
+		<span class="comment">// by the session module to be called before this.</span>
+		<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">debug_assertions</span>)]</span>
+		{
+			<span class="macro">assert</span><span class="macro">!</span>(<span class="self">Self</span>::<span class="ident">initialized</span>().<span class="ident">is_some</span>())
+		}
+
+		<span class="comment">// Update epoch index</span>
+		<span class="kw">let</span> <span class="ident">epoch_index</span> <span class="op">=</span> <span class="ident">EpochIndex</span>::<span class="ident">get</span>()
+			.<span class="ident">checked_add</span>(<span class="number">1</span>)
+			.<span class="ident">expect</span>(<span class="string">&quot;epoch indices will never reach 2^64 before the death of the universe; qed&quot;</span>);
+
+		<span class="ident">EpochIndex</span>::<span class="ident">put</span>(<span class="ident">epoch_index</span>);
+		<span class="ident">Authorities</span>::<span class="ident">put</span>(<span class="ident">authorities</span>);
+
+		<span class="comment">// Update epoch randomness.</span>
+		<span class="kw">let</span> <span class="ident">next_epoch_index</span> <span class="op">=</span> <span class="ident">epoch_index</span>
+			.<span class="ident">checked_add</span>(<span class="number">1</span>)
+			.<span class="ident">expect</span>(<span class="string">&quot;epoch indices will never reach 2^64 before the death of the universe; qed&quot;</span>);
+
+		<span class="comment">// Returns randomness for the current epoch and computes the *next*</span>
+		<span class="comment">// epoch randomness.</span>
+		<span class="kw">let</span> <span class="ident">randomness</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">randomness_change_epoch</span>(<span class="ident">next_epoch_index</span>);
+		<span class="ident">Randomness</span>::<span class="ident">put</span>(<span class="ident">randomness</span>);
+
+		<span class="comment">// After we update the current epoch, we signal the *next* epoch change</span>
+		<span class="comment">// so that nodes can track changes.</span>
+		<span class="kw">let</span> <span class="ident">next_randomness</span> <span class="op">=</span> <span class="ident">NextRandomness</span>::<span class="ident">get</span>();
+
+		<span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> <span class="ident">NextEpochDescriptor</span> {
+			<span class="ident">authorities</span>: <span class="ident">next_authorities</span>,
+			<span class="ident">randomness</span>: <span class="ident">next_randomness</span>,
+		};
+
+		<span class="self">Self</span>::<span class="ident">deposit_consensus</span>(<span class="ident">ConsensusLog</span>::<span class="ident">NextEpochData</span>(<span class="ident">next</span>))
+	}
+
 	<span class="comment">// finds the start slot of the current epoch. only guaranteed to</span>
 	<span class="comment">// give correct results after `do_initialize` of the first block</span>
 	<span class="comment">// in the chain (as its result is based off of `GenesisSlot`).</span>
@@ -924,7 +1083,7 @@
 		}
 	}
 
-	<span class="kw">fn</span> <span class="ident">do_initialize</span>() {
+	<span class="kw">fn</span> <span class="ident">do_initialize</span>(<span class="ident">now</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>) {
 		<span class="comment">// since do_initialize can be called twice (if session module is present)</span>
 		<span class="comment">// =&gt; let&#39;s ensure that we only modify the storage once per block</span>
 		<span class="kw">let</span> <span class="ident">initialized</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">initialized</span>().<span class="ident">is_some</span>();
@@ -975,6 +1134,9 @@
 		});
 
 		<span class="ident">Initialized</span>::<span class="ident">put</span>(<span class="ident">maybe_vrf</span>);
+
+		<span class="comment">// enact epoch change, if necessary.</span>
+		<span class="ident">T</span>::<span class="ident">EpochChangeTrigger</span>::<span class="ident">trigger</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="ident">now</span>)
 	}
 
 	<span class="doccomment">/// Call this function exactly once when an epoch changes, to update the</span>
@@ -1021,51 +1183,15 @@
 	<span class="kw">fn</span> <span class="ident">on_new_session</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">I</span>: <span class="lifetime">&#39;a</span><span class="op">&gt;</span>(<span class="ident">_changed</span>: <span class="ident">bool</span>, <span class="ident">validators</span>: <span class="ident">I</span>, <span class="ident">queued_validators</span>: <span class="ident">I</span>)
 		<span class="kw">where</span> <span class="ident">I</span>: <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">T</span>::<span class="ident">AccountId</span>, <span class="ident">AuthorityId</span>)<span class="op">&gt;</span>
 	{
-		<span class="comment">// PRECONDITION: `should_end_session` has done initialization and is guaranteed</span>
-		<span class="comment">// by the session module to be called before this.</span>
-		<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">debug_assertions</span>)]</span>
-		{
-			<span class="macro">assert</span><span class="macro">!</span>(<span class="self">Self</span>::<span class="ident">initialized</span>().<span class="ident">is_some</span>())
-		}
-
-		<span class="comment">// Update epoch index</span>
-		<span class="kw">let</span> <span class="ident">epoch_index</span> <span class="op">=</span> <span class="ident">EpochIndex</span>::<span class="ident">get</span>()
-			.<span class="ident">checked_add</span>(<span class="number">1</span>)
-			.<span class="ident">expect</span>(<span class="string">&quot;epoch indices will never reach 2^64 before the death of the universe; qed&quot;</span>);
-
-		<span class="ident">EpochIndex</span>::<span class="ident">put</span>(<span class="ident">epoch_index</span>);
-
-		<span class="comment">// Update authorities.</span>
 		<span class="kw">let</span> <span class="ident">authorities</span> <span class="op">=</span> <span class="ident">validators</span>.<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">_account</span>, <span class="ident">k</span>)<span class="op">|</span> {
 			(<span class="ident">k</span>, <span class="number">1</span>)
 		}).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
 
-		<span class="ident">Authorities</span>::<span class="ident">put</span>(<span class="ident">authorities</span>);
-
-		<span class="comment">// Update epoch randomness.</span>
-		<span class="kw">let</span> <span class="ident">next_epoch_index</span> <span class="op">=</span> <span class="ident">epoch_index</span>
-			.<span class="ident">checked_add</span>(<span class="number">1</span>)
-			.<span class="ident">expect</span>(<span class="string">&quot;epoch indices will never reach 2^64 before the death of the universe; qed&quot;</span>);
-
-		<span class="comment">// Returns randomness for the current epoch and computes the *next*</span>
-		<span class="comment">// epoch randomness.</span>
-		<span class="kw">let</span> <span class="ident">randomness</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">randomness_change_epoch</span>(<span class="ident">next_epoch_index</span>);
-		<span class="ident">Randomness</span>::<span class="ident">put</span>(<span class="ident">randomness</span>);
-
-		<span class="comment">// After we update the current epoch, we signal the *next* epoch change</span>
-		<span class="comment">// so that nodes can track changes.</span>
 		<span class="kw">let</span> <span class="ident">next_authorities</span> <span class="op">=</span> <span class="ident">queued_validators</span>.<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">_account</span>, <span class="ident">k</span>)<span class="op">|</span> {
 			(<span class="ident">k</span>, <span class="number">1</span>)
 		}).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
 
-		<span class="kw">let</span> <span class="ident">next_randomness</span> <span class="op">=</span> <span class="ident">NextRandomness</span>::<span class="ident">get</span>();
-
-		<span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> <span class="ident">NextEpochDescriptor</span> {
-			<span class="ident">authorities</span>: <span class="ident">next_authorities</span>,
-			<span class="ident">randomness</span>: <span class="ident">next_randomness</span>,
-		};
-
-		<span class="self">Self</span>::<span class="ident">deposit_consensus</span>(<span class="ident">ConsensusLog</span>::<span class="ident">NextEpochData</span>(<span class="ident">next</span>))
+		<span class="self">Self</span>::<span class="ident">enact_epoch_change</span>(<span class="ident">authorities</span>, <span class="ident">next_authorities</span>)
 	}
 
 	<span class="kw">fn</span> <span class="ident">on_disabled</span>(<span class="ident">i</span>: <span class="ident">usize</span>) {
