@@ -177,11 +177,6 @@
 <span id="166">166</span>
 <span id="167">167</span>
 <span id="168">168</span>
-<span id="169">169</span>
-<span id="170">170</span>
-<span id="171">171</span>
-<span id="172">172</span>
-<span id="173">173</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -208,27 +203,21 @@
 <span class="kw">use</span> <span class="ident">rstd</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">support</span>::{<span class="ident">decl_module</span>, <span class="ident">decl_event</span>, <span class="ident">Parameter</span>};
 <span class="kw">use</span> <span class="ident">system</span>::<span class="ident">ensure_root</span>;
-<span class="kw">use</span> <span class="ident">sr_primitives</span>::{
-	<span class="ident">traits</span>::{<span class="ident">Dispatchable</span>, <span class="ident">DispatchResult</span>}, <span class="ident">weights</span>::<span class="ident">SimpleDispatchInfo</span>
-};
+<span class="kw">use</span> <span class="ident">sr_primitives</span>::{<span class="ident">traits</span>::<span class="ident">Dispatchable</span>, <span class="ident">weights</span>::<span class="ident">SimpleDispatchInfo</span>, <span class="ident">DispatchError</span>};
 
 <span class="doccomment">/// Configuration trait.</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Trait</span>: <span class="ident">system</span>::<span class="ident">Trait</span> {
 	<span class="doccomment">/// The overarching event type.</span>
-	<span class="kw">type</span> <span class="ident">Event</span>: <span class="ident">From</span><span class="op">&lt;</span><span class="ident">Event</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="ident">system</span>::<span class="ident">Trait</span><span class="op">&gt;</span>::<span class="ident">Event</span><span class="op">&gt;</span>;
+	<span class="kw">type</span> <span class="ident">Event</span>: <span class="ident">From</span><span class="op">&lt;</span><span class="ident">Event</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="ident">system</span>::<span class="ident">Trait</span><span class="op">&gt;</span>::<span class="ident">Event</span><span class="op">&gt;</span>;
 
 	<span class="doccomment">/// The overarching call type.</span>
 	<span class="kw">type</span> <span class="ident">Call</span>: <span class="ident">Parameter</span> <span class="op">+</span> <span class="ident">Dispatchable</span><span class="op">&lt;</span><span class="ident">Origin</span><span class="op">=</span><span class="self">Self</span>::<span class="ident">Origin</span><span class="op">&gt;</span>;
 }
 
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">DispatchResultOf</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">DispatchResult</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">T</span> <span class="kw">as</span> <span class="ident">Trait</span><span class="op">&gt;</span>::<span class="ident">Call</span> <span class="kw">as</span> <span class="ident">Dispatchable</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
-
 <span class="macro">decl_event</span><span class="macro">!</span>(
 	<span class="doccomment">/// Events type.</span>
-	<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">Event</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="kw">where</span>
-		<span class="ident">DispatchResult</span> <span class="op">=</span> <span class="ident">DispatchResultOf</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
-	{
-		<span class="ident">BatchExecuted</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">DispatchResult</span><span class="op">&gt;</span>),
+	<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">Event</span> {
+		<span class="ident">BatchExecuted</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">DispatchError</span><span class="op">&gt;</span><span class="op">&gt;</span>),
 	}
 );
 
@@ -243,8 +232,9 @@
 			<span class="ident">ensure_root</span>(<span class="ident">origin</span>)<span class="question-mark">?</span>;
 			<span class="kw">let</span> <span class="ident">results</span> <span class="op">=</span> <span class="ident">calls</span>.<span class="ident">into_iter</span>()
 				.<span class="ident">map</span>(<span class="op">|</span><span class="ident">call</span><span class="op">|</span> <span class="ident">call</span>.<span class="ident">dispatch</span>(<span class="ident">system</span>::<span class="ident">RawOrigin</span>::<span class="ident">Root</span>.<span class="ident">into</span>()))
+				.<span class="ident">map</span>(<span class="op">|</span><span class="ident">res</span><span class="op">|</span> <span class="ident">res</span>.<span class="ident">map_err</span>(<span class="ident">Into</span>::<span class="ident">into</span>))
 				.<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
-			<span class="self">Self</span>::<span class="ident">deposit_event</span>(<span class="ident">RawEvent</span>::<span class="ident">BatchExecuted</span>(<span class="ident">results</span>));
+			<span class="self">Self</span>::<span class="ident">deposit_event</span>(<span class="ident">Event</span>::<span class="ident">BatchExecuted</span>(<span class="ident">results</span>));
 		}
 	}
 }
