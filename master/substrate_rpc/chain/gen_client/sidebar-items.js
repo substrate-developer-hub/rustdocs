@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["Client","The Client."]]});
+initSidebarItems({});
