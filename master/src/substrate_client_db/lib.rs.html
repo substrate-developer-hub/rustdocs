@@ -2334,6 +2334,40 @@
 <span id="2323">2323</span>
 <span id="2324">2324</span>
 <span id="2325">2325</span>
+<span id="2326">2326</span>
+<span id="2327">2327</span>
+<span id="2328">2328</span>
+<span id="2329">2329</span>
+<span id="2330">2330</span>
+<span id="2331">2331</span>
+<span id="2332">2332</span>
+<span id="2333">2333</span>
+<span id="2334">2334</span>
+<span id="2335">2335</span>
+<span id="2336">2336</span>
+<span id="2337">2337</span>
+<span id="2338">2338</span>
+<span id="2339">2339</span>
+<span id="2340">2340</span>
+<span id="2341">2341</span>
+<span id="2342">2342</span>
+<span id="2343">2343</span>
+<span id="2344">2344</span>
+<span id="2345">2345</span>
+<span id="2346">2346</span>
+<span id="2347">2347</span>
+<span id="2348">2348</span>
+<span id="2349">2349</span>
+<span id="2350">2350</span>
+<span id="2351">2351</span>
+<span id="2352">2352</span>
+<span id="2353">2353</span>
+<span id="2354">2354</span>
+<span id="2355">2355</span>
+<span id="2356">2356</span>
+<span id="2357">2357</span>
+<span id="2358">2358</span>
+<span id="2359">2359</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -4557,6 +4591,40 @@
 			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">lca</span>.<span class="ident">hash</span>, <span class="ident">a2</span>);
 			<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">lca</span>.<span class="ident">number</span>, <span class="number">2</span>);
 		}
+	}
+
+	<span class="attribute">#[<span class="ident">test</span>]</span>
+	<span class="kw">fn</span> <span class="ident">test_tree_route_regression</span>() {
+		<span class="comment">// NOTE: this is a test for a regression introduced in #3665, the result</span>
+		<span class="comment">// of tree_route would be erroneously computed, since it was taking into</span>
+		<span class="comment">// account the `ancestor` in `CachedHeaderMetadata` for the comparison.</span>
+		<span class="comment">// in this test we simulate the same behavior with the side-effect</span>
+		<span class="comment">// triggering the issue being eviction of a previously fetched record</span>
+		<span class="comment">// from the cache, therefore this test is dependent on the LRU cache</span>
+		<span class="comment">// size for header metadata, which is currently set to 5000 elements.</span>
+		<span class="kw">let</span> <span class="ident">backend</span> <span class="op">=</span> <span class="ident">Backend</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>::<span class="ident">new_test</span>(<span class="number">10000</span>, <span class="number">10000</span>);
+		<span class="kw">let</span> <span class="ident">blockchain</span> <span class="op">=</span> <span class="ident">backend</span>.<span class="ident">blockchain</span>();
+
+		<span class="kw">let</span> <span class="ident">genesis</span> <span class="op">=</span> <span class="ident">insert_header</span>(<span class="kw-2">&amp;</span><span class="ident">backend</span>, <span class="number">0</span>, <span class="ident">Default</span>::<span class="ident">default</span>(), <span class="ident">Vec</span>::<span class="ident">new</span>(), <span class="ident">Default</span>::<span class="ident">default</span>());
+
+		<span class="kw">let</span> <span class="ident">block100</span> <span class="op">=</span> (<span class="number">1</span>..<span class="op">=</span><span class="number">100</span>).<span class="ident">fold</span>(<span class="ident">genesis</span>, <span class="op">|</span><span class="ident">parent</span>, <span class="ident">n</span><span class="op">|</span> {
+			<span class="ident">insert_header</span>(<span class="kw-2">&amp;</span><span class="ident">backend</span>, <span class="ident">n</span>, <span class="ident">parent</span>, <span class="ident">Vec</span>::<span class="ident">new</span>(), <span class="ident">Default</span>::<span class="ident">default</span>())
+		});
+
+		<span class="kw">let</span> <span class="ident">block7000</span> <span class="op">=</span> (<span class="number">101</span>..<span class="op">=</span><span class="number">7000</span>).<span class="ident">fold</span>(<span class="ident">block100</span>, <span class="op">|</span><span class="ident">parent</span>, <span class="ident">n</span><span class="op">|</span> {
+			<span class="ident">insert_header</span>(<span class="kw-2">&amp;</span><span class="ident">backend</span>, <span class="ident">n</span>, <span class="ident">parent</span>, <span class="ident">Vec</span>::<span class="ident">new</span>(), <span class="ident">Default</span>::<span class="ident">default</span>())
+		});
+
+		<span class="comment">// This will cause the ancestor of `block100` to be set to `genesis` as a side-effect.</span>
+		<span class="ident">lowest_common_ancestor</span>(<span class="ident">blockchain</span>, <span class="ident">genesis</span>, <span class="ident">block100</span>).<span class="ident">unwrap</span>();
+
+		<span class="comment">// While traversing the tree we will have to do 6900 calls to</span>
+		<span class="comment">// `header_metadata`, which will make sure we will exhaust our cache</span>
+		<span class="comment">// which only takes 5000 elements. In particular, the `CachedHeaderMetadata` struct for</span>
+		<span class="comment">// block #100 will be evicted and will get a new value (with ancestor set to its parent).</span>
+		<span class="kw">let</span> <span class="ident">tree_route</span> <span class="op">=</span> <span class="ident">tree_route</span>(<span class="ident">blockchain</span>, <span class="ident">block100</span>, <span class="ident">block7000</span>).<span class="ident">unwrap</span>();
+
+		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">tree_route</span>.<span class="ident">retracted</span>().<span class="ident">is_empty</span>());
 	}
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
