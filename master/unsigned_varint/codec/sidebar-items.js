@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["Uvi","tokio-codec based encoder + decoder of unsigned-varint values"],["UviBytes","tokio-codec based encoder + decoder of unsigned-varint, length-prefixed bytes"]]});
+initSidebarItems({"struct":[["Uvi","Encoder/Decoder of unsigned-varint values"],["UviBytes","Encoder/Decoder of unsigned-varint, length-prefixed bytes"]]});
