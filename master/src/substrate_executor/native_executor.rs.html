@@ -244,6 +244,7 @@
 <span id="233">233</span>
 <span id="234">234</span>
 <span id="235">235</span>
+<span id="236">236</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -263,18 +264,19 @@
 
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">result</span>, <span class="ident">cell</span>::<span class="ident">RefCell</span>, <span class="ident">panic</span>::<span class="ident">UnwindSafe</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">error</span>::{<span class="ident">Error</span>, <span class="prelude-ty">Result</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">wasm_executor</span>::<span class="ident">WasmExecutor</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">wasm_runtime</span>::{<span class="ident">RuntimesCache</span>, <span class="ident">WasmExecutionMethod</span>, <span class="ident">WasmRuntime</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">RuntimeInfo</span>;
 <span class="kw">use</span> <span class="ident">runtime_version</span>::{<span class="ident">NativeVersion</span>, <span class="ident">RuntimeVersion</span>};
 <span class="kw">use</span> <span class="ident">codec</span>::{<span class="ident">Decode</span>, <span class="ident">Encode</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">RuntimeInfo</span>;
 <span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">Blake2Hasher</span>, <span class="ident">NativeOrEncoded</span>, <span class="ident">traits</span>::{<span class="ident">CodeExecutor</span>, <span class="ident">Externalities</span>}};
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">trace</span>, <span class="ident">warn</span>};
-
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">RuntimesCache</span>;
 
 <span class="macro">thread_local</span><span class="macro">!</span> {
 	<span class="kw">static</span> <span class="ident">RUNTIMES_CACHE</span>: <span class="ident">RefCell</span><span class="op">&lt;</span><span class="ident">RuntimesCache</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">RefCell</span>::<span class="ident">new</span>(<span class="ident">RuntimesCache</span>::<span class="ident">new</span>());
 }
+
+<span class="doccomment">/// Default num of pages for the heap</span>
+<span class="kw">const</span> <span class="ident">DEFAULT_HEAP_PAGES</span>: <span class="ident">u64</span> <span class="op">=</span> <span class="number">1024</span>;
 
 <span class="kw">fn</span> <span class="ident">safe_call</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">U</span><span class="op">&gt;</span>(<span class="ident">f</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>
 	<span class="kw">where</span> <span class="ident">F</span>: <span class="ident">UnwindSafe</span> <span class="op">+</span> <span class="ident">FnOnce</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">U</span>
@@ -312,23 +314,44 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">NativeExecutor</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Dummy field to avoid the compiler complaining about us not using `D`.</span>
 	<span class="ident">_dummy</span>: ::<span class="ident">std</span>::<span class="ident">marker</span>::<span class="ident">PhantomData</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span>,
-	<span class="doccomment">/// The fallback executor in case native isn&#39;t available.</span>
-	<span class="ident">fallback</span>: <span class="ident">WasmExecutor</span>,
+	<span class="doccomment">/// Method used to execute fallback Wasm code.</span>
+	<span class="ident">fallback_method</span>: <span class="ident">WasmExecutionMethod</span>,
 	<span class="doccomment">/// Native runtime version info.</span>
 	<span class="ident">native_version</span>: <span class="ident">NativeVersion</span>,
 	<span class="doccomment">/// The number of 64KB pages to allocate for Wasm execution.</span>
-	<span class="ident">default_heap_pages</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>,
+	<span class="ident">default_heap_pages</span>: <span class="ident">u64</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">NativeExecutionDispatch</span><span class="op">&gt;</span> <span class="ident">NativeExecutor</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Create new instance.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">default_heap_pages</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// # Parameters</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// `fallback_method` - Method used to execute fallback Wasm code.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// `default_heap_pages` - Number of 64KB pages to allocate for Wasm execution.</span>
+	<span class="doccomment">/// 	Defaults to `DEFAULT_HEAP_PAGES` if `None` is provided.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">fallback_method</span>: <span class="ident">WasmExecutionMethod</span>, <span class="ident">default_heap_pages</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
 		<span class="ident">NativeExecutor</span> {
 			<span class="ident">_dummy</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
-			<span class="ident">fallback</span>: <span class="ident">WasmExecutor</span>::<span class="ident">new</span>(),
+			<span class="ident">fallback_method</span>,
 			<span class="ident">native_version</span>: <span class="ident">D</span>::<span class="ident">native_version</span>(),
-			<span class="ident">default_heap_pages</span>: <span class="ident">default_heap_pages</span>,
+			<span class="ident">default_heap_pages</span>: <span class="ident">default_heap_pages</span>.<span class="ident">unwrap_or</span>(<span class="ident">DEFAULT_HEAP_PAGES</span>),
 		}
+	}
+
+	<span class="kw">fn</span> <span class="ident">with_runtime</span><span class="op">&lt;</span><span class="ident">E</span>, <span class="ident">R</span><span class="op">&gt;</span>(
+		<span class="kw-2">&amp;</span><span class="self">self</span>,
+		<span class="ident">ext</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">E</span>,
+		<span class="ident">f</span>: <span class="kw">impl</span> <span class="kw">for</span> <span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">WasmRuntime</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">E</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;</span>
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;</span>
+		<span class="kw">where</span> <span class="ident">E</span>: <span class="ident">Externalities</span><span class="op">&lt;</span><span class="ident">Blake2Hasher</span><span class="op">&gt;</span>
+	{
+		<span class="ident">RUNTIMES_CACHE</span>.<span class="ident">with</span>(<span class="op">|</span><span class="ident">cache</span><span class="op">|</span> {
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cache</span> <span class="op">=</span> <span class="ident">cache</span>.<span class="ident">borrow_mut</span>();
+			<span class="kw">let</span> <span class="ident">runtime</span> <span class="op">=</span> <span class="ident">cache</span>.<span class="ident">fetch_runtime</span>(<span class="ident">ext</span>, <span class="self">self</span>.<span class="ident">fallback_method</span>, <span class="self">self</span>.<span class="ident">default_heap_pages</span>)<span class="question-mark">?</span>;
+			<span class="ident">f</span>(<span class="ident">runtime</span>, <span class="ident">ext</span>)
+		})
 	}
 }
 
@@ -336,7 +359,7 @@
 	<span class="kw">fn</span> <span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
 		<span class="ident">NativeExecutor</span> {
 			<span class="ident">_dummy</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
-			<span class="ident">fallback</span>: <span class="self">self</span>.<span class="ident">fallback</span>.<span class="ident">clone</span>(),
+			<span class="ident">fallback_method</span>: <span class="self">self</span>.<span class="ident">fallback_method</span>,
 			<span class="ident">native_version</span>: <span class="ident">D</span>::<span class="ident">native_version</span>(),
 			<span class="ident">default_heap_pages</span>: <span class="self">self</span>.<span class="ident">default_heap_pages</span>,
 		}
@@ -352,17 +375,13 @@
 		<span class="kw-2">&amp;</span><span class="self">self</span>,
 		<span class="ident">ext</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">E</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">RuntimeVersion</span><span class="op">&gt;</span> {
-		<span class="ident">RUNTIMES_CACHE</span>.<span class="ident">with</span>(<span class="op">|</span><span class="ident">cache</span><span class="op">|</span> {
-			<span class="kw">let</span> <span class="ident">cache</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cache</span>.<span class="ident">borrow_mut</span>();
-
-			<span class="kw">match</span> <span class="ident">cache</span>.<span class="ident">fetch_runtime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">fallback</span>, <span class="ident">ext</span>, <span class="self">self</span>.<span class="ident">default_heap_pages</span>) {
-				<span class="prelude-val">Ok</span>(<span class="ident">runtime</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">runtime</span>.<span class="ident">version</span>(),
-				<span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> {
-					<span class="macro">warn</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;executor&quot;</span>, <span class="string">&quot;Failed to fetch runtime: {:?}&quot;</span>, <span class="ident">e</span>);
-					<span class="prelude-val">None</span>
-				}
+		<span class="kw">match</span> <span class="self">self</span>.<span class="ident">with_runtime</span>(<span class="ident">ext</span>, <span class="op">|</span><span class="ident">runtime</span>, <span class="ident">_ext</span><span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="ident">runtime</span>.<span class="ident">version</span>())) {
+			<span class="prelude-val">Ok</span>(<span class="ident">version</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">version</span>,
+			<span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> {
+				<span class="macro">warn</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;executor&quot;</span>, <span class="string">&quot;Failed to fetch runtime: {:?}&quot;</span>, <span class="ident">e</span>);
+				<span class="prelude-val">None</span>
 			}
-		})
+		}
 	}
 }
 
@@ -382,15 +401,9 @@
 		<span class="ident">use_native</span>: <span class="ident">bool</span>,
 		<span class="ident">native_call</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">NC</span><span class="op">&gt;</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> (<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">NativeOrEncoded</span><span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">bool</span>){
-		<span class="ident">RUNTIMES_CACHE</span>.<span class="ident">with</span>(<span class="op">|</span><span class="ident">cache</span><span class="op">|</span> {
-			<span class="kw">let</span> <span class="ident">cache</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cache</span>.<span class="ident">borrow_mut</span>();
-			<span class="kw">let</span> <span class="ident">cached_runtime</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">cache</span>.<span class="ident">fetch_runtime</span>(
-				<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">fallback</span>, <span class="ident">ext</span>, <span class="self">self</span>.<span class="ident">default_heap_pages</span>,
-			) {
-				<span class="prelude-val">Ok</span>(<span class="ident">cached_runtime</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">cached_runtime</span>,
-				<span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> (<span class="prelude-val">Err</span>(<span class="ident">e</span>), <span class="bool-val">false</span>),
-			};
-			<span class="kw">let</span> <span class="ident">onchain_version</span> <span class="op">=</span> <span class="ident">cached_runtime</span>.<span class="ident">version</span>();
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">used_native</span> <span class="op">=</span> <span class="bool-val">false</span>;
+		<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">with_runtime</span>(<span class="ident">ext</span>, <span class="op">|</span><span class="ident">runtime</span>, <span class="ident">ext</span><span class="op">|</span> {
+			<span class="kw">let</span> <span class="ident">onchain_version</span> <span class="op">=</span> <span class="ident">runtime</span>.<span class="ident">version</span>();
 			<span class="kw">match</span> (
 				<span class="ident">use_native</span>,
 				<span class="ident">onchain_version</span>
@@ -407,25 +420,9 @@
 							.<span class="ident">as_ref</span>()
 							.<span class="ident">map_or_else</span>(<span class="op">|</span><span class="op">|</span><span class="string">&quot;&lt;None&gt;&quot;</span>.<span class="ident">into</span>(), <span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">v</span>))
 					);
-					(
-						<span class="ident">cached_runtime</span>.<span class="ident">with</span>(<span class="op">|</span><span class="ident">module</span><span class="op">|</span>
-							<span class="self">self</span>.<span class="ident">fallback</span>
-								.<span class="ident">call_in_wasm_module</span>(<span class="ident">ext</span>, <span class="ident">module</span>, <span class="ident">method</span>, <span class="ident">data</span>)
-								.<span class="ident">map</span>(<span class="ident">NativeOrEncoded</span>::<span class="ident">Encoded</span>)
-						),
-						<span class="bool-val">false</span>
-					)
+					<span class="ident">runtime</span>.<span class="ident">call</span>(<span class="ident">ext</span>, <span class="ident">method</span>, <span class="ident">data</span>).<span class="ident">map</span>(<span class="ident">NativeOrEncoded</span>::<span class="ident">Encoded</span>)
 				}
-				(<span class="bool-val">false</span>, <span class="kw">_</span>, <span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
-					(
-						<span class="ident">cached_runtime</span>.<span class="ident">with</span>(<span class="op">|</span><span class="ident">module</span><span class="op">|</span>
-							<span class="self">self</span>.<span class="ident">fallback</span>
-								.<span class="ident">call_in_wasm_module</span>(<span class="ident">ext</span>, <span class="ident">module</span>, <span class="ident">method</span>, <span class="ident">data</span>)
-								.<span class="ident">map</span>(<span class="ident">NativeOrEncoded</span>::<span class="ident">Encoded</span>)
-						),
-						<span class="bool-val">false</span>
-					)
-				}
+				(<span class="bool-val">false</span>, <span class="kw">_</span>, <span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">runtime</span>.<span class="ident">call</span>(<span class="ident">ext</span>, <span class="ident">method</span>, <span class="ident">data</span>).<span class="ident">map</span>(<span class="ident">NativeOrEncoded</span>::<span class="ident">Encoded</span>),
 				(<span class="bool-val">true</span>, <span class="bool-val">true</span>, <span class="prelude-val">Some</span>(<span class="ident">call</span>)) <span class="op">=</span><span class="op">&gt;</span> {
 					<span class="macro">trace</span><span class="macro">!</span>(
 						<span class="ident">target</span>: <span class="string">&quot;executor&quot;</span>,
@@ -435,11 +432,13 @@
 							.<span class="ident">as_ref</span>()
 							.<span class="ident">map_or_else</span>(<span class="op">|</span><span class="op">|</span><span class="string">&quot;&lt;None&gt;&quot;</span>.<span class="ident">into</span>(), <span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">v</span>))
 					);
-					(
-						<span class="ident">with_native_environment</span>(<span class="ident">ext</span>, <span class="kw">move</span> <span class="op">|</span><span class="op">|</span> (<span class="ident">call</span>)())
-							.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">r</span><span class="op">|</span> <span class="ident">r</span>.<span class="ident">map</span>(<span class="ident">NativeOrEncoded</span>::<span class="ident">Native</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">ApiError</span>(<span class="ident">s</span>.<span class="ident">to_string</span>()))),
-						<span class="bool-val">true</span>
-					)
+
+					<span class="ident">used_native</span> <span class="op">=</span> <span class="bool-val">true</span>;
+					<span class="ident">with_native_environment</span>(<span class="ident">ext</span>, <span class="kw">move</span> <span class="op">|</span><span class="op">|</span> (<span class="ident">call</span>)())
+						.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">r</span><span class="op">|</span> <span class="ident">r</span>
+							.<span class="ident">map</span>(<span class="ident">NativeOrEncoded</span>::<span class="ident">Native</span>)
+							.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">ApiError</span>(<span class="ident">s</span>.<span class="ident">to_string</span>()))
+						)
 				}
 				<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> {
 					<span class="macro">trace</span><span class="macro">!</span>(
@@ -448,10 +447,13 @@
 						<span class="self">self</span>.<span class="ident">native_version</span>.<span class="ident">runtime_version</span>,
 						<span class="ident">onchain_version</span>.<span class="ident">as_ref</span>().<span class="ident">map_or_else</span>(<span class="op">|</span><span class="op">|</span><span class="string">&quot;&lt;None&gt;&quot;</span>.<span class="ident">into</span>(), <span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">v</span>))
 					);
-					(<span class="ident">D</span>::<span class="ident">dispatch</span>(<span class="ident">ext</span>, <span class="ident">method</span>, <span class="ident">data</span>).<span class="ident">map</span>(<span class="ident">NativeOrEncoded</span>::<span class="ident">Encoded</span>), <span class="bool-val">true</span>)
+
+					<span class="ident">used_native</span> <span class="op">=</span> <span class="bool-val">true</span>;
+					<span class="ident">D</span>::<span class="ident">dispatch</span>(<span class="ident">ext</span>, <span class="ident">method</span>, <span class="ident">data</span>).<span class="ident">map</span>(<span class="ident">NativeOrEncoded</span>::<span class="ident">Encoded</span>)
 				}
 			}
-		})
+		});
+		(<span class="ident">result</span>, <span class="ident">used_native</span>)
 	}
 }
 

@@ -473,6 +473,35 @@
 <span id="462">462</span>
 <span id="463">463</span>
 <span id="464">464</span>
+<span id="465">465</span>
+<span id="466">466</span>
+<span id="467">467</span>
+<span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
+<span id="493">493</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -798,8 +827,19 @@
 	<span class="kw">use</span> <span class="ident">runtime_io</span>::{<span class="ident">with_externalities</span>, <span class="ident">TestExternalities</span>};
 	<span class="kw">use</span> <span class="ident">substrate_test_runtime_client</span>::{<span class="ident">AccountKeyring</span>, <span class="ident">Sr25519Keyring</span>};
 	<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">Header</span>, <span class="ident">Transfer</span>, <span class="ident">WASM_BINARY</span>};
-	<span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">Blake2Hasher</span>, <span class="ident">map</span>};
-	<span class="kw">use</span> <span class="ident">substrate_executor</span>::<span class="ident">WasmExecutor</span>;
+	<span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">Blake2Hasher</span>, <span class="ident">NeverNativeValue</span>, <span class="ident">map</span>, <span class="ident">traits</span>::<span class="ident">CodeExecutor</span>};
+	<span class="kw">use</span> <span class="ident">substrate_executor</span>::{<span class="ident">NativeExecutor</span>, <span class="ident">WasmExecutionMethod</span>, <span class="ident">native_executor_instance</span>};
+
+	<span class="comment">// Declare an instance of the native executor dispatch for the test runtime.</span>
+	<span class="macro">native_executor_instance</span><span class="macro">!</span>(
+		<span class="ident">NativeDispatch</span>,
+		<span class="kw">crate</span>::<span class="ident">api</span>::<span class="ident">dispatch</span>,
+		<span class="kw">crate</span>::<span class="ident">native_version</span>
+	);
+
+	<span class="kw">fn</span> <span class="ident">executor</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">NativeExecutor</span><span class="op">&lt;</span><span class="ident">NativeDispatch</span><span class="op">&gt;</span> {
+		<span class="ident">NativeExecutor</span>::<span class="ident">new</span>(<span class="ident">WasmExecutionMethod</span>::<span class="ident">Interpreted</span>, <span class="prelude-val">None</span>)
+	}
 
 	<span class="kw">fn</span> <span class="ident">new_test_ext</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TestExternalities</span><span class="op">&lt;</span><span class="ident">Blake2Hasher</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">authorities</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[
@@ -807,13 +847,19 @@
 			<span class="ident">Sr25519Keyring</span>::<span class="ident">Bob</span>.<span class="ident">to_raw_public</span>(),
 			<span class="ident">Sr25519Keyring</span>::<span class="ident">Charlie</span>.<span class="ident">to_raw_public</span>()
 		];
-		<span class="ident">TestExternalities</span>::<span class="ident">new</span>((<span class="macro">map</span><span class="macro">!</span>[
-			<span class="ident">twox_128</span>(<span class="string">b&quot;latest&quot;</span>).<span class="ident">to_vec</span>() <span class="op">=</span><span class="op">&gt;</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="number">69u8</span>; <span class="number">32</span>],
-			<span class="ident">twox_128</span>(<span class="string">b&quot;sys:auth&quot;</span>).<span class="ident">to_vec</span>() <span class="op">=</span><span class="op">&gt;</span> <span class="ident">authorities</span>.<span class="ident">encode</span>(),
-			<span class="ident">blake2_256</span>(<span class="kw-2">&amp;</span><span class="ident">AccountKeyring</span>::<span class="ident">Alice</span>.<span class="ident">to_raw_public</span>().<span class="ident">to_keyed_vec</span>(<span class="string">b&quot;balance:&quot;</span>)).<span class="ident">to_vec</span>() <span class="op">=</span><span class="op">&gt;</span> {
-				<span class="macro">vec</span><span class="macro">!</span>[<span class="number">111u8</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>]
-			}
-		], <span class="macro">map</span><span class="macro">!</span>[]))
+		<span class="ident">TestExternalities</span>::<span class="ident">new_with_code</span>(
+			<span class="ident">WASM_BINARY</span>,
+			(
+				<span class="macro">map</span><span class="macro">!</span>[
+					<span class="ident">twox_128</span>(<span class="string">b&quot;latest&quot;</span>).<span class="ident">to_vec</span>() <span class="op">=</span><span class="op">&gt;</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="number">69u8</span>; <span class="number">32</span>],
+					<span class="ident">twox_128</span>(<span class="string">b&quot;sys:auth&quot;</span>).<span class="ident">to_vec</span>() <span class="op">=</span><span class="op">&gt;</span> <span class="ident">authorities</span>.<span class="ident">encode</span>(),
+					<span class="ident">blake2_256</span>(<span class="kw-2">&amp;</span><span class="ident">AccountKeyring</span>::<span class="ident">Alice</span>.<span class="ident">to_raw_public</span>().<span class="ident">to_keyed_vec</span>(<span class="string">b&quot;balance:&quot;</span>)).<span class="ident">to_vec</span>() <span class="op">=</span><span class="op">&gt;</span> {
+						<span class="macro">vec</span><span class="macro">!</span>[<span class="number">111u8</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>]
+					}
+				],
+				<span class="macro">map</span><span class="macro">!</span>[],
+			)
+		)
 	}
 
 	<span class="kw">fn</span> <span class="ident">block_import_works</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(<span class="ident">block_executor</span>: <span class="ident">F</span>) <span class="kw">where</span> <span class="ident">F</span>: <span class="ident">Fn</span>(<span class="ident">Block</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">TestExternalities</span><span class="op">&lt;</span><span class="ident">Blake2Hasher</span><span class="op">&gt;</span>) {
@@ -846,7 +892,13 @@
 	<span class="attribute">#[<span class="ident">test</span>]</span>
 	<span class="kw">fn</span> <span class="ident">block_import_works_wasm</span>() {
 		<span class="ident">block_import_works</span>(<span class="op">|</span><span class="ident">b</span>, <span class="ident">ext</span><span class="op">|</span> {
-			<span class="ident">WasmExecutor</span>::<span class="ident">new</span>().<span class="ident">call</span>(<span class="ident">ext</span>, <span class="number">8</span>, <span class="kw-2">&amp;</span><span class="ident">WASM_BINARY</span>, <span class="string">&quot;Core_execute_block&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">b</span>.<span class="ident">encode</span>()).<span class="ident">unwrap</span>();
+			<span class="ident">executor</span>().<span class="ident">call</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">NeverNativeValue</span>, <span class="kw">fn</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="kw">_</span><span class="op">&gt;</span>(
+				<span class="ident">ext</span>,
+				<span class="string">&quot;Core_execute_block&quot;</span>,
+				<span class="kw-2">&amp;</span><span class="ident">b</span>.<span class="ident">encode</span>(),
+				<span class="bool-val">false</span>,
+				<span class="prelude-val">None</span>,
+			).<span class="number">0</span>.<span class="ident">unwrap</span>();
 		})
 	}
 
@@ -934,7 +986,13 @@
 	<span class="attribute">#[<span class="ident">test</span>]</span>
 	<span class="kw">fn</span> <span class="ident">block_import_with_transaction_works_wasm</span>() {
 		<span class="ident">block_import_with_transaction_works</span>(<span class="op">|</span><span class="ident">b</span>, <span class="ident">ext</span><span class="op">|</span> {
-			<span class="ident">WasmExecutor</span>::<span class="ident">new</span>().<span class="ident">call</span>(<span class="ident">ext</span>, <span class="number">8</span>, <span class="kw-2">&amp;</span><span class="ident">WASM_BINARY</span>, <span class="string">&quot;Core_execute_block&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">b</span>.<span class="ident">encode</span>()).<span class="ident">unwrap</span>();
+			<span class="ident">executor</span>().<span class="ident">call</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">NeverNativeValue</span>, <span class="kw">fn</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="kw">_</span><span class="op">&gt;</span>(
+				<span class="ident">ext</span>,
+				<span class="string">&quot;Core_execute_block&quot;</span>,
+				<span class="kw-2">&amp;</span><span class="ident">b</span>.<span class="ident">encode</span>(),
+				<span class="bool-val">false</span>,
+				<span class="prelude-val">None</span>,
+			).<span class="number">0</span>.<span class="ident">unwrap</span>();
 		})
 	}
 }

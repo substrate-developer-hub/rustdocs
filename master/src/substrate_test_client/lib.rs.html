@@ -237,6 +237,8 @@
 <span id="226">226</span>
 <span id="227">227</span>
 <span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -264,7 +266,7 @@
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">client_db</span>::{<span class="ident">Backend</span>, <span class="self">self</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">client_ext</span>::<span class="ident">ClientExt</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">consensus</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">executor</span>::{<span class="ident">NativeExecutor</span>, <span class="self">self</span>};
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">executor</span>::{<span class="ident">NativeExecutor</span>, <span class="ident">WasmExecutionMethod</span>, <span class="self">self</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">keyring</span>::{
 	<span class="ident">AccountKeyring</span>,
 	<span class="ident">ed25519</span>::<span class="ident">Keyring</span> <span class="kw">as</span> <span class="ident">Ed25519Keyring</span>,
@@ -438,7 +440,7 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">E</span>, <span class="ident">Backend</span>, <span class="ident">G</span>: <span class="ident">GenesisInit</span><span class="op">&gt;</span> <span class="ident">TestClientBuilder</span><span class="op">&lt;</span>
-	<span class="ident">client</span>::<span class="ident">LocalCallExecutor</span><span class="op">&lt;</span><span class="ident">Backend</span>, <span class="ident">executor</span>::<span class="ident">NativeExecutor</span><span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">client</span>::<span class="ident">LocalCallExecutor</span><span class="op">&lt;</span><span class="ident">Backend</span>, <span class="ident">NativeExecutor</span><span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">Backend</span>,
 	<span class="ident">G</span>,
 <span class="op">&gt;</span> {
@@ -449,18 +451,20 @@
 	) <span class="op">-</span><span class="op">&gt;</span> (
 		<span class="ident">client</span>::<span class="ident">Client</span><span class="op">&lt;</span>
 			<span class="ident">Backend</span>,
-			<span class="ident">client</span>::<span class="ident">LocalCallExecutor</span><span class="op">&lt;</span><span class="ident">Backend</span>, <span class="ident">executor</span>::<span class="ident">NativeExecutor</span><span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+			<span class="ident">client</span>::<span class="ident">LocalCallExecutor</span><span class="op">&lt;</span><span class="ident">Backend</span>, <span class="ident">NativeExecutor</span><span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 			<span class="ident">Block</span>,
 			<span class="ident">RuntimeApi</span>
 		<span class="op">&gt;</span>,
 		<span class="ident">client</span>::<span class="ident">LongestChain</span><span class="op">&lt;</span><span class="ident">Backend</span>, <span class="ident">Block</span><span class="op">&gt;</span>,
 	) <span class="kw">where</span>
-		<span class="ident">I</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">executor</span>::<span class="ident">NativeExecutor</span><span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+		<span class="ident">I</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">NativeExecutor</span><span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 		<span class="ident">E</span>: <span class="ident">executor</span>::<span class="ident">NativeExecutionDispatch</span>,
 		<span class="ident">Backend</span>: <span class="ident">client</span>::<span class="ident">backend</span>::<span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span>,
 		<span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="op">&lt;</span><span class="ident">Blake2Hasher</span> <span class="kw">as</span> <span class="ident">Hasher</span><span class="op">&gt;</span>::<span class="ident">Out</span><span class="op">&gt;</span>,
 	{
-		<span class="kw">let</span> <span class="ident">executor</span> <span class="op">=</span> <span class="ident">executor</span>.<span class="ident">into</span>().<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">executor</span>::<span class="ident">NativeExecutor</span>::<span class="ident">new</span>(<span class="prelude-val">None</span>));
+		<span class="kw">let</span> <span class="ident">executor</span> <span class="op">=</span> <span class="ident">executor</span>.<span class="ident">into</span>().<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span>
+			<span class="ident">NativeExecutor</span>::<span class="ident">new</span>(<span class="ident">WasmExecutionMethod</span>::<span class="ident">Interpreted</span>, <span class="prelude-val">None</span>)
+		);
 		<span class="kw">let</span> <span class="ident">executor</span> <span class="op">=</span> <span class="ident">LocalCallExecutor</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">clone</span>(), <span class="ident">executor</span>, <span class="self">self</span>.<span class="ident">keystore</span>.<span class="ident">take</span>());
 
 		<span class="self">self</span>.<span class="ident">build_with_executor</span>(<span class="ident">executor</span>)
