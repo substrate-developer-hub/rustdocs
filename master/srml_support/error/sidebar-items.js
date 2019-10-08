@@ -1,1 +1,1 @@
-initSidebarItems({});
+initSidebarItems({"enum":[["DecodeDifferent","A type that decodes to a different type than it encodes. The user needs to make sure that both types use the same encoding."]],"struct":[["ErrorMetadata","All the metadata about a module error."]],"trait":[["ModuleErrorMetadata","All the metadata about errors in a module."]]});
