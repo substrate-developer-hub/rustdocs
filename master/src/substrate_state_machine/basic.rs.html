@@ -284,6 +284,13 @@
 <span id="273">273</span>
 <span id="274">274</span>
 <span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -303,15 +310,14 @@
 
 <span class="doccomment">//! Basic implementation for Externalities.</span>
 
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">iter</span>::<span class="ident">FromIterator</span>;
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">collections</span>::<span class="ident">HashMap</span>, <span class="ident">any</span>::{<span class="ident">TypeId</span>, <span class="ident">Any</span>}, <span class="ident">iter</span>::<span class="ident">FromIterator</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::{<span class="ident">Backend</span>, <span class="ident">InMemory</span>};
 <span class="kw">use</span> <span class="ident">hash_db</span>::<span class="ident">Hasher</span>;
 <span class="kw">use</span> <span class="ident">trie</span>::{<span class="ident">TrieConfiguration</span>, <span class="ident">default_child_trie_root</span>};
 <span class="kw">use</span> <span class="ident">trie</span>::<span class="ident">trie_types</span>::<span class="ident">Layout</span>;
 <span class="kw">use</span> <span class="ident">primitives</span>::{
-	<span class="ident">storage</span>::<span class="ident">well_known_keys</span>::<span class="ident">is_child_storage_key</span>, <span class="ident">child_storage_key</span>::<span class="ident">ChildStorageKey</span>, <span class="ident">offchain</span>,
-	<span class="ident">traits</span>::<span class="ident">Externalities</span>,
+	<span class="ident">storage</span>::{<span class="ident">well_known_keys</span>::<span class="ident">is_child_storage_key</span>, <span class="ident">ChildStorageKey</span>},
+	<span class="ident">traits</span>::<span class="ident">Externalities</span>, <span class="ident">Blake2Hasher</span>, <span class="ident">hash</span>::<span class="ident">H256</span>,
 };
 <span class="kw">use</span> <span class="ident">log</span>::<span class="ident">warn</span>;
 
@@ -375,21 +381,37 @@
 	}
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">H</span>: <span class="ident">Hasher</span><span class="op">&gt;</span> <span class="ident">Externalities</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">BasicExternalities</span> <span class="kw">where</span> <span class="ident">H</span>::<span class="ident">Out</span>: <span class="ident">Ord</span> {
+<span class="kw">impl</span> <span class="ident">Externalities</span> <span class="kw">for</span> <span class="ident">BasicExternalities</span> {
 	<span class="kw">fn</span> <span class="ident">storage</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 		<span class="self">self</span>.<span class="ident">top</span>.<span class="ident">get</span>(<span class="ident">key</span>).<span class="ident">cloned</span>()
 	}
 
+	<span class="kw">fn</span> <span class="ident">storage_hash</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">H256</span><span class="op">&gt;</span> {
+		<span class="self">self</span>.<span class="ident">storage</span>(<span class="ident">key</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="ident">Blake2Hasher</span>::<span class="ident">hash</span>(<span class="kw-2">&amp;</span><span class="ident">v</span>))
+	}
+
 	<span class="kw">fn</span> <span class="ident">original_storage</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-		<span class="ident">Externalities</span>::<span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span>::<span class="ident">storage</span>(<span class="self">self</span>, <span class="ident">key</span>)
+		<span class="self">self</span>.<span class="ident">storage</span>(<span class="ident">key</span>)
+	}
+
+	<span class="kw">fn</span> <span class="ident">original_storage_hash</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">H256</span><span class="op">&gt;</span> {
+		<span class="self">self</span>.<span class="ident">storage_hash</span>(<span class="ident">key</span>)
 	}
 
 	<span class="kw">fn</span> <span class="ident">child_storage</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">storage_key</span>: <span class="ident">ChildStorageKey</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 		<span class="self">self</span>.<span class="ident">children</span>.<span class="ident">get</span>(<span class="ident">storage_key</span>.<span class="ident">as_ref</span>()).<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">child</span><span class="op">|</span> <span class="ident">child</span>.<span class="ident">get</span>(<span class="ident">key</span>)).<span class="ident">cloned</span>()
 	}
 
+	<span class="kw">fn</span> <span class="ident">child_storage_hash</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">storage_key</span>: <span class="ident">ChildStorageKey</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">H256</span><span class="op">&gt;</span> {
+		<span class="self">self</span>.<span class="ident">child_storage</span>(<span class="ident">storage_key</span>, <span class="ident">key</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="ident">Blake2Hasher</span>::<span class="ident">hash</span>(<span class="kw-2">&amp;</span><span class="ident">v</span>))
+	}
+
+	<span class="kw">fn</span> <span class="ident">original_child_storage_hash</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">storage_key</span>: <span class="ident">ChildStorageKey</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">H256</span><span class="op">&gt;</span> {
+		<span class="self">self</span>.<span class="ident">child_storage_hash</span>(<span class="ident">storage_key</span>, <span class="ident">key</span>)
+	}
+
 	<span class="kw">fn</span> <span class="ident">original_child_storage</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">storage_key</span>: <span class="ident">ChildStorageKey</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-		<span class="ident">Externalities</span>::<span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span>::<span class="ident">child_storage</span>(<span class="self">self</span>, <span class="ident">storage_key</span>, <span class="ident">key</span>)
+		<span class="ident">Externalities</span>::<span class="ident">child_storage</span>(<span class="self">self</span>, <span class="ident">storage_key</span>, <span class="ident">key</span>)
 	}
 
 	<span class="kw">fn</span> <span class="ident">place_storage</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">key</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">maybe_value</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>) {
@@ -442,16 +464,15 @@
 
 	<span class="kw">fn</span> <span class="ident">chain_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u64</span> { <span class="number">42</span> }
 
-	<span class="kw">fn</span> <span class="ident">storage_root</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">H</span>::<span class="ident">Out</span> {
+	<span class="kw">fn</span> <span class="ident">storage_root</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">H256</span> {
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">top</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">top</span>.<span class="ident">clone</span>();
 		<span class="kw">let</span> <span class="ident">keys</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">children</span>.<span class="ident">keys</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">k</span><span class="op">|</span> <span class="ident">k</span>.<span class="ident">to_vec</span>()).<span class="ident">collect</span>();
 		<span class="comment">// Single child trie implementation currently allows using the same child</span>
 		<span class="comment">// empty root for all child trie. Using null storage key until multiple</span>
 		<span class="comment">// type of child trie support.</span>
-		<span class="kw">let</span> <span class="ident">empty_hash</span> <span class="op">=</span> <span class="ident">default_child_trie_root</span>::<span class="op">&lt;</span><span class="ident">Layout</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span>[]);
+		<span class="kw">let</span> <span class="ident">empty_hash</span> <span class="op">=</span> <span class="ident">default_child_trie_root</span>::<span class="op">&lt;</span><span class="ident">Layout</span><span class="op">&lt;</span><span class="ident">Blake2Hasher</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span>[]);
 		<span class="kw">for</span> <span class="ident">storage_key</span> <span class="kw">in</span> <span class="ident">keys</span> {
-			<span class="kw">let</span> <span class="ident">child_root</span> <span class="op">=</span> <span class="ident">Externalities</span>::<span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span>::<span class="ident">child_storage_root</span>(
-				<span class="self">self</span>,
+			<span class="kw">let</span> <span class="ident">child_root</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">child_storage_root</span>(
 				<span class="ident">ChildStorageKey</span>::<span class="ident">from_slice</span>(<span class="ident">storage_key</span>.<span class="ident">as_slice</span>())
 					.<span class="ident">expect</span>(<span class="string">&quot;Map only feed by valid keys; qed&quot;</span>),
 			);
@@ -462,30 +483,27 @@
 			}
 		}
 
-		<span class="ident">Layout</span>::<span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span>::<span class="ident">trie_root</span>(<span class="self">self</span>.<span class="ident">top</span>.<span class="ident">clone</span>())
+		<span class="ident">Layout</span>::<span class="op">&lt;</span><span class="ident">Blake2Hasher</span><span class="op">&gt;</span>::<span class="ident">trie_root</span>(<span class="self">self</span>.<span class="ident">top</span>.<span class="ident">clone</span>())
 	}
 
 	<span class="kw">fn</span> <span class="ident">child_storage_root</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">storage_key</span>: <span class="ident">ChildStorageKey</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> {
 		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">child</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">children</span>.<span class="ident">get</span>(<span class="ident">storage_key</span>.<span class="ident">as_ref</span>()) {
 			<span class="kw">let</span> <span class="ident">delta</span> <span class="op">=</span> <span class="ident">child</span>.<span class="ident">clone</span>().<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">k</span>, <span class="ident">v</span>)<span class="op">|</span> (<span class="ident">k</span>, <span class="prelude-val">Some</span>(<span class="ident">v</span>)));
 
-			<span class="ident">InMemory</span>::<span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span>::<span class="ident">default</span>().<span class="ident">child_storage_root</span>(<span class="ident">storage_key</span>.<span class="ident">as_ref</span>(), <span class="ident">delta</span>).<span class="number">0</span>
+			<span class="ident">InMemory</span>::<span class="op">&lt;</span><span class="ident">Blake2Hasher</span><span class="op">&gt;</span>::<span class="ident">default</span>().<span class="ident">child_storage_root</span>(<span class="ident">storage_key</span>.<span class="ident">as_ref</span>(), <span class="ident">delta</span>).<span class="number">0</span>
 		} <span class="kw">else</span> {
-			<span class="ident">default_child_trie_root</span>::<span class="op">&lt;</span><span class="ident">Layout</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="ident">storage_key</span>.<span class="ident">as_ref</span>())
+			<span class="ident">default_child_trie_root</span>::<span class="op">&lt;</span><span class="ident">Layout</span><span class="op">&lt;</span><span class="ident">Blake2Hasher</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="ident">storage_key</span>.<span class="ident">as_ref</span>())
 		}
 	}
 
-	<span class="kw">fn</span> <span class="ident">storage_changes_root</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">_parent</span>: <span class="ident">H</span>::<span class="ident">Out</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">H</span>::<span class="ident">Out</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">storage_changes_root</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">_parent</span>: <span class="ident">H256</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">H256</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
 		<span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
 	}
+}
 
-	<span class="kw">fn</span> <span class="ident">offchain</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">offchain</span>::<span class="ident">Externalities</span><span class="op">&gt;</span> {
-		<span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;Call to non-existent offchain externalities set.&quot;</span>);
-		<span class="prelude-val">None</span>
-	}
-
-	<span class="kw">fn</span> <span class="ident">keystore</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">primitives</span>::<span class="ident">traits</span>::<span class="ident">BareCryptoStorePtr</span><span class="op">&gt;</span> {
-		<span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;Call to non-existent keystore.&quot;</span>);
+<span class="kw">impl</span> <span class="ident">externalities</span>::<span class="ident">ExtensionStore</span> <span class="kw">for</span> <span class="ident">BasicExternalities</span> {
+	<span class="kw">fn</span> <span class="ident">extension_by_type_id</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="kw">_</span>: <span class="ident">TypeId</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">Any</span><span class="op">&gt;</span> {
+		<span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;Extensions are not supported by `BasicExternalities`.&quot;</span>);
 		<span class="prelude-val">None</span>
 	}
 }
@@ -493,14 +511,13 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span> {
 	<span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-	<span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">Blake2Hasher</span>, <span class="ident">H256</span>, <span class="ident">map</span>};
+	<span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">H256</span>, <span class="ident">map</span>};
 	<span class="kw">use</span> <span class="ident">primitives</span>::<span class="ident">storage</span>::<span class="ident">well_known_keys</span>::<span class="ident">CODE</span>;
 	<span class="kw">use</span> <span class="ident">hex_literal</span>::<span class="ident">hex</span>;
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
 	<span class="kw">fn</span> <span class="ident">commit_should_work</span>() {
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ext</span> <span class="op">=</span> <span class="ident">BasicExternalities</span>::<span class="ident">default</span>();
-		<span class="kw">let</span> <span class="ident">ext</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ext</span> <span class="kw">as</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">Externalities</span><span class="op">&lt;</span><span class="ident">Blake2Hasher</span><span class="op">&gt;</span>;
 		<span class="ident">ext</span>.<span class="ident">set_storage</span>(<span class="string">b&quot;doe&quot;</span>.<span class="ident">to_vec</span>(), <span class="string">b&quot;reindeer&quot;</span>.<span class="ident">to_vec</span>());
 		<span class="ident">ext</span>.<span class="ident">set_storage</span>(<span class="string">b&quot;dog&quot;</span>.<span class="ident">to_vec</span>(), <span class="string">b&quot;puppy&quot;</span>.<span class="ident">to_vec</span>());
 		<span class="ident">ext</span>.<span class="ident">set_storage</span>(<span class="string">b&quot;dogglesworth&quot;</span>.<span class="ident">to_vec</span>(), <span class="string">b&quot;cat&quot;</span>.<span class="ident">to_vec</span>());
@@ -512,7 +529,6 @@
 	<span class="attribute">#[<span class="ident">test</span>]</span>
 	<span class="kw">fn</span> <span class="ident">set_and_retrieve_code</span>() {
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ext</span> <span class="op">=</span> <span class="ident">BasicExternalities</span>::<span class="ident">default</span>();
-		<span class="kw">let</span> <span class="ident">ext</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ext</span> <span class="kw">as</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">Externalities</span><span class="op">&lt;</span><span class="ident">Blake2Hasher</span><span class="op">&gt;</span>;
 
 		<span class="kw">let</span> <span class="ident">code</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];
 		<span class="ident">ext</span>.<span class="ident">set_storage</span>(<span class="ident">CODE</span>.<span class="ident">to_vec</span>(), <span class="ident">code</span>.<span class="ident">clone</span>());
@@ -532,8 +548,6 @@
 				]
 			]
 		);
-
-		<span class="kw">let</span> <span class="ident">ext</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ext</span> <span class="kw">as</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">Externalities</span><span class="op">&lt;</span><span class="ident">Blake2Hasher</span><span class="op">&gt;</span>;
 
 		<span class="kw">let</span> <span class="ident">child</span> <span class="op">=</span> <span class="op">|</span><span class="op">|</span> <span class="ident">ChildStorageKey</span>::<span class="ident">from_vec</span>(<span class="ident">child_storage</span>.<span class="ident">clone</span>()).<span class="ident">unwrap</span>();
 

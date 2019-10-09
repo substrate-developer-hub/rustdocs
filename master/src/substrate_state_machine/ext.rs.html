@@ -582,6 +582,33 @@
 <span id="571">571</span>
 <span id="572">572</span>
 <span id="573">573</span>
+<span id="574">574</span>
+<span id="575">575</span>
+<span id="576">576</span>
+<span id="577">577</span>
+<span id="578">578</span>
+<span id="579">579</span>
+<span id="580">580</span>
+<span id="581">581</span>
+<span id="582">582</span>
+<span id="583">583</span>
+<span id="584">584</span>
+<span id="585">585</span>
+<span id="586">586</span>
+<span id="587">587</span>
+<span id="588">588</span>
+<span id="589">589</span>
+<span id="590">590</span>
+<span id="591">591</span>
+<span id="592">592</span>
+<span id="593">593</span>
+<span id="594">594</span>
+<span id="595">595</span>
+<span id="596">596</span>
+<span id="597">597</span>
+<span id="598">598</span>
+<span id="599">599</span>
+<span id="600">600</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -601,22 +628,24 @@
 
 <span class="doccomment">//! Concrete externalities implementation.</span>
 
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">error</span>, <span class="ident">fmt</span>, <span class="ident">cmp</span>::<span class="ident">Ord</span>};
-<span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">warn</span>, <span class="ident">trace</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::{
 	<span class="ident">backend</span>::<span class="ident">Backend</span>, <span class="ident">OverlayedChanges</span>,
 	<span class="ident">changes_trie</span>::{
 		<span class="ident">Storage</span> <span class="kw">as</span> <span class="ident">ChangesTrieStorage</span>, <span class="ident">CacheAction</span> <span class="kw">as</span> <span class="ident">ChangesTrieCacheAction</span>, <span class="ident">build_changes_trie</span>,
 	},
 };
+
 <span class="kw">use</span> <span class="ident">hash_db</span>::<span class="ident">Hasher</span>;
 <span class="kw">use</span> <span class="ident">primitives</span>::{
-	<span class="ident">offchain</span>, <span class="ident">storage</span>::<span class="ident">well_known_keys</span>::<span class="ident">is_child_storage_key</span>,
-	<span class="ident">traits</span>::{<span class="ident">BareCryptoStorePtr</span>, <span class="ident">Externalities</span>}, <span class="ident">child_storage_key</span>::<span class="ident">ChildStorageKey</span>,
-	<span class="ident">hexdisplay</span>::<span class="ident">HexDisplay</span>,
+	<span class="ident">storage</span>::{<span class="ident">ChildStorageKey</span>, <span class="ident">well_known_keys</span>::<span class="ident">is_child_storage_key</span>},
+	<span class="ident">traits</span>::<span class="ident">Externalities</span>, <span class="ident">hexdisplay</span>::<span class="ident">HexDisplay</span>, <span class="ident">hash</span>::<span class="ident">H256</span>,
 };
-<span class="kw">use</span> <span class="ident">trie</span>::{<span class="ident">MemoryDB</span>, <span class="ident">default_child_trie_root</span>};
-<span class="kw">use</span> <span class="ident">trie</span>::<span class="ident">trie_types</span>::<span class="ident">Layout</span>;
+<span class="kw">use</span> <span class="ident">trie</span>::{<span class="ident">trie_types</span>::<span class="ident">Layout</span>, <span class="ident">MemoryDB</span>, <span class="ident">default_child_trie_root</span>};
+<span class="kw">use</span> <span class="ident">externalities</span>::<span class="ident">Extensions</span>;
+
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">error</span>, <span class="ident">fmt</span>, <span class="ident">any</span>::{<span class="ident">Any</span>, <span class="ident">TypeId</span>}};
+
+<span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">warn</span>, <span class="ident">trace</span>};
 
 <span class="kw">const</span> <span class="ident">EXT_NOT_ALLOWED_TO_FAIL</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> <span class="op">=</span> <span class="string">&quot;Externalities not allowed to fail within runtime&quot;</span>;
 
@@ -650,11 +679,7 @@
 }
 
 <span class="doccomment">/// Wraps a read-only backend, call executor, and current overlayed changes.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Ext</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">B</span>, <span class="ident">T</span>, <span class="ident">O</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-	<span class="ident">H</span>: <span class="ident">Hasher</span>,
-	<span class="ident">B</span>: <span class="lifetime">&#39;a</span> <span class="op">+</span> <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span>,
-{
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Ext</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">B</span>, <span class="ident">T</span><span class="op">&gt;</span> <span class="kw">where</span> <span class="ident">H</span>: <span class="ident">Hasher</span><span class="op">&lt;</span><span class="ident">Out</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">B</span>: <span class="lifetime">&#39;a</span> <span class="op">+</span> <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// The overlayed changes to write to.</span>
 	<span class="ident">overlay</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">OverlayedChanges</span>,
 	<span class="doccomment">/// The storage backend to read from.</span>
@@ -671,25 +696,19 @@
 	<span class="doccomment">/// `storage_changes_root` is called matters + we need to remember additional</span>
 	<span class="doccomment">/// data at this moment (block number).</span>
 	<span class="ident">changes_trie_transaction</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">MemoryDB</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span>, <span class="ident">H</span>::<span class="ident">Out</span>, <span class="ident">ChangesTrieCacheAction</span><span class="op">&lt;</span><span class="ident">H</span>::<span class="ident">Out</span>, <span class="ident">N</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
-	<span class="doccomment">/// Additional externalities for offchain workers.</span>
-	<span class="doccomment">///</span>
-	<span class="doccomment">/// If None, some methods from the trait might not be supported.</span>
-	<span class="ident">offchain_externalities</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">O</span><span class="op">&gt;</span>,
-	<span class="doccomment">/// The keystore that manages the keys of the node.</span>
-	<span class="ident">keystore</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">BareCryptoStorePtr</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// Pseudo-unique id used for tracing.</span>
 	<span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">u16</span>,
 	<span class="doccomment">/// Dummy usage of N arg.</span>
-	<span class="ident">_phantom</span>: ::<span class="ident">std</span>::<span class="ident">marker</span>::<span class="ident">PhantomData</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span>,
+	<span class="ident">_phantom</span>: <span class="ident">std</span>::<span class="ident">marker</span>::<span class="ident">PhantomData</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span>,
+	<span class="doccomment">/// Extensions registered with this instance.</span>
+	<span class="ident">extensions</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">Extensions</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">B</span>, <span class="ident">T</span>, <span class="ident">O</span><span class="op">&gt;</span> <span class="ident">Ext</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">B</span>, <span class="ident">T</span>, <span class="ident">O</span><span class="op">&gt;</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">B</span>, <span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Ext</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">B</span>, <span class="ident">T</span><span class="op">&gt;</span>
 <span class="kw">where</span>
-	<span class="ident">H</span>: <span class="ident">Hasher</span>,
+	<span class="ident">H</span>: <span class="ident">Hasher</span><span class="op">&lt;</span><span class="ident">Out</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>,
 	<span class="ident">B</span>: <span class="lifetime">&#39;a</span> <span class="op">+</span> <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span>,
 	<span class="ident">T</span>: <span class="lifetime">&#39;a</span> <span class="op">+</span> <span class="ident">ChangesTrieStorage</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span>,
-	<span class="ident">O</span>: <span class="lifetime">&#39;a</span> <span class="op">+</span> <span class="ident">offchain</span>::<span class="ident">Externalities</span>,
-	<span class="ident">H</span>::<span class="ident">Out</span>: <span class="ident">Ord</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">N</span>: <span class="kw">crate</span>::<span class="ident">changes_trie</span>::<span class="ident">BlockNumber</span>,
 {
 	<span class="doccomment">/// Create a new `Ext` from overlayed changes and read-only backend</span>
@@ -697,8 +716,7 @@
 		<span class="ident">overlay</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">OverlayedChanges</span>,
 		<span class="ident">backend</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">B</span>,
 		<span class="ident">changes_trie_storage</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">T</span><span class="op">&gt;</span>,
-		<span class="ident">offchain_externalities</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">O</span><span class="op">&gt;</span>,
-		<span class="ident">keystore</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">BareCryptoStorePtr</span><span class="op">&gt;</span>,
+		<span class="ident">extensions</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">Extensions</span><span class="op">&gt;</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
 		<span class="ident">Ext</span> {
 			<span class="ident">overlay</span>,
@@ -706,21 +724,25 @@
 			<span class="ident">storage_transaction</span>: <span class="prelude-val">None</span>,
 			<span class="ident">changes_trie_storage</span>,
 			<span class="ident">changes_trie_transaction</span>: <span class="prelude-val">None</span>,
-			<span class="ident">offchain_externalities</span>,
-			<span class="ident">keystore</span>,
 			<span class="ident">id</span>: <span class="ident">rand</span>::<span class="ident">random</span>(),
 			<span class="ident">_phantom</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
+			<span class="ident">extensions</span>,
 		}
 	}
 
 	<span class="doccomment">/// Get the transaction necessary to update the backend.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">transaction</span>(<span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> ((<span class="ident">B</span>::<span class="ident">Transaction</span>, <span class="ident">H</span>::<span class="ident">Out</span>), <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw">crate</span>::<span class="ident">ChangesTrieTransaction</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span><span class="op">&gt;</span>) {
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">transaction</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> (
+		(<span class="ident">B</span>::<span class="ident">Transaction</span>, <span class="ident">H256</span>),
+		<span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw">crate</span>::<span class="ident">ChangesTrieTransaction</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	) {
 		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">storage_root</span>();
 
 		<span class="kw">let</span> (<span class="ident">storage_transaction</span>, <span class="ident">changes_trie_transaction</span>) <span class="op">=</span> (
 			<span class="self">self</span>.<span class="ident">storage_transaction</span>
+				.<span class="ident">take</span>()
 				.<span class="ident">expect</span>(<span class="string">&quot;storage_transaction always set after calling storage root; qed&quot;</span>),
 			<span class="self">self</span>.<span class="ident">changes_trie_transaction</span>
+				.<span class="ident">take</span>()
 				.<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">tx</span>, <span class="kw">_</span>, <span class="ident">cache</span>)<span class="op">|</span> (<span class="ident">tx</span>, <span class="ident">cache</span>)),
 		);
 
@@ -736,16 +758,14 @@
 	<span class="kw">fn</span> <span class="ident">mark_dirty</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
 		<span class="self">self</span>.<span class="ident">storage_transaction</span> <span class="op">=</span> <span class="prelude-val">None</span>;
 	}
-
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">B</span>, <span class="ident">T</span>, <span class="ident">O</span><span class="op">&gt;</span> <span class="ident">Ext</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">B</span>, <span class="ident">T</span>, <span class="ident">O</span><span class="op">&gt;</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">B</span>, <span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Ext</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">B</span>, <span class="ident">T</span><span class="op">&gt;</span>
 <span class="kw">where</span>
-	<span class="ident">H</span>: <span class="ident">Hasher</span>,
+	<span class="ident">H</span>: <span class="ident">Hasher</span><span class="op">&lt;</span><span class="ident">Out</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>,
 	<span class="ident">B</span>: <span class="lifetime">&#39;a</span> <span class="op">+</span> <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span>,
 	<span class="ident">T</span>: <span class="lifetime">&#39;a</span> <span class="op">+</span> <span class="ident">ChangesTrieStorage</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span>,
-	<span class="ident">O</span>: <span class="lifetime">&#39;a</span> <span class="op">+</span> <span class="ident">offchain</span>::<span class="ident">Externalities</span>,
 	<span class="ident">N</span>: <span class="kw">crate</span>::<span class="ident">changes_trie</span>::<span class="ident">BlockNumber</span>,
 {
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">storage_pairs</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>)<span class="op">&gt;</span> {
@@ -762,13 +782,12 @@
 	}
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">B</span>, <span class="ident">T</span>, <span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">O</span><span class="op">&gt;</span> <span class="ident">Externalities</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Ext</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">B</span>, <span class="ident">T</span>, <span class="ident">O</span><span class="op">&gt;</span>
-<span class="kw">where</span>	<span class="ident">H</span>: <span class="ident">Hasher</span>,
+<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">H</span>, <span class="ident">B</span>, <span class="ident">T</span>, <span class="ident">N</span><span class="op">&gt;</span> <span class="ident">Externalities</span> <span class="kw">for</span> <span class="ident">Ext</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">B</span>, <span class="ident">T</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+	<span class="ident">H</span>: <span class="ident">Hasher</span><span class="op">&lt;</span><span class="ident">Out</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>,
 	<span class="ident">B</span>: <span class="lifetime">&#39;a</span> <span class="op">+</span> <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span>,
 	<span class="ident">T</span>: <span class="lifetime">&#39;a</span> <span class="op">+</span> <span class="ident">ChangesTrieStorage</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span>,
-	<span class="ident">H</span>::<span class="ident">Out</span>: <span class="ident">Ord</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">N</span>: <span class="kw">crate</span>::<span class="ident">changes_trie</span>::<span class="ident">BlockNumber</span>,
-	<span class="ident">O</span>: <span class="lifetime">&#39;a</span> <span class="op">+</span> <span class="ident">offchain</span>::<span class="ident">Externalities</span>,
 {
 	<span class="kw">fn</span> <span class="ident">storage</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">_guard</span> <span class="op">=</span> <span class="ident">panic_handler</span>::<span class="ident">AbortGuard</span>::<span class="ident">force_abort</span>();
@@ -782,10 +801,14 @@
 		<span class="ident">result</span>
 	}
 
-	<span class="kw">fn</span> <span class="ident">storage_hash</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">H</span>::<span class="ident">Out</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">storage_hash</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">H256</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">_guard</span> <span class="op">=</span> <span class="ident">panic_handler</span>::<span class="ident">AbortGuard</span>::<span class="ident">force_abort</span>();
-		<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">overlay</span>.<span class="ident">storage</span>(<span class="ident">key</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">H</span>::<span class="ident">hash</span>(<span class="ident">x</span>))).<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span>
-			<span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">storage_hash</span>(<span class="ident">key</span>).<span class="ident">expect</span>(<span class="ident">EXT_NOT_ALLOWED_TO_FAIL</span>));
+		<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">overlay</span>
+			.<span class="ident">storage</span>(<span class="ident">key</span>)
+			.<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">H</span>::<span class="ident">hash</span>(<span class="ident">x</span>)))
+			.<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span>
+				<span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">storage_hash</span>(<span class="ident">key</span>).<span class="ident">expect</span>(<span class="ident">EXT_NOT_ALLOWED_TO_FAIL</span>)
+			);
 		<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;state-trace&quot;</span>, <span class="string">&quot;{:04x}: Hash {}={:?}&quot;</span>,
 			<span class="self">self</span>.<span class="ident">id</span>,
 			<span class="ident">HexDisplay</span>::<span class="ident">from</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>),
@@ -805,7 +828,7 @@
 		<span class="ident">result</span>
 	}
 
-	<span class="kw">fn</span> <span class="ident">original_storage_hash</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">H</span>::<span class="ident">Out</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">original_storage_hash</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">H256</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">_guard</span> <span class="op">=</span> <span class="ident">panic_handler</span>::<span class="ident">AbortGuard</span>::<span class="ident">force_abort</span>();
 		<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">storage_hash</span>(<span class="ident">key</span>).<span class="ident">expect</span>(<span class="ident">EXT_NOT_ALLOWED_TO_FAIL</span>);
 		<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;state-trace&quot;</span>, <span class="string">&quot;{:04x}: GetOriginalHash {}={:?}&quot;</span>,
@@ -818,33 +841,48 @@
 
 	<span class="kw">fn</span> <span class="ident">child_storage</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">storage_key</span>: <span class="ident">ChildStorageKey</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">_guard</span> <span class="op">=</span> <span class="ident">panic_handler</span>::<span class="ident">AbortGuard</span>::<span class="ident">force_abort</span>();
-		<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">overlay</span>.<span class="ident">child_storage</span>(<span class="ident">storage_key</span>.<span class="ident">as_ref</span>(), <span class="ident">key</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">to_vec</span>())).<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span>
-			<span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">child_storage</span>(<span class="ident">storage_key</span>.<span class="ident">as_ref</span>(), <span class="ident">key</span>).<span class="ident">expect</span>(<span class="ident">EXT_NOT_ALLOWED_TO_FAIL</span>));
+		<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">overlay</span>
+			.<span class="ident">child_storage</span>(<span class="ident">storage_key</span>.<span class="ident">as_ref</span>(), <span class="ident">key</span>)
+			.<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">to_vec</span>()))
+			.<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span>
+				<span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">child_storage</span>(<span class="ident">storage_key</span>.<span class="ident">as_ref</span>(), <span class="ident">key</span>).<span class="ident">expect</span>(<span class="ident">EXT_NOT_ALLOWED_TO_FAIL</span>)
+			);
+
 		<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;state-trace&quot;</span>, <span class="string">&quot;{:04x}: GetChild({}) {}={:?}&quot;</span>,
 			<span class="self">self</span>.<span class="ident">id</span>,
 			<span class="ident">HexDisplay</span>::<span class="ident">from</span>(<span class="kw-2">&amp;</span><span class="ident">storage_key</span>.<span class="ident">as_ref</span>()),
 			<span class="ident">HexDisplay</span>::<span class="ident">from</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>),
 			<span class="ident">result</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="ident">HexDisplay</span>::<span class="ident">from</span>)
 		);
+
 		<span class="ident">result</span>
 	}
 
-	<span class="kw">fn</span> <span class="ident">child_storage_hash</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">storage_key</span>: <span class="ident">ChildStorageKey</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">H</span>::<span class="ident">Out</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">child_storage_hash</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">storage_key</span>: <span class="ident">ChildStorageKey</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">H256</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">_guard</span> <span class="op">=</span> <span class="ident">panic_handler</span>::<span class="ident">AbortGuard</span>::<span class="ident">force_abort</span>();
-		<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">overlay</span>.<span class="ident">child_storage</span>(<span class="ident">storage_key</span>.<span class="ident">as_ref</span>(), <span class="ident">key</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">H</span>::<span class="ident">hash</span>(<span class="ident">x</span>))).<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span>
-			<span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">storage_hash</span>(<span class="ident">key</span>).<span class="ident">expect</span>(<span class="ident">EXT_NOT_ALLOWED_TO_FAIL</span>));
+		<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">overlay</span>
+			.<span class="ident">child_storage</span>(<span class="ident">storage_key</span>.<span class="ident">as_ref</span>(), <span class="ident">key</span>)
+			.<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">H</span>::<span class="ident">hash</span>(<span class="ident">x</span>)))
+			.<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span>
+				<span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">storage_hash</span>(<span class="ident">key</span>).<span class="ident">expect</span>(<span class="ident">EXT_NOT_ALLOWED_TO_FAIL</span>)
+			);
+
 		<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;state-trace&quot;</span>, <span class="string">&quot;{:04x}: ChildHash({}) {}={:?}&quot;</span>,
 			<span class="self">self</span>.<span class="ident">id</span>,
 			<span class="ident">HexDisplay</span>::<span class="ident">from</span>(<span class="kw-2">&amp;</span><span class="ident">storage_key</span>.<span class="ident">as_ref</span>()),
 			<span class="ident">HexDisplay</span>::<span class="ident">from</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>),
 			<span class="ident">result</span>,
 		);
+
 		<span class="ident">result</span>
 	}
 
 	<span class="kw">fn</span> <span class="ident">original_child_storage</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">storage_key</span>: <span class="ident">ChildStorageKey</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">_guard</span> <span class="op">=</span> <span class="ident">panic_handler</span>::<span class="ident">AbortGuard</span>::<span class="ident">force_abort</span>();
-		<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">child_storage</span>(<span class="ident">storage_key</span>.<span class="ident">as_ref</span>(), <span class="ident">key</span>).<span class="ident">expect</span>(<span class="ident">EXT_NOT_ALLOWED_TO_FAIL</span>);
+		<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">backend</span>
+			.<span class="ident">child_storage</span>(<span class="ident">storage_key</span>.<span class="ident">as_ref</span>(), <span class="ident">key</span>)
+			.<span class="ident">expect</span>(<span class="ident">EXT_NOT_ALLOWED_TO_FAIL</span>);
+
 		<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;state-trace&quot;</span>, <span class="string">&quot;{:04x}: ChildOriginal({}) {}={:?}&quot;</span>,
 			<span class="self">self</span>.<span class="ident">id</span>,
 			<span class="ident">HexDisplay</span>::<span class="ident">from</span>(<span class="kw-2">&amp;</span><span class="ident">storage_key</span>.<span class="ident">as_ref</span>()),
@@ -854,9 +892,12 @@
 		<span class="ident">result</span>
 	}
 
-	<span class="kw">fn</span> <span class="ident">original_child_storage_hash</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">storage_key</span>: <span class="ident">ChildStorageKey</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">H</span>::<span class="ident">Out</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">original_child_storage_hash</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">storage_key</span>: <span class="ident">ChildStorageKey</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">H256</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">_guard</span> <span class="op">=</span> <span class="ident">panic_handler</span>::<span class="ident">AbortGuard</span>::<span class="ident">force_abort</span>();
-		<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">child_storage_hash</span>(<span class="ident">storage_key</span>.<span class="ident">as_ref</span>(), <span class="ident">key</span>).<span class="ident">expect</span>(<span class="ident">EXT_NOT_ALLOWED_TO_FAIL</span>);
+		<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">backend</span>
+			.<span class="ident">child_storage_hash</span>(<span class="ident">storage_key</span>.<span class="ident">as_ref</span>(), <span class="ident">key</span>)
+			.<span class="ident">expect</span>(<span class="ident">EXT_NOT_ALLOWED_TO_FAIL</span>);
+
 		<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;state-trace&quot;</span>, <span class="string">&quot;{}: ChildHashOriginal({}) {}={:?}&quot;</span>,
 			<span class="self">self</span>.<span class="ident">id</span>,
 			<span class="ident">HexDisplay</span>::<span class="ident">from</span>(<span class="kw-2">&amp;</span><span class="ident">storage_key</span>.<span class="ident">as_ref</span>()),
@@ -872,6 +913,7 @@
 			<span class="prelude-val">Some</span>(<span class="ident">x</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">x</span>.<span class="ident">is_some</span>(),
 			<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">exists_storage</span>(<span class="ident">key</span>).<span class="ident">expect</span>(<span class="ident">EXT_NOT_ALLOWED_TO_FAIL</span>),
 		};
+
 		<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;state-trace&quot;</span>, <span class="string">&quot;{:04x}: Exists {}={:?}&quot;</span>,
 			<span class="self">self</span>.<span class="ident">id</span>,
 			<span class="ident">HexDisplay</span>::<span class="ident">from</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>),
@@ -886,8 +928,11 @@
 
 		<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>.<span class="ident">overlay</span>.<span class="ident">child_storage</span>(<span class="ident">storage_key</span>.<span class="ident">as_ref</span>(), <span class="ident">key</span>) {
 			<span class="prelude-val">Some</span>(<span class="ident">x</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">x</span>.<span class="ident">is_some</span>(),
-			<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">exists_child_storage</span>(<span class="ident">storage_key</span>.<span class="ident">as_ref</span>(), <span class="ident">key</span>).<span class="ident">expect</span>(<span class="ident">EXT_NOT_ALLOWED_TO_FAIL</span>),
+			<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">backend</span>
+				.<span class="ident">exists_child_storage</span>(<span class="ident">storage_key</span>.<span class="ident">as_ref</span>(), <span class="ident">key</span>)
+				.<span class="ident">expect</span>(<span class="ident">EXT_NOT_ALLOWED_TO_FAIL</span>),
 		};
+
 		<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;state-trace&quot;</span>, <span class="string">&quot;{:04x}: ChildExists({}) {}={:?}&quot;</span>,
 			<span class="self">self</span>.<span class="ident">id</span>,
 			<span class="ident">HexDisplay</span>::<span class="ident">from</span>(<span class="kw-2">&amp;</span><span class="ident">storage_key</span>.<span class="ident">as_ref</span>()),
@@ -913,7 +958,12 @@
 		<span class="self">self</span>.<span class="ident">overlay</span>.<span class="ident">set_storage</span>(<span class="ident">key</span>, <span class="ident">value</span>);
 	}
 
-	<span class="kw">fn</span> <span class="ident">place_child_storage</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">storage_key</span>: <span class="ident">ChildStorageKey</span>, <span class="ident">key</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">value</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>) {
+	<span class="kw">fn</span> <span class="ident">place_child_storage</span>(
+		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+		<span class="ident">storage_key</span>: <span class="ident">ChildStorageKey</span>,
+		<span class="ident">key</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
+		<span class="ident">value</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	) {
 		<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;state-trace&quot;</span>, <span class="string">&quot;{:04x}: PutChild({}) {}={:?}&quot;</span>,
 			<span class="self">self</span>.<span class="ident">id</span>,
 			<span class="ident">HexDisplay</span>::<span class="ident">from</span>(<span class="kw-2">&amp;</span><span class="ident">storage_key</span>.<span class="ident">as_ref</span>()),
@@ -977,7 +1027,7 @@
 		<span class="number">42</span>
 	}
 
-	<span class="kw">fn</span> <span class="ident">storage_root</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">H</span>::<span class="ident">Out</span> {
+	<span class="kw">fn</span> <span class="ident">storage_root</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">H256</span> {
 		<span class="kw">let</span> <span class="ident">_guard</span> <span class="op">=</span> <span class="ident">panic_handler</span>::<span class="ident">AbortGuard</span>::<span class="ident">force_abort</span>();
 		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="kw">_</span>, <span class="kw-2">ref</span> <span class="ident">root</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="ident">storage_transaction</span> {
 			<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;state-trace&quot;</span>, <span class="string">&quot;{:04x}: Root (cached) {}&quot;</span>,
@@ -1050,7 +1100,7 @@
 		}
 	}
 
-	<span class="kw">fn</span> <span class="ident">storage_changes_root</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">parent_hash</span>: <span class="ident">H</span>::<span class="ident">Out</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">H</span>::<span class="ident">Out</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">storage_changes_root</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">parent_hash</span>: <span class="ident">H256</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">H256</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">_guard</span> <span class="op">=</span> <span class="ident">panic_handler</span>::<span class="ident">AbortGuard</span>::<span class="ident">force_abort</span>();
 		<span class="self">self</span>.<span class="ident">changes_trie_transaction</span> <span class="op">=</span> <span class="ident">build_changes_trie</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">T</span>, <span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span>(
 			<span class="self">self</span>.<span class="ident">backend</span>,
@@ -1066,32 +1116,36 @@
 		);
 		<span class="ident">result</span>
 	}
+}
 
-	<span class="kw">fn</span> <span class="ident">offchain</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">offchain</span>::<span class="ident">Externalities</span><span class="op">&gt;</span> {
-		<span class="self">self</span>.<span class="ident">offchain_externalities</span>.<span class="ident">as_mut</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">x</span> <span class="kw">as</span> <span class="kw">_</span>)
+<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">H</span>, <span class="ident">B</span>, <span class="ident">T</span>, <span class="ident">N</span><span class="op">&gt;</span> <span class="ident">externalities</span>::<span class="ident">ExtensionStore</span> <span class="kw">for</span> <span class="ident">Ext</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">B</span>, <span class="ident">T</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+	<span class="ident">H</span>: <span class="ident">Hasher</span><span class="op">&lt;</span><span class="ident">Out</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>,
+	<span class="ident">B</span>: <span class="lifetime">&#39;a</span> <span class="op">+</span> <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span>,
+	<span class="ident">T</span>: <span class="lifetime">&#39;a</span> <span class="op">+</span> <span class="ident">ChangesTrieStorage</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span>,
+	<span class="ident">N</span>: <span class="kw">crate</span>::<span class="ident">changes_trie</span>::<span class="ident">BlockNumber</span>,
+{
+	<span class="kw">fn</span> <span class="ident">extension_by_type_id</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">type_id</span>: <span class="ident">TypeId</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">Any</span><span class="op">&gt;</span> {
+		<span class="self">self</span>.<span class="ident">extensions</span>.<span class="ident">as_mut</span>().<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">exts</span><span class="op">|</span> <span class="ident">exts</span>.<span class="ident">get_mut</span>(<span class="ident">type_id</span>))
 	}
-
-	<span class="kw">fn</span> <span class="ident">keystore</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">BareCryptoStorePtr</span><span class="op">&gt;</span> {
-		<span class="self">self</span>.<span class="ident">keystore</span>.<span class="ident">clone</span>()
-	}
-
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span> {
+	<span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 	<span class="kw">use</span> <span class="ident">hex_literal</span>::<span class="ident">hex</span>;
 	<span class="kw">use</span> <span class="ident">codec</span>::<span class="ident">Encode</span>;
-	<span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">Blake2Hasher</span>};
-	<span class="kw">use</span> <span class="ident">primitives</span>::<span class="ident">storage</span>::<span class="ident">well_known_keys</span>::<span class="ident">EXTRINSIC_INDEX</span>;
-	<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">InMemory</span>;
-	<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">changes_trie</span>::{<span class="ident">Configuration</span> <span class="kw">as</span> <span class="ident">ChangesTrieConfiguration</span>,
-		<span class="ident">InMemoryStorage</span> <span class="kw">as</span> <span class="ident">InMemoryChangesTrieStorage</span>};
-	<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">overlayed_changes</span>::<span class="ident">OverlayedValue</span>;
-	<span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
+	<span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">Blake2Hasher</span>, <span class="ident">storage</span>::<span class="ident">well_known_keys</span>::<span class="ident">EXTRINSIC_INDEX</span>};
+	<span class="kw">use</span> <span class="kw">crate</span>::{
+		<span class="ident">changes_trie</span>::{
+			<span class="ident">Configuration</span> <span class="kw">as</span> <span class="ident">ChangesTrieConfiguration</span>,
+			<span class="ident">InMemoryStorage</span> <span class="kw">as</span> <span class="ident">InMemoryChangesTrieStorage</span>,
+		}, <span class="ident">backend</span>::<span class="ident">InMemory</span>, <span class="ident">overlayed_changes</span>::<span class="ident">OverlayedValue</span>,
+	};
 
 	<span class="kw">type</span> <span class="ident">TestBackend</span> <span class="op">=</span> <span class="ident">InMemory</span><span class="op">&lt;</span><span class="ident">Blake2Hasher</span><span class="op">&gt;</span>;
 	<span class="kw">type</span> <span class="ident">TestChangesTrieStorage</span> <span class="op">=</span> <span class="ident">InMemoryChangesTrieStorage</span><span class="op">&lt;</span><span class="ident">Blake2Hasher</span>, <span class="ident">u64</span><span class="op">&gt;</span>;
-	<span class="kw">type</span> <span class="ident">TestExt</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Ext</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">Blake2Hasher</span>, <span class="ident">u64</span>, <span class="ident">TestBackend</span>, <span class="ident">TestChangesTrieStorage</span>, <span class="kw">crate</span>::<span class="ident">NeverOffchainExt</span><span class="op">&gt;</span>;
+	<span class="kw">type</span> <span class="ident">TestExt</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Ext</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">Blake2Hasher</span>, <span class="ident">u64</span>, <span class="ident">TestBackend</span>, <span class="ident">TestChangesTrieStorage</span><span class="op">&gt;</span>;
 
 	<span class="kw">fn</span> <span class="ident">prepare_overlay_with_changes</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">OverlayedChanges</span> {
 		<span class="ident">OverlayedChanges</span> {
@@ -1117,7 +1171,7 @@
 	<span class="kw">fn</span> <span class="ident">storage_changes_root_is_none_when_storage_is_not_provided</span>() {
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">overlay</span> <span class="op">=</span> <span class="ident">prepare_overlay_with_changes</span>();
 		<span class="kw">let</span> <span class="ident">backend</span> <span class="op">=</span> <span class="ident">TestBackend</span>::<span class="ident">default</span>();
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ext</span> <span class="op">=</span> <span class="ident">TestExt</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">overlay</span>, <span class="kw-2">&amp;</span><span class="ident">backend</span>, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>);
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ext</span> <span class="op">=</span> <span class="ident">TestExt</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">overlay</span>, <span class="kw-2">&amp;</span><span class="ident">backend</span>, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>);
 		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">ext</span>.<span class="ident">storage_changes_root</span>(<span class="ident">Default</span>::<span class="ident">default</span>()).<span class="ident">unwrap</span>(), <span class="prelude-val">None</span>);
 	}
 
@@ -1127,7 +1181,7 @@
 		<span class="ident">overlay</span>.<span class="ident">changes_trie_config</span> <span class="op">=</span> <span class="prelude-val">None</span>;
 		<span class="kw">let</span> <span class="ident">storage</span> <span class="op">=</span> <span class="ident">TestChangesTrieStorage</span>::<span class="ident">with_blocks</span>(<span class="macro">vec</span><span class="macro">!</span>[(<span class="number">100</span>, <span class="ident">Default</span>::<span class="ident">default</span>())]);
 		<span class="kw">let</span> <span class="ident">backend</span> <span class="op">=</span> <span class="ident">TestBackend</span>::<span class="ident">default</span>();
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ext</span> <span class="op">=</span> <span class="ident">TestExt</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">overlay</span>, <span class="kw-2">&amp;</span><span class="ident">backend</span>, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">storage</span>), <span class="prelude-val">None</span>, <span class="prelude-val">None</span>);
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ext</span> <span class="op">=</span> <span class="ident">TestExt</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">overlay</span>, <span class="kw-2">&amp;</span><span class="ident">backend</span>, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">storage</span>), <span class="prelude-val">None</span>);
 		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">ext</span>.<span class="ident">storage_changes_root</span>(<span class="ident">Default</span>::<span class="ident">default</span>()).<span class="ident">unwrap</span>(), <span class="prelude-val">None</span>);
 	}
 
@@ -1136,7 +1190,7 @@
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">overlay</span> <span class="op">=</span> <span class="ident">prepare_overlay_with_changes</span>();
 		<span class="kw">let</span> <span class="ident">storage</span> <span class="op">=</span> <span class="ident">TestChangesTrieStorage</span>::<span class="ident">with_blocks</span>(<span class="macro">vec</span><span class="macro">!</span>[(<span class="number">99</span>, <span class="ident">Default</span>::<span class="ident">default</span>())]);
 		<span class="kw">let</span> <span class="ident">backend</span> <span class="op">=</span> <span class="ident">TestBackend</span>::<span class="ident">default</span>();
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ext</span> <span class="op">=</span> <span class="ident">TestExt</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">overlay</span>, <span class="kw-2">&amp;</span><span class="ident">backend</span>, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">storage</span>), <span class="prelude-val">None</span>, <span class="prelude-val">None</span>);
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ext</span> <span class="op">=</span> <span class="ident">TestExt</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">overlay</span>, <span class="kw-2">&amp;</span><span class="ident">backend</span>, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">storage</span>), <span class="prelude-val">None</span>);
 		<span class="macro">assert_eq</span><span class="macro">!</span>(
 			<span class="ident">ext</span>.<span class="ident">storage_changes_root</span>(<span class="ident">Default</span>::<span class="ident">default</span>()).<span class="ident">unwrap</span>(),
 			<span class="prelude-val">Some</span>(<span class="macro">hex</span><span class="macro">!</span>(<span class="string">&quot;bb0c2ef6e1d36d5490f9766cfcc7dfe2a6ca804504c3bb206053890d6dd02376&quot;</span>).<span class="ident">into</span>()),
@@ -1149,7 +1203,7 @@
 		<span class="ident">overlay</span>.<span class="ident">prospective</span>.<span class="ident">top</span>.<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="macro">vec</span><span class="macro">!</span>[<span class="number">1</span>]).<span class="ident">unwrap</span>().<span class="ident">value</span> <span class="op">=</span> <span class="prelude-val">None</span>;
 		<span class="kw">let</span> <span class="ident">storage</span> <span class="op">=</span> <span class="ident">TestChangesTrieStorage</span>::<span class="ident">with_blocks</span>(<span class="macro">vec</span><span class="macro">!</span>[(<span class="number">99</span>, <span class="ident">Default</span>::<span class="ident">default</span>())]);
 		<span class="kw">let</span> <span class="ident">backend</span> <span class="op">=</span> <span class="ident">TestBackend</span>::<span class="ident">default</span>();
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ext</span> <span class="op">=</span> <span class="ident">TestExt</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">overlay</span>, <span class="kw-2">&amp;</span><span class="ident">backend</span>, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">storage</span>), <span class="prelude-val">None</span>, <span class="prelude-val">None</span>);
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ext</span> <span class="op">=</span> <span class="ident">TestExt</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">overlay</span>, <span class="kw-2">&amp;</span><span class="ident">backend</span>, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">storage</span>), <span class="prelude-val">None</span>);
 		<span class="macro">assert_eq</span><span class="macro">!</span>(
 			<span class="ident">ext</span>.<span class="ident">storage_changes_root</span>(<span class="ident">Default</span>::<span class="ident">default</span>()).<span class="ident">unwrap</span>(),
 			<span class="prelude-val">Some</span>(<span class="macro">hex</span><span class="macro">!</span>(<span class="string">&quot;96f5aae4690e7302737b6f9b7f8567d5bbb9eac1c315f80101235a92d9ec27f4&quot;</span>).<span class="ident">into</span>()),
