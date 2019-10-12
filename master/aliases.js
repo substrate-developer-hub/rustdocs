@@ -232,6 +232,7 @@ ALIASES["pretty_assertions"] = {};
 ALIASES["primitive_types"] = {};
 ALIASES["proc_macro2"] = {};
 ALIASES["proc_macro_crate"] = {};
+ALIASES["proc_macro_error"] = {};
 ALIASES["proc_macro_hack"] = {};
 ALIASES["prost"] = {};
 ALIASES["prost_derive"] = {};
