@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["gen_client","The generated client module."]],"struct":[["System","An implementation of System-specific RPC methods."],["SystemClient","The Client."]],"trait":[["AccountNonceApi","The API to query account nonce (aka transaction index)."],["SystemApi","System RPC methods."]]});

@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["Health","Health struct returned by the RPC"],["PeerInfo","Network Peer information"],["SystemInfo","Running node's static details."]],"type":[["Properties","Node properties"]]});
+initSidebarItems({"enum":[["NodeRole","The role the node is running as"]],"struct":[["Health","Health struct returned by the RPC"],["PeerInfo","Network Peer information"],["SystemInfo","Running node's static details."]],"type":[["Properties","Node properties"]]});

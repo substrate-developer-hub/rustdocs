@@ -1,1 +1,1 @@
-initSidebarItems({"fn":[["create","Instantiate all RPC extensions."]],"mod":[["accounts","Node-specific RPC methods for Accounts."],["contracts","Node-specific RPC methods for interaction with contracts."]]});
+initSidebarItems({"fn":[["create","Instantiate all RPC extensions."]]});
