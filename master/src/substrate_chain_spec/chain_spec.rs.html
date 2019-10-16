@@ -340,6 +340,7 @@
 <span id="329">329</span>
 <span id="330">330</span>
 <span id="331">331</span>
+<span id="332">332</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -363,6 +364,7 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fs</span>::<span class="ident">File</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">path</span>::<span class="ident">PathBuf</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">rc</span>::<span class="ident">Rc</span>;
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Serialize</span>, <span class="ident">Deserialize</span>};
 <span class="kw">use</span> <span class="ident">primitives</span>::<span class="ident">storage</span>::{<span class="ident">StorageKey</span>, <span class="ident">StorageData</span>};
 <span class="kw">use</span> <span class="ident">sr_primitives</span>::{<span class="ident">BuildStorage</span>, <span class="ident">StorageOverlay</span>, <span class="ident">ChildrenStorageOverlay</span>};
@@ -374,7 +376,7 @@
 <span class="kw">enum</span> <span class="ident">GenesisSource</span><span class="op">&lt;</span><span class="ident">G</span><span class="op">&gt;</span> {
 	<span class="ident">File</span>(<span class="ident">PathBuf</span>),
 	<span class="ident">Binary</span>(<span class="ident">Cow</span><span class="op">&lt;</span><span class="lifetime">&#39;static</span>, [<span class="ident">u8</span>]<span class="op">&gt;</span>),
-	<span class="ident">Factory</span>(<span class="kw">fn</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">G</span>),
+	<span class="ident">Factory</span>(<span class="ident">Rc</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Fn</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">G</span><span class="op">&gt;</span>),
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">G</span><span class="op">&gt;</span> <span class="ident">Clone</span> <span class="kw">for</span> <span class="ident">GenesisSource</span><span class="op">&lt;</span><span class="ident">G</span><span class="op">&gt;</span> {
@@ -382,7 +384,7 @@
 		<span class="kw">match</span> <span class="kw-2">*</span><span class="self">self</span> {
 			<span class="ident">GenesisSource</span>::<span class="ident">File</span>(<span class="kw-2">ref</span> <span class="ident">path</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">GenesisSource</span>::<span class="ident">File</span>(<span class="ident">path</span>.<span class="ident">clone</span>()),
 			<span class="ident">GenesisSource</span>::<span class="ident">Binary</span>(<span class="kw-2">ref</span> <span class="ident">d</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">GenesisSource</span>::<span class="ident">Binary</span>(<span class="ident">d</span>.<span class="ident">clone</span>()),
-			<span class="ident">GenesisSource</span>::<span class="ident">Factory</span>(<span class="ident">f</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">GenesisSource</span>::<span class="ident">Factory</span>(<span class="ident">f</span>),
+			<span class="ident">GenesisSource</span>::<span class="ident">Factory</span>(<span class="kw-2">ref</span> <span class="ident">f</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">GenesisSource</span>::<span class="ident">Factory</span>(<span class="ident">f</span>.<span class="ident">clone</span>()),
 		}
 	}
 }
@@ -530,10 +532,10 @@
 	}
 
 	<span class="doccomment">/// Create hardcoded spec.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_genesis</span>(
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_genesis</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">Fn</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">G</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>(
 		<span class="ident">name</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
 		<span class="ident">id</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
-		<span class="ident">constructor</span>: <span class="kw">fn</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">G</span>,
+		<span class="ident">constructor</span>: <span class="ident">F</span>,
 		<span class="ident">boot_nodes</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>,
 		<span class="ident">telemetry_endpoints</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">TelemetryEndpoints</span><span class="op">&gt;</span>,
 		<span class="ident">protocol_id</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span>,
@@ -554,7 +556,7 @@
 
 		<span class="ident">ChainSpec</span> {
 			<span class="ident">spec</span>,
-			<span class="ident">genesis</span>: <span class="ident">GenesisSource</span>::<span class="ident">Factory</span>(<span class="ident">constructor</span>),
+			<span class="ident">genesis</span>: <span class="ident">GenesisSource</span>::<span class="ident">Factory</span>(<span class="ident">Rc</span>::<span class="ident">new</span>(<span class="ident">constructor</span>)),
 		}
 	}
 }
