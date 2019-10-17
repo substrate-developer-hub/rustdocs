@@ -334,6 +334,7 @@ ALIASES["srml_system"] = {};
 ALIASES["srml_system_rpc"] = {};
 ALIASES["srml_system_rpc_runtime_api"] = {};
 ALIASES["srml_timestamp"] = {};
+ALIASES["srml_transaction_payment"] = {};
 ALIASES["srml_treasury"] = {};
 ALIASES["srml_utility"] = {};
 ALIASES["stable_deref_trait"] = {};
