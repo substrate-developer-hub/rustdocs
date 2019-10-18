@@ -897,6 +897,21 @@
 <span id="886">886</span>
 <span id="887">887</span>
 <span id="888">888</span>
+<span id="889">889</span>
+<span id="890">890</span>
+<span id="891">891</span>
+<span id="892">892</span>
+<span id="893">893</span>
+<span id="894">894</span>
+<span id="895">895</span>
+<span id="896">896</span>
+<span id="897">897</span>
+<span id="898">898</span>
+<span id="899">899</span>
+<span id="900">900</span>
+<span id="901">901</span>
+<span id="902">902</span>
+<span id="903">903</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -992,11 +1007,15 @@
 <span class="kw">mod</span> <span class="ident">light_import</span>;
 <span class="kw">mod</span> <span class="ident">observer</span>;
 <span class="kw">mod</span> <span class="ident">until_imported</span>;
+<span class="kw">mod</span> <span class="ident">voting_rule</span>;
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">communication</span>::<span class="ident">Network</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">finality_proof</span>::<span class="ident">FinalityProofProvider</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">light_import</span>::<span class="ident">light_block_import</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">observer</span>::<span class="ident">run_grandpa_observer</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">voting_rule</span>::{
+	<span class="ident">BeforeBestBlock</span>, <span class="ident">ThreeQuartersOfTheUnfinalizedChain</span>, <span class="ident">VotingRule</span>, <span class="ident">VotingRulesBuilder</span>
+};
 
 <span class="kw">use</span> <span class="ident">aux_schema</span>::<span class="ident">PersistentData</span>;
 <span class="kw">use</span> <span class="ident">environment</span>::{<span class="ident">Environment</span>, <span class="ident">VoterSetState</span>};
@@ -1366,7 +1385,7 @@
 }
 
 <span class="doccomment">/// Parameters used to run Grandpa.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">GrandpaParams</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span>, <span class="ident">X</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">GrandpaParams</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span>, <span class="ident">VR</span>, <span class="ident">X</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Configuration for the GRANDPA service.</span>
 	<span class="kw">pub</span> <span class="ident">config</span>: <span class="ident">Config</span>,
 	<span class="doccomment">/// A link to the block import worker.</span>
@@ -1379,12 +1398,14 @@
 	<span class="kw">pub</span> <span class="ident">on_exit</span>: <span class="ident">X</span>,
 	<span class="doccomment">/// If supplied, can be used to hook on telemetry connection established events.</span>
 	<span class="kw">pub</span> <span class="ident">telemetry_on_connect</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">mpsc</span>::<span class="ident">UnboundedReceiver</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="doccomment">/// A voting rule used to potentially restrict target votes.</span>
+	<span class="kw">pub</span> <span class="ident">voting_rule</span>: <span class="ident">VR</span>,
 }
 
 <span class="doccomment">/// Run a GRANDPA voter as a task. Provide configuration and a link to a</span>
 <span class="doccomment">/// block import worker that has already been instantiated with `block_import`.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">run_grandpa_voter</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span>, <span class="ident">X</span><span class="op">&gt;</span>(
-	<span class="ident">grandpa_params</span>: <span class="ident">GrandpaParams</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span>, <span class="ident">X</span><span class="op">&gt;</span>,
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">run_grandpa_voter</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span>, <span class="ident">VR</span>, <span class="ident">X</span><span class="op">&gt;</span>(
+	<span class="ident">grandpa_params</span>: <span class="ident">GrandpaParams</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span>, <span class="ident">VR</span>, <span class="ident">X</span><span class="op">&gt;</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">client</span>::<span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span>(),<span class="ident">Error</span><span class="op">=</span>()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="kw">where</span>
 	<span class="ident">Block</span>::<span class="ident">Hash</span>: <span class="ident">Ord</span>,
 	<span class="ident">B</span>: <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
@@ -1392,6 +1413,7 @@
 	<span class="ident">N</span>: <span class="ident">Network</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">N</span>::<span class="ident">In</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">SC</span>: <span class="ident">SelectChain</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+	<span class="ident">VR</span>: <span class="ident">VotingRule</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>: <span class="ident">BlockNumberOps</span>,
 	<span class="ident">DigestFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>: <span class="ident">Encode</span>,
 	<span class="ident">RA</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
@@ -1404,6 +1426,7 @@
 		<span class="ident">inherent_data_providers</span>,
 		<span class="ident">on_exit</span>,
 		<span class="ident">telemetry_on_connect</span>,
+		<span class="ident">voting_rule</span>,
 	} <span class="op">=</span> <span class="ident">grandpa_params</span>;
 
 	<span class="kw">let</span> <span class="ident">LinkHalf</span> {
@@ -1456,8 +1479,9 @@
 		<span class="ident">config</span>,
 		<span class="ident">network</span>,
 		<span class="ident">select_chain</span>,
+		<span class="ident">voting_rule</span>,
 		<span class="ident">persistent_data</span>,
-		<span class="ident">voter_commands_rx</span>
+		<span class="ident">voter_commands_rx</span>,
 	);
 
 	<span class="kw">let</span> <span class="ident">voter_work</span> <span class="op">=</span> <span class="ident">voter_work</span>
@@ -1478,13 +1502,13 @@
 
 <span class="doccomment">/// Future that powers the voter.</span>
 <span class="attribute">#[<span class="ident">must_use</span>]</span>
-<span class="kw">struct</span> <span class="ident">VoterWork</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span>, <span class="ident">N</span>: <span class="ident">Network</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>, <span class="ident">RA</span>, <span class="ident">SC</span><span class="op">&gt;</span> {
+<span class="kw">struct</span> <span class="ident">VoterWork</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span>, <span class="ident">N</span>: <span class="ident">Network</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>, <span class="ident">RA</span>, <span class="ident">SC</span>, <span class="ident">VR</span><span class="op">&gt;</span> {
 	<span class="ident">voter</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> <span class="ident">CommandOrError</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span>,
-	<span class="ident">env</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Environment</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">env</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Environment</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span>, <span class="ident">VR</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">voter_commands_rx</span>: <span class="ident">mpsc</span>::<span class="ident">UnboundedReceiver</span><span class="op">&lt;</span><span class="ident">VoterCommand</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span><span class="op">&gt;</span> <span class="ident">VoterWork</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span><span class="op">&gt;</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span>, <span class="ident">VR</span><span class="op">&gt;</span> <span class="ident">VoterWork</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span>, <span class="ident">VR</span><span class="op">&gt;</span>
 <span class="kw">where</span>
 	<span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>,
 	<span class="ident">N</span>: <span class="ident">Network</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Sync</span>,
@@ -1494,12 +1518,14 @@
 	<span class="ident">E</span>: <span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">B</span>: <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">SC</span>: <span class="ident">SelectChain</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+	<span class="ident">VR</span>: <span class="ident">VotingRule</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 {
 	<span class="kw">fn</span> <span class="ident">new</span>(
 		<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 		<span class="ident">config</span>: <span class="ident">Config</span>,
 		<span class="ident">network</span>: <span class="ident">NetworkBridge</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">N</span><span class="op">&gt;</span>,
 		<span class="ident">select_chain</span>: <span class="ident">SC</span>,
+		<span class="ident">voting_rule</span>: <span class="ident">VR</span>,
 		<span class="ident">persistent_data</span>: <span class="ident">PersistentData</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 		<span class="ident">voter_commands_rx</span>: <span class="ident">mpsc</span>::<span class="ident">UnboundedReceiver</span><span class="op">&lt;</span><span class="ident">VoterCommand</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
@@ -1508,6 +1534,7 @@
 		<span class="kw">let</span> <span class="ident">env</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Environment</span> {
 			<span class="ident">inner</span>: <span class="ident">client</span>,
 			<span class="ident">select_chain</span>,
+			<span class="ident">voting_rule</span>,
 			<span class="ident">voters</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">voters</span>),
 			<span class="ident">config</span>,
 			<span class="ident">network</span>,
@@ -1631,6 +1658,7 @@
 					<span class="ident">authority_set</span>: <span class="self">self</span>.<span class="ident">env</span>.<span class="ident">authority_set</span>.<span class="ident">clone</span>(),
 					<span class="ident">consensus_changes</span>: <span class="self">self</span>.<span class="ident">env</span>.<span class="ident">consensus_changes</span>.<span class="ident">clone</span>(),
 					<span class="ident">network</span>: <span class="self">self</span>.<span class="ident">env</span>.<span class="ident">network</span>.<span class="ident">clone</span>(),
+					<span class="ident">voting_rule</span>: <span class="self">self</span>.<span class="ident">env</span>.<span class="ident">voting_rule</span>.<span class="ident">clone</span>(),
 				});
 
 				<span class="self">self</span>.<span class="ident">rebuild_voter</span>();
@@ -1655,7 +1683,7 @@
 	}
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span><span class="op">&gt;</span> <span class="ident">Future</span> <span class="kw">for</span> <span class="ident">VoterWork</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span><span class="op">&gt;</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span>, <span class="ident">VR</span><span class="op">&gt;</span> <span class="ident">Future</span> <span class="kw">for</span> <span class="ident">VoterWork</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span>, <span class="ident">VR</span><span class="op">&gt;</span>
 <span class="kw">where</span>
 	<span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>,
 	<span class="ident">N</span>: <span class="ident">Network</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Sync</span>,
@@ -1665,6 +1693,7 @@
 	<span class="ident">E</span>: <span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">B</span>: <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">SC</span>: <span class="ident">SelectChain</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+	<span class="ident">VR</span>: <span class="ident">VotingRule</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 {
 	<span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> ();
 	<span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span>;
@@ -1709,8 +1738,8 @@
 }
 
 <span class="attribute">#[<span class="ident">deprecated</span>(<span class="ident">since</span> <span class="op">=</span> <span class="string">&quot;1.1&quot;</span>, <span class="ident">note</span> <span class="op">=</span> <span class="string">&quot;Please switch to run_grandpa_voter.&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">run_grandpa</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span>, <span class="ident">X</span><span class="op">&gt;</span>(
-	<span class="ident">grandpa_params</span>: <span class="ident">GrandpaParams</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span>, <span class="ident">X</span><span class="op">&gt;</span>,
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">run_grandpa</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span>, <span class="ident">VR</span>, <span class="ident">X</span><span class="op">&gt;</span>(
+	<span class="ident">grandpa_params</span>: <span class="ident">GrandpaParams</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span>, <span class="ident">VR</span>, <span class="ident">X</span><span class="op">&gt;</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> ::<span class="ident">client</span>::<span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span>(),<span class="ident">Error</span><span class="op">=</span>()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="kw">where</span>
 	<span class="ident">Block</span>::<span class="ident">Hash</span>: <span class="ident">Ord</span>,
 	<span class="ident">B</span>: <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
@@ -1721,6 +1750,7 @@
 	<span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>: <span class="ident">BlockNumberOps</span>,
 	<span class="ident">DigestFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>: <span class="ident">Encode</span>,
 	<span class="ident">RA</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+	<span class="ident">VR</span>: <span class="ident">VotingRule</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">X</span>: <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span>(),<span class="ident">Error</span><span class="op">=</span>()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 {
 	<span class="ident">run_grandpa_voter</span>(<span class="ident">grandpa_params</span>)
