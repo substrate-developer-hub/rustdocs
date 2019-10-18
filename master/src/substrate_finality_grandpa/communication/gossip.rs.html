@@ -1900,6 +1900,12 @@
 <span id="1889">1889</span>
 <span id="1890">1890</span>
 <span id="1891">1891</span>
+<span id="1892">1892</span>
+<span id="1893">1893</span>
+<span id="1894">1894</span>
+<span id="1895">1895</span>
+<span id="1896">1896</span>
+<span id="1897">1897</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -2086,7 +2092,13 @@
 
 <span class="kw">const</span> <span class="ident">KEEP_RECENT_ROUNDS</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">3</span>;
 
-<span class="doccomment">/// Tracks topics we keep messages for.</span>
+<span class="doccomment">/// Tracks gossip topics that we are keeping messages for. We keep topics of:</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// - the last `KEEP_RECENT_ROUNDS` complete GRANDPA rounds,</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// - the topic for the current and next round,</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// - and a global topic for commit and catch-up messages.</span>
 <span class="kw">struct</span> <span class="ident">KeepTopics</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> {
 	<span class="ident">current_set</span>: <span class="ident">SetId</span>,
 	<span class="ident">rounds</span>: <span class="ident">VecDeque</span><span class="op">&lt;</span>(<span class="ident">Round</span>, <span class="ident">SetId</span>)<span class="op">&gt;</span>,
@@ -2159,7 +2171,7 @@
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Encode</span>, <span class="ident">Decode</span>)]</span>
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">enum</span> <span class="ident">GossipMessage</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Grandpa message with round and set info.</span>
-	<span class="ident">VoteOrPrecommit</span>(<span class="ident">VoteOrPrecommitMessage</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>),
+	<span class="ident">Vote</span>(<span class="ident">VoteMessage</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>),
 	<span class="doccomment">/// Grandpa commit message with round and set info.</span>
 	<span class="ident">Commit</span>(<span class="ident">FullCommitMessage</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>),
 	<span class="doccomment">/// A neighbor packet. Not repropagated.</span>
@@ -2176,9 +2188,9 @@
 	}
 }
 
-<span class="doccomment">/// Network level message with topic information.</span>
+<span class="doccomment">/// Network level vote message with topic information.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Encode</span>, <span class="ident">Decode</span>)]</span>
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct</span> <span class="ident">VoteOrPrecommitMessage</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> {
+<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct</span> <span class="ident">VoteMessage</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// The round this message is from.</span>
 	<span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">round</span>: <span class="ident">Round</span>,
 	<span class="doccomment">/// The voter set ID this message is from.</span>
@@ -2515,7 +2527,7 @@
 		<span class="ident">cost</span>::<span class="ident">PAST_REJECTION</span>
 	}
 
-	<span class="kw">fn</span> <span class="ident">validate_round_message</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">who</span>: <span class="kw-2">&amp;</span><span class="ident">PeerId</span>, <span class="ident">full</span>: <span class="kw-2">&amp;</span><span class="ident">VoteOrPrecommitMessage</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>)
+	<span class="kw">fn</span> <span class="ident">validate_round_message</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">who</span>: <span class="kw-2">&amp;</span><span class="ident">PeerId</span>, <span class="ident">full</span>: <span class="kw-2">&amp;</span><span class="ident">VoteMessage</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>)
 		<span class="op">-</span><span class="op">&gt;</span> <span class="ident">Action</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Hash</span><span class="op">&gt;</span>
 	{
 		<span class="kw">match</span> <span class="self">self</span>.<span class="ident">consider_vote</span>(<span class="ident">full</span>.<span class="ident">round</span>, <span class="ident">full</span>.<span class="ident">set_id</span>) {
@@ -2906,7 +2918,7 @@
 
 		<span class="kw">let</span> <span class="ident">action</span> <span class="op">=</span> {
 			<span class="kw">match</span> <span class="ident">GossipMessage</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">data</span>) {
-				<span class="prelude-val">Ok</span>(<span class="ident">GossipMessage</span>::<span class="ident">VoteOrPrecommit</span>(<span class="kw-2">ref</span> <span class="ident">message</span>))
+				<span class="prelude-val">Ok</span>(<span class="ident">GossipMessage</span>::<span class="ident">Vote</span>(<span class="kw-2">ref</span> <span class="ident">message</span>))
 					<span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">write</span>().<span class="ident">validate_round_message</span>(<span class="ident">who</span>, <span class="ident">message</span>),
 				<span class="prelude-val">Ok</span>(<span class="ident">GossipMessage</span>::<span class="ident">Commit</span>(<span class="kw-2">ref</span> <span class="ident">message</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">write</span>().<span class="ident">validate_commit_message</span>(<span class="ident">who</span>, <span class="ident">message</span>),
 				<span class="prelude-val">Ok</span>(<span class="ident">GossipMessage</span>::<span class="ident">Neighbor</span>(<span class="ident">update</span>)) <span class="op">=</span><span class="op">&gt;</span> {
@@ -3066,7 +3078,7 @@
 				<span class="prelude-val">Ok</span>(<span class="ident">GossipMessage</span>::<span class="ident">Neighbor</span>(<span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">false</span>,
 				<span class="prelude-val">Ok</span>(<span class="ident">GossipMessage</span>::<span class="ident">CatchUpRequest</span>(<span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">false</span>,
 				<span class="prelude-val">Ok</span>(<span class="ident">GossipMessage</span>::<span class="ident">CatchUp</span>(<span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">false</span>,
-				<span class="prelude-val">Ok</span>(<span class="ident">GossipMessage</span>::<span class="ident">VoteOrPrecommit</span>(<span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">false</span>, <span class="comment">// should not be the case.</span>
+				<span class="prelude-val">Ok</span>(<span class="ident">GossipMessage</span>::<span class="ident">Vote</span>(<span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">false</span>, <span class="comment">// should not be the case.</span>
 			}
 		})
 	}
@@ -3381,7 +3393,7 @@
 		<span class="ident">val</span>.<span class="ident">note_round</span>(<span class="ident">Round</span>(<span class="number">1</span>), <span class="op">|</span><span class="kw">_</span>, <span class="kw">_</span><span class="op">|</span> {});
 
 		<span class="kw">let</span> <span class="ident">inner</span> <span class="op">=</span> <span class="ident">val</span>.<span class="ident">inner</span>.<span class="ident">read</span>();
-		<span class="kw">let</span> <span class="ident">unknown_voter</span> <span class="op">=</span> <span class="ident">inner</span>.<span class="ident">validate_round_message</span>(<span class="kw-2">&amp;</span><span class="ident">peer</span>, <span class="kw-2">&amp;</span><span class="ident">VoteOrPrecommitMessage</span> {
+		<span class="kw">let</span> <span class="ident">unknown_voter</span> <span class="op">=</span> <span class="ident">inner</span>.<span class="ident">validate_round_message</span>(<span class="kw-2">&amp;</span><span class="ident">peer</span>, <span class="kw-2">&amp;</span><span class="ident">VoteMessage</span> {
 			<span class="ident">round</span>: <span class="ident">Round</span>(<span class="number">1</span>),
 			<span class="ident">set_id</span>: <span class="ident">SetId</span>(<span class="ident">set_id</span>),
 			<span class="ident">message</span>: <span class="ident">SignedMessage</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> {
@@ -3394,7 +3406,7 @@
 			}
 		});
 
-		<span class="kw">let</span> <span class="ident">bad_sig</span> <span class="op">=</span> <span class="ident">inner</span>.<span class="ident">validate_round_message</span>(<span class="kw-2">&amp;</span><span class="ident">peer</span>, <span class="kw-2">&amp;</span><span class="ident">VoteOrPrecommitMessage</span> {
+		<span class="kw">let</span> <span class="ident">bad_sig</span> <span class="op">=</span> <span class="ident">inner</span>.<span class="ident">validate_round_message</span>(<span class="kw-2">&amp;</span><span class="ident">peer</span>, <span class="kw-2">&amp;</span><span class="ident">VoteMessage</span> {
 			<span class="ident">round</span>: <span class="ident">Round</span>(<span class="number">1</span>),
 			<span class="ident">set_id</span>: <span class="ident">SetId</span>(<span class="ident">set_id</span>),
 			<span class="ident">message</span>: <span class="ident">SignedMessage</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> {
