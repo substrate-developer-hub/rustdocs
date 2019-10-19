@@ -474,6 +474,7 @@ ALIASES["wasm_bindgen_futures"] = {};
 ALIASES["wasm_bindgen_macro"] = {};
 ALIASES["wasm_bindgen_macro_support"] = {};
 ALIASES["wasm_bindgen_shared"] = {};
+ALIASES["wasm_gc"] = {};
 ALIASES["wasm_timer"] = {};
 ALIASES["wasmi"] = {};
 ALIASES["wasmi_validation"] = {};
