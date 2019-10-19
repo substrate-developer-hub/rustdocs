@@ -1,5 +1,5 @@
 (function() {var implementors = {};
-implementors["sr_primitives"] = [{text:"impl <a class=\"trait\" href=\"sr_primitives/traits/trait.CheckedAdd.html\" title=\"trait sr_primitives::traits::CheckedAdd\">CheckedAdd</a> for <a class=\"struct\" href=\"sr_primitives/sr_arithmetic/struct.Fixed64.html\" title=\"struct sr_primitives::sr_arithmetic::Fixed64\">Fixed64</a>",synthetic:false,types:["sr_primitives::sr_arithmetic::Fixed64"]},];
+implementors["sr_primitives"] = [];
 
             if (window.register_implementors) {
                 window.register_implementors(implementors);
