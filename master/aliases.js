@@ -422,6 +422,7 @@ ALIASES["tempfile"] = {};
 ALIASES["termcolor"] = {};
 ALIASES["textwrap"] = {};
 ALIASES["thread_local"] = {};
+ALIASES["threadpool"] = {};
 ALIASES["time"] = {};
 ALIASES["tiny_keccak"] = {};
 ALIASES["tokio"] = {};
