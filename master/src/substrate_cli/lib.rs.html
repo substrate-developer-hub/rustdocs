@@ -1070,6 +1070,21 @@
 <span id="1059">1059</span>
 <span id="1060">1060</span>
 <span id="1061">1061</span>
+<span id="1062">1062</span>
+<span id="1063">1063</span>
+<span id="1064">1064</span>
+<span id="1065">1065</span>
+<span id="1066">1066</span>
+<span id="1067">1067</span>
+<span id="1068">1068</span>
+<span id="1069">1069</span>
+<span id="1070">1070</span>
+<span id="1071">1071</span>
+<span id="1072">1072</span>
+<span id="1073">1073</span>
+<span id="1074">1074</span>
+<span id="1075">1075</span>
+<span id="1076">1076</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1748,13 +1763,6 @@
 	<span class="ident">config</span>.<span class="ident">database_path</span> <span class="op">=</span> <span class="ident">db_path</span>(<span class="kw-2">&amp;</span><span class="ident">base_path</span>, <span class="ident">config</span>.<span class="ident">chain_spec</span>.<span class="ident">id</span>());
 	<span class="ident">config</span>.<span class="ident">database_cache_size</span> <span class="op">=</span> <span class="ident">cli</span>.<span class="ident">database_cache_size</span>;
 	<span class="ident">config</span>.<span class="ident">state_cache_size</span> <span class="op">=</span> <span class="ident">cli</span>.<span class="ident">state_cache_size</span>;
-	<span class="ident">config</span>.<span class="ident">pruning</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">cli</span>.<span class="ident">pruning</span> {
-		<span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">s</span>) <span class="kw">if</span> <span class="ident">s</span> <span class="op">=</span><span class="op">=</span> <span class="string">&quot;archive&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">PruningMode</span>::<span class="ident">ArchiveAll</span>,
-		<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">PruningMode</span>::<span class="ident">default</span>(),
-		<span class="prelude-val">Some</span>(<span class="ident">s</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">PruningMode</span>::<span class="ident">keep_blocks</span>(<span class="ident">s</span>.<span class="ident">parse</span>()
-			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">error</span>::<span class="ident">Error</span>::<span class="ident">Input</span>(<span class="string">&quot;Invalid pruning mode specified&quot;</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>
-		),
-	};
 
 	<span class="kw">let</span> <span class="ident">is_dev</span> <span class="op">=</span> <span class="ident">cli</span>.<span class="ident">shared_params</span>.<span class="ident">dev</span>;
 
@@ -1766,6 +1774,28 @@
 		} <span class="kw">else</span> {
 			<span class="ident">service</span>::<span class="ident">Roles</span>::<span class="ident">FULL</span>
 		};
+
+	<span class="comment">// by default we disable pruning if the node is an authority (i.e.</span>
+	<span class="comment">// `ArchiveAll`), otherwise we keep state for the last 256 blocks. if the</span>
+	<span class="comment">// node is an authority and pruning is enabled explicitly, then we error</span>
+	<span class="comment">// unless `unsafe_pruning` is set.</span>
+	<span class="ident">config</span>.<span class="ident">pruning</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">cli</span>.<span class="ident">pruning</span> {
+		<span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">s</span>) <span class="kw">if</span> <span class="ident">s</span> <span class="op">=</span><span class="op">=</span> <span class="string">&quot;archive&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">PruningMode</span>::<span class="ident">ArchiveAll</span>,
+		<span class="prelude-val">None</span> <span class="kw">if</span> <span class="ident">role</span> <span class="op">=</span><span class="op">=</span> <span class="ident">service</span>::<span class="ident">Roles</span>::<span class="ident">AUTHORITY</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">PruningMode</span>::<span class="ident">ArchiveAll</span>,
+		<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">PruningMode</span>::<span class="ident">default</span>(),
+		<span class="prelude-val">Some</span>(<span class="ident">s</span>) <span class="op">=</span><span class="op">&gt;</span> {
+			<span class="kw">if</span> <span class="ident">role</span> <span class="op">=</span><span class="op">=</span> <span class="ident">service</span>::<span class="ident">Roles</span>::<span class="ident">AUTHORITY</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="op">!</span><span class="ident">cli</span>.<span class="ident">unsafe_pruning</span> {
+				<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">error</span>::<span class="ident">Error</span>::<span class="ident">Input</span>(
+					<span class="string">&quot;Validators should run with state pruning disabled (i.e. archive). \
+					You can ignore this check with `--unsafe-pruning`.&quot;</span>.<span class="ident">to_string</span>()
+				));
+			}
+
+			<span class="ident">PruningMode</span>::<span class="ident">keep_blocks</span>(<span class="ident">s</span>.<span class="ident">parse</span>()
+				.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">error</span>::<span class="ident">Error</span>::<span class="ident">Input</span>(<span class="string">&quot;Invalid pruning mode specified&quot;</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>
+			)
+		},
+	};
 
 	<span class="ident">config</span>.<span class="ident">wasm_method</span> <span class="op">=</span> <span class="ident">cli</span>.<span class="ident">wasm_method</span>.<span class="ident">into</span>();
 
