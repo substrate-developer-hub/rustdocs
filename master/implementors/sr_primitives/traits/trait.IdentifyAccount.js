@@ -1,5 +1,5 @@
 (function() {var implementors = {};
-implementors["srml_system"] = [];
+implementors["sr_primitives"] = [];
 
             if (window.register_implementors) {
                 window.register_implementors(implementors);
