@@ -591,6 +591,9 @@
 <span id="580">580</span>
 <span id="581">581</span>
 <span id="582">582</span>
+<span id="583">583</span>
+<span id="584">584</span>
+<span id="585">585</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -769,6 +772,7 @@
 				<span class="ident">service</span>.<span class="ident">network</span>(),
 				<span class="ident">dht_event_rx</span>,
 			);
+
 			<span class="ident">service</span>.<span class="ident">spawn_task</span>(<span class="ident">authority_discovery</span>);
 		}
 
@@ -783,12 +787,12 @@
 		<span class="kw">match</span> (<span class="ident">is_authority</span>, <span class="ident">disable_grandpa</span>) {
 			(<span class="bool-val">false</span>, <span class="bool-val">false</span>) <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="comment">// start the lightweight GRANDPA observer</span>
-				<span class="ident">service</span>.<span class="ident">spawn_task</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">grandpa</span>::<span class="ident">run_grandpa_observer</span>(
+				<span class="ident">service</span>.<span class="ident">spawn_task</span>(<span class="ident">grandpa</span>::<span class="ident">run_grandpa_observer</span>(
 					<span class="ident">config</span>,
 					<span class="ident">grandpa_link</span>,
 					<span class="ident">service</span>.<span class="ident">network</span>(),
 					<span class="ident">service</span>.<span class="ident">on_exit</span>(),
-				)<span class="question-mark">?</span>));
+				)<span class="question-mark">?</span>);
 			},
 			(<span class="bool-val">true</span>, <span class="bool-val">false</span>) <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="comment">// start the full GRANDPA voter</span>
@@ -801,7 +805,9 @@
 					<span class="ident">telemetry_on_connect</span>: <span class="prelude-val">Some</span>(<span class="ident">service</span>.<span class="ident">telemetry_on_connect_stream</span>()),
 					<span class="ident">voting_rule</span>: <span class="ident">grandpa</span>::<span class="ident">VotingRulesBuilder</span>::<span class="ident">default</span>().<span class="ident">build</span>(),
 				};
-				<span class="ident">service</span>.<span class="ident">spawn_task</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">grandpa</span>::<span class="ident">run_grandpa_voter</span>(<span class="ident">grandpa_config</span>)<span class="question-mark">?</span>));
+				<span class="comment">// the GRANDPA voter task is considered infallible, i.e.</span>
+				<span class="comment">// if it fails we take down the service with it.</span>
+				<span class="ident">service</span>.<span class="ident">spawn_essential_task</span>(<span class="ident">grandpa</span>::<span class="ident">run_grandpa_voter</span>(<span class="ident">grandpa_config</span>)<span class="question-mark">?</span>);
 			},
 			(<span class="kw">_</span>, <span class="bool-val">true</span>) <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="ident">grandpa</span>::<span class="ident">setup_disabled_grandpa</span>(
