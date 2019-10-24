@@ -1024,6 +1024,14 @@
 <span id="1013">1013</span>
 <span id="1014">1014</span>
 <span id="1015">1015</span>
+<span id="1016">1016</span>
+<span id="1017">1017</span>
+<span id="1018">1018</span>
+<span id="1019">1019</span>
+<span id="1020">1020</span>
+<span id="1021">1021</span>
+<span id="1022">1022</span>
+<span id="1023">1023</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1050,6 +1058,8 @@
 <span class="attribute">#[<span class="ident">macro_use</span>]</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">chain_ops</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">error</span>;
+
+<span class="kw">mod</span> <span class="ident">status_sinks</span>;
 
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">io</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">marker</span>::<span class="ident">PhantomData</span>;
@@ -1101,9 +1111,8 @@
 	<span class="ident">select_chain</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">TSc</span><span class="op">&gt;</span>,
 	<span class="ident">network</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">TNet</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// Sinks to propagate network status updates.</span>
-	<span class="ident">network_status_sinks</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">mpsc</span>::<span class="ident">UnboundedSender</span><span class="op">&lt;</span>(
-		<span class="ident">TNetStatus</span>, <span class="ident">NetworkState</span>
-	)<span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="doccomment">/// For each element, every time the `Interval` fires we push an element on the sender.</span>
+	<span class="ident">network_status_sinks</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">status_sinks</span>::<span class="ident">StatusSinks</span><span class="op">&lt;</span>(<span class="ident">TNetStatus</span>, <span class="ident">NetworkState</span>)<span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">transaction_pool</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">TTxPool</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// A future that resolves when the service has exited, this is useful to</span>
 	<span class="doccomment">/// make sure any internally spawned futures stop when the service does.</span>
@@ -1237,7 +1246,7 @@
 		<span class="kw">let</span> <span class="ident">has_bootnodes</span> <span class="op">=</span> <span class="op">!</span><span class="ident">network_params</span>.<span class="ident">network_config</span>.<span class="ident">boot_nodes</span>.<span class="ident">is_empty</span>();
 		<span class="kw">let</span> <span class="ident">network_mut</span> <span class="op">=</span> <span class="ident">network</span>::<span class="ident">NetworkWorker</span>::<span class="ident">new</span>(<span class="ident">network_params</span>)<span class="question-mark">?</span>;
 		<span class="kw">let</span> <span class="ident">network</span> <span class="op">=</span> <span class="ident">network_mut</span>.<span class="ident">service</span>().<span class="ident">clone</span>();
-		<span class="kw">let</span> <span class="ident">network_status_sinks</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Mutex</span>::<span class="ident">new</span>(<span class="ident">Vec</span>::<span class="ident">new</span>()));
+		<span class="kw">let</span> <span class="ident">network_status_sinks</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Mutex</span>::<span class="ident">new</span>(<span class="ident">status_sinks</span>::<span class="ident">StatusSinks</span>::<span class="ident">new</span>()));
 
 		<span class="kw">let</span> <span class="ident">offchain_storage</span> <span class="op">=</span> <span class="ident">backend</span>.<span class="ident">offchain_storage</span>();
 		<span class="kw">let</span> <span class="ident">offchain_workers</span> <span class="op">=</span> <span class="kw">match</span> (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">config</span>.<span class="ident">offchain_worker</span>, <span class="ident">offchain_storage</span>) {
@@ -1323,9 +1332,9 @@
 		<span class="kw">let</span> <span class="ident">client_</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">clone</span>();
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sys</span> <span class="op">=</span> <span class="ident">System</span>::<span class="ident">new</span>();
 		<span class="kw">let</span> <span class="ident">self_pid</span> <span class="op">=</span> <span class="ident">get_current_pid</span>().<span class="ident">ok</span>();
-		<span class="kw">let</span> (<span class="ident">netstat_tx</span>, <span class="ident">netstat_rx</span>) <span class="op">=</span> <span class="ident">mpsc</span>::<span class="ident">unbounded</span>::<span class="op">&lt;</span>(<span class="ident">NetworkStatus</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span>, <span class="ident">NetworkState</span>)<span class="op">&gt;</span>();
-		<span class="ident">network_status_sinks</span>.<span class="ident">lock</span>().<span class="ident">push</span>(<span class="ident">netstat_tx</span>);
-		<span class="kw">let</span> <span class="ident">tel_task</span> <span class="op">=</span> <span class="ident">netstat_rx</span>.<span class="ident">for_each</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="ident">net_status</span>, <span class="ident">network_state</span>)<span class="op">|</span> {
+		<span class="kw">let</span> (<span class="ident">state_tx</span>, <span class="ident">state_rx</span>) <span class="op">=</span> <span class="ident">mpsc</span>::<span class="ident">unbounded</span>::<span class="op">&lt;</span>(<span class="ident">NetworkStatus</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span>, <span class="ident">NetworkState</span>)<span class="op">&gt;</span>();
+		<span class="ident">network_status_sinks</span>.<span class="ident">lock</span>().<span class="ident">push</span>(<span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>::<span class="ident">from_millis</span>(<span class="number">5000</span>), <span class="ident">state_tx</span>);
+		<span class="kw">let</span> <span class="ident">tel_task</span> <span class="op">=</span> <span class="ident">state_rx</span>.<span class="ident">for_each</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="ident">net_status</span>, <span class="kw">_</span>)<span class="op">|</span> {
 			<span class="kw">let</span> <span class="ident">info</span> <span class="op">=</span> <span class="ident">client_</span>.<span class="ident">info</span>();
 			<span class="kw">let</span> <span class="ident">best_number</span> <span class="op">=</span> <span class="ident">info</span>.<span class="ident">chain</span>.<span class="ident">best_number</span>.<span class="ident">saturated_into</span>::<span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>();
 			<span class="kw">let</span> <span class="ident">best_hash</span> <span class="op">=</span> <span class="ident">info</span>.<span class="ident">chain</span>.<span class="ident">best_hash</span>;
@@ -1352,7 +1361,6 @@
 			<span class="macro">telemetry</span><span class="macro">!</span>(
 				<span class="ident">SUBSTRATE_INFO</span>;
 				<span class="string">&quot;system.interval&quot;</span>;
-				<span class="string">&quot;network_state&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">network_state</span>,
 				<span class="string">&quot;peers&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">num_peers</span>,
 				<span class="string">&quot;height&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">best_number</span>,
 				<span class="string">&quot;best&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="question-mark">?</span><span class="ident">best_hash</span>,
@@ -1369,6 +1377,19 @@
 			<span class="prelude-val">Ok</span>(())
 		}).<span class="ident">select</span>(<span class="ident">exit</span>.<span class="ident">clone</span>()).<span class="ident">then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()));
 		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">to_spawn_tx</span>.<span class="ident">unbounded_send</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">tel_task</span>));
+
+		<span class="comment">// Periodically send the network state to the telemetry.</span>
+		<span class="kw">let</span> (<span class="ident">netstat_tx</span>, <span class="ident">netstat_rx</span>) <span class="op">=</span> <span class="ident">mpsc</span>::<span class="ident">unbounded</span>::<span class="op">&lt;</span>(<span class="ident">NetworkStatus</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span>, <span class="ident">NetworkState</span>)<span class="op">&gt;</span>();
+		<span class="ident">network_status_sinks</span>.<span class="ident">lock</span>().<span class="ident">push</span>(<span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">30</span>), <span class="ident">netstat_tx</span>);
+		<span class="kw">let</span> <span class="ident">tel_task_2</span> <span class="op">=</span> <span class="ident">netstat_rx</span>.<span class="ident">for_each</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="kw">_</span>, <span class="ident">network_state</span>)<span class="op">|</span> {
+			<span class="macro">telemetry</span><span class="macro">!</span>(
+				<span class="ident">SUBSTRATE_INFO</span>;
+				<span class="string">&quot;system.network_state&quot;</span>;
+				<span class="string">&quot;state&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">network_state</span>,
+			);
+			<span class="prelude-val">Ok</span>(())
+		}).<span class="ident">select</span>(<span class="ident">exit</span>.<span class="ident">clone</span>()).<span class="ident">then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()));
+		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">to_spawn_tx</span>.<span class="ident">unbounded_send</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">tel_task_2</span>));
 
 		<span class="comment">// RPC</span>
 		<span class="kw">let</span> (<span class="ident">system_rpc_tx</span>, <span class="ident">system_rpc_rx</span>) <span class="op">=</span> <span class="ident">futures03</span>::<span class="ident">channel</span>::<span class="ident">mpsc</span>::<span class="ident">unbounded</span>();
@@ -1534,7 +1555,7 @@
 	<span class="kw">fn</span> <span class="ident">network</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">NetworkService</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Block</span>, <span class="self">Self</span>::<span class="ident">NetworkSpecialization</span>, <span class="ident">H256</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
 	<span class="doccomment">/// Returns a receiver that periodically receives a status of the network.</span>
-	<span class="kw">fn</span> <span class="ident">network_status</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">mpsc</span>::<span class="ident">UnboundedReceiver</span><span class="op">&lt;</span>(<span class="ident">NetworkStatus</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Block</span><span class="op">&gt;</span>, <span class="ident">NetworkState</span>)<span class="op">&gt;</span>;
+	<span class="kw">fn</span> <span class="ident">network_status</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">interval</span>: <span class="ident">Duration</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">mpsc</span>::<span class="ident">UnboundedReceiver</span><span class="op">&lt;</span>(<span class="ident">NetworkStatus</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Block</span><span class="op">&gt;</span>, <span class="ident">NetworkState</span>)<span class="op">&gt;</span>;
 
 	<span class="doccomment">/// Get shared transaction pool instance.</span>
 	<span class="kw">fn</span> <span class="ident">transaction_pool</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">TransactionPool</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">TransactionPoolApi</span><span class="op">&gt;</span><span class="op">&gt;</span>;
@@ -1617,9 +1638,9 @@
 		<span class="self">self</span>.<span class="ident">network</span>.<span class="ident">clone</span>()
 	}
 
-	<span class="kw">fn</span> <span class="ident">network_status</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">mpsc</span>::<span class="ident">UnboundedReceiver</span><span class="op">&lt;</span>(<span class="ident">NetworkStatus</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Block</span><span class="op">&gt;</span>, <span class="ident">NetworkState</span>)<span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">network_status</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">interval</span>: <span class="ident">Duration</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">mpsc</span>::<span class="ident">UnboundedReceiver</span><span class="op">&lt;</span>(<span class="ident">NetworkStatus</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Block</span><span class="op">&gt;</span>, <span class="ident">NetworkState</span>)<span class="op">&gt;</span> {
 		<span class="kw">let</span> (<span class="ident">sink</span>, <span class="ident">stream</span>) <span class="op">=</span> <span class="ident">mpsc</span>::<span class="ident">unbounded</span>();
-		<span class="self">self</span>.<span class="ident">network_status_sinks</span>.<span class="ident">lock</span>().<span class="ident">push</span>(<span class="ident">sink</span>);
+		<span class="self">self</span>.<span class="ident">network_status_sinks</span>.<span class="ident">lock</span>().<span class="ident">push</span>(<span class="ident">interval</span>, <span class="ident">sink</span>);
 		<span class="ident">stream</span>
 	}
 
@@ -1693,7 +1714,7 @@
 	<span class="ident">roles</span>: <span class="ident">Roles</span>,
 	<span class="kw-2">mut</span> <span class="ident">network</span>: <span class="ident">network</span>::<span class="ident">NetworkWorker</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">S</span>, <span class="ident">H</span><span class="op">&gt;</span>,
 	<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span>,
-	<span class="ident">status_sinks</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">mpsc</span>::<span class="ident">UnboundedSender</span><span class="op">&lt;</span>(<span class="ident">NetworkStatus</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">NetworkState</span>)<span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">status_sinks</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">status_sinks</span>::<span class="ident">StatusSinks</span><span class="op">&lt;</span>(<span class="ident">NetworkStatus</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">NetworkState</span>)<span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">rpc_rx</span>: <span class="ident">futures03</span>::<span class="ident">channel</span>::<span class="ident">mpsc</span>::<span class="ident">UnboundedReceiver</span><span class="op">&lt;</span><span class="ident">rpc</span>::<span class="ident">system</span>::<span class="ident">Request</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">should_have_peers</span>: <span class="ident">bool</span>,
 	<span class="ident">dht_event_tx</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">mpsc</span>::<span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">DhtEvent</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -1701,10 +1722,6 @@
 	<span class="comment">// Compatibility shim while we&#39;re transitioning to stable Futures.</span>
 	<span class="comment">// See https://github.com/paritytech/substrate/issues/3099</span>
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rpc_rx</span> <span class="op">=</span> <span class="ident">futures03</span>::<span class="ident">compat</span>::<span class="ident">Compat</span>::<span class="ident">new</span>(<span class="ident">rpc_rx</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, ()<span class="op">&gt;</span>(<span class="ident">v</span>)));
-
-	<span class="comment">// Interval at which we send status updates on the status stream.</span>
-	<span class="kw">const</span> <span class="ident">STATUS_INTERVAL</span>: <span class="ident">Duration</span> <span class="op">=</span> <span class="ident">Duration</span>::<span class="ident">from_millis</span>(<span class="number">5000</span>);
-	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">status_interval</span> <span class="op">=</span> <span class="ident">tokio_timer</span>::<span class="ident">Interval</span>::<span class="ident">new_interval</span>(<span class="ident">STATUS_INTERVAL</span>);
 
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">imported_blocks_stream</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">import_notification_stream</span>().<span class="ident">fuse</span>()
 		.<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, ()<span class="op">&gt;</span>(<span class="ident">v</span>)).<span class="ident">compat</span>();
@@ -1773,7 +1790,7 @@
 		}
 
 		<span class="comment">// Interval report for the external API.</span>
-		<span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="kw">_</span>)) <span class="op">=</span> <span class="ident">status_interval</span>.<span class="ident">poll</span>() {
+		<span class="ident">status_sinks</span>.<span class="ident">lock</span>().<span class="ident">poll</span>(<span class="op">|</span><span class="op">|</span> {
 			<span class="kw">let</span> <span class="ident">status</span> <span class="op">=</span> <span class="ident">NetworkStatus</span> {
 				<span class="ident">sync_state</span>: <span class="ident">network</span>.<span class="ident">sync_state</span>(),
 				<span class="ident">best_seen_block</span>: <span class="ident">network</span>.<span class="ident">best_seen_block</span>(),
@@ -1784,9 +1801,8 @@
 				<span class="ident">average_upload_per_sec</span>: <span class="ident">network</span>.<span class="ident">average_upload_per_sec</span>(),
 			};
 			<span class="kw">let</span> <span class="ident">state</span> <span class="op">=</span> <span class="ident">network</span>.<span class="ident">network_state</span>();
-
-			<span class="ident">status_sinks</span>.<span class="ident">lock</span>().<span class="ident">retain</span>(<span class="op">|</span><span class="ident">sink</span><span class="op">|</span> <span class="ident">sink</span>.<span class="ident">unbounded_send</span>((<span class="ident">status</span>.<span class="ident">clone</span>(), <span class="ident">state</span>.<span class="ident">clone</span>())).<span class="ident">is_ok</span>());
-		}
+			(<span class="ident">status</span>, <span class="ident">state</span>)
+		});
 
 		<span class="comment">// Main network polling.</span>
 		<span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">Event</span>::<span class="ident">Dht</span>(<span class="ident">event</span>)))) <span class="op">=</span> <span class="ident">network</span>.<span class="ident">poll</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> {
