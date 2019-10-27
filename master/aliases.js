@@ -319,6 +319,7 @@ ALIASES["srml_im_online"] = {};
 ALIASES["srml_indices"] = {};
 ALIASES["srml_membership"] = {};
 ALIASES["srml_metadata"] = {};
+ALIASES["srml_nicks"] = {};
 ALIASES["srml_offences"] = {};
 ALIASES["srml_randomness_collective_flip"] = {};
 ALIASES["srml_scored_pool"] = {};
