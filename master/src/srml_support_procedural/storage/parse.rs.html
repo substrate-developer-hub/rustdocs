@@ -391,6 +391,28 @@
 <span id="380">380</span>
 <span id="381">381</span>
 <span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
+<span id="401">401</span>
+<span id="402">402</span>
+<span id="403">403</span>
+<span id="404">404</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -411,7 +433,7 @@
 <span class="doccomment">//! Parsing of decl_storage input.</span>
 
 <span class="kw">use</span> <span class="ident">srml_support_procedural_tools</span>::{<span class="ident">ToTokens</span>, <span class="ident">Parse</span>, <span class="ident">syn_ext</span> <span class="kw">as</span> <span class="ident">ext</span>};
-<span class="kw">use</span> <span class="ident">syn</span>::{<span class="ident">Ident</span>, <span class="ident">Token</span>};
+<span class="kw">use</span> <span class="ident">syn</span>::{<span class="ident">Ident</span>, <span class="ident">Token</span>, <span class="ident">spanned</span>::<span class="ident">Spanned</span>};
 
 <span class="kw">mod</span> <span class="ident">keyword</span> {
 	<span class="ident">syn</span>::<span class="macro">custom_keyword</span><span class="macro">!</span>(<span class="ident">hiddencrate</span>);
@@ -659,7 +681,6 @@
 
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">parse</span>(<span class="ident">input</span>: <span class="ident">syn</span>::<span class="ident">parse</span>::<span class="ident">ParseStream</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">syn</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">super</span>::<span class="ident">DeclStorageDef</span><span class="op">&gt;</span> {
 	<span class="kw">use</span> <span class="ident">syn</span>::<span class="ident">parse</span>::<span class="ident">Parse</span>;
-	<span class="kw">use</span> <span class="ident">syn</span>::<span class="ident">spanned</span>::<span class="ident">Spanned</span>;
 
 	<span class="kw">let</span> <span class="ident">def</span> <span class="op">=</span> <span class="ident">StorageDefinition</span>::<span class="ident">parse</span>(<span class="ident">input</span>)<span class="question-mark">?</span>;
 
@@ -697,9 +718,31 @@
 		}
 	}
 
-	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">storage_lines</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
+	<span class="kw">let</span> <span class="ident">storage_lines</span> <span class="op">=</span> <span class="ident">parse_storage_line_defs</span>(<span class="ident">def</span>.<span class="ident">content</span>.<span class="ident">content</span>.<span class="ident">inner</span>.<span class="ident">into_iter</span>())<span class="question-mark">?</span>;
 
-	<span class="kw">for</span> <span class="ident">line</span> <span class="kw">in</span> <span class="ident">def</span>.<span class="ident">content</span>.<span class="ident">content</span>.<span class="ident">inner</span>.<span class="ident">into_iter</span>() {
+	<span class="prelude-val">Ok</span>(<span class="kw">super</span>::<span class="ident">DeclStorageDef</span> {
+		<span class="ident">hidden_crate</span>: <span class="ident">def</span>.<span class="ident">hidden_crate</span>.<span class="ident">inner</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">i</span>.<span class="ident">ident</span>.<span class="ident">content</span>),
+		<span class="ident">visibility</span>: <span class="ident">def</span>.<span class="ident">visibility</span>,
+		<span class="ident">module_name</span>: <span class="ident">def</span>.<span class="ident">module_ident</span>,
+		<span class="ident">store_trait</span>: <span class="ident">def</span>.<span class="ident">ident</span>,
+		<span class="ident">module_runtime_generic</span>: <span class="ident">def</span>.<span class="ident">mod_param_generic</span>,
+		<span class="ident">module_runtime_trait</span>: <span class="ident">def</span>.<span class="ident">mod_param_bound</span>,
+		<span class="ident">where_clause</span>: <span class="ident">def</span>.<span class="ident">where_clause</span>,
+		<span class="ident">crate_name</span>: <span class="ident">def</span>.<span class="ident">crate_ident</span>,
+		<span class="ident">module_instance</span>,
+		<span class="ident">extra_genesis_build</span>,
+		<span class="ident">extra_genesis_config_lines</span>,
+		<span class="ident">storage_lines</span>,
+	})
+}
+
+<span class="doccomment">/// Parse the `DeclStorageLine` into `StorageLineDef`.</span>
+<span class="kw">fn</span> <span class="ident">parse_storage_line_defs</span>(
+	<span class="ident">defs</span>: <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">DeclStorageLine</span><span class="op">&gt;</span>,
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">syn</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">super</span>::<span class="ident">StorageLineDef</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">storage_lines</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="op">&lt;</span><span class="kw">super</span>::<span class="ident">StorageLineDef</span><span class="op">&gt;</span>::<span class="ident">new</span>();
+
+	<span class="kw">for</span> <span class="ident">line</span> <span class="kw">in</span> <span class="ident">defs</span> {
 		<span class="kw">let</span> <span class="ident">getter</span> <span class="op">=</span> <span class="ident">line</span>.<span class="ident">getter</span>.<span class="ident">inner</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">o</span><span class="op">|</span> <span class="ident">o</span>.<span class="ident">getfn</span>.<span class="ident">content</span>.<span class="ident">ident</span>);
 		<span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">config</span>) <span class="op">=</span> <span class="ident">line</span>.<span class="ident">config</span>.<span class="ident">inner</span> {
 			<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">ident</span>) <span class="op">=</span> <span class="ident">config</span>.<span class="ident">expr</span>.<span class="ident">content</span> {
@@ -709,13 +752,27 @@
 			} <span class="kw">else</span> {
 				<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">syn</span>::<span class="ident">Error</span>::<span class="ident">new</span>(
 					<span class="ident">config</span>.<span class="ident">span</span>(),
-					<span class="string">&quot;Invalid storage definiton, couldn&#39;t find config identifier: storage must either have a get \
-					identifier `get(fn ident)` or a defined config identifier `config(ident)`&quot;</span>
+					<span class="string">&quot;Invalid storage definition, couldn&#39;t find config identifier: storage must \
+					either have a get identifier `get(fn ident)` or a defined config identifier \
+					`config(ident)`&quot;</span>,
 				))
 			}
 		} <span class="kw">else</span> {
 			<span class="prelude-val">None</span>
 		};
+
+		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">config</span>) <span class="op">=</span> <span class="ident">config</span> {
+			<span class="ident">storage_lines</span>.<span class="ident">iter</span>().<span class="ident">filter_map</span>(<span class="op">|</span><span class="ident">sl</span><span class="op">|</span> <span class="ident">sl</span>.<span class="ident">config</span>.<span class="ident">as_ref</span>()).<span class="ident">try_for_each</span>(<span class="op">|</span><span class="ident">other_config</span><span class="op">|</span> {
+				<span class="kw">if</span> <span class="ident">other_config</span> <span class="op">=</span><span class="op">=</span> <span class="ident">config</span> {
+					<span class="prelude-val">Err</span>(<span class="ident">syn</span>::<span class="ident">Error</span>::<span class="ident">new</span>(
+						<span class="ident">config</span>.<span class="ident">span</span>(),
+						<span class="string">&quot;`config()`/`get()` with the same name already defined.&quot;</span>,
+					))
+				} <span class="kw">else</span> {
+					<span class="prelude-val">Ok</span>(())
+				}
+			})<span class="question-mark">?</span>;
+		}
 
 		<span class="kw">let</span> <span class="ident">storage_type</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">line</span>.<span class="ident">storage_type</span> {
 			<span class="ident">DeclStorageType</span>::<span class="ident">Map</span>(<span class="ident">map</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">super</span>::<span class="ident">StorageLineTypeDef</span>::<span class="ident">Map</span>(
@@ -759,20 +816,7 @@
 		})
 	}
 
-	<span class="prelude-val">Ok</span>(<span class="kw">super</span>::<span class="ident">DeclStorageDef</span> {
-		<span class="ident">hidden_crate</span>: <span class="ident">def</span>.<span class="ident">hidden_crate</span>.<span class="ident">inner</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">i</span>.<span class="ident">ident</span>.<span class="ident">content</span>),
-		<span class="ident">visibility</span>: <span class="ident">def</span>.<span class="ident">visibility</span>,
-		<span class="ident">module_name</span>: <span class="ident">def</span>.<span class="ident">module_ident</span>,
-		<span class="ident">store_trait</span>: <span class="ident">def</span>.<span class="ident">ident</span>,
-		<span class="ident">module_runtime_generic</span>: <span class="ident">def</span>.<span class="ident">mod_param_generic</span>,
-		<span class="ident">module_runtime_trait</span>: <span class="ident">def</span>.<span class="ident">mod_param_bound</span>,
-		<span class="ident">where_clause</span>: <span class="ident">def</span>.<span class="ident">where_clause</span>,
-		<span class="ident">crate_name</span>: <span class="ident">def</span>.<span class="ident">crate_ident</span>,
-		<span class="ident">module_instance</span>,
-		<span class="ident">extra_genesis_build</span>,
-		<span class="ident">extra_genesis_config_lines</span>,
-		<span class="ident">storage_lines</span>,
-	})
+	<span class="prelude-val">Ok</span>(<span class="ident">storage_lines</span>)
 }
 </pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><aside id="help" class="hidden"><div><h1 class="hidden">Help</h1><div class="shortcuts"><h2>Keyboard Shortcuts</h2><dl><dt><kbd>?</kbd></dt><dd>Show this help dialog</dd><dt><kbd>S</kbd></dt><dd>Focus the search field</dd><dt><kbd>↑</kbd></dt><dd>Move up in search results</dd><dt><kbd>↓</kbd></dt><dd>Move down in search results</dd><dt><kbd>↹</kbd></dt><dd>Switch tab</dd><dt><kbd>&#9166;</kbd></dt><dd>Go to active search result</dd><dt><kbd>+</kbd></dt><dd>Expand all sections</dd><dt><kbd>-</kbd></dt><dd>Collapse all sections</dd></dl></div><div class="infos"><h2>Search Tricks</h2><p>Prefix searches with a type followed by a colon (e.g., <code>fn:</code>) to restrict the search to a given type.</p><p>Accepted types are: <code>fn</code>, <code>mod</code>, <code>struct</code>, <code>enum</code>, <code>trait</code>, <code>type</code>, <code>macro</code>, and <code>const</code>.</p><p>Search functions by type signature (e.g., <code>vec -> usize</code> or <code>* -> vec</code>)</p><p>Search multiple things at once by splitting your query with comma (e.g., <code>str,u8</code> or <code>String,struct:Vec,test</code>)</p></div></div></aside><script>window.rootPath = "../../../";window.currentCrate = "srml_support_procedural";</script><script src="../../../aliases.js"></script><script src="../../../main.js"></script><script src="../../../source-script.js"></script><script src="../../../source-files.js"></script><script defer src="../../../search-index.js"></script></body></html>
