@@ -1989,13 +1989,13 @@
 	<span class="kw">fn</span> <span class="ident">ensure_can_withdraw</span>(
 		<span class="ident">who</span>: <span class="kw-2">&amp;</span><span class="ident">T</span>::<span class="ident">AccountId</span>,
 		<span class="ident">_amount</span>: <span class="ident">T</span>::<span class="ident">Balance</span>,
-		<span class="ident">reason</span>: <span class="ident">WithdrawReason</span>,
+		<span class="ident">reasons</span>: <span class="ident">WithdrawReasons</span>,
 		<span class="ident">new_balance</span>: <span class="ident">T</span>::<span class="ident">Balance</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span> {
-		<span class="kw">match</span> <span class="ident">reason</span> {
-			<span class="ident">WithdrawReason</span>::<span class="ident">Reserve</span> <span class="op">|</span> <span class="ident">WithdrawReason</span>::<span class="ident">Transfer</span> <span class="kw">if</span> <span class="self">Self</span>::<span class="ident">vesting_balance</span>(<span class="ident">who</span>) <span class="op">&gt;</span> <span class="ident">new_balance</span> <span class="op">=</span><span class="op">&gt;</span>
-				<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="string">&quot;vesting balance too high to send value&quot;</span>),
-			<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> {}
+		<span class="kw">if</span> <span class="ident">reasons</span>.<span class="ident">intersects</span>(<span class="ident">WithdrawReason</span>::<span class="ident">Reserve</span> <span class="op">|</span> <span class="ident">WithdrawReason</span>::<span class="ident">Transfer</span>)
+			<span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="self">Self</span>::<span class="ident">vesting_balance</span>(<span class="ident">who</span>) <span class="op">&gt;</span> <span class="ident">new_balance</span>
+		{
+			<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="string">&quot;vesting balance too high to send value&quot;</span>);
 		}
 		<span class="kw">let</span> <span class="ident">locks</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">locks</span>(<span class="ident">who</span>);
 		<span class="kw">if</span> <span class="ident">locks</span>.<span class="ident">is_empty</span>() {
@@ -2007,7 +2007,7 @@
 			.<span class="ident">all</span>(<span class="op">|</span><span class="ident">l</span><span class="op">|</span>
 				<span class="ident">now</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">l</span>.<span class="ident">until</span>
 				<span class="op">|</span><span class="op">|</span> <span class="ident">new_balance</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">l</span>.<span class="ident">amount</span>
-				<span class="op">|</span><span class="op">|</span> <span class="op">!</span><span class="ident">l</span>.<span class="ident">reasons</span>.<span class="ident">contains</span>(<span class="ident">reason</span>)
+				<span class="op">|</span><span class="op">|</span> <span class="op">!</span><span class="ident">l</span>.<span class="ident">reasons</span>.<span class="ident">intersects</span>(<span class="ident">reasons</span>)
 			)
 		{
 			<span class="prelude-val">Ok</span>(())
@@ -2033,7 +2033,7 @@
 		<span class="kw">if</span> <span class="ident">would_create</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">value</span> <span class="op">&lt;</span> <span class="ident">T</span>::<span class="ident">ExistentialDeposit</span>::<span class="ident">get</span>() {
 			<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="string">&quot;value too low to create account&quot;</span>);
 		}
-		<span class="self">Self</span>::<span class="ident">ensure_can_withdraw</span>(<span class="ident">transactor</span>, <span class="ident">value</span>, <span class="ident">WithdrawReason</span>::<span class="ident">Transfer</span>, <span class="ident">new_from_balance</span>)<span class="question-mark">?</span>;
+		<span class="self">Self</span>::<span class="ident">ensure_can_withdraw</span>(<span class="ident">transactor</span>, <span class="ident">value</span>, <span class="ident">WithdrawReason</span>::<span class="ident">Transfer</span>.<span class="ident">into</span>(), <span class="ident">new_from_balance</span>)<span class="question-mark">?</span>;
 
 		<span class="comment">// NOTE: total stake being stored in the same type means that this could never overflow</span>
 		<span class="comment">// but better to be safe than sorry.</span>
@@ -2058,7 +2058,7 @@
 	<span class="kw">fn</span> <span class="ident">withdraw</span>(
 		<span class="ident">who</span>: <span class="kw-2">&amp;</span><span class="ident">T</span>::<span class="ident">AccountId</span>,
 		<span class="ident">value</span>: <span class="self">Self</span>::<span class="ident">Balance</span>,
-		<span class="ident">reason</span>: <span class="ident">WithdrawReason</span>,
+		<span class="ident">reasons</span>: <span class="ident">WithdrawReasons</span>,
 		<span class="ident">liveness</span>: <span class="ident">ExistenceRequirement</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">NegativeImbalance</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">old_balance</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">free_balance</span>(<span class="ident">who</span>);
@@ -2072,7 +2072,7 @@
 			{
 				<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="string">&quot;payment would kill account&quot;</span>)
 			}
-			<span class="self">Self</span>::<span class="ident">ensure_can_withdraw</span>(<span class="ident">who</span>, <span class="ident">value</span>, <span class="ident">reason</span>, <span class="ident">new_balance</span>)<span class="question-mark">?</span>;
+			<span class="self">Self</span>::<span class="ident">ensure_can_withdraw</span>(<span class="ident">who</span>, <span class="ident">value</span>, <span class="ident">reasons</span>, <span class="ident">new_balance</span>)<span class="question-mark">?</span>;
 			<span class="self">Self</span>::<span class="ident">set_free_balance</span>(<span class="ident">who</span>, <span class="ident">new_balance</span>);
 			<span class="prelude-val">Ok</span>(<span class="ident">NegativeImbalance</span>::<span class="ident">new</span>(<span class="ident">value</span>))
 		} <span class="kw">else</span> {
@@ -2179,7 +2179,7 @@
 		<span class="self">Self</span>::<span class="ident">free_balance</span>(<span class="ident">who</span>)
 			.<span class="ident">checked_sub</span>(<span class="kw-2">&amp;</span><span class="ident">value</span>)
 			.<span class="ident">map_or</span>(<span class="bool-val">false</span>, <span class="op">|</span><span class="ident">new_balance</span><span class="op">|</span>
-				<span class="self">Self</span>::<span class="ident">ensure_can_withdraw</span>(<span class="ident">who</span>, <span class="ident">value</span>, <span class="ident">WithdrawReason</span>::<span class="ident">Reserve</span>, <span class="ident">new_balance</span>).<span class="ident">is_ok</span>()
+				<span class="self">Self</span>::<span class="ident">ensure_can_withdraw</span>(<span class="ident">who</span>, <span class="ident">value</span>, <span class="ident">WithdrawReason</span>::<span class="ident">Reserve</span>.<span class="ident">into</span>(), <span class="ident">new_balance</span>).<span class="ident">is_ok</span>()
 			)
 	}
 
@@ -2193,7 +2193,7 @@
 			<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="string">&quot;not enough free funds&quot;</span>)
 		}
 		<span class="kw">let</span> <span class="ident">new_balance</span> <span class="op">=</span> <span class="ident">b</span> <span class="op">-</span> <span class="ident">value</span>;
-		<span class="self">Self</span>::<span class="ident">ensure_can_withdraw</span>(<span class="ident">who</span>, <span class="ident">value</span>, <span class="ident">WithdrawReason</span>::<span class="ident">Reserve</span>, <span class="ident">new_balance</span>)<span class="question-mark">?</span>;
+		<span class="self">Self</span>::<span class="ident">ensure_can_withdraw</span>(<span class="ident">who</span>, <span class="ident">value</span>, <span class="ident">WithdrawReason</span>::<span class="ident">Reserve</span>.<span class="ident">into</span>(), <span class="ident">new_balance</span>)<span class="question-mark">?</span>;
 		<span class="self">Self</span>::<span class="ident">set_reserved_balance</span>(<span class="ident">who</span>, <span class="self">Self</span>::<span class="ident">reserved_balance</span>(<span class="ident">who</span>) <span class="op">+</span> <span class="ident">value</span>);
 		<span class="self">Self</span>::<span class="ident">set_free_balance</span>(<span class="ident">who</span>, <span class="ident">new_balance</span>);
 		<span class="prelude-val">Ok</span>(())

@@ -176,6 +176,18 @@
 <span id="165">165</span>
 <span id="166">166</span>
 <span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -193,11 +205,23 @@
 <span class="comment">// You should have received a copy of the GNU General Public License</span>
 <span class="comment">// along with Substrate.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
 
-<span class="doccomment">//! Primitives for transaction weighting.</span>
+<span class="doccomment">//! # Primitives for transaction weighting.</span>
 <span class="doccomment">//!</span>
-<span class="doccomment">//! Each dispatch function within `decl_module!` can have an optional `#[weight = $x]` attribute.</span>
-<span class="doccomment">//! `$x` can be any type that implements the `ClassifyDispatch&lt;T&gt;` and `WeighData&lt;T&gt;` traits. By</span>
-<span class="doccomment">//! default, All transactions are annotated with `#[weight = SimpleDispatchInfo::default()]`.</span>
+<span class="doccomment">//! All dispatchable functions defined in `decl_module!` must provide two trait implementations:</span>
+<span class="doccomment">//!   - [`WeightData`]: To determine the weight of the dispatch.</span>
+<span class="doccomment">//!   - [`ClassifyDispatch`]: To determine the class of the dispatch. See the enum definition for</span>
+<span class="doccomment">//!     more information on dispatch classes.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Every dispatchable function is responsible for providing this data via an optional `#[weight =</span>
+<span class="doccomment">//! $x]` attribute. In this snipped, `$x` can be any user provided struct that implements the</span>
+<span class="doccomment">//! two aforementioned traits.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Substrate then bundles then output information of the two traits into [`DispatchInfo`] struct</span>
+<span class="doccomment">//! and provides it by implementing the [`GetDispatchInfo`] for all `Call` variants, and opaque</span>
+<span class="doccomment">//! extrinsic types.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! If no `#[weight]` is defined, the macro automatically injects the `Default` implementation of</span>
+<span class="doccomment">//! the [`SimpleDispatchInfo`].</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Note that the decl_module macro _cannot_ enforce this and will simply fail if an invalid struct</span>
 <span class="doccomment">//! (something that does not  implement `Weighable`) is passed in.</span>
@@ -210,8 +234,24 @@
 <span class="doccomment">/// Numeric range of a transaction weight.</span>
 <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">Weight</span> <span class="op">=</span> <span class="ident">u32</span>;
 
-<span class="doccomment">/// A generalized group of dispatch types. This is only distinguishing normal, user-triggered transactions</span>
-<span class="doccomment">/// (`Normal`) and anything beyond which serves a higher purpose to the system (`Operational`).</span>
+<span class="doccomment">/// Means of weighing some particular kind of data (`T`).</span>
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">WeighData</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+	<span class="doccomment">/// Weigh the data `T` given by `target`. When implementing this for a dispatchable, `T` will be</span>
+	<span class="doccomment">/// a tuple of all arguments given to the function (except origin).</span>
+	<span class="kw">fn</span> <span class="ident">weigh_data</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">target</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Weight</span>;
+}
+
+<span class="doccomment">/// Means of classifying a dispatchable function.</span>
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">ClassifyDispatch</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+	<span class="doccomment">/// Classify the dispatch function based on input data `target` of type `T`. When implementing</span>
+	<span class="doccomment">/// this for a dispatchable, `T` will be a tuple of all arguments given to the function (except</span>
+	<span class="doccomment">/// origin).</span>
+	<span class="kw">fn</span> <span class="ident">classify_dispatch</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">target</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">DispatchClass</span>;
+}
+
+<span class="doccomment">/// A generalized group of dispatch types. This is only distinguishing normal, user-triggered</span>
+<span class="doccomment">/// transactions (`Normal`) and anything beyond which serves a higher purpose to the system</span>
+<span class="doccomment">/// (`Operational`).</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Clone</span>, <span class="ident">Copy</span>, <span class="ident">RuntimeDebug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">DispatchClass</span> {
 	<span class="doccomment">/// A normal dispatch.</span>
@@ -261,25 +301,13 @@
 	}
 }
 
-<span class="doccomment">/// A `Dispatchable` function (aka transaction) that can carry some static information along with it, using the</span>
-<span class="doccomment">/// `#[weight]` attribute.</span>
+<span class="doccomment">/// A `Dispatchable` function (aka transaction) that can carry some static information along with</span>
+<span class="doccomment">/// it, using the `#[weight]` attribute.</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">GetDispatchInfo</span> {
 	<span class="doccomment">/// Return a `DispatchInfo`, containing relevant information of this dispatch.</span>
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// This is done independently of its encoded size.</span>
 	<span class="kw">fn</span> <span class="ident">get_dispatch_info</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">DispatchInfo</span>;
-}
-
-<span class="doccomment">/// Means of weighing some particular kind of data (`T`).</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">WeighData</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-	<span class="doccomment">/// Weigh the data `T` given by `target`.</span>
-	<span class="kw">fn</span> <span class="ident">weigh_data</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">target</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Weight</span>;
-}
-
-<span class="doccomment">/// Means of classifying a dispatchable function.</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">ClassifyDispatch</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-	<span class="doccomment">/// Classify the dispatch function based on input data `target` of type `T`.</span>
-	<span class="kw">fn</span> <span class="ident">classify_dispatch</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">target</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">DispatchClass</span>;
 }
 
 <span class="doccomment">/// Default type used with the `#[weight = x]` attribute in a substrate chain.</span>
@@ -293,13 +321,9 @@
 <span class="doccomment">///   - A `Free` variant is equal to `::Fixed(0)`. Note that this does not guarantee inclusion.</span>
 <span class="doccomment">///   - A `Max` variant is equal to `::Fixed(Weight::max_value())`.</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// Based on the final weight value, based on the above variants:</span>
-<span class="doccomment">///   - A _weight-fee_  is deducted.</span>
-<span class="doccomment">///   - The block weight is consumed proportionally.</span>
-<span class="doccomment">///</span>
 <span class="doccomment">/// As for the generalized groups themselves:</span>
 <span class="doccomment">///   - `Normal` variants will be assigned a priority proportional to their weight. They can only</span>
-<span class="doccomment">///     consume a portion (1/4) of the maximum block resource limits.</span>
+<span class="doccomment">///     consume a portion (defined in the system module) of the maximum block resource limits.</span>
 <span class="doccomment">///   - `Operational` variants will be assigned the maximum priority. They can potentially consume</span>
 <span class="doccomment">///     the entire block resource limit.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Copy</span>)]</span>
