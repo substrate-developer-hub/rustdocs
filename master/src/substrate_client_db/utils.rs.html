@@ -357,6 +357,14 @@
 <span id="346">346</span>
 <span id="347">347</span>
 <span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -377,7 +385,6 @@
 <span class="doccomment">//! Db-based backend utility structures and functions, used by both</span>
 <span class="doccomment">//! full and light storages.</span>
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;kvdb-rocksdb&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">io</span>, <span class="ident">convert</span>::<span class="ident">TryInto</span>};
 
@@ -394,8 +401,7 @@
 	<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">Header</span> <span class="kw">as</span> <span class="ident">HeaderT</span>, <span class="ident">Zero</span>,
 	<span class="ident">UniqueSaturatedFrom</span>, <span class="ident">UniqueSaturatedInto</span>,
 };
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;kvdb-rocksdb&quot;</span>)]</span>
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">DatabaseSettings</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">DatabaseSettings</span>, <span class="ident">DatabaseSettingsSrc</span>};
 
 <span class="doccomment">/// Number of columns in the db. Must be the same for both full &amp;&amp; light dbs.</span>
 <span class="doccomment">/// Otherwise RocksDb will fail to open database &amp;&amp; check its type.</span>
@@ -566,16 +572,26 @@
 }
 
 <span class="doccomment">/// Open RocksDB database.</span>
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;kvdb-rocksdb&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">open_database</span>(
 	<span class="ident">config</span>: <span class="kw-2">&amp;</span><span class="ident">DatabaseSettings</span>,
 	<span class="ident">col_meta</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>,
 	<span class="ident">db_type</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">client</span>::<span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">KeyValueDB</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">db_config</span> <span class="op">=</span> <span class="ident">DatabaseConfig</span>::<span class="ident">with_columns</span>(<span class="prelude-val">Some</span>(<span class="ident">NUM_COLUMNS</span>));
-	<span class="ident">db_config</span>.<span class="ident">memory_budget</span> <span class="op">=</span> <span class="ident">config</span>.<span class="ident">cache_size</span>;
-	<span class="kw">let</span> <span class="ident">path</span> <span class="op">=</span> <span class="ident">config</span>.<span class="ident">path</span>.<span class="ident">to_str</span>().<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">client</span>::<span class="ident">error</span>::<span class="ident">Error</span>::<span class="ident">Backend</span>(<span class="string">&quot;Invalid database path&quot;</span>.<span class="ident">into</span>()))<span class="question-mark">?</span>;
-	<span class="kw">let</span> <span class="ident">db</span> <span class="op">=</span> <span class="ident">Database</span>::<span class="ident">open</span>(<span class="kw-2">&amp;</span><span class="ident">db_config</span>, <span class="kw-2">&amp;</span><span class="ident">path</span>).<span class="ident">map_err</span>(<span class="ident">db_err</span>)<span class="question-mark">?</span>;
+	<span class="kw">let</span> <span class="ident">db</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">KeyValueDB</span><span class="op">&gt;</span> <span class="op">=</span> <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="ident">config</span>.<span class="ident">source</span> {
+		<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;kvdb-rocksdb&quot;</span>)]</span>
+		<span class="ident">DatabaseSettingsSrc</span>::<span class="ident">Path</span> { <span class="ident">path</span>, <span class="ident">cache_size</span> } <span class="op">=</span><span class="op">&gt;</span> {
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">db_config</span> <span class="op">=</span> <span class="ident">DatabaseConfig</span>::<span class="ident">with_columns</span>(<span class="prelude-val">Some</span>(<span class="ident">NUM_COLUMNS</span>));
+			<span class="ident">db_config</span>.<span class="ident">memory_budget</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">cache_size</span>;
+			<span class="kw">let</span> <span class="ident">path</span> <span class="op">=</span> <span class="ident">path</span>.<span class="ident">to_str</span>().<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">client</span>::<span class="ident">error</span>::<span class="ident">Error</span>::<span class="ident">Backend</span>(<span class="string">&quot;Invalid database path&quot;</span>.<span class="ident">into</span>()))<span class="question-mark">?</span>;
+			<span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Database</span>::<span class="ident">open</span>(<span class="kw-2">&amp;</span><span class="ident">db_config</span>, <span class="kw-2">&amp;</span><span class="ident">path</span>).<span class="ident">map_err</span>(<span class="ident">db_err</span>)<span class="question-mark">?</span>)
+		},
+		<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;kvdb-rocksdb&quot;</span>))]</span>
+		<span class="ident">DatabaseSettingsSrc</span>::<span class="ident">Path</span> { .. } <span class="op">=</span><span class="op">&gt;</span> {
+			<span class="kw">let</span> <span class="ident">msg</span> <span class="op">=</span> <span class="string">&quot;Try to open RocksDB database with RocksDB disabled&quot;</span>.<span class="ident">into</span>();
+			<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">client</span>::<span class="ident">error</span>::<span class="ident">Error</span>::<span class="ident">Backend</span>(<span class="ident">msg</span>));
+		},
+		<span class="ident">DatabaseSettingsSrc</span>::<span class="ident">Custom</span>(<span class="ident">db</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">db</span>.<span class="ident">clone</span>(),
+	};
 
 	<span class="comment">// check database type</span>
 	<span class="kw">match</span> <span class="ident">db</span>.<span class="ident">get</span>(<span class="ident">col_meta</span>, <span class="ident">meta_keys</span>::<span class="ident">TYPE</span>).<span class="ident">map_err</span>(<span class="ident">db_err</span>)<span class="question-mark">?</span> {
@@ -592,7 +608,7 @@
 		},
 	}
 
-	<span class="prelude-val">Ok</span>(<span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">db</span>))
+	<span class="prelude-val">Ok</span>(<span class="ident">db</span>)
 }
 
 <span class="doccomment">/// Read database column entry for the given block.</span>

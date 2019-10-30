@@ -1286,6 +1286,23 @@
 <span id="1275">1275</span>
 <span id="1276">1276</span>
 <span id="1277">1277</span>
+<span id="1278">1278</span>
+<span id="1279">1279</span>
+<span id="1280">1280</span>
+<span id="1281">1281</span>
+<span id="1282">1282</span>
+<span id="1283">1283</span>
+<span id="1284">1284</span>
+<span id="1285">1285</span>
+<span id="1286">1286</span>
+<span id="1287">1287</span>
+<span id="1288">1288</span>
+<span id="1289">1289</span>
+<span id="1290">1290</span>
+<span id="1291">1291</span>
+<span id="1292">1292</span>
+<span id="1293">1293</span>
+<span id="1294">1294</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1306,7 +1323,7 @@
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">Service</span>, <span class="ident">NetworkStatus</span>, <span class="ident">NetworkState</span>, <span class="ident">error</span>::{<span class="self">self</span>, <span class="ident">Error</span>}, <span class="ident">DEFAULT_PROTOCOL_ID</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">SpawnTaskHandle</span>, <span class="ident">start_rpc_servers</span>, <span class="ident">build_network_future</span>, <span class="ident">TransactionPoolAdapter</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">status_sinks</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">config</span>::<span class="ident">Configuration</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">config</span>::{<span class="ident">Configuration</span>, <span class="ident">DatabaseConfig</span>};
 <span class="kw">use</span> <span class="ident">client</span>::{
 	<span class="ident">BlockchainEvents</span>, <span class="ident">Client</span>, <span class="ident">runtime_api</span>,
 	<span class="ident">backend</span>::<span class="ident">RemoteBackend</span>, <span class="ident">light</span>::<span class="ident">blockchain</span>::<span class="ident">RemoteBlockchain</span>,
@@ -1446,15 +1463,6 @@
 	<span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">keystore</span> <span class="op">=</span> <span class="ident">Keystore</span>::<span class="ident">open</span>(<span class="ident">config</span>.<span class="ident">keystore_path</span>.<span class="ident">clone</span>(), <span class="ident">config</span>.<span class="ident">keystore_password</span>.<span class="ident">clone</span>())<span class="question-mark">?</span>;
 
-		<span class="kw">let</span> <span class="ident">db_settings</span> <span class="op">=</span> <span class="ident">client_db</span>::<span class="ident">DatabaseSettings</span> {
-			<span class="ident">cache_size</span>: <span class="prelude-val">None</span>,
-			<span class="ident">state_cache_size</span>: <span class="ident">config</span>.<span class="ident">state_cache_size</span>,
-			<span class="ident">state_cache_child_ratio</span>:
-				<span class="ident">config</span>.<span class="ident">state_cache_child_ratio</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> (<span class="ident">v</span>, <span class="number">100</span>)),
-			<span class="ident">path</span>: <span class="ident">config</span>.<span class="ident">database_path</span>.<span class="ident">clone</span>(),
-			<span class="ident">pruning</span>: <span class="ident">config</span>.<span class="ident">pruning</span>.<span class="ident">clone</span>(),
-		};
-
 		<span class="kw">let</span> <span class="ident">executor</span> <span class="op">=</span> <span class="ident">NativeExecutor</span>::<span class="op">&lt;</span><span class="ident">TExecDisp</span><span class="op">&gt;</span>::<span class="ident">new</span>(
 			<span class="ident">config</span>.<span class="ident">wasm_method</span>,
 			<span class="ident">config</span>.<span class="ident">default_heap_pages</span>,
@@ -1466,14 +1474,32 @@
 			.<span class="ident">cloned</span>()
 			.<span class="ident">unwrap_or_default</span>();
 
-		<span class="kw">let</span> (<span class="ident">client</span>, <span class="ident">backend</span>) <span class="op">=</span> <span class="ident">client_db</span>::<span class="ident">new_client</span>(
-			<span class="ident">db_settings</span>,
-			<span class="ident">executor</span>,
-			<span class="kw-2">&amp;</span><span class="ident">config</span>.<span class="ident">chain_spec</span>,
-			<span class="ident">fork_blocks</span>,
-			<span class="ident">config</span>.<span class="ident">execution_strategies</span>.<span class="ident">clone</span>(),
-			<span class="prelude-val">Some</span>(<span class="ident">keystore</span>.<span class="ident">clone</span>()),
-		)<span class="question-mark">?</span>;
+		<span class="kw">let</span> (<span class="ident">client</span>, <span class="ident">backend</span>) <span class="op">=</span> {
+			<span class="kw">let</span> <span class="ident">db_config</span> <span class="op">=</span> <span class="ident">client_db</span>::<span class="ident">DatabaseSettings</span> {
+				<span class="ident">state_cache_size</span>: <span class="ident">config</span>.<span class="ident">state_cache_size</span>,
+				<span class="ident">state_cache_child_ratio</span>:
+					<span class="ident">config</span>.<span class="ident">state_cache_child_ratio</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> (<span class="ident">v</span>, <span class="number">100</span>)),
+				<span class="ident">pruning</span>: <span class="ident">config</span>.<span class="ident">pruning</span>.<span class="ident">clone</span>(),
+				<span class="ident">source</span>: <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="ident">config</span>.<span class="ident">database</span> {
+					<span class="ident">DatabaseConfig</span>::<span class="ident">Path</span> { <span class="ident">path</span>, <span class="ident">cache_size</span> } <span class="op">=</span><span class="op">&gt;</span>
+						<span class="ident">client_db</span>::<span class="ident">DatabaseSettingsSrc</span>::<span class="ident">Path</span> {
+							<span class="ident">path</span>: <span class="ident">path</span>.<span class="ident">clone</span>(),
+							<span class="ident">cache_size</span>: <span class="ident">cache_size</span>.<span class="ident">clone</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">u</span><span class="op">|</span> <span class="ident">u</span> <span class="kw">as</span> <span class="ident">usize</span>),
+						},
+					<span class="ident">DatabaseConfig</span>::<span class="ident">Custom</span>(<span class="ident">db</span>) <span class="op">=</span><span class="op">&gt;</span>
+						<span class="ident">client_db</span>::<span class="ident">DatabaseSettingsSrc</span>::<span class="ident">Custom</span>(<span class="ident">db</span>.<span class="ident">clone</span>()),
+				},
+			};
+			
+			<span class="ident">client_db</span>::<span class="ident">new_client</span>(
+				<span class="ident">db_config</span>,
+				<span class="ident">executor</span>,
+				<span class="kw-2">&amp;</span><span class="ident">config</span>.<span class="ident">chain_spec</span>,
+				<span class="ident">fork_blocks</span>,
+				<span class="ident">config</span>.<span class="ident">execution_strategies</span>.<span class="ident">clone</span>(),
+				<span class="prelude-val">Some</span>(<span class="ident">keystore</span>.<span class="ident">clone</span>()),
+			)<span class="question-mark">?</span>
+		};
 
 		<span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">client</span>);
 
@@ -1518,21 +1544,29 @@
 	<span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">keystore</span> <span class="op">=</span> <span class="ident">Keystore</span>::<span class="ident">open</span>(<span class="ident">config</span>.<span class="ident">keystore_path</span>.<span class="ident">clone</span>(), <span class="ident">config</span>.<span class="ident">keystore_password</span>.<span class="ident">clone</span>())<span class="question-mark">?</span>;
 
-		<span class="kw">let</span> <span class="ident">db_settings</span> <span class="op">=</span> <span class="ident">client_db</span>::<span class="ident">DatabaseSettings</span> {
-			<span class="ident">cache_size</span>: <span class="ident">config</span>.<span class="ident">database_cache_size</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">u</span><span class="op">|</span> <span class="ident">u</span> <span class="kw">as</span> <span class="ident">usize</span>),
-			<span class="ident">state_cache_size</span>: <span class="ident">config</span>.<span class="ident">state_cache_size</span>,
-			<span class="ident">state_cache_child_ratio</span>:
-				<span class="ident">config</span>.<span class="ident">state_cache_child_ratio</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> (<span class="ident">v</span>, <span class="number">100</span>)),
-			<span class="ident">path</span>: <span class="ident">config</span>.<span class="ident">database_path</span>.<span class="ident">clone</span>(),
-			<span class="ident">pruning</span>: <span class="ident">config</span>.<span class="ident">pruning</span>.<span class="ident">clone</span>(),
-		};
-
 		<span class="kw">let</span> <span class="ident">executor</span> <span class="op">=</span> <span class="ident">NativeExecutor</span>::<span class="op">&lt;</span><span class="ident">TExecDisp</span><span class="op">&gt;</span>::<span class="ident">new</span>(
 			<span class="ident">config</span>.<span class="ident">wasm_method</span>,
 			<span class="ident">config</span>.<span class="ident">default_heap_pages</span>,
 		);
 
-		<span class="kw">let</span> <span class="ident">db_storage</span> <span class="op">=</span> <span class="ident">client_db</span>::<span class="ident">light</span>::<span class="ident">LightStorage</span>::<span class="ident">new</span>(<span class="ident">db_settings</span>)<span class="question-mark">?</span>;
+		<span class="kw">let</span> <span class="ident">db_storage</span> <span class="op">=</span> {
+			<span class="kw">let</span> <span class="ident">db_settings</span> <span class="op">=</span> <span class="ident">client_db</span>::<span class="ident">DatabaseSettings</span> {
+				<span class="ident">state_cache_size</span>: <span class="ident">config</span>.<span class="ident">state_cache_size</span>,
+				<span class="ident">state_cache_child_ratio</span>:
+					<span class="ident">config</span>.<span class="ident">state_cache_child_ratio</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> (<span class="ident">v</span>, <span class="number">100</span>)),
+				<span class="ident">pruning</span>: <span class="ident">config</span>.<span class="ident">pruning</span>.<span class="ident">clone</span>(),
+				<span class="ident">source</span>: <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="ident">config</span>.<span class="ident">database</span> {
+					<span class="ident">DatabaseConfig</span>::<span class="ident">Path</span> { <span class="ident">path</span>, <span class="ident">cache_size</span> } <span class="op">=</span><span class="op">&gt;</span>
+						<span class="ident">client_db</span>::<span class="ident">DatabaseSettingsSrc</span>::<span class="ident">Path</span> {
+							<span class="ident">path</span>: <span class="ident">path</span>.<span class="ident">clone</span>(),
+							<span class="ident">cache_size</span>: <span class="ident">cache_size</span>.<span class="ident">clone</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">u</span><span class="op">|</span> <span class="ident">u</span> <span class="kw">as</span> <span class="ident">usize</span>),
+						},
+					<span class="ident">DatabaseConfig</span>::<span class="ident">Custom</span>(<span class="ident">db</span>) <span class="op">=</span><span class="op">&gt;</span>
+						<span class="ident">client_db</span>::<span class="ident">DatabaseSettingsSrc</span>::<span class="ident">Custom</span>(<span class="ident">db</span>.<span class="ident">clone</span>()),
+				},
+			};
+			<span class="ident">client_db</span>::<span class="ident">light</span>::<span class="ident">LightStorage</span>::<span class="ident">new</span>(<span class="ident">db_settings</span>)<span class="question-mark">?</span>
+		};
 		<span class="kw">let</span> <span class="ident">light_blockchain</span> <span class="op">=</span> <span class="ident">client</span>::<span class="ident">light</span>::<span class="ident">new_light_blockchain</span>(<span class="ident">db_storage</span>);
 		<span class="kw">let</span> <span class="ident">fetch_checker</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">client</span>::<span class="ident">light</span>::<span class="ident">new_fetch_checker</span>(<span class="ident">light_blockchain</span>.<span class="ident">clone</span>(), <span class="ident">executor</span>.<span class="ident">clone</span>()));
 		<span class="kw">let</span> <span class="ident">fetcher</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">network</span>::<span class="ident">OnDemand</span>::<span class="ident">new</span>(<span class="ident">fetch_checker</span>));

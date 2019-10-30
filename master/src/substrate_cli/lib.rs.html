@@ -1070,6 +1070,19 @@
 <span id="1059">1059</span>
 <span id="1060">1060</span>
 <span id="1061">1061</span>
+<span id="1062">1062</span>
+<span id="1063">1063</span>
+<span id="1064">1064</span>
+<span id="1065">1065</span>
+<span id="1066">1066</span>
+<span id="1067">1067</span>
+<span id="1068">1068</span>
+<span id="1069">1069</span>
+<span id="1070">1070</span>
+<span id="1071">1071</span>
+<span id="1072">1072</span>
+<span id="1073">1073</span>
+<span id="1074">1074</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1101,7 +1114,7 @@
 
 <span class="kw">use</span> <span class="ident">client</span>::<span class="ident">ExecutionStrategies</span>;
 <span class="kw">use</span> <span class="ident">service</span>::{
-	<span class="ident">config</span>::<span class="ident">Configuration</span>,
+	<span class="ident">config</span>::{<span class="ident">Configuration</span>, <span class="ident">DatabaseConfig</span>},
 	<span class="ident">ServiceBuilderExport</span>, <span class="ident">ServiceBuilderImport</span>, <span class="ident">ServiceBuilderRevert</span>,
 	<span class="ident">RuntimeGenesis</span>, <span class="ident">ChainSpecExtension</span>, <span class="ident">PruningMode</span>, <span class="ident">ChainSpec</span>,
 };
@@ -1424,7 +1437,9 @@
 	{
 		<span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">create_config_with_db_path</span>(<span class="ident">spec_factory</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">params</span>.<span class="ident">shared_params</span>, <span class="self">self</span>.<span class="ident">version</span>)<span class="question-mark">?</span>;
 
-		<span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;DB path: {}&quot;</span>, <span class="ident">config</span>.<span class="ident">database_path</span>.<span class="ident">display</span>());
+		<span class="kw">if</span> <span class="kw">let</span> <span class="ident">DatabaseConfig</span>::<span class="ident">Path</span> { <span class="kw-2">ref</span> <span class="ident">path</span>, .. } <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">config</span>.<span class="ident">database</span> {
+			<span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;DB path: {}&quot;</span>, <span class="ident">path</span>.<span class="ident">display</span>());
+		}
 		<span class="kw">let</span> <span class="ident">from</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">params</span>.<span class="ident">from</span>.<span class="ident">unwrap_or</span>(<span class="number">1</span>);
 		<span class="kw">let</span> <span class="ident">to</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">params</span>.<span class="ident">to</span>;
 		<span class="kw">let</span> <span class="ident">json</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">params</span>.<span class="ident">json</span>;
@@ -1503,7 +1518,13 @@
 		<span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">create_config_with_db_path</span>::<span class="op">&lt;</span>(), <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(
 			<span class="ident">spec_factory</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">params</span>.<span class="ident">shared_params</span>, <span class="self">self</span>.<span class="ident">version</span>
 		)<span class="question-mark">?</span>;
-		<span class="kw">let</span> <span class="ident">db_path</span> <span class="op">=</span> <span class="ident">config</span>.<span class="ident">database_path</span>;
+		<span class="kw">let</span> <span class="ident">db_path</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">config</span>.<span class="ident">database</span> {
+			<span class="ident">DatabaseConfig</span>::<span class="ident">Path</span> { <span class="ident">path</span>, .. } <span class="op">=</span><span class="op">&gt;</span> <span class="ident">path</span>,
+			<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> {
+				<span class="macro">eprintln</span><span class="macro">!</span>(<span class="string">&quot;Cannot purge custom database implementation&quot;</span>);
+				<span class="kw">return</span> <span class="prelude-val">Ok</span>(());
+			}
+		};
 
 		<span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">params</span>.<span class="ident">yes</span> {
 			<span class="macro">print</span><span class="macro">!</span>(<span class="string">&quot;Are you sure to remove {:?}? [y/N]: &quot;</span>, <span class="kw-2">&amp;</span><span class="ident">db_path</span>);
@@ -1528,7 +1549,7 @@
 				<span class="prelude-val">Ok</span>(())
 			},
 			<span class="prelude-ty">Result</span>::<span class="prelude-val">Err</span>(<span class="kw-2">ref</span> <span class="ident">err</span>) <span class="kw">if</span> <span class="ident">err</span>.<span class="ident">kind</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">ErrorKind</span>::<span class="ident">NotFound</span> <span class="op">=</span><span class="op">&gt;</span> {
-				<span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{:?} did not exist.&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">db_path</span>);
+				<span class="macro">eprintln</span><span class="macro">!</span>(<span class="string">&quot;{:?} did not exist.&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">db_path</span>);
 				<span class="prelude-val">Ok</span>(())
 			},
 			<span class="prelude-ty">Result</span>::<span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span>::<span class="prelude-val">Err</span>(<span class="ident">err</span>.<span class="ident">into</span>())
@@ -1737,8 +1758,10 @@
 		<span class="op">|</span><span class="op">|</span> <span class="ident">keystore_path</span>(<span class="kw-2">&amp;</span><span class="ident">base_path</span>, <span class="ident">config</span>.<span class="ident">chain_spec</span>.<span class="ident">id</span>())
 	);
 
-	<span class="ident">config</span>.<span class="ident">database_path</span> <span class="op">=</span> <span class="ident">db_path</span>(<span class="kw-2">&amp;</span><span class="ident">base_path</span>, <span class="ident">config</span>.<span class="ident">chain_spec</span>.<span class="ident">id</span>());
-	<span class="ident">config</span>.<span class="ident">database_cache_size</span> <span class="op">=</span> <span class="ident">cli</span>.<span class="ident">database_cache_size</span>;
+	<span class="ident">config</span>.<span class="ident">database</span> <span class="op">=</span> <span class="ident">DatabaseConfig</span>::<span class="ident">Path</span> {
+		<span class="ident">path</span>: <span class="ident">db_path</span>(<span class="kw-2">&amp;</span><span class="ident">base_path</span>, <span class="ident">config</span>.<span class="ident">chain_spec</span>.<span class="ident">id</span>()),
+		<span class="ident">cache_size</span>: <span class="ident">cli</span>.<span class="ident">database_cache_size</span>,
+	};
 	<span class="ident">config</span>.<span class="ident">state_cache_size</span> <span class="op">=</span> <span class="ident">cli</span>.<span class="ident">state_cache_size</span>;
 
 	<span class="kw">let</span> <span class="ident">is_dev</span> <span class="op">=</span> <span class="ident">cli</span>.<span class="ident">shared_params</span>.<span class="ident">dev</span>;
@@ -1902,7 +1925,10 @@
 	<span class="kw">let</span> <span class="ident">base_path</span> <span class="op">=</span> <span class="ident">base_path</span>(<span class="ident">cli</span>, <span class="ident">version</span>);
 
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">service</span>::<span class="ident">Configuration</span>::<span class="ident">default_with_spec</span>(<span class="ident">spec</span>.<span class="ident">clone</span>());
-	<span class="ident">config</span>.<span class="ident">database_path</span> <span class="op">=</span> <span class="ident">db_path</span>(<span class="kw-2">&amp;</span><span class="ident">base_path</span>, <span class="ident">spec</span>.<span class="ident">id</span>());
+	<span class="ident">config</span>.<span class="ident">database</span> <span class="op">=</span> <span class="ident">DatabaseConfig</span>::<span class="ident">Path</span> {
+		<span class="ident">path</span>: <span class="ident">db_path</span>(<span class="kw-2">&amp;</span><span class="ident">base_path</span>, <span class="ident">spec</span>.<span class="ident">id</span>()),
+		<span class="ident">cache_size</span>: <span class="prelude-val">None</span>,
+	};
 
 	<span class="prelude-val">Ok</span>(<span class="ident">config</span>)
 }

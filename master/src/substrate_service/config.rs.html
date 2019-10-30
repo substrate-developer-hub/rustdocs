@@ -180,6 +180,21 @@
 <span id="169">169</span>
 <span id="170">170</span>
 <span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -200,11 +215,11 @@
 <span class="doccomment">//! Service configuration.</span>
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">client</span>::<span class="ident">ExecutionStrategies</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">client_db</span>::<span class="ident">PruningMode</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">client_db</span>::{<span class="ident">kvdb</span>::<span class="ident">KeyValueDB</span>, <span class="ident">PruningMode</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">network</span>::<span class="ident">config</span>::{<span class="ident">ExtTransport</span>, <span class="ident">NetworkConfiguration</span>, <span class="ident">Roles</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">substrate_executor</span>::<span class="ident">WasmExecutionMethod</span>;
 
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">path</span>::<span class="ident">PathBuf</span>, <span class="ident">net</span>::<span class="ident">SocketAddr</span>};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">path</span>::<span class="ident">PathBuf</span>, <span class="ident">net</span>::<span class="ident">SocketAddr</span>, <span class="ident">sync</span>::<span class="ident">Arc</span>};
 <span class="kw">use</span> <span class="ident">transaction_pool</span>;
 <span class="kw">use</span> <span class="ident">chain_spec</span>::{<span class="ident">ChainSpec</span>, <span class="ident">RuntimeGenesis</span>, <span class="ident">Extension</span>, <span class="ident">NoExtension</span>};
 <span class="kw">use</span> <span class="ident">primitives</span>::<span class="ident">crypto</span>::<span class="ident">Protected</span>;
@@ -228,10 +243,8 @@
 	<span class="kw">pub</span> <span class="ident">network</span>: <span class="ident">NetworkConfiguration</span>,
 	<span class="doccomment">/// Path to key files.</span>
 	<span class="kw">pub</span> <span class="ident">keystore_path</span>: <span class="ident">PathBuf</span>,
-	<span class="doccomment">/// Path to the database.</span>
-	<span class="kw">pub</span> <span class="ident">database_path</span>: <span class="ident">PathBuf</span>,
-	<span class="doccomment">/// Cache Size for internal database in MiB</span>
-	<span class="kw">pub</span> <span class="ident">database_cache_size</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>,
+	<span class="doccomment">/// Configuration for the database.</span>
+	<span class="kw">pub</span> <span class="ident">database</span>: <span class="ident">DatabaseConfig</span>,
 	<span class="doccomment">/// Size of internal state cache in Bytes</span>
 	<span class="kw">pub</span> <span class="ident">state_cache_size</span>: <span class="ident">usize</span>,
 	<span class="doccomment">/// Size in percent of cache size dedicated to child tries</span>
@@ -283,6 +296,21 @@
 	<span class="kw">pub</span> <span class="ident">dev_key_seed</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>,
 }
 
+<span class="doccomment">/// Configuration of the database of the client.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">DatabaseConfig</span> {
+	<span class="doccomment">/// Database file at a specific path. Recommended for most uses.</span>
+	<span class="ident">Path</span> {
+		<span class="doccomment">/// Path to the database.</span>
+		<span class="ident">path</span>: <span class="ident">PathBuf</span>,
+		<span class="doccomment">/// Cache Size for internal database in MiB</span>
+		<span class="ident">cache_size</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>,
+	},
+
+	<span class="doccomment">/// A custom implementation of an already-open database.</span>
+	<span class="ident">Custom</span>(<span class="ident">Arc</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">KeyValueDB</span><span class="op">&gt;</span>),
+}
+
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">G</span>, <span class="ident">E</span><span class="op">&gt;</span> <span class="ident">Configuration</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">G</span>, <span class="ident">E</span><span class="op">&gt;</span> <span class="kw">where</span>
 	<span class="ident">C</span>: <span class="ident">Default</span>,
 	<span class="ident">G</span>: <span class="ident">RuntimeGenesis</span>,
@@ -300,8 +328,10 @@
 			<span class="ident">transaction_pool</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
 			<span class="ident">network</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
 			<span class="ident">keystore_path</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
-			<span class="ident">database_path</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
-			<span class="ident">database_cache_size</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
+			<span class="ident">database</span>: <span class="ident">DatabaseConfig</span>::<span class="ident">Path</span> {
+				<span class="ident">path</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
+				<span class="ident">cache_size</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
+			},
 			<span class="ident">state_cache_size</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
 			<span class="ident">state_cache_child_ratio</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
 			<span class="ident">custom</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
