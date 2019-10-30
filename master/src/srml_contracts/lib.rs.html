@@ -1052,6 +1052,36 @@
 <span id="1041">1041</span>
 <span id="1042">1042</span>
 <span id="1043">1043</span>
+<span id="1044">1044</span>
+<span id="1045">1045</span>
+<span id="1046">1046</span>
+<span id="1047">1047</span>
+<span id="1048">1048</span>
+<span id="1049">1049</span>
+<span id="1050">1050</span>
+<span id="1051">1051</span>
+<span id="1052">1052</span>
+<span id="1053">1053</span>
+<span id="1054">1054</span>
+<span id="1055">1055</span>
+<span id="1056">1056</span>
+<span id="1057">1057</span>
+<span id="1058">1058</span>
+<span id="1059">1059</span>
+<span id="1060">1060</span>
+<span id="1061">1061</span>
+<span id="1062">1062</span>
+<span id="1063">1063</span>
+<span id="1064">1064</span>
+<span id="1065">1065</span>
+<span id="1066">1066</span>
+<span id="1067">1067</span>
+<span id="1068">1068</span>
+<span id="1069">1069</span>
+<span id="1070">1070</span>
+<span id="1071">1071</span>
+<span id="1072">1072</span>
+<span id="1073">1073</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1705,10 +1735,19 @@
 	}
 }
 
+<span class="doccomment">/// The possible errors that can happen querying the storage of a contract.</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">GetStorageError</span> {
+	<span class="doccomment">/// The given address doesn&#39;t point on a contract.</span>
+	<span class="ident">ContractDoesntExist</span>,
+	<span class="doccomment">/// The specified contract is a tombstone and thus cannot have any storage.</span>
+	<span class="ident">IsTombstone</span>,
+}
+
+<span class="doccomment">/// Public APIs provided by the contracts module.</span>
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Trait</span><span class="op">&gt;</span> <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Perform a call to a specified contract.</span>
 	<span class="doccomment">///</span>
-	<span class="doccomment">/// This function is similar to `Self::call`, but doesn&#39;t perform any lookups and better</span>
+	<span class="doccomment">/// This function is similar to `Self::call`, but doesn&#39;t perform any address lookups and better</span>
 	<span class="doccomment">/// suitable for calling directly from Rust.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">bare_call</span>(
 		<span class="ident">origin</span>: <span class="ident">T</span>::<span class="ident">AccountId</span>,
@@ -1722,6 +1761,27 @@
 		})
 	}
 
+	<span class="doccomment">/// Query storage of a specified contract under a specified key.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_storage</span>(
+		<span class="ident">address</span>: <span class="ident">T</span>::<span class="ident">AccountId</span>,
+		<span class="ident">key</span>: [<span class="ident">u8</span>; <span class="number">32</span>],
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">rstd</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">GetStorageError</span><span class="op">&gt;</span> {
+		<span class="kw">let</span> <span class="ident">contract_info</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">ContractInfoOf</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">address</span>)
+			.<span class="ident">ok_or</span>(<span class="ident">GetStorageError</span>::<span class="ident">ContractDoesntExist</span>)<span class="question-mark">?</span>
+			.<span class="ident">get_alive</span>()
+			.<span class="ident">ok_or</span>(<span class="ident">GetStorageError</span>::<span class="ident">IsTombstone</span>)<span class="question-mark">?</span>;
+
+		<span class="kw">let</span> <span class="ident">maybe_value</span> <span class="op">=</span> <span class="ident">AccountDb</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>::<span class="ident">get_storage</span>(
+			<span class="kw-2">&amp;</span><span class="ident">DirectAccountDb</span>,
+			<span class="kw-2">&amp;</span><span class="ident">address</span>,
+			<span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">contract_info</span>.<span class="ident">trie_id</span>),
+			<span class="kw-2">&amp;</span><span class="ident">key</span>,
+		);
+		<span class="prelude-val">Ok</span>(<span class="ident">maybe_value</span>)
+	}
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Trait</span><span class="op">&gt;</span> <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
 	<span class="kw">fn</span> <span class="ident">execute_wasm</span>(
 		<span class="ident">origin</span>: <span class="ident">T</span>::<span class="ident">AccountId</span>,
 		<span class="ident">gas_limit</span>: <span class="ident">Gas</span>,
