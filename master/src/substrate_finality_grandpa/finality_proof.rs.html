@@ -993,6 +993,10 @@
 <span id="982">982</span>
 <span id="983">983</span>
 <span id="984">984</span>
+<span id="985">985</span>
+<span id="986">986</span>
+<span id="987">987</span>
+<span id="988">988</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1030,13 +1034,14 @@
 <span class="doccomment">//! finality proof (that finalizes some block C that is ancestor of the B and descendant</span>
 <span class="doccomment">//! of the U) could be returned.</span>
 
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">iter</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">trace</span>, <span class="ident">warn</span>};
 
 <span class="kw">use</span> <span class="ident">client</span>::{
 	<span class="ident">backend</span>::<span class="ident">Backend</span>, <span class="ident">blockchain</span>::<span class="ident">Backend</span> <span class="kw">as</span> <span class="ident">BlockchainBackend</span>, <span class="ident">CallExecutor</span>, <span class="ident">Client</span>,
 	<span class="ident">error</span>::{<span class="ident">Error</span> <span class="kw">as</span> <span class="ident">ClientError</span>, <span class="prelude-ty">Result</span> <span class="kw">as</span> <span class="ident">ClientResult</span>},
-	<span class="ident">light</span>::<span class="ident">fetcher</span>::{<span class="ident">FetchChecker</span>, <span class="ident">RemoteCallRequest</span>}, <span class="ident">ExecutionStrategy</span>,
+	<span class="ident">light</span>::<span class="ident">fetcher</span>::{<span class="ident">FetchChecker</span>, <span class="ident">RemoteReadRequest</span>, <span class="ident">StorageProof</span>},
 };
 <span class="kw">use</span> <span class="ident">codec</span>::{<span class="ident">Encode</span>, <span class="ident">Decode</span>};
 <span class="kw">use</span> <span class="ident">grandpa</span>::<span class="ident">BlockNumberOps</span>;
@@ -1044,9 +1049,9 @@
 	<span class="ident">Justification</span>, <span class="ident">generic</span>::<span class="ident">BlockId</span>,
 	<span class="ident">traits</span>::{<span class="ident">NumberFor</span>, <span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">Header</span> <span class="kw">as</span> <span class="ident">HeaderT</span>, <span class="ident">One</span>},
 };
-<span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">H256</span>, <span class="ident">Blake2Hasher</span>};
+<span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">H256</span>, <span class="ident">Blake2Hasher</span>, <span class="ident">storage</span>::<span class="ident">StorageKey</span>};
 <span class="kw">use</span> <span class="ident">substrate_telemetry</span>::{<span class="ident">telemetry</span>, <span class="ident">CONSENSUS_INFO</span>};
-<span class="kw">use</span> <span class="ident">fg_primitives</span>::<span class="ident">AuthorityId</span>;
+<span class="kw">use</span> <span class="ident">fg_primitives</span>::{<span class="ident">AuthorityId</span>, <span class="ident">AuthorityList</span>, <span class="ident">VersionedAuthorityList</span>, <span class="ident">GRANDPA_AUTHORITIES_KEY</span>};
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">justification</span>::<span class="ident">GrandpaJustification</span>;
 
@@ -1055,10 +1060,10 @@
 
 <span class="doccomment">/// GRANDPA authority set related methods for the finality proof provider.</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">AuthoritySetForFinalityProver</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&gt;</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> {
-	<span class="doccomment">/// Call GrandpaApi::grandpa_authorities at given block.</span>
-	<span class="kw">fn</span> <span class="ident">authorities</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">u64</span>)<span class="op">&gt;</span><span class="op">&gt;</span>;
-	<span class="doccomment">/// Prove call of GrandpaApi::grandpa_authorities at given block.</span>
-	<span class="kw">fn</span> <span class="ident">prove_authorities</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+	<span class="doccomment">/// Read GRANDPA_AUTHORITIES_KEY from storage at given block.</span>
+	<span class="kw">fn</span> <span class="ident">authorities</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">AuthorityList</span><span class="op">&gt;</span>;
+	<span class="doccomment">/// Prove storage read of GRANDPA_AUTHORITIES_KEY at given block.</span>
+	<span class="kw">fn</span> <span class="ident">prove_authorities</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">StorageProof</span><span class="op">&gt;</span>;
 }
 
 <span class="doccomment">/// Client-based implementation of AuthoritySetForFinalityProver.</span>
@@ -1068,33 +1073,28 @@
 		<span class="ident">E</span>: <span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
 		<span class="ident">RA</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
 {
-	<span class="kw">fn</span> <span class="ident">authorities</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">u64</span>)<span class="op">&gt;</span><span class="op">&gt;</span> {
-		<span class="self">self</span>.<span class="ident">executor</span>().<span class="ident">call</span>(
-			<span class="ident">block</span>,
-			<span class="string">&quot;GrandpaApi_grandpa_authorities&quot;</span>,
-			<span class="kw-2">&amp;</span>[],
-			<span class="ident">ExecutionStrategy</span>::<span class="ident">NativeElseWasm</span>,
-			<span class="prelude-val">None</span>,
-		).<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">call_result</span><span class="op">|</span> <span class="ident">Decode</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="ident">call_result</span>[..])
-			.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> <span class="ident">ClientError</span>::<span class="ident">CallResultDecode</span>(
-				<span class="string">&quot;failed to decode GRANDPA authorities set proof&quot;</span>.<span class="ident">into</span>(), <span class="ident">err</span>
-			)))
+	<span class="kw">fn</span> <span class="ident">authorities</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">AuthorityList</span><span class="op">&gt;</span> {
+		<span class="kw">let</span> <span class="ident">storage_key</span> <span class="op">=</span> <span class="ident">StorageKey</span>(<span class="ident">GRANDPA_AUTHORITIES_KEY</span>.<span class="ident">to_vec</span>());
+		<span class="self">self</span>.<span class="ident">storage</span>(<span class="ident">block</span>, <span class="kw-2">&amp;</span><span class="ident">storage_key</span>)<span class="question-mark">?</span>
+			.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">encoded</span><span class="op">|</span> <span class="ident">VersionedAuthorityList</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">encoded</span>.<span class="number">0</span>.<span class="ident">as_slice</span>()).<span class="ident">ok</span>())
+			.<span class="ident">map</span>(<span class="op">|</span><span class="ident">versioned</span><span class="op">|</span> <span class="ident">versioned</span>.<span class="ident">into</span>())
+			.<span class="ident">ok_or</span>(<span class="ident">ClientError</span>::<span class="ident">InvalidAuthoritiesSet</span>)
 	}
 
-	<span class="kw">fn</span> <span class="ident">prove_authorities</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-		<span class="self">self</span>.<span class="ident">execution_proof</span>(<span class="ident">block</span>, <span class="string">&quot;GrandpaApi_grandpa_authorities&quot;</span>,<span class="kw-2">&amp;</span>[]).<span class="ident">map</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">proof</span>)<span class="op">|</span> <span class="ident">proof</span>)
+	<span class="kw">fn</span> <span class="ident">prove_authorities</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">StorageProof</span><span class="op">&gt;</span> {
+		<span class="self">self</span>.<span class="ident">read_proof</span>(<span class="ident">block</span>, <span class="ident">iter</span>::<span class="ident">once</span>(<span class="ident">GRANDPA_AUTHORITIES_KEY</span>))
 	}
 }
 
 <span class="doccomment">/// GRANDPA authority set related methods for the finality proof checker.</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">AuthoritySetForFinalityChecker</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&gt;</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> {
-	<span class="doccomment">/// Check execution proof of Grandpa::grandpa_authorities at given block.</span>
+	<span class="doccomment">/// Check storage read proof of GRANDPA_AUTHORITIES_KEY at given block.</span>
 	<span class="kw">fn</span> <span class="ident">check_authorities_proof</span>(
 		<span class="kw-2">&amp;</span><span class="self">self</span>,
 		<span class="ident">hash</span>: <span class="ident">Block</span>::<span class="ident">Hash</span>,
 		<span class="ident">header</span>: <span class="ident">Block</span>::<span class="ident">Header</span>,
-		<span class="ident">proof</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">u64</span>)<span class="op">&gt;</span><span class="op">&gt;</span>;
+		<span class="ident">proof</span>: <span class="ident">StorageProof</span>,
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">AuthorityList</span><span class="op">&gt;</span>;
 }
 
 <span class="doccomment">/// FetchChecker-based implementation of AuthoritySetForFinalityChecker.</span>
@@ -1103,23 +1103,31 @@
 		<span class="kw-2">&amp;</span><span class="self">self</span>,
 		<span class="ident">hash</span>: <span class="ident">Block</span>::<span class="ident">Hash</span>,
 		<span class="ident">header</span>: <span class="ident">Block</span>::<span class="ident">Header</span>,
-		<span class="ident">proof</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">u64</span>)<span class="op">&gt;</span><span class="op">&gt;</span> {
-		<span class="kw">let</span> <span class="ident">request</span> <span class="op">=</span> <span class="ident">RemoteCallRequest</span> {
+		<span class="ident">proof</span>: <span class="ident">StorageProof</span>,
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">AuthorityList</span><span class="op">&gt;</span> {
+		<span class="kw">let</span> <span class="ident">storage_key</span> <span class="op">=</span> <span class="ident">GRANDPA_AUTHORITIES_KEY</span>.<span class="ident">to_vec</span>();
+		<span class="kw">let</span> <span class="ident">request</span> <span class="op">=</span> <span class="ident">RemoteReadRequest</span> {
 			<span class="ident">block</span>: <span class="ident">hash</span>,
 			<span class="ident">header</span>,
-			<span class="ident">method</span>: <span class="string">&quot;GrandpaApi_grandpa_authorities&quot;</span>.<span class="ident">into</span>(),
-			<span class="ident">call_data</span>: <span class="macro">vec</span><span class="macro">!</span>[],
+			<span class="ident">keys</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">storage_key</span>.<span class="ident">clone</span>()],
 			<span class="ident">retry_count</span>: <span class="prelude-val">None</span>,
 		};
 
-		<span class="self">self</span>.<span class="ident">check_execution_proof</span>(<span class="kw-2">&amp;</span><span class="ident">request</span>, <span class="ident">proof</span>)
-			.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">authorities</span><span class="op">|</span> {
-				<span class="kw">let</span> <span class="ident">authorities</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">u64</span>)<span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Decode</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="ident">authorities</span>[..])
-					.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> <span class="ident">ClientError</span>::<span class="ident">CallResultDecode</span>(
-						<span class="string">&quot;failed to decode GRANDPA authorities set proof&quot;</span>.<span class="ident">into</span>(), <span class="ident">err</span>
-					))<span class="question-mark">?</span>;
-				<span class="prelude-val">Ok</span>(<span class="ident">authorities</span>.<span class="ident">into_iter</span>().<span class="ident">collect</span>())
+		<span class="self">self</span>.<span class="ident">check_read_proof</span>(<span class="kw-2">&amp;</span><span class="ident">request</span>, <span class="ident">proof</span>)
+			.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">results</span><span class="op">|</span> {
+				<span class="kw">let</span> <span class="ident">maybe_encoded</span> <span class="op">=</span> <span class="ident">results</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">storage_key</span>)
+					.<span class="ident">expect</span>(
+						<span class="string">&quot;storage_key is listed in the request keys; \
+						check_read_proof must return a value for each requested key;
+						qed&quot;</span>
+					);
+				<span class="ident">maybe_encoded</span>
+					.<span class="ident">as_ref</span>()
+					.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">encoded</span><span class="op">|</span> {
+						<span class="ident">VersionedAuthorityList</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">encoded</span>.<span class="ident">as_slice</span>()).<span class="ident">ok</span>()
+					})
+					.<span class="ident">map</span>(<span class="op">|</span><span class="ident">versioned</span><span class="op">|</span> <span class="ident">versioned</span>.<span class="ident">into</span>())
+					.<span class="ident">ok_or</span>(<span class="ident">ClientError</span>::<span class="ident">InvalidAuthoritiesSet</span>)
 			})
 	}
 }
@@ -1185,7 +1193,7 @@
 	<span class="doccomment">/// New authorities set id that should be applied starting from block.</span>
 	<span class="kw">pub</span> <span class="ident">new_set_id</span>: <span class="ident">u64</span>,
 	<span class="doccomment">/// New authorities set that should be applied starting from block.</span>
-	<span class="kw">pub</span> <span class="ident">new_authorities</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">u64</span>)<span class="op">&gt;</span>,
+	<span class="kw">pub</span> <span class="ident">new_authorities</span>: <span class="ident">AuthorityList</span>,
 }
 
 <span class="doccomment">/// Single fragment of proof-of-finality.</span>
@@ -1203,7 +1211,7 @@
 	<span class="doccomment">/// The set of headers in the range (U; F] that we believe are unknown to the caller. Ordered.</span>
 	<span class="kw">pub</span> <span class="ident">unknown_headers</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// Optional proof of execution of GRANDPA::authorities().</span>
-	<span class="kw">pub</span> <span class="ident">authorities_proof</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="kw">pub</span> <span class="ident">authorities_proof</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">StorageProof</span><span class="op">&gt;</span>,
 }
 
 <span class="doccomment">/// Proof of finality is the ordered set of finality fragments, where:</span>
@@ -1404,7 +1412,7 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">check_finality_proof</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">B</span><span class="op">&gt;</span>(
 	<span class="ident">blockchain</span>: <span class="kw-2">&amp;</span><span class="ident">B</span>,
 	<span class="ident">current_set_id</span>: <span class="ident">u64</span>,
-	<span class="ident">current_authorities</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">u64</span>)<span class="op">&gt;</span>,
+	<span class="ident">current_authorities</span>: <span class="ident">AuthorityList</span>,
 	<span class="ident">authorities_provider</span>: <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">AuthoritySetForFinalityChecker</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 	<span class="ident">remote_proof</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">FinalityEffects</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Header</span><span class="op">&gt;</span><span class="op">&gt;</span>
@@ -1423,7 +1431,7 @@
 <span class="kw">fn</span> <span class="ident">do_check_finality_proof</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">B</span>, <span class="ident">J</span><span class="op">&gt;</span>(
 	<span class="ident">blockchain</span>: <span class="kw-2">&amp;</span><span class="ident">B</span>,
 	<span class="ident">current_set_id</span>: <span class="ident">u64</span>,
-	<span class="ident">current_authorities</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">u64</span>)<span class="op">&gt;</span>,
+	<span class="ident">current_authorities</span>: <span class="ident">AuthorityList</span>,
 	<span class="ident">authorities_provider</span>: <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">AuthoritySetForFinalityChecker</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 	<span class="ident">remote_proof</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">FinalityEffects</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Header</span><span class="op">&gt;</span><span class="op">&gt;</span>
@@ -1518,12 +1526,12 @@
 
 <span class="doccomment">/// Authorities set from initial authorities set or finality effects.</span>
 <span class="kw">enum</span> <span class="ident">AuthoritiesOrEffects</span><span class="op">&lt;</span><span class="ident">Header</span>: <span class="ident">HeaderT</span><span class="op">&gt;</span> {
-	<span class="ident">Authorities</span>(<span class="ident">u64</span>, <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">u64</span>)<span class="op">&gt;</span>),
+	<span class="ident">Authorities</span>(<span class="ident">u64</span>, <span class="ident">AuthorityList</span>),
 	<span class="ident">Effects</span>(<span class="ident">FinalityEffects</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&gt;</span>),
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Header</span>: <span class="ident">HeaderT</span><span class="op">&gt;</span> <span class="ident">AuthoritiesOrEffects</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&gt;</span> {
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extract_authorities</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">u64</span>, <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">u64</span>)<span class="op">&gt;</span>) {
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extract_authorities</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">u64</span>, <span class="ident">AuthorityList</span>) {
 		<span class="kw">match</span> <span class="self">self</span> {
 			<span class="ident">AuthoritiesOrEffects</span>::<span class="ident">Authorities</span>(<span class="ident">set_id</span>, <span class="ident">authorities</span>) <span class="op">=</span><span class="op">&gt;</span> (<span class="ident">set_id</span>, <span class="ident">authorities</span>),
 			<span class="ident">AuthoritiesOrEffects</span>::<span class="ident">Effects</span>(<span class="ident">effects</span>) <span class="op">=</span><span class="op">&gt;</span> (<span class="ident">effects</span>.<span class="ident">new_set_id</span>, <span class="ident">effects</span>.<span class="ident">new_authorities</span>),
@@ -1577,14 +1585,14 @@
 
 	<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">GetAuthorities</span>, <span class="ident">ProveAuthorities</span><span class="op">&gt;</span> <span class="ident">AuthoritySetForFinalityProver</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="kw">for</span> (<span class="ident">GetAuthorities</span>, <span class="ident">ProveAuthorities</span>)
 		<span class="kw">where</span>
-			<span class="ident">GetAuthorities</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="ident">Fn</span>(<span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">u64</span>)<span class="op">&gt;</span><span class="op">&gt;</span>,
-			<span class="ident">ProveAuthorities</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="ident">Fn</span>(<span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+			<span class="ident">GetAuthorities</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="ident">Fn</span>(<span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">AuthorityList</span><span class="op">&gt;</span>,
+			<span class="ident">ProveAuthorities</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="ident">Fn</span>(<span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">StorageProof</span><span class="op">&gt;</span>,
 	{
-		<span class="kw">fn</span> <span class="ident">authorities</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">u64</span>)<span class="op">&gt;</span><span class="op">&gt;</span> {
+		<span class="kw">fn</span> <span class="ident">authorities</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">AuthorityList</span><span class="op">&gt;</span> {
 			<span class="self">self</span>.<span class="number">0</span>(<span class="kw-2">*</span><span class="ident">block</span>)
 		}
 
-		<span class="kw">fn</span> <span class="ident">prove_authorities</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+		<span class="kw">fn</span> <span class="ident">prove_authorities</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">StorageProof</span><span class="op">&gt;</span> {
 			<span class="self">self</span>.<span class="number">1</span>(<span class="kw-2">*</span><span class="ident">block</span>)
 		}
 	}
@@ -1593,14 +1601,14 @@
 
 	<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Closure</span><span class="op">&gt;</span> <span class="ident">AuthoritySetForFinalityChecker</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">ClosureAuthoritySetForFinalityChecker</span><span class="op">&lt;</span><span class="ident">Closure</span><span class="op">&gt;</span>
 		<span class="kw">where</span>
-			<span class="ident">Closure</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="ident">Fn</span>(<span class="ident">H256</span>, <span class="ident">Header</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">u64</span>)<span class="op">&gt;</span><span class="op">&gt;</span>,
+			<span class="ident">Closure</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="ident">Fn</span>(<span class="ident">H256</span>, <span class="ident">Header</span>, <span class="ident">StorageProof</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">AuthorityList</span><span class="op">&gt;</span>,
 	{
 		<span class="kw">fn</span> <span class="ident">check_authorities_proof</span>(
 			<span class="kw-2">&amp;</span><span class="self">self</span>,
 			<span class="ident">hash</span>: <span class="ident">H256</span>,
 			<span class="ident">header</span>: <span class="ident">Header</span>,
-			<span class="ident">proof</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-		) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">u64</span>)<span class="op">&gt;</span><span class="op">&gt;</span> {
+			<span class="ident">proof</span>: <span class="ident">StorageProof</span>
+		) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">AuthorityList</span><span class="op">&gt;</span> {
 			<span class="self">self</span>.<span class="number">0</span>(<span class="ident">hash</span>, <span class="ident">header</span>, <span class="ident">proof</span>)
 		}
 	}
@@ -1820,8 +1828,8 @@
 					<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(<span class="string">&quot;no other authorities should be fetched: {:?}&quot;</span>, <span class="ident">block_id</span>),
 				},
 				<span class="op">|</span><span class="ident">block_id</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">block_id</span> {
-					<span class="ident">BlockId</span>::<span class="ident">Number</span>(<span class="number">4</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="macro">vec</span><span class="macro">!</span>[<span class="number">40</span>]]),
-					<span class="ident">BlockId</span>::<span class="ident">Number</span>(<span class="number">6</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="macro">vec</span><span class="macro">!</span>[<span class="number">60</span>]]),
+					<span class="ident">BlockId</span>::<span class="ident">Number</span>(<span class="number">4</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">StorageProof</span>::<span class="ident">new</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="macro">vec</span><span class="macro">!</span>[<span class="number">40</span>]])),
+					<span class="ident">BlockId</span>::<span class="ident">Number</span>(<span class="number">6</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">StorageProof</span>::<span class="ident">new</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="macro">vec</span><span class="macro">!</span>[<span class="number">60</span>]])),
 					<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(<span class="string">&quot;no other authorities should be proved: {:?}&quot;</span>, <span class="ident">block_id</span>),
 				},
 			),
@@ -1837,14 +1845,14 @@
 				<span class="ident">block</span>: <span class="ident">header</span>(<span class="number">5</span>).<span class="ident">hash</span>(),
 				<span class="ident">justification</span>: <span class="ident">just5</span>,
 				<span class="ident">unknown_headers</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
-				<span class="ident">authorities_proof</span>: <span class="prelude-val">Some</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="macro">vec</span><span class="macro">!</span>[<span class="number">40</span>]]),
+				<span class="ident">authorities_proof</span>: <span class="prelude-val">Some</span>(<span class="ident">StorageProof</span>::<span class="ident">new</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="macro">vec</span><span class="macro">!</span>[<span class="number">40</span>]])),
 			},
 			<span class="comment">// last fragment provides justification for #7 &amp;&amp; unknown#7</span>
 			<span class="ident">FinalityProofFragment</span> {
 				<span class="ident">block</span>: <span class="ident">header</span>(<span class="number">7</span>).<span class="ident">hash</span>(),
 				<span class="ident">justification</span>: <span class="ident">just7</span>,
 				<span class="ident">unknown_headers</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">header</span>(<span class="number">7</span>)],
-				<span class="ident">authorities_proof</span>: <span class="prelude-val">Some</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="macro">vec</span><span class="macro">!</span>[<span class="number">60</span>]]),
+				<span class="ident">authorities_proof</span>: <span class="prelude-val">Some</span>(<span class="ident">StorageProof</span>::<span class="ident">new</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="macro">vec</span><span class="macro">!</span>[<span class="number">60</span>]])),
 			},
 		]);
 	}
@@ -1891,7 +1899,7 @@
 				<span class="ident">block</span>: <span class="ident">header</span>(<span class="number">4</span>).<span class="ident">hash</span>(),
 				<span class="ident">justification</span>: <span class="ident">TestJustification</span>(<span class="bool-val">true</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="number">7</span>]).<span class="ident">encode</span>(),
 				<span class="ident">unknown_headers</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">header</span>(<span class="number">4</span>)],
-				<span class="ident">authorities_proof</span>: <span class="prelude-val">Some</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="macro">vec</span><span class="macro">!</span>[<span class="number">42</span>]]),
+				<span class="ident">authorities_proof</span>: <span class="prelude-val">Some</span>(<span class="ident">StorageProof</span>::<span class="ident">new</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="macro">vec</span><span class="macro">!</span>[<span class="number">42</span>]])),
 			}, <span class="ident">FinalityProofFragment</span> {
 				<span class="ident">block</span>: <span class="ident">header</span>(<span class="number">5</span>).<span class="ident">hash</span>(),
 				<span class="ident">justification</span>: <span class="ident">TestJustification</span>(<span class="bool-val">true</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="number">8</span>]).<span class="ident">encode</span>(),
@@ -1938,7 +1946,7 @@
 				<span class="ident">block</span>: <span class="ident">header</span>(<span class="number">2</span>).<span class="ident">hash</span>(),
 				<span class="ident">justification</span>: <span class="ident">TestJustification</span>(<span class="bool-val">true</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="number">7</span>]).<span class="ident">encode</span>(),
 				<span class="ident">unknown_headers</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
-				<span class="ident">authorities_proof</span>: <span class="prelude-val">Some</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="macro">vec</span><span class="macro">!</span>[<span class="number">42</span>]]),
+				<span class="ident">authorities_proof</span>: <span class="prelude-val">Some</span>(<span class="ident">StorageProof</span>::<span class="ident">new</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="macro">vec</span><span class="macro">!</span>[<span class="number">42</span>]])),
 			}, <span class="ident">FinalityProofFragment</span> {
 				<span class="ident">block</span>: <span class="ident">header</span>(<span class="number">4</span>).<span class="ident">hash</span>(),
 				<span class="ident">justification</span>: <span class="ident">TestJustification</span>(<span class="bool-val">true</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="number">8</span>]).<span class="ident">encode</span>(),
