@@ -940,17 +940,6 @@
 <span id="929">929</span>
 <span id="930">930</span>
 <span id="931">931</span>
-<span id="932">932</span>
-<span id="933">933</span>
-<span id="934">934</span>
-<span id="935">935</span>
-<span id="936">936</span>
-<span id="937">937</span>
-<span id="938">938</span>
-<span id="939">939</span>
-<span id="940">940</span>
-<span id="941">941</span>
-<span id="942">942</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1015,7 +1004,10 @@
 <span class="kw">use</span> <span class="ident">client</span>::<span class="ident">blockchain</span>::<span class="ident">HeaderBackend</span>;
 <span class="kw">use</span> <span class="ident">codec</span>::<span class="ident">Encode</span>;
 <span class="kw">use</span> <span class="ident">sr_primitives</span>::<span class="ident">generic</span>::<span class="ident">BlockId</span>;
-<span class="kw">use</span> <span class="ident">sr_primitives</span>::<span class="ident">traits</span>::{<span class="ident">NumberFor</span>, <span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">DigestFor</span>, <span class="ident">Zero</span>};
+<span class="kw">use</span> <span class="ident">sr_primitives</span>::<span class="ident">traits</span>::{
+	<span class="ident">NumberFor</span>, <span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">DigestFor</span>, <span class="ident">ProvideRuntimeApi</span>
+};
+<span class="kw">use</span> <span class="ident">fg_primitives</span>::{<span class="ident">GrandpaApi</span>, <span class="ident">AuthorityPair</span>};
 <span class="kw">use</span> <span class="ident">keystore</span>::<span class="ident">KeyStorePtr</span>;
 <span class="kw">use</span> <span class="ident">inherents</span>::<span class="ident">InherentDataProviders</span>;
 <span class="kw">use</span> <span class="ident">consensus_common</span>::<span class="ident">SelectChain</span>;
@@ -1059,7 +1051,7 @@
 <span class="kw">use</span> <span class="ident">import</span>::<span class="ident">GrandpaBlockImport</span>;
 <span class="kw">use</span> <span class="ident">until_imported</span>::<span class="ident">UntilGlobalMessageBlocksImported</span>;
 <span class="kw">use</span> <span class="ident">communication</span>::<span class="ident">NetworkBridge</span>;
-<span class="kw">use</span> <span class="ident">fg_primitives</span>::{<span class="ident">AuthorityList</span>, <span class="ident">AuthorityPair</span>, <span class="ident">AuthoritySignature</span>, <span class="ident">SetId</span>};
+<span class="kw">use</span> <span class="ident">fg_primitives</span>::{<span class="ident">AuthoritySignature</span>, <span class="ident">SetId</span>, <span class="ident">AuthorityWeight</span>};
 
 <span class="comment">// Re-export these two because it&#39;s just so damn convenient.</span>
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">fg_primitives</span>::{<span class="ident">AuthorityId</span>, <span class="ident">ScheduledChange</span>};
@@ -1246,7 +1238,7 @@
 	<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">canon_number</span>: <span class="ident">N</span>,
 	<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">canon_hash</span>: <span class="ident">H</span>,
 	<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">set_id</span>: <span class="ident">SetId</span>,
-	<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">authorities</span>: <span class="ident">AuthorityList</span>,
+	<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">authorities</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">AuthorityWeight</span>)<span class="op">&gt;</span>,
 }
 
 <span class="doccomment">/// Commands issued to the voter.</span>
@@ -1318,30 +1310,11 @@
 	<span class="ident">voter_commands_rx</span>: <span class="ident">mpsc</span>::<span class="ident">UnboundedReceiver</span><span class="op">&lt;</span><span class="ident">VoterCommand</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
-<span class="doccomment">/// Provider for the Grandpa authority set configured on the genesis block.</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">GenesisAuthoritySetProvider</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> {
-	<span class="doccomment">/// Get the authority set at the genesis block.</span>
-	<span class="kw">fn</span> <span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">AuthorityList</span>, <span class="ident">ClientError</span><span class="op">&gt;</span>;
-}
-
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">RA</span><span class="op">&gt;</span> <span class="ident">GenesisAuthoritySetProvider</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span>
-	<span class="kw">where</span>
-		<span class="ident">B</span>: <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-		<span class="ident">E</span>: <span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
-		<span class="ident">RA</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
-{
-	<span class="kw">fn</span> <span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">AuthorityList</span>, <span class="ident">ClientError</span><span class="op">&gt;</span> {
-		<span class="kw">use</span> <span class="ident">finality_proof</span>::<span class="ident">AuthoritySetForFinalityProver</span>;
-
-		<span class="self">self</span>.<span class="ident">authorities</span>(<span class="kw-2">&amp;</span><span class="ident">BlockId</span>::<span class="ident">Number</span>(<span class="ident">Zero</span>::<span class="ident">zero</span>()))
-	}
-}
-
 <span class="doccomment">/// Make block importer and link half necessary to tie the background voter</span>
 <span class="doccomment">/// to it.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">block_import</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">RA</span>, <span class="ident">SC</span><span class="op">&gt;</span>(
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">block_import</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">RA</span>, <span class="ident">PRA</span>, <span class="ident">SC</span><span class="op">&gt;</span>(
 	<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-	<span class="ident">genesis_authorities_provider</span>: <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">GenesisAuthoritySetProvider</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
+	<span class="ident">api</span>: <span class="kw-2">&amp;</span><span class="ident">PRA</span>,
 	<span class="ident">select_chain</span>: <span class="ident">SC</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(
 		<span class="ident">GrandpaBlockImport</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span>, <span class="ident">SC</span><span class="op">&gt;</span>,
@@ -1351,8 +1324,12 @@
 	<span class="ident">B</span>: <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">E</span>: <span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
 	<span class="ident">RA</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
+	<span class="ident">PRA</span>: <span class="ident">ProvideRuntimeApi</span>,
+	<span class="ident">PRA</span>::<span class="ident">Api</span>: <span class="ident">GrandpaApi</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 	<span class="ident">SC</span>: <span class="ident">SelectChain</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 {
+	<span class="kw">use</span> <span class="ident">sr_primitives</span>::<span class="ident">traits</span>::<span class="ident">Zero</span>;
+
 	<span class="kw">let</span> <span class="ident">chain_info</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">info</span>();
 	<span class="kw">let</span> <span class="ident">genesis_hash</span> <span class="op">=</span> <span class="ident">chain_info</span>.<span class="ident">chain</span>.<span class="ident">genesis_hash</span>;
 
@@ -1361,11 +1338,12 @@
 		<span class="ident">genesis_hash</span>,
 		<span class="op">&lt;</span><span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">zero</span>(),
 		<span class="op">|</span><span class="op">|</span> {
-			<span class="kw">let</span> <span class="ident">authorities</span> <span class="op">=</span> <span class="ident">genesis_authorities_provider</span>.<span class="ident">get</span>()<span class="question-mark">?</span>;
+			<span class="kw">let</span> <span class="ident">genesis_authorities</span> <span class="op">=</span> <span class="ident">api</span>.<span class="ident">runtime_api</span>()
+				.<span class="ident">grandpa_authorities</span>(<span class="kw-2">&amp;</span><span class="ident">BlockId</span>::<span class="ident">number</span>(<span class="ident">Zero</span>::<span class="ident">zero</span>()))<span class="question-mark">?</span>;
 			<span class="macro">telemetry</span><span class="macro">!</span>(<span class="ident">CONSENSUS_DEBUG</span>; <span class="string">&quot;afg.loading_authorities&quot;</span>;
-				<span class="string">&quot;authorities_len&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="question-mark">?</span><span class="ident">authorities</span>.<span class="ident">len</span>()
+				<span class="string">&quot;authorities_len&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="question-mark">?</span><span class="ident">genesis_authorities</span>.<span class="ident">len</span>()
 			);
-			<span class="prelude-val">Ok</span>(<span class="ident">authorities</span>)
+			<span class="prelude-val">Ok</span>(<span class="ident">genesis_authorities</span>)
 		}
 	)<span class="question-mark">?</span>;
 
