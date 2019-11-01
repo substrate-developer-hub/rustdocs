@@ -642,15 +642,6 @@
 <span id="631">631</span>
 <span id="632">632</span>
 <span id="633">633</span>
-<span id="634">634</span>
-<span id="635">635</span>
-<span id="636">636</span>
-<span id="637">637</span>
-<span id="638">638</span>
-<span id="639">639</span>
-<span id="640">640</span>
-<span id="641">641</span>
-<span id="642">642</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -691,7 +682,7 @@
 <span class="doccomment">//!</span>
 <span class="doccomment">//! ### Public Functions</span>
 <span class="doccomment">//!</span>
-<span class="doccomment">//! - `is_online_in_current_session` - True if the validator sent a heartbeat in the current session.</span>
+<span class="doccomment">//! - `is_online` - True if the validator sent a heartbeat in the current session.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! ## Usage</span>
 <span class="doccomment">//!</span>
@@ -706,7 +697,7 @@
 <span class="doccomment">//! 	pub struct Module&lt;T: Trait&gt; for enum Call where origin: T::Origin {</span>
 <span class="doccomment">//! 		pub fn is_online(origin, authority_index: u32) -&gt; Result {</span>
 <span class="doccomment">//! 			let _sender = ensure_signed(origin)?;</span>
-<span class="doccomment">//! 			let _is_online = &lt;im_online::Module&lt;T&gt;&gt;::is_online_in_current_session(authority_index);</span>
+<span class="doccomment">//! 			let _is_online = &lt;im_online::Module&lt;T&gt;&gt;::is_online(authority_index);</span>
 <span class="doccomment">//! 			Ok(())</span>
 <span class="doccomment">//! 		}</span>
 <span class="doccomment">//! 	}</span>
@@ -854,9 +845,14 @@
 <span class="macro">decl_event</span><span class="macro">!</span>(
 	<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">Event</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="kw">where</span>
 		<span class="op">&lt;</span><span class="ident">T</span> <span class="kw">as</span> <span class="ident">Trait</span><span class="op">&gt;</span>::<span class="ident">AuthorityId</span>,
+		<span class="ident">IdentificationTuple</span> <span class="op">=</span> <span class="ident">IdentificationTuple</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
 	{
 		<span class="doccomment">/// A new heartbeat was received from `AuthorityId`</span>
 		<span class="ident">HeartbeatReceived</span>(<span class="ident">AuthorityId</span>),
+		<span class="doccomment">/// At the end of the session, no offence was committed.</span>
+		<span class="ident">AllGood</span>,
+		<span class="doccomment">/// At the end of the session, at least once validator was found to be offline.</span>
+		<span class="ident">SomeOffline</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">IdentificationTuple</span><span class="op">&gt;</span>),
 	}
 );
 
@@ -871,7 +867,7 @@
 		<span class="doccomment">/// For each session index, we keep a mapping of `AuthIndex`</span>
 		<span class="doccomment">/// to `offchain::OpaqueNetworkState`.</span>
 		<span class="ident">ReceivedHeartbeats</span> <span class="ident">get</span>(<span class="kw">fn</span> <span class="ident">received_heartbeats</span>): <span class="ident">double_map</span> <span class="ident">SessionIndex</span>,
-			<span class="ident">blake2_256</span>(<span class="ident">AuthIndex</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>;
+			<span class="ident">blake2_256</span>(<span class="ident">AuthIndex</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
 		<span class="doccomment">/// For each session index, we keep a mapping of `T::ValidatorId` to the</span>
 		<span class="doccomment">/// number of blocks authored by the given authority.</span>
@@ -903,8 +899,8 @@
 				<span class="kw-2">&amp;</span><span class="ident">heartbeat</span>.<span class="ident">authority_index</span>
 			);
 			<span class="kw">let</span> <span class="ident">keys</span> <span class="op">=</span> <span class="ident">Keys</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>::<span class="ident">get</span>();
-			<span class="kw">let</span> <span class="ident">public</span> <span class="op">=</span> <span class="ident">keys</span>.<span class="ident">get</span>(<span class="ident">heartbeat</span>.<span class="ident">authority_index</span> <span class="kw">as</span> <span class="ident">usize</span>);
-			<span class="kw">if</span> <span class="kw">let</span> (<span class="bool-val">true</span>, <span class="prelude-val">Some</span>(<span class="ident">public</span>)) <span class="op">=</span> (<span class="op">!</span><span class="ident">exists</span>, <span class="ident">public</span>) {
+			<span class="kw">let</span> <span class="ident">maybe_public</span> <span class="op">=</span> <span class="ident">keys</span>.<span class="ident">get</span>(<span class="ident">heartbeat</span>.<span class="ident">authority_index</span> <span class="kw">as</span> <span class="ident">usize</span>);
+			<span class="kw">if</span> <span class="kw">let</span> (<span class="bool-val">false</span>, <span class="prelude-val">Some</span>(<span class="ident">public</span>)) <span class="op">=</span> (<span class="ident">exists</span>, <span class="ident">maybe_public</span>) {
 				<span class="kw">let</span> <span class="ident">signature_valid</span> <span class="op">=</span> <span class="ident">heartbeat</span>.<span class="ident">using_encoded</span>(<span class="op">|</span><span class="ident">encoded_heartbeat</span><span class="op">|</span> {
 					<span class="ident">public</span>.<span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="ident">encoded_heartbeat</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>)
 				});
@@ -954,7 +950,7 @@
 	<span class="doccomment">/// `authority_index` in the authorities series or if the authority has</span>
 	<span class="doccomment">/// authored at least one block, during the current session. Otherwise</span>
 	<span class="doccomment">/// `false`.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_online_in_current_session</span>(<span class="ident">authority_index</span>: <span class="ident">AuthIndex</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_online</span>(<span class="ident">authority_index</span>: <span class="ident">AuthIndex</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
 		<span class="kw">let</span> <span class="ident">current_validators</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">session</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">validators</span>();
 
 		<span class="kw">if</span> <span class="ident">authority_index</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">current_validators</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span> {
@@ -963,10 +959,10 @@
 
 		<span class="kw">let</span> <span class="ident">authority</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">current_validators</span>[<span class="ident">authority_index</span> <span class="kw">as</span> <span class="ident">usize</span>];
 
-		<span class="self">Self</span>::<span class="ident">is_online_in_current_session_aux</span>(<span class="ident">authority_index</span>, <span class="ident">authority</span>)
+		<span class="self">Self</span>::<span class="ident">is_online_aux</span>(<span class="ident">authority_index</span>, <span class="ident">authority</span>)
 	}
 
-	<span class="kw">fn</span> <span class="ident">is_online_in_current_session_aux</span>(<span class="ident">authority_index</span>: <span class="ident">AuthIndex</span>, <span class="ident">authority</span>: <span class="kw-2">&amp;</span><span class="ident">T</span>::<span class="ident">ValidatorId</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+	<span class="kw">fn</span> <span class="ident">is_online_aux</span>(<span class="ident">authority_index</span>: <span class="ident">AuthIndex</span>, <span class="ident">authority</span>: <span class="kw-2">&amp;</span><span class="ident">T</span>::<span class="ident">ValidatorId</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
 		<span class="kw">let</span> <span class="ident">current_session</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">session</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">current_index</span>();
 
 		<span class="op">&lt;</span><span class="ident">ReceivedHeartbeats</span><span class="op">&gt;</span>::<span class="ident">exists</span>(<span class="kw-2">&amp;</span><span class="ident">current_session</span>, <span class="kw-2">&amp;</span><span class="ident">authority_index</span>) <span class="op">|</span><span class="op">|</span>
@@ -1161,27 +1157,16 @@
 	}
 
 	<span class="kw">fn</span> <span class="ident">on_before_session_ending</span>() {
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">unresponsive</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
-
-		<span class="kw">let</span> <span class="ident">current_session</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">session</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">current_index</span>();
-
+		<span class="kw">let</span> <span class="ident">session_index</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">session</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">current_index</span>();
 		<span class="kw">let</span> <span class="ident">keys</span> <span class="op">=</span> <span class="ident">Keys</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>::<span class="ident">get</span>();
 		<span class="kw">let</span> <span class="ident">current_validators</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">session</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">validators</span>();
 
-		<span class="kw">for</span> (<span class="ident">auth_idx</span>, <span class="ident">validator_id</span>) <span class="kw">in</span> <span class="ident">current_validators</span>.<span class="ident">into_iter</span>().<span class="ident">enumerate</span>() {
-			<span class="kw">if</span> <span class="op">!</span><span class="self">Self</span>::<span class="ident">is_online_in_current_session_aux</span>(<span class="ident">auth_idx</span> <span class="kw">as</span> <span class="ident">u32</span>, <span class="kw-2">&amp;</span><span class="ident">validator_id</span>) {
-				<span class="kw">let</span> <span class="ident">full_identification</span> <span class="op">=</span> <span class="ident">T</span>::<span class="ident">FullIdentificationOf</span>::<span class="ident">convert</span>(<span class="ident">validator_id</span>.<span class="ident">clone</span>())
-					.<span class="ident">expect</span>(
-						<span class="string">&quot;we got the validator_id from current_validators;
-						current_validators is set of currently acting validators;
-						the mapping between the validator id and its full identification should be valid;
-						thus `FullIdentificationOf::convert` can&#39;t return `None`;
-						qed&quot;</span>,
-					);
-
-				<span class="ident">unresponsive</span>.<span class="ident">push</span>((<span class="ident">validator_id</span>, <span class="ident">full_identification</span>));
-			}
-		}
+		<span class="kw">let</span> <span class="ident">offenders</span> <span class="op">=</span> <span class="ident">current_validators</span>.<span class="ident">into_iter</span>().<span class="ident">enumerate</span>()
+			.<span class="ident">filter</span>(<span class="op">|</span>(<span class="ident">index</span>, <span class="ident">id</span>)<span class="op">|</span>
+				<span class="op">!</span><span class="self">Self</span>::<span class="ident">is_online_aux</span>(<span class="kw-2">*</span><span class="ident">index</span> <span class="kw">as</span> <span class="ident">u32</span>, <span class="ident">id</span>)
+			).<span class="ident">filter_map</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">id</span>)<span class="op">|</span>
+				<span class="ident">T</span>::<span class="ident">FullIdentificationOf</span>::<span class="ident">convert</span>(<span class="ident">id</span>.<span class="ident">clone</span>()).<span class="ident">map</span>(<span class="op">|</span><span class="ident">full_id</span><span class="op">|</span> (<span class="ident">id</span>, <span class="ident">full_id</span>))
+			).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">IdentificationTuple</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>();
 
 		<span class="comment">// Remove all received heartbeats and number of authored blocks from the</span>
 		<span class="comment">// current session, they have already been processed and won&#39;t be needed</span>
@@ -1189,18 +1174,15 @@
 		<span class="op">&lt;</span><span class="ident">ReceivedHeartbeats</span><span class="op">&gt;</span>::<span class="ident">remove_prefix</span>(<span class="kw-2">&amp;</span><span class="op">&lt;</span><span class="ident">session</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">current_index</span>());
 		<span class="op">&lt;</span><span class="ident">AuthoredBlocks</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">remove_prefix</span>(<span class="kw-2">&amp;</span><span class="op">&lt;</span><span class="ident">session</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">current_index</span>());
 
-		<span class="kw">if</span> <span class="ident">unresponsive</span>.<span class="ident">is_empty</span>() {
-			<span class="kw">return</span>;
+		<span class="kw">if</span> <span class="ident">offenders</span>.<span class="ident">is_empty</span>() {
+			<span class="self">Self</span>::<span class="ident">deposit_event</span>(<span class="ident">RawEvent</span>::<span class="ident">AllGood</span>);
+		} <span class="kw">else</span> {
+			<span class="self">Self</span>::<span class="ident">deposit_event</span>(<span class="ident">RawEvent</span>::<span class="ident">SomeOffline</span>(<span class="ident">offenders</span>.<span class="ident">clone</span>()));
+
+			<span class="kw">let</span> <span class="ident">validator_set_count</span> <span class="op">=</span> <span class="ident">keys</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>;
+			<span class="kw">let</span> <span class="ident">offence</span> <span class="op">=</span> <span class="ident">UnresponsivenessOffence</span> { <span class="ident">session_index</span>, <span class="ident">validator_set_count</span>, <span class="ident">offenders</span> };
+			<span class="ident">T</span>::<span class="ident">ReportUnresponsiveness</span>::<span class="ident">report_offence</span>(<span class="macro">vec</span><span class="macro">!</span>[], <span class="ident">offence</span>);
 		}
-
-		<span class="kw">let</span> <span class="ident">validator_set_count</span> <span class="op">=</span> <span class="ident">keys</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>;
-		<span class="kw">let</span> <span class="ident">offence</span> <span class="op">=</span> <span class="ident">UnresponsivenessOffence</span> {
-			<span class="ident">session_index</span>: <span class="ident">current_session</span>,
-			<span class="ident">validator_set_count</span>,
-			<span class="ident">offenders</span>: <span class="ident">unresponsive</span>,
-		};
-
-		<span class="ident">T</span>::<span class="ident">ReportUnresponsiveness</span>::<span class="ident">report_offence</span>(<span class="macro">vec</span><span class="macro">!</span>[], <span class="ident">offence</span>);
 	}
 
 	<span class="kw">fn</span> <span class="ident">on_disabled</span>(<span class="ident">_i</span>: <span class="ident">usize</span>) {
@@ -1213,7 +1195,7 @@
 
 	<span class="kw">fn</span> <span class="ident">validate_unsigned</span>(<span class="ident">call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TransactionValidity</span> {
 		<span class="kw">if</span> <span class="kw">let</span> <span class="ident">Call</span>::<span class="ident">heartbeat</span>(<span class="ident">heartbeat</span>, <span class="ident">signature</span>) <span class="op">=</span> <span class="ident">call</span> {
-			<span class="kw">if</span> <span class="op">&lt;</span><span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">is_online_in_current_session</span>(<span class="ident">heartbeat</span>.<span class="ident">authority_index</span>) {
+			<span class="kw">if</span> <span class="op">&lt;</span><span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">is_online</span>(<span class="ident">heartbeat</span>.<span class="ident">authority_index</span>) {
 				<span class="comment">// we already received a heartbeat for this authority</span>
 				<span class="kw">return</span> <span class="ident">InvalidTransaction</span>::<span class="ident">Stale</span>.<span class="ident">into</span>();
 			}
