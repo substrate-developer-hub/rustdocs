@@ -1,1 +1,1 @@
-initSidebarItems({"trait":[["OffchainWorkerApi","The offchain worker api."]]});
+initSidebarItems({"constant":[["STORAGE_PREFIX","Local Storage Prefix used by the Offchain Worker API to"]],"trait":[["OffchainWorkerApi","The offchain worker api."]]});
