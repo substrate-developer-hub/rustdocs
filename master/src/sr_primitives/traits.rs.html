@@ -1326,6 +1326,22 @@
 <span id="1315">1315</span>
 <span id="1316">1316</span>
 <span id="1317">1317</span>
+<span id="1318">1318</span>
+<span id="1319">1319</span>
+<span id="1320">1320</span>
+<span id="1321">1321</span>
+<span id="1322">1322</span>
+<span id="1323">1323</span>
+<span id="1324">1324</span>
+<span id="1325">1325</span>
+<span id="1326">1326</span>
+<span id="1327">1327</span>
+<span id="1328">1328</span>
+<span id="1329">1329</span>
+<span id="1330">1330</span>
+<span id="1331">1331</span>
+<span id="1332">1332</span>
+<span id="1333">1333</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -2084,9 +2100,6 @@
 
 	<span class="doccomment">/// Validate an unsigned transaction for the transaction queue.</span>
 	<span class="doccomment">///</span>
-	<span class="doccomment">/// Normally the default implementation is fine since `ValidateUnsigned`</span>
-	<span class="doccomment">/// is a better way of recognising and validating unsigned transactions.</span>
-	<span class="doccomment">///</span>
 	<span class="doccomment">/// This function can be called frequently by the transaction queue,</span>
 	<span class="doccomment">/// to obtain transaction validity against current state.</span>
 	<span class="doccomment">/// It should perform all checks that determine a valid unsigned transaction,</span>
@@ -2218,6 +2231,7 @@
 	<span class="kw">fn</span> <span class="ident">sender</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">AccountId</span><span class="op">&gt;</span>;
 
 	<span class="doccomment">/// Checks to see if this is a valid *transaction*. It returns information on it if so.</span>
+	<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span> <span class="comment">// Allow ValidateUnsigned</span>
 	<span class="kw">fn</span> <span class="ident">validate</span><span class="op">&lt;</span><span class="ident">V</span>: <span class="ident">ValidateUnsigned</span><span class="op">&lt;</span><span class="ident">Call</span><span class="op">=</span><span class="self">Self</span>::<span class="ident">Call</span><span class="op">&gt;</span><span class="op">&gt;</span>(
 		<span class="kw-2">&amp;</span><span class="self">self</span>,
 		<span class="ident">info</span>: <span class="ident">DispatchInfo</span>,
@@ -2226,7 +2240,8 @@
 
 	<span class="doccomment">/// Executes all necessary logic needed prior to dispatch and deconstructs into function call,</span>
 	<span class="doccomment">/// index and sender.</span>
-	<span class="kw">fn</span> <span class="ident">apply</span>(
+	<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span> <span class="comment">// Allow ValidateUnsigned</span>
+	<span class="kw">fn</span> <span class="ident">apply</span><span class="op">&lt;</span><span class="ident">V</span>: <span class="ident">ValidateUnsigned</span><span class="op">&lt;</span><span class="ident">Call</span><span class="op">=</span><span class="self">Self</span>::<span class="ident">Call</span><span class="op">&gt;</span><span class="op">&gt;</span>(
 		<span class="self">self</span>,
 		<span class="ident">info</span>: <span class="ident">DispatchInfo</span>,
 		<span class="ident">len</span>: <span class="ident">usize</span>,
@@ -2295,9 +2310,26 @@
 <span class="doccomment">/// the transaction for the transaction pool.</span>
 <span class="doccomment">/// During block execution phase one need to perform the same checks anyway,</span>
 <span class="doccomment">/// since this function is not being called.</span>
+<span class="attribute">#[<span class="ident">deprecated</span>(<span class="ident">note</span> <span class="op">=</span> <span class="string">&quot;Use SignedExtensions instead.&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">ValidateUnsigned</span> {
 	<span class="doccomment">/// The call to validate</span>
 	<span class="kw">type</span> <span class="ident">Call</span>;
+
+	<span class="doccomment">/// Validate the call right before dispatch.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// This method should be used to prevent transactions already in the pool</span>
+	<span class="doccomment">/// (i.e. passing `validate_unsigned`) from being included in blocks</span>
+	<span class="doccomment">/// in case we know they now became invalid.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// By default it&#39;s a good idea to call `validate_unsigned` from within</span>
+	<span class="doccomment">/// this function again to make sure we never include an invalid transaction.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// Changes made to storage WILL be persisted if the call returns `Ok`.</span>
+	<span class="kw">fn</span> <span class="ident">pre_dispatch</span>(<span class="ident">call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="kw">crate</span>::<span class="ident">ApplyError</span><span class="op">&gt;</span> {
+		<span class="self">Self</span>::<span class="ident">validate_unsigned</span>(<span class="ident">call</span>)
+			.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
+			.<span class="ident">map_err</span>(<span class="ident">Into</span>::<span class="ident">into</span>)
+	}
 
 	<span class="doccomment">/// Return the validity of the call</span>
 	<span class="doccomment">///</span>
