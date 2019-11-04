@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/jsonrpc-server-utils-13.2.0/src/reactor.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>reactor.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/jsonrpc-server-utils-14.0.3/src/reactor.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>reactor.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -168,23 +168,15 @@
 <span id="157">157</span>
 <span id="158">158</span>
 <span id="159">159</span>
-<span id="160">160</span>
-<span id="161">161</span>
-<span id="162">162</span>
-<span id="163">163</span>
-<span id="164">164</span>
-<span id="165">165</span>
-<span id="166">166</span>
-<span id="167">167</span>
-<span id="168">168</span>
-<span id="169">169</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Event Loop Executor</span>
+<span class="doccomment">//!</span>
 <span class="doccomment">//! Either spawns a new event loop, or re-uses provided one.</span>
+<span class="doccomment">//! Spawned event loop is always single threaded (mostly for</span>
+<span class="doccomment">//! historical/backward compatibility reasons) despite the fact</span>
+<span class="doccomment">//! that `tokio::runtime` can be multi-threaded.</span>
 
-<span class="kw">use</span> <span class="ident">num_cpus</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">mpsc</span>;
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">io</span>, <span class="ident">thread</span>};
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">io</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">core</span>::<span class="ident">futures</span>::{<span class="self">self</span>, <span class="ident">Future</span>};
@@ -263,7 +255,7 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">RpcEventLoop</span> {
 	<span class="ident">executor</span>: <span class="ident">tokio</span>::<span class="ident">runtime</span>::<span class="ident">TaskExecutor</span>,
 	<span class="ident">close</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">futures</span>::<span class="ident">Complete</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span>,
-	<span class="ident">handle</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">thread</span>::<span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">handle</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">tokio</span>::<span class="ident">runtime</span>::<span class="ident">Shutdown</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">RpcEventLoop</span> {
@@ -281,42 +273,21 @@
 	<span class="doccomment">/// Spawns a new named thread with the `EventLoop`.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_name</span>(<span class="ident">name</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> (<span class="ident">stop</span>, <span class="ident">stopped</span>) <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">oneshot</span>();
-		<span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">rx</span>) <span class="op">=</span> <span class="ident">mpsc</span>::<span class="ident">channel</span>();
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">tb</span> <span class="op">=</span> <span class="ident">thread</span>::<span class="ident">Builder</span>::<span class="ident">new</span>();
+
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">tb</span> <span class="op">=</span> <span class="ident">tokio</span>::<span class="ident">runtime</span>::<span class="ident">Builder</span>::<span class="ident">new</span>();
+		<span class="ident">tb</span>.<span class="ident">core_threads</span>(<span class="number">1</span>);
+
 		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">name</span>) <span class="op">=</span> <span class="ident">name</span> {
-			<span class="ident">tb</span> <span class="op">=</span> <span class="ident">tb</span>.<span class="ident">name</span>(<span class="ident">name</span>);
+			<span class="ident">tb</span>.<span class="ident">name_prefix</span>(<span class="ident">name</span>);
 		}
 
-		<span class="kw">let</span> <span class="ident">handle</span> <span class="op">=</span> <span class="ident">tb</span>
-			.<span class="ident">spawn</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
-				<span class="kw">let</span> <span class="ident">core_threads</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">num_cpus</span>::<span class="ident">get_physical</span>() {
-					<span class="number">1</span> <span class="op">=</span><span class="op">&gt;</span> <span class="number">1</span>,
-					<span class="number">2</span>..<span class="op">=</span><span class="number">4</span> <span class="op">=</span><span class="op">&gt;</span> <span class="number">2</span>,
-					<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="number">3</span>,
-				};
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">runtime</span> <span class="op">=</span> <span class="ident">tb</span>.<span class="ident">build</span>()<span class="question-mark">?</span>;
+		<span class="kw">let</span> <span class="ident">executor</span> <span class="op">=</span> <span class="ident">runtime</span>.<span class="ident">executor</span>();
+		<span class="kw">let</span> <span class="ident">terminate</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">empty</span>().<span class="ident">select</span>(<span class="ident">stopped</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ());
+		<span class="ident">runtime</span>.<span class="ident">spawn</span>(<span class="ident">terminate</span>);
+		<span class="kw">let</span> <span class="ident">handle</span> <span class="op">=</span> <span class="ident">runtime</span>.<span class="ident">shutdown_on_idle</span>();
 
-				<span class="kw">let</span> <span class="ident">runtime</span> <span class="op">=</span> <span class="ident">tokio</span>::<span class="ident">runtime</span>::<span class="ident">Builder</span>::<span class="ident">new</span>()
-					.<span class="ident">core_threads</span>(<span class="ident">core_threads</span>)
-					.<span class="ident">name_prefix</span>(<span class="string">&quot;jsonrpc-eventloop-&quot;</span>)
-					.<span class="ident">build</span>();
-
-				<span class="kw">match</span> <span class="ident">runtime</span> {
-					<span class="prelude-val">Ok</span>(<span class="kw-2">mut</span> <span class="ident">runtime</span>) <span class="op">=</span><span class="op">&gt;</span> {
-						<span class="ident">tx</span>.<span class="ident">send</span>(<span class="prelude-val">Ok</span>(<span class="ident">runtime</span>.<span class="ident">executor</span>())).<span class="ident">expect</span>(<span class="string">&quot;Rx is blocking upper thread.&quot;</span>);
-						<span class="kw">let</span> <span class="ident">terminate</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">empty</span>().<span class="ident">select</span>(<span class="ident">stopped</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ());
-						<span class="ident">runtime</span>.<span class="ident">spawn</span>(<span class="ident">terminate</span>);
-						<span class="ident">runtime</span>.<span class="ident">shutdown_on_idle</span>().<span class="ident">wait</span>().<span class="ident">unwrap</span>();
-					}
-					<span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span><span class="op">&gt;</span> {
-						<span class="ident">tx</span>.<span class="ident">send</span>(<span class="prelude-val">Err</span>(<span class="ident">err</span>)).<span class="ident">expect</span>(<span class="string">&quot;Rx is blocking upper thread.&quot;</span>);
-					}
-				}
-			})
-			.<span class="ident">expect</span>(<span class="string">&quot;Couldn&#39;t spawn a thread.&quot;</span>);
-
-		<span class="kw">let</span> <span class="ident">exec</span> <span class="op">=</span> <span class="ident">rx</span>.<span class="ident">recv</span>().<span class="ident">expect</span>(<span class="string">&quot;tx is transfered to a newly spawned thread.&quot;</span>);
-
-		<span class="ident">exec</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">executor</span><span class="op">|</span> <span class="ident">RpcEventLoop</span> {
+		<span class="prelude-val">Ok</span>(<span class="ident">RpcEventLoop</span> {
 			<span class="ident">executor</span>,
 			<span class="ident">close</span>: <span class="prelude-val">Some</span>(<span class="ident">stop</span>),
 			<span class="ident">handle</span>: <span class="prelude-val">Some</span>(<span class="ident">handle</span>),
@@ -329,11 +300,8 @@
 	}
 
 	<span class="doccomment">/// Blocks current thread and waits until the event loop is finished.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">wait</span>(<span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">thread</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-		<span class="self">self</span>.<span class="ident">handle</span>
-			.<span class="ident">take</span>()
-			.<span class="ident">expect</span>(<span class="string">&quot;Handle is always set before self is consumed.&quot;</span>)
-			.<span class="ident">join</span>()
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">wait</span>(<span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), ()<span class="op">&gt;</span> {
+		<span class="self">self</span>.<span class="ident">handle</span>.<span class="ident">take</span>().<span class="ident">ok_or</span>(())<span class="question-mark">?</span>.<span class="ident">wait</span>()
 	}
 
 	<span class="doccomment">/// Finishes this event loop.</span>
@@ -346,6 +314,18 @@
 			.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
 				<span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;Event Loop is already finished. {:?}&quot;</span>, <span class="ident">e</span>);
 			});
+	}
+}
+
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
+<span class="kw">mod</span> <span class="ident">tests</span> {
+	<span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
+
+	<span class="attribute">#[<span class="ident">test</span>]</span>
+	<span class="kw">fn</span> <span class="ident">make_sure_rpc_event_loop_is_send_and_sync</span>() {
+		<span class="kw">fn</span> <span class="ident">is_send_and_sync</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span><span class="op">&gt;</span>() {}
+
+		<span class="ident">is_send_and_sync</span>::<span class="op">&lt;</span><span class="ident">RpcEventLoop</span><span class="op">&gt;</span>();
 	}
 }
 </pre></div>
