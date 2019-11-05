@@ -657,6 +657,18 @@
 <span id="646">646</span>
 <span id="647">647</span>
 <span id="648">648</span>
+<span id="649">649</span>
+<span id="650">650</span>
+<span id="651">651</span>
+<span id="652">652</span>
+<span id="653">653</span>
+<span id="654">654</span>
+<span id="655">655</span>
+<span id="656">656</span>
+<span id="657">657</span>
+<span id="658">658</span>
+<span id="659">659</span>
+<span id="660">660</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -734,12 +746,13 @@
 <span class="kw">use</span> <span class="ident">codec</span>::{<span class="ident">Encode</span>, <span class="ident">Decode</span>};
 <span class="kw">use</span> <span class="ident">primitives</span>::<span class="ident">offchain</span>::{<span class="ident">OpaqueNetworkState</span>, <span class="ident">StorageKind</span>};
 <span class="kw">use</span> <span class="ident">rstd</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
+<span class="kw">use</span> <span class="ident">rstd</span>::<span class="ident">convert</span>::<span class="ident">TryInto</span>;
 <span class="kw">use</span> <span class="ident">session</span>::<span class="ident">historical</span>::<span class="ident">IdentificationTuple</span>;
 <span class="kw">use</span> <span class="ident">sr_primitives</span>::{
 	<span class="ident">RuntimeDebug</span>,
 	<span class="ident">traits</span>::{<span class="ident">Convert</span>, <span class="ident">Member</span>, <span class="ident">Printable</span>, <span class="ident">Saturating</span>}, <span class="ident">Perbill</span>,
 	<span class="ident">transaction_validity</span>::{
-		<span class="ident">TransactionValidity</span>, <span class="ident">TransactionLongevity</span>, <span class="ident">ValidTransaction</span>, <span class="ident">InvalidTransaction</span>,
+		<span class="ident">TransactionValidity</span>, <span class="ident">ValidTransaction</span>, <span class="ident">InvalidTransaction</span>,
 		<span class="ident">TransactionPriority</span>,
 	},
 };
@@ -748,7 +761,8 @@
 	<span class="ident">offence</span>::{<span class="ident">ReportOffence</span>, <span class="ident">Offence</span>, <span class="ident">Kind</span>},
 };
 <span class="kw">use</span> <span class="ident">support</span>::{
-	<span class="ident">decl_module</span>, <span class="ident">decl_event</span>, <span class="ident">decl_storage</span>, <span class="ident">print</span>, <span class="ident">Parameter</span>, <span class="ident">debug</span>
+	<span class="ident">decl_module</span>, <span class="ident">decl_event</span>, <span class="ident">decl_storage</span>, <span class="ident">print</span>, <span class="ident">Parameter</span>, <span class="ident">debug</span>,
+	<span class="ident">traits</span>::<span class="ident">Get</span>,
 };
 <span class="kw">use</span> <span class="ident">system</span>::<span class="ident">ensure_none</span>;
 <span class="kw">use</span> <span class="ident">system</span>::<span class="ident">offchain</span>::<span class="ident">SubmitUnsignedTransaction</span>;
@@ -847,6 +861,12 @@
 
 	<span class="doccomment">/// A transaction submitter.</span>
 	<span class="kw">type</span> <span class="ident">SubmitTransaction</span>: <span class="ident">SubmitUnsignedTransaction</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="ident">Trait</span><span class="op">&gt;</span>::<span class="ident">Call</span><span class="op">&gt;</span>;
+
+	<span class="doccomment">/// An expected duration of the session.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// This parameter is used to determine the longevity of `heartbeat` transaction</span>
+	<span class="doccomment">/// and a rough time when the heartbeat should be sent.</span>
+	<span class="kw">type</span> <span class="ident">SessionDuration</span>: <span class="ident">Get</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">BlockNumber</span><span class="op">&gt;</span>;
 
 	<span class="doccomment">/// A type that gives us the ability to submit unresponsiveness offence reports.</span>
 	<span class="kw">type</span> <span class="ident">ReportUnresponsiveness</span>:
@@ -1179,7 +1199,11 @@
 		<span class="kw">where</span> <span class="ident">I</span>: <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">T</span>::<span class="ident">AccountId</span>, <span class="ident">T</span>::<span class="ident">AuthorityId</span>)<span class="op">&gt;</span>
 	{
 		<span class="comment">// Tell the offchain worker to start making the next session&#39;s heartbeats.</span>
-		<span class="op">&lt;</span><span class="ident">GossipAt</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">put</span>(<span class="op">&lt;</span><span class="ident">system</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">block_number</span>());
+		<span class="comment">// Since we consider producing blocks as being online,</span>
+		<span class="comment">// the hearbeat is defered a bit to prevent spaming.</span>
+		<span class="kw">let</span> <span class="ident">block_number</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">system</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">block_number</span>();
+		<span class="kw">let</span> <span class="ident">half_session</span> <span class="op">=</span> <span class="ident">T</span>::<span class="ident">SessionDuration</span>::<span class="ident">get</span>() <span class="op">/</span> <span class="number">2</span>.<span class="ident">into</span>();
+		<span class="op">&lt;</span><span class="ident">GossipAt</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">put</span>(<span class="ident">block_number</span> <span class="op">+</span> <span class="ident">half_session</span>);
 
 		<span class="comment">// Remember who the authorities are for the new session.</span>
 		<span class="ident">Keys</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>::<span class="ident">put</span>(<span class="ident">validators</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="number">1</span>).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>());
@@ -1256,7 +1280,7 @@
 				<span class="ident">priority</span>: <span class="ident">TransactionPriority</span>::<span class="ident">max_value</span>(),
 				<span class="ident">requires</span>: <span class="macro">vec</span><span class="macro">!</span>[],
 				<span class="ident">provides</span>: <span class="macro">vec</span><span class="macro">!</span>[(<span class="ident">current_session</span>, <span class="ident">authority_id</span>).<span class="ident">encode</span>()],
-				<span class="ident">longevity</span>: <span class="ident">TransactionLongevity</span>::<span class="ident">max_value</span>(),
+				<span class="ident">longevity</span>: <span class="ident">TryInto</span>::<span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>::<span class="ident">try_into</span>(<span class="ident">T</span>::<span class="ident">SessionDuration</span>::<span class="ident">get</span>() <span class="op">/</span> <span class="number">2</span>.<span class="ident">into</span>()).<span class="ident">unwrap_or</span>(<span class="number">64_u64</span>),
 				<span class="ident">propagate</span>: <span class="bool-val">true</span>,
 			})
 		} <span class="kw">else</span> {
