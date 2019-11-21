@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["StorageQuery","A typed query on chain state usable from an RPC client."]]});

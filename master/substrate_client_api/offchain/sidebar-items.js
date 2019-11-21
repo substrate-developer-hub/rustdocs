@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["InMemOffchainStorage","In-memory storage for offchain workers."]],"trait":[["OffchainStorage","Offchain workers local storage."]]});

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `core/consensus/common/src/block_import.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>block_import.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `primitives/consensus/common/src/block_import.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>block_import.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -9,7 +9,7 @@
       gtag('config', 'UA-145158313-2');
 </script>
 
-<style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../substrate_consensus_common/index.html'><div class='logo-container'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form js-only"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../substrate_consensus_common/index.html'><div class='logo-container'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
 <span id="4">  4</span>
@@ -284,6 +284,15 @@
 <span id="273">273</span>
 <span id="274">274</span>
 <span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -322,11 +331,15 @@
 	<span class="ident">KnownBad</span>,
 	<span class="doccomment">/// Block parent is not in the chain.</span>
 	<span class="ident">UnknownParent</span>,
+	<span class="doccomment">/// Parent state is missing.</span>
+	<span class="ident">MissingState</span>,
 }
 
 <span class="doccomment">/// Auxiliary data associated with an imported block result.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Default</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ImportedAux</span> {
+	<span class="doccomment">/// Only the header has been imported. Block body verification was skipped.</span>
+	<span class="kw">pub</span> <span class="ident">header_only</span>: <span class="ident">bool</span>,
 	<span class="doccomment">/// Clear all pending justification requests.</span>
 	<span class="kw">pub</span> <span class="ident">clear_justification_requests</span>: <span class="ident">bool</span>,
 	<span class="doccomment">/// Request a justification for the given block.</span>
@@ -378,6 +391,7 @@
 }
 
 <span class="doccomment">/// Data required to check validity of a Block.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BlockCheckParams</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Hash of the block that we verify.</span>
 	<span class="kw">pub</span> <span class="ident">hash</span>: <span class="ident">Block</span>::<span class="ident">Hash</span>,
@@ -385,6 +399,8 @@
 	<span class="kw">pub</span> <span class="ident">number</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// Parent hash of the block that we verify.</span>
 	<span class="kw">pub</span> <span class="ident">parent_hash</span>: <span class="ident">Block</span>::<span class="ident">Hash</span>,
+	<span class="doccomment">/// Allow importing the block skipping state verification if parent state is missing.</span>
+	<span class="kw">pub</span> <span class="ident">allow_missing_state</span>: <span class="ident">bool</span>,
 }
 
 <span class="doccomment">/// Data required to import a Block.</span>
@@ -420,6 +436,8 @@
 	<span class="doccomment">/// Fork choice strategy of this import. This should only be set by a</span>
 	<span class="doccomment">/// synchronous import, otherwise it may race against other imports.</span>
 	<span class="kw">pub</span> <span class="ident">fork_choice</span>: <span class="ident">ForkChoiceStrategy</span>,
+	<span class="doccomment">/// Allow importing the block skipping state verification if parent state is missing.</span>
+	<span class="kw">pub</span> <span class="ident">allow_missing_state</span>: <span class="ident">bool</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> <span class="ident">BlockImportParams</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> {

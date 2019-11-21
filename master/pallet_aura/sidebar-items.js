@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Call",""]],"struct":[["Authorities","The current authorities"],["GenesisConfig",""],["Module",""]],"trait":[["Trait",""]]});
