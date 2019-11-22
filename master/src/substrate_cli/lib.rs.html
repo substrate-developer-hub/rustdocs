@@ -1083,6 +1083,10 @@
 <span id="1072">1072</span>
 <span id="1073">1073</span>
 <span id="1074">1074</span>
+<span id="1075">1075</span>
+<span id="1076">1076</span>
+<span id="1077">1077</span>
+<span id="1078">1078</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1147,8 +1151,8 @@
 <span class="kw">use</span> <span class="ident">app_dirs</span>::{<span class="ident">AppInfo</span>, <span class="ident">AppDataType</span>};
 <span class="kw">use</span> <span class="ident">log</span>::<span class="ident">info</span>;
 <span class="kw">use</span> <span class="ident">lazy_static</span>::<span class="ident">lazy_static</span>;
-
-<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">Async</span>, <span class="ident">Future</span>};
+<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">Future</span>, <span class="ident">FutureExt</span>, <span class="ident">TryFutureExt</span>};
+<span class="kw">use</span> <span class="ident">futures01</span>::{<span class="ident">Async</span>, <span class="ident">Future</span> <span class="kw">as</span> <span class="kw">_</span>};
 <span class="kw">use</span> <span class="ident">substrate_telemetry</span>::<span class="ident">TelemetryEndpoints</span>;
 
 <span class="doccomment">/// default sub directory to store network config</span>
@@ -1188,7 +1192,7 @@
 <span class="doccomment">/// Something that can be converted into an exit signal.</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">IntoExit</span> {
 	<span class="doccomment">/// Exit signal type.</span>
-	<span class="kw">type</span> <span class="ident">Exit</span>: <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span>(),<span class="ident">Error</span><span class="op">=</span>()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>;
+	<span class="kw">type</span> <span class="ident">Exit</span>: <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span><span class="op">=</span>()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>;
 	<span class="doccomment">/// Convert into exit signal.</span>
 	<span class="kw">fn</span> <span class="ident">into_exit</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>::<span class="ident">Exit</span>;
 }
@@ -1477,14 +1481,16 @@
 		<span class="comment">// Note: while we would like the user to handle the exit themselves, we handle it here</span>
 		<span class="comment">// for backwards compatibility reasons.</span>
 		<span class="kw">let</span> (<span class="ident">exit_send</span>, <span class="ident">exit_recv</span>) <span class="op">=</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">mpsc</span>::<span class="ident">channel</span>();
-		<span class="kw">let</span> <span class="ident">exit</span> <span class="op">=</span> <span class="ident">exit</span>.<span class="ident">into_exit</span>();
+		<span class="kw">let</span> <span class="ident">exit</span> <span class="op">=</span> <span class="ident">exit</span>.<span class="ident">into_exit</span>()
+			.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, ()<span class="op">&gt;</span>(()))
+			.<span class="ident">compat</span>();
 		<span class="ident">std</span>::<span class="ident">thread</span>::<span class="ident">spawn</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
 			<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">exit</span>.<span class="ident">wait</span>();
 			<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">exit_send</span>.<span class="ident">send</span>(());
 		});
 
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">export_fut</span> <span class="op">=</span> <span class="ident">builder</span>(<span class="ident">config</span>)<span class="question-mark">?</span>.<span class="ident">export_blocks</span>(<span class="ident">file</span>, <span class="ident">from</span>.<span class="ident">into</span>(), <span class="ident">to</span>.<span class="ident">map</span>(<span class="ident">Into</span>::<span class="ident">into</span>), <span class="ident">json</span>);
-		<span class="kw">let</span> <span class="ident">fut</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">poll_fn</span>(<span class="op">|</span><span class="op">|</span> {
+		<span class="kw">let</span> <span class="ident">fut</span> <span class="op">=</span> <span class="ident">futures01</span>::<span class="ident">future</span>::<span class="ident">poll_fn</span>(<span class="op">|</span><span class="op">|</span> {
 			<span class="kw">if</span> <span class="ident">exit_recv</span>.<span class="ident">try_recv</span>().<span class="ident">is_ok</span>() {
 				<span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(()));
 			}
@@ -1539,14 +1545,16 @@
 		<span class="comment">// Note: while we would like the user to handle the exit themselves, we handle it here</span>
 		<span class="comment">// for backwards compatibility reasons.</span>
 		<span class="kw">let</span> (<span class="ident">exit_send</span>, <span class="ident">exit_recv</span>) <span class="op">=</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">mpsc</span>::<span class="ident">channel</span>();
-		<span class="kw">let</span> <span class="ident">exit</span> <span class="op">=</span> <span class="ident">exit</span>.<span class="ident">into_exit</span>();
+		<span class="kw">let</span> <span class="ident">exit</span> <span class="op">=</span> <span class="ident">exit</span>.<span class="ident">into_exit</span>()
+			.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, ()<span class="op">&gt;</span>(()))
+			.<span class="ident">compat</span>();
 		<span class="ident">std</span>::<span class="ident">thread</span>::<span class="ident">spawn</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
 			<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">exit</span>.<span class="ident">wait</span>();
 			<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">exit_send</span>.<span class="ident">send</span>(());
 		});
 
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">import_fut</span> <span class="op">=</span> <span class="ident">builder</span>(<span class="ident">config</span>)<span class="question-mark">?</span>.<span class="ident">import_blocks</span>(<span class="ident">file</span>);
-		<span class="kw">let</span> <span class="ident">fut</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">poll_fn</span>(<span class="op">|</span><span class="op">|</span> {
+		<span class="kw">let</span> <span class="ident">fut</span> <span class="op">=</span> <span class="ident">futures01</span>::<span class="ident">future</span>::<span class="ident">poll_fn</span>(<span class="op">|</span><span class="op">|</span> {
 			<span class="kw">if</span> <span class="ident">exit_recv</span>.<span class="ident">try_recv</span>().<span class="ident">is_ok</span>() {
 				<span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(()));
 			}

@@ -1364,6 +1364,15 @@
 <span id="1353">1353</span>
 <span id="1354">1354</span>
 <span id="1355">1355</span>
+<span id="1356">1356</span>
+<span id="1357">1357</span>
+<span id="1358">1358</span>
+<span id="1359">1359</span>
+<span id="1360">1360</span>
+<span id="1361">1361</span>
+<span id="1362">1362</span>
+<span id="1363">1363</span>
+<span id="1364">1364</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1396,7 +1405,6 @@
 	<span class="ident">ValidTransaction</span>, <span class="ident">TransactionValidity</span>, <span class="ident">TransactionValidityError</span>, <span class="ident">UnknownTransaction</span>,
 };
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">generic</span>::{<span class="ident">Digest</span>, <span class="ident">DigestItem</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">weights</span>::<span class="ident">DispatchInfo</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">arithmetic</span>::<span class="ident">traits</span>::{
 	<span class="ident">SimpleArithmetic</span>, <span class="ident">UniqueSaturatedInto</span>, <span class="ident">UniqueSaturatedFrom</span>, <span class="ident">Saturating</span>, <span class="ident">SaturatedConversion</span>,
 	<span class="ident">Zero</span>, <span class="ident">One</span>, <span class="ident">Bounded</span>, <span class="ident">CheckedAdd</span>, <span class="ident">CheckedSub</span>, <span class="ident">CheckedMul</span>, <span class="ident">CheckedDiv</span>,
@@ -2080,6 +2088,11 @@
 	<span class="doccomment">/// The type that encodes information that can be passed from pre_dispatch to post-dispatch.</span>
 	<span class="kw">type</span> <span class="ident">Pre</span>: <span class="ident">Default</span>;
 
+	<span class="doccomment">/// An opaque set of information attached to the transaction. This could be constructed anywhere</span>
+	<span class="doccomment">/// down the line in a runtime. The current substrate runtime uses a struct with the same name</span>
+	<span class="doccomment">/// to represent the dispatch class and weight.</span>
+	<span class="kw">type</span> <span class="ident">DispatchInfo</span>: <span class="ident">Clone</span>;
+
 	<span class="doccomment">/// Construct any additional data that should be in the signed payload of the transaction. Can</span>
 	<span class="doccomment">/// also perform any pre-signature-verification checks and return an error if needed.</span>
 	<span class="kw">fn</span> <span class="ident">additional_signed</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">AdditionalSigned</span>, <span class="ident">TransactionValidityError</span><span class="op">&gt;</span>;
@@ -2097,7 +2110,7 @@
 		<span class="kw-2">&amp;</span><span class="self">self</span>,
 		<span class="ident">_who</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">AccountId</span>,
 		<span class="ident">_call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>,
-		<span class="ident">_info</span>: <span class="ident">DispatchInfo</span>,
+		<span class="ident">_info</span>: <span class="self">Self</span>::<span class="ident">DispatchInfo</span>,
 		<span class="ident">_len</span>: <span class="ident">usize</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TransactionValidity</span> {
 		<span class="prelude-val">Ok</span>(<span class="ident">ValidTransaction</span>::<span class="ident">default</span>())
@@ -2115,10 +2128,10 @@
 		<span class="self">self</span>,
 		<span class="ident">who</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">AccountId</span>,
 		<span class="ident">call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>,
-		<span class="ident">info</span>: <span class="ident">DispatchInfo</span>,
+		<span class="ident">info</span>: <span class="self">Self</span>::<span class="ident">DispatchInfo</span>,
 		<span class="ident">len</span>: <span class="ident">usize</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Pre</span>, <span class="kw">crate</span>::<span class="ident">ApplyError</span><span class="op">&gt;</span> {
-		<span class="self">self</span>.<span class="ident">validate</span>(<span class="ident">who</span>, <span class="ident">call</span>, <span class="ident">info</span>, <span class="ident">len</span>)
+		<span class="self">self</span>.<span class="ident">validate</span>(<span class="ident">who</span>, <span class="ident">call</span>, <span class="ident">info</span>.<span class="ident">clone</span>(), <span class="ident">len</span>)
 			.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="self">Self</span>::<span class="ident">Pre</span>::<span class="ident">default</span>())
 			.<span class="ident">map_err</span>(<span class="ident">Into</span>::<span class="ident">into</span>)
 	}
@@ -2133,7 +2146,7 @@
 	<span class="doccomment">/// Make sure to perform the same checks in `pre_dispatch_unsigned` function.</span>
 	<span class="kw">fn</span> <span class="ident">validate_unsigned</span>(
 		<span class="ident">_call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>,
-		<span class="ident">_info</span>: <span class="ident">DispatchInfo</span>,
+		<span class="ident">_info</span>: <span class="self">Self</span>::<span class="ident">DispatchInfo</span>,
 		<span class="ident">_len</span>: <span class="ident">usize</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TransactionValidity</span> {
 		<span class="prelude-val">Ok</span>(<span class="ident">ValidTransaction</span>::<span class="ident">default</span>())
@@ -2149,16 +2162,16 @@
 	<span class="doccomment">/// perform the same validation as in `validate_unsigned`.</span>
 	<span class="kw">fn</span> <span class="ident">pre_dispatch_unsigned</span>(
 		<span class="ident">call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>,
-		<span class="ident">info</span>: <span class="ident">DispatchInfo</span>,
+		<span class="ident">info</span>: <span class="self">Self</span>::<span class="ident">DispatchInfo</span>,
 		<span class="ident">len</span>: <span class="ident">usize</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Pre</span>, <span class="kw">crate</span>::<span class="ident">ApplyError</span><span class="op">&gt;</span> {
-		<span class="self">Self</span>::<span class="ident">validate_unsigned</span>(<span class="ident">call</span>, <span class="ident">info</span>, <span class="ident">len</span>)
+		<span class="self">Self</span>::<span class="ident">validate_unsigned</span>(<span class="ident">call</span>, <span class="ident">info</span>.<span class="ident">clone</span>(), <span class="ident">len</span>)
 			.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="self">Self</span>::<span class="ident">Pre</span>::<span class="ident">default</span>())
 			.<span class="ident">map_err</span>(<span class="ident">Into</span>::<span class="ident">into</span>)
 	}
 
 	<span class="doccomment">/// Do any post-flight stuff for a transaction.</span>
-	<span class="kw">fn</span> <span class="ident">post_dispatch</span>(<span class="ident">_pre</span>: <span class="self">Self</span>::<span class="ident">Pre</span>, <span class="ident">_info</span>: <span class="ident">DispatchInfo</span>, <span class="ident">_len</span>: <span class="ident">usize</span>) { }
+	<span class="kw">fn</span> <span class="ident">post_dispatch</span>(<span class="ident">_pre</span>: <span class="self">Self</span>::<span class="ident">Pre</span>, <span class="ident">_info</span>: <span class="self">Self</span>::<span class="ident">DispatchInfo</span>, <span class="ident">_len</span>: <span class="ident">usize</span>) { }
 }
 
 <span class="doccomment">/// An error that is returned by a dispatchable function of a module.</span>
@@ -2173,10 +2186,11 @@
 }
 
 <span class="attribute">#[<span class="ident">impl_for_tuples</span>(<span class="number">1</span>, <span class="number">12</span>)]</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">AccountId</span>, <span class="ident">Call</span><span class="op">&gt;</span> <span class="ident">SignedExtension</span> <span class="kw">for</span> <span class="ident">Tuple</span> {
-	<span class="macro">for_tuples</span><span class="macro">!</span>( <span class="kw">where</span> #( <span class="ident">Tuple</span>: <span class="ident">SignedExtension</span><span class="op">&lt;</span><span class="ident">AccountId</span><span class="op">=</span><span class="ident">AccountId</span>, <span class="ident">Call</span><span class="op">=</span><span class="ident">Call</span><span class="op">&gt;</span> )<span class="op">*</span> );
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">AccountId</span>, <span class="ident">Call</span>, <span class="ident">Info</span>: <span class="ident">Clone</span><span class="op">&gt;</span> <span class="ident">SignedExtension</span> <span class="kw">for</span> <span class="ident">Tuple</span> {
+	<span class="macro">for_tuples</span><span class="macro">!</span>( <span class="kw">where</span> #( <span class="ident">Tuple</span>: <span class="ident">SignedExtension</span><span class="op">&lt;</span><span class="ident">AccountId</span><span class="op">=</span><span class="ident">AccountId</span>, <span class="ident">Call</span><span class="op">=</span><span class="ident">Call</span>, <span class="ident">DispatchInfo</span><span class="op">=</span><span class="ident">Info</span><span class="op">&gt;</span> )<span class="op">*</span> );
 	<span class="kw">type</span> <span class="ident">AccountId</span> <span class="op">=</span> <span class="ident">AccountId</span>;
 	<span class="kw">type</span> <span class="ident">Call</span> <span class="op">=</span> <span class="ident">Call</span>;
+	<span class="kw">type</span> <span class="ident">DispatchInfo</span> <span class="op">=</span> <span class="ident">Info</span>;
 	<span class="macro">for_tuples</span><span class="macro">!</span>( <span class="kw">type</span> <span class="ident">AdditionalSigned</span> <span class="op">=</span> ( #( <span class="ident">Tuple</span>::<span class="ident">AdditionalSigned</span> ),<span class="op">*</span> ); );
 	<span class="macro">for_tuples</span><span class="macro">!</span>( <span class="kw">type</span> <span class="ident">Pre</span> <span class="op">=</span> ( #( <span class="ident">Tuple</span>::<span class="ident">Pre</span> ),<span class="op">*</span> ); );
 
@@ -2188,44 +2202,44 @@
 		<span class="kw-2">&amp;</span><span class="self">self</span>,
 		<span class="ident">who</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">AccountId</span>,
 		<span class="ident">call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>,
-		<span class="ident">info</span>: <span class="ident">DispatchInfo</span>,
+		<span class="ident">info</span>: <span class="self">Self</span>::<span class="ident">DispatchInfo</span>,
 		<span class="ident">len</span>: <span class="ident">usize</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TransactionValidity</span> {
 		<span class="kw">let</span> <span class="ident">valid</span> <span class="op">=</span> <span class="ident">ValidTransaction</span>::<span class="ident">default</span>();
-		<span class="macro">for_tuples</span><span class="macro">!</span>( #( <span class="kw">let</span> <span class="ident">valid</span> <span class="op">=</span> <span class="ident">valid</span>.<span class="ident">combine_with</span>(<span class="ident">Tuple</span>.<span class="ident">validate</span>(<span class="ident">who</span>, <span class="ident">call</span>, <span class="ident">info</span>, <span class="ident">len</span>)<span class="question-mark">?</span>); )<span class="op">*</span> );
+		<span class="macro">for_tuples</span><span class="macro">!</span>( #( <span class="kw">let</span> <span class="ident">valid</span> <span class="op">=</span> <span class="ident">valid</span>.<span class="ident">combine_with</span>(<span class="ident">Tuple</span>.<span class="ident">validate</span>(<span class="ident">who</span>, <span class="ident">call</span>, <span class="ident">info</span>.<span class="ident">clone</span>(), <span class="ident">len</span>)<span class="question-mark">?</span>); )<span class="op">*</span> );
 		<span class="prelude-val">Ok</span>(<span class="ident">valid</span>)
 	}
 
-	<span class="kw">fn</span> <span class="ident">pre_dispatch</span>(<span class="self">self</span>, <span class="ident">who</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">AccountId</span>, <span class="ident">call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>, <span class="ident">info</span>: <span class="ident">DispatchInfo</span>, <span class="ident">len</span>: <span class="ident">usize</span>)
+	<span class="kw">fn</span> <span class="ident">pre_dispatch</span>(<span class="self">self</span>, <span class="ident">who</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">AccountId</span>, <span class="ident">call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>, <span class="ident">info</span>: <span class="self">Self</span>::<span class="ident">DispatchInfo</span>, <span class="ident">len</span>: <span class="ident">usize</span>)
 		<span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Pre</span>, <span class="kw">crate</span>::<span class="ident">ApplyError</span><span class="op">&gt;</span>
 	{
-		<span class="prelude-val">Ok</span>(<span class="macro">for_tuples</span><span class="macro">!</span>( ( #( <span class="ident">Tuple</span>.<span class="ident">pre_dispatch</span>(<span class="ident">who</span>, <span class="ident">call</span>, <span class="ident">info</span>, <span class="ident">len</span>)<span class="question-mark">?</span> ),<span class="op">*</span> ) ))
+		<span class="prelude-val">Ok</span>(<span class="macro">for_tuples</span><span class="macro">!</span>( ( #( <span class="ident">Tuple</span>.<span class="ident">pre_dispatch</span>(<span class="ident">who</span>, <span class="ident">call</span>, <span class="ident">info</span>.<span class="ident">clone</span>(), <span class="ident">len</span>)<span class="question-mark">?</span> ),<span class="op">*</span> ) ))
 	}
 
 	<span class="kw">fn</span> <span class="ident">validate_unsigned</span>(
 		<span class="ident">call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>,
-		<span class="ident">info</span>: <span class="ident">DispatchInfo</span>,
+		<span class="ident">info</span>: <span class="self">Self</span>::<span class="ident">DispatchInfo</span>,
 		<span class="ident">len</span>: <span class="ident">usize</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TransactionValidity</span> {
 		<span class="kw">let</span> <span class="ident">valid</span> <span class="op">=</span> <span class="ident">ValidTransaction</span>::<span class="ident">default</span>();
-		<span class="macro">for_tuples</span><span class="macro">!</span>( #( <span class="kw">let</span> <span class="ident">valid</span> <span class="op">=</span> <span class="ident">valid</span>.<span class="ident">combine_with</span>(<span class="ident">Tuple</span>::<span class="ident">validate_unsigned</span>(<span class="ident">call</span>, <span class="ident">info</span>, <span class="ident">len</span>)<span class="question-mark">?</span>); )<span class="op">*</span> );
+		<span class="macro">for_tuples</span><span class="macro">!</span>( #( <span class="kw">let</span> <span class="ident">valid</span> <span class="op">=</span> <span class="ident">valid</span>.<span class="ident">combine_with</span>(<span class="ident">Tuple</span>::<span class="ident">validate_unsigned</span>(<span class="ident">call</span>, <span class="ident">info</span>.<span class="ident">clone</span>(), <span class="ident">len</span>)<span class="question-mark">?</span>); )<span class="op">*</span> );
 		<span class="prelude-val">Ok</span>(<span class="ident">valid</span>)
 	}
 
 	<span class="kw">fn</span> <span class="ident">pre_dispatch_unsigned</span>(
 		<span class="ident">call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>,
-		<span class="ident">info</span>: <span class="ident">DispatchInfo</span>,
+		<span class="ident">info</span>: <span class="self">Self</span>::<span class="ident">DispatchInfo</span>,
 		<span class="ident">len</span>: <span class="ident">usize</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Pre</span>, <span class="kw">crate</span>::<span class="ident">ApplyError</span><span class="op">&gt;</span> {
-		<span class="prelude-val">Ok</span>(<span class="macro">for_tuples</span><span class="macro">!</span>( ( #( <span class="ident">Tuple</span>::<span class="ident">pre_dispatch_unsigned</span>(<span class="ident">call</span>, <span class="ident">info</span>, <span class="ident">len</span>)<span class="question-mark">?</span> ),<span class="op">*</span> ) ))
+		<span class="prelude-val">Ok</span>(<span class="macro">for_tuples</span><span class="macro">!</span>( ( #( <span class="ident">Tuple</span>::<span class="ident">pre_dispatch_unsigned</span>(<span class="ident">call</span>, <span class="ident">info</span>.<span class="ident">clone</span>(), <span class="ident">len</span>)<span class="question-mark">?</span> ),<span class="op">*</span> ) ))
 	}
 
 	<span class="kw">fn</span> <span class="ident">post_dispatch</span>(
 		<span class="ident">pre</span>: <span class="self">Self</span>::<span class="ident">Pre</span>,
-		<span class="ident">info</span>: <span class="ident">DispatchInfo</span>,
+		<span class="ident">info</span>: <span class="self">Self</span>::<span class="ident">DispatchInfo</span>,
 		<span class="ident">len</span>: <span class="ident">usize</span>,
 	) {
-		<span class="macro">for_tuples</span><span class="macro">!</span>( #( <span class="ident">Tuple</span>::<span class="ident">post_dispatch</span>(<span class="ident">pre</span>.<span class="ident">Tuple</span>, <span class="ident">info</span>, <span class="ident">len</span>); )<span class="op">*</span> )
+		<span class="macro">for_tuples</span><span class="macro">!</span>( #( <span class="ident">Tuple</span>::<span class="ident">post_dispatch</span>(<span class="ident">pre</span>.<span class="ident">Tuple</span>, <span class="ident">info</span>.<span class="ident">clone</span>(), <span class="ident">len</span>); )<span class="op">*</span> )
 	}
 }
 
@@ -2236,6 +2250,7 @@
 	<span class="kw">type</span> <span class="ident">AdditionalSigned</span> <span class="op">=</span> ();
 	<span class="kw">type</span> <span class="ident">Call</span> <span class="op">=</span> ();
 	<span class="kw">type</span> <span class="ident">Pre</span> <span class="op">=</span> ();
+	<span class="kw">type</span> <span class="ident">DispatchInfo</span> <span class="op">=</span> ();
 	<span class="kw">fn</span> <span class="ident">additional_signed</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">rstd</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">TransactionValidityError</span><span class="op">&gt;</span> { <span class="prelude-val">Ok</span>(()) }
 }
 
@@ -2252,6 +2267,9 @@
 	<span class="doccomment">/// Type by which we can dispatch. Restricts the UnsignedValidator type.</span>
 	<span class="kw">type</span> <span class="ident">Call</span>;
 
+	<span class="doccomment">/// An opaque set of information attached to the transaction.</span>
+	<span class="kw">type</span> <span class="ident">DispatchInfo</span>: <span class="ident">Clone</span>;
+
 	<span class="doccomment">/// Returns a reference to the sender if any.</span>
 	<span class="kw">fn</span> <span class="ident">sender</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">AccountId</span><span class="op">&gt;</span>;
 
@@ -2259,7 +2277,7 @@
 	<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span> <span class="comment">// Allow ValidateUnsigned</span>
 	<span class="kw">fn</span> <span class="ident">validate</span><span class="op">&lt;</span><span class="ident">V</span>: <span class="ident">ValidateUnsigned</span><span class="op">&lt;</span><span class="ident">Call</span><span class="op">=</span><span class="self">Self</span>::<span class="ident">Call</span><span class="op">&gt;</span><span class="op">&gt;</span>(
 		<span class="kw-2">&amp;</span><span class="self">self</span>,
-		<span class="ident">info</span>: <span class="ident">DispatchInfo</span>,
+		<span class="ident">info</span>: <span class="self">Self</span>::<span class="ident">DispatchInfo</span>,
 		<span class="ident">len</span>: <span class="ident">usize</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TransactionValidity</span>;
 
@@ -2268,7 +2286,7 @@
 	<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span> <span class="comment">// Allow ValidateUnsigned</span>
 	<span class="kw">fn</span> <span class="ident">apply</span><span class="op">&lt;</span><span class="ident">V</span>: <span class="ident">ValidateUnsigned</span><span class="op">&lt;</span><span class="ident">Call</span><span class="op">=</span><span class="self">Self</span>::<span class="ident">Call</span><span class="op">&gt;</span><span class="op">&gt;</span>(
 		<span class="self">self</span>,
-		<span class="ident">info</span>: <span class="ident">DispatchInfo</span>,
+		<span class="ident">info</span>: <span class="self">Self</span>::<span class="ident">DispatchInfo</span>,
 		<span class="ident">len</span>: <span class="ident">usize</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">crate</span>::<span class="ident">ApplyResult</span>;
 }

@@ -89,6 +89,7 @@ ALIASES["fork_tree"] = {};
 ALIASES["fs2"] = {};
 ALIASES["fs_swap"] = {};
 ALIASES["futures"] = {};
+ALIASES["futures01"] = {};
 ALIASES["futures_channel"] = {};
 ALIASES["futures_core"] = {};
 ALIASES["futures_cpupool"] = {};
