@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/h2-0.1.26/src/codec/mod.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mod.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/h2-0.2.0-alpha.3/src/codec/mod.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mod.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -205,25 +205,7 @@
 <span id="194">194</span>
 <span id="195">195</span>
 <span id="196">196</span>
-<span id="197">197</span>
-<span id="198">198</span>
-<span id="199">199</span>
-<span id="200">200</span>
-<span id="201">201</span>
-<span id="202">202</span>
-<span id="203">203</span>
-<span id="204">204</span>
-<span id="205">205</span>
-<span id="206">206</span>
-<span id="207">207</span>
-<span id="208">208</span>
-<span id="209">209</span>
-<span id="210">210</span>
-<span id="211">211</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="comment">// Until tokio-rs/tokio#680 is fixed</span>
-<span class="attribute">#![<span class="ident">allow</span>(<span class="ident">deprecated</span>)]</span>
-
 <span class="kw">mod</span> <span class="ident">error</span>;
 <span class="kw">mod</span> <span class="ident">framed_read</span>;
 <span class="kw">mod</span> <span class="ident">framed_write</span>;
@@ -233,14 +215,15 @@
 <span class="kw">use</span> <span class="self">self</span>::<span class="ident">framed_read</span>::<span class="ident">FramedRead</span>;
 <span class="kw">use</span> <span class="self">self</span>::<span class="ident">framed_write</span>::<span class="ident">FramedWrite</span>;
 
-<span class="kw">use</span> <span class="ident">frame</span>::{<span class="self">self</span>, <span class="ident">Data</span>, <span class="ident">Frame</span>};
-
-<span class="kw">use</span> <span class="ident">futures</span>::<span class="kw-2">*</span>;
-
-<span class="kw">use</span> <span class="ident">tokio_io</span>::{<span class="ident">AsyncRead</span>, <span class="ident">AsyncWrite</span>};
-<span class="kw">use</span> <span class="ident">tokio_io</span>::<span class="ident">codec</span>::<span class="ident">length_delimited</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">frame</span>::{<span class="self">self</span>, <span class="ident">Data</span>, <span class="ident">Frame</span>};
 
 <span class="kw">use</span> <span class="ident">bytes</span>::<span class="ident">Buf</span>;
+<span class="kw">use</span> <span class="ident">futures_core</span>::<span class="ident">Stream</span>;
+<span class="kw">use</span> <span class="ident">futures_sink</span>::<span class="ident">Sink</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">pin</span>::<span class="ident">Pin</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>};
+<span class="kw">use</span> <span class="ident">tokio_codec</span>::<span class="ident">length_delimited</span>;
+<span class="kw">use</span> <span class="ident">tokio_io</span>::{<span class="ident">AsyncRead</span>, <span class="ident">AsyncWrite</span>};
 
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">io</span>;
 
@@ -251,8 +234,8 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">B</span><span class="op">&gt;</span> <span class="ident">Codec</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">B</span><span class="op">&gt;</span>
 <span class="kw">where</span>
-    <span class="ident">T</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span>,
-    <span class="ident">B</span>: <span class="ident">Buf</span>,
+    <span class="ident">T</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span>,
+    <span class="ident">B</span>: <span class="ident">Buf</span> <span class="op">+</span> <span class="ident">Unpin</span>,
 {
     <span class="doccomment">/// Returns a new `Codec` with the default max frame size</span>
     <span class="attribute">#[<span class="ident">inline</span>]</span>
@@ -278,9 +261,7 @@
         <span class="comment">// Use FramedRead&#39;s method since it checks the value is within range.</span>
         <span class="ident">inner</span>.<span class="ident">set_max_frame_size</span>(<span class="ident">max_frame_size</span>);
 
-        <span class="ident">Codec</span> {
-            <span class="ident">inner</span>,
-        }
+        <span class="ident">Codec</span> { <span class="ident">inner</span> }
     }
 }
 
@@ -321,16 +302,6 @@
         <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">set_max_header_list_size</span>(<span class="ident">val</span>);
     }
 
-    <span class="doccomment">/// Set the max dynamic header table size that can be received.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_max_recv_header_table_size</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">val</span>: <span class="ident">usize</span>) {
-        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">set_max_header_table_size</span>(<span class="ident">val</span>);
-    }
-
-    <span class="doccomment">/// Set the max dynamic header table size that can be sent.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_max_send_header_table_size</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">val</span>: <span class="ident">usize</span>) {
-        <span class="self">self</span>.<span class="ident">framed_write</span>().<span class="ident">set_max_header_table_size</span>(<span class="ident">val</span>)
-    }
-
     <span class="doccomment">/// Get a reference to the inner stream.</span>
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;unstable&quot;</span>)]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_ref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">T</span> {
@@ -354,12 +325,12 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">B</span><span class="op">&gt;</span> <span class="ident">Codec</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">B</span><span class="op">&gt;</span>
 <span class="kw">where</span>
-    <span class="ident">T</span>: <span class="ident">AsyncWrite</span>,
-    <span class="ident">B</span>: <span class="ident">Buf</span>,
+    <span class="ident">T</span>: <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span>,
+    <span class="ident">B</span>: <span class="ident">Buf</span> <span class="op">+</span> <span class="ident">Unpin</span>,
 {
     <span class="doccomment">/// Returns `Ready` when the codec can buffer a frame</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">poll_ready</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span>(), <span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">framed_write</span>().<span class="ident">poll_ready</span>()
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">poll_ready</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">framed_write</span>().<span class="ident">poll_ready</span>(<span class="ident">cx</span>)
     }
 
     <span class="doccomment">/// Buffer a frame.</span>
@@ -373,60 +344,59 @@
     }
 
     <span class="doccomment">/// Flush buffered data to the wire</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">flush</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span>(), <span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">framed_write</span>().<span class="ident">flush</span>()
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">flush</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">framed_write</span>().<span class="ident">flush</span>(<span class="ident">cx</span>)
     }
 
     <span class="doccomment">/// Shutdown the send half</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">shutdown</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span>(), <span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">framed_write</span>().<span class="ident">shutdown</span>()
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">shutdown</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">framed_write</span>().<span class="ident">shutdown</span>(<span class="ident">cx</span>)
     }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">B</span><span class="op">&gt;</span> <span class="ident">Stream</span> <span class="kw">for</span> <span class="ident">Codec</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">B</span><span class="op">&gt;</span>
 <span class="kw">where</span>
-    <span class="ident">T</span>: <span class="ident">AsyncRead</span>,
+    <span class="ident">T</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">Unpin</span>,
+    <span class="ident">B</span>: <span class="ident">Unpin</span>,
 {
-    <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="ident">Frame</span>;
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">RecvError</span>;
+    <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Frame</span>, <span class="ident">RecvError</span><span class="op">&gt;</span>;
 
-    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Frame</span><span class="op">&gt;</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">poll</span>()
+    <span class="kw">fn</span> <span class="ident">poll_next</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Item</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">inner</span>).<span class="ident">poll_next</span>(<span class="ident">cx</span>)
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">B</span><span class="op">&gt;</span> <span class="ident">Sink</span> <span class="kw">for</span> <span class="ident">Codec</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">B</span><span class="op">&gt;</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">B</span><span class="op">&gt;</span> <span class="ident">Sink</span><span class="op">&lt;</span><span class="ident">Frame</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Codec</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">B</span><span class="op">&gt;</span>
 <span class="kw">where</span>
-    <span class="ident">T</span>: <span class="ident">AsyncWrite</span>,
-    <span class="ident">B</span>: <span class="ident">Buf</span>,
+    <span class="ident">T</span>: <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span>,
+    <span class="ident">B</span>: <span class="ident">Buf</span> <span class="op">+</span> <span class="ident">Unpin</span>,
 {
-    <span class="kw">type</span> <span class="ident">SinkItem</span> <span class="op">=</span> <span class="ident">Frame</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>;
-    <span class="kw">type</span> <span class="ident">SinkError</span> <span class="op">=</span> <span class="ident">SendError</span>;
+    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">SendError</span>;
 
-    <span class="kw">fn</span> <span class="ident">start_send</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">item</span>: <span class="self">Self</span>::<span class="ident">SinkItem</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">StartSend</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">SinkItem</span>, <span class="self">Self</span>::<span class="ident">SinkError</span><span class="op">&gt;</span> {
-        <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">poll_ready</span>()<span class="question-mark">?</span>.<span class="ident">is_ready</span>() {
-            <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">AsyncSink</span>::<span class="ident">NotReady</span>(<span class="ident">item</span>));
-        }
-
-        <span class="self">self</span>.<span class="ident">buffer</span>(<span class="ident">item</span>)<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(<span class="ident">AsyncSink</span>::<span class="ident">Ready</span>)
+    <span class="kw">fn</span> <span class="ident">start_send</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">item</span>: <span class="ident">Frame</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="ident">Codec</span>::<span class="ident">buffer</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">item</span>)<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(())
+    }
+    <span class="doccomment">/// Returns `Ready` when the codec can buffer a frame</span>
+    <span class="kw">fn</span> <span class="ident">poll_ready</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">framed_write</span>().<span class="ident">poll_ready</span>(<span class="ident">cx</span>).<span class="ident">map_err</span>(<span class="ident">Into</span>::<span class="ident">into</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">poll_complete</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">SinkError</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">flush</span>()<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(()))
+    <span class="doccomment">/// Flush buffered data to the wire</span>
+    <span class="kw">fn</span> <span class="ident">poll_flush</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">framed_write</span>().<span class="ident">flush</span>(<span class="ident">cx</span>).<span class="ident">map_err</span>(<span class="ident">Into</span>::<span class="ident">into</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">close</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">SinkError</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">shutdown</span>()<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(()))
+    <span class="kw">fn</span> <span class="ident">poll_close</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="macro">ready</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">shutdown</span>(<span class="ident">cx</span>))<span class="question-mark">?</span>;
+        <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Ok</span>(()))
     }
 }
 
 <span class="comment">// TODO: remove (or improve) this</span>
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Codec</span><span class="op">&lt;</span><span class="ident">T</span>, ::<span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Cursor</span><span class="op">&lt;</span>::<span class="ident">bytes</span>::<span class="ident">Bytes</span><span class="op">&gt;</span><span class="op">&gt;</span>
 <span class="kw">where</span>
-    <span class="ident">T</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span>,
+    <span class="ident">T</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span>,
 {
     <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">src</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span>::<span class="ident">new</span>(<span class="ident">src</span>)

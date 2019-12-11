@@ -1,6 +1,6 @@
 (function() {var implementors = {};
 implementors["env_logger"] = [{text:"impl <a class=\"trait\" href=\"log/trait.Log.html\" title=\"trait log::Log\">Log</a> for <a class=\"struct\" href=\"env_logger/struct.Logger.html\" title=\"struct env_logger::Logger\">Logger</a>",synthetic:false,types:["env_logger::Logger"]},];
-implementors["palette_support"] = [{text:"impl <a class=\"trait\" href=\"log/trait.Log.html\" title=\"trait log::Log\">Log</a> for <a class=\"struct\" href=\"palette_support/debug/struct.RuntimeLogger.html\" title=\"struct palette_support::debug::RuntimeLogger\">RuntimeLogger</a>",synthetic:false,types:["palette_support::debug::RuntimeLogger"]},];
+implementors["frame_support"] = [{text:"impl <a class=\"trait\" href=\"log/trait.Log.html\" title=\"trait log::Log\">Log</a> for <a class=\"struct\" href=\"frame_support/debug/struct.RuntimeLogger.html\" title=\"struct frame_support::debug::RuntimeLogger\">RuntimeLogger</a>",synthetic:false,types:["frame_support::debug::RuntimeLogger"]},];
 
             if (window.register_implementors) {
                 window.register_implementors(implementors);

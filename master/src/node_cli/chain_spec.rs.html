@@ -415,6 +415,9 @@
 <span id="404">404</span>
 <span id="405">405</span>
 <span id="406">406</span>
+<span id="407">407</span>
+<span id="408">408</span>
+<span id="409">409</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -444,14 +447,14 @@
 };
 <span class="kw">use</span> <span class="ident">node_runtime</span>::<span class="ident">Block</span>;
 <span class="kw">use</span> <span class="ident">node_runtime</span>::<span class="ident">constants</span>::<span class="ident">currency</span>::<span class="kw-2">*</span>;
-<span class="kw">use</span> <span class="ident">substrate_service</span>;
+<span class="kw">use</span> <span class="ident">sc_service</span>;
 <span class="kw">use</span> <span class="ident">hex_literal</span>::<span class="ident">hex</span>;
-<span class="kw">use</span> <span class="ident">substrate_telemetry</span>::<span class="ident">TelemetryEndpoints</span>;
+<span class="kw">use</span> <span class="ident">sc_telemetry</span>::<span class="ident">TelemetryEndpoints</span>;
 <span class="kw">use</span> <span class="ident">grandpa_primitives</span>::{<span class="ident">AuthorityId</span> <span class="kw">as</span> <span class="ident">GrandpaId</span>};
 <span class="kw">use</span> <span class="ident">babe_primitives</span>::{<span class="ident">AuthorityId</span> <span class="kw">as</span> <span class="ident">BabeId</span>};
 <span class="kw">use</span> <span class="ident">im_online</span>::<span class="ident">sr25519</span>::{<span class="ident">AuthorityId</span> <span class="kw">as</span> <span class="ident">ImOnlineId</span>};
 <span class="kw">use</span> <span class="ident">authority_discovery_primitives</span>::<span class="ident">AuthorityId</span> <span class="kw">as</span> <span class="ident">AuthorityDiscoveryId</span>;
-<span class="kw">use</span> <span class="ident">sr_primitives</span>::{<span class="ident">Perbill</span>, <span class="ident">traits</span>::{<span class="ident">Verify</span>, <span class="ident">IdentifyAccount</span>}};
+<span class="kw">use</span> <span class="ident">sp_runtime</span>::{<span class="ident">Perbill</span>, <span class="ident">traits</span>::{<span class="ident">Verify</span>, <span class="ident">IdentifyAccount</span>}};
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">node_primitives</span>::{<span class="ident">AccountId</span>, <span class="ident">Balance</span>, <span class="ident">Signature</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">node_runtime</span>::<span class="ident">GenesisConfig</span>;
@@ -471,7 +474,7 @@
 }
 
 <span class="doccomment">/// Specialized `ChainSpec`.</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">ChainSpec</span> <span class="op">=</span> <span class="ident">substrate_service</span>::<span class="ident">ChainSpec</span><span class="op">&lt;</span>
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">ChainSpec</span> <span class="op">=</span> <span class="ident">sc_service</span>::<span class="ident">ChainSpec</span><span class="op">&lt;</span>
 	<span class="ident">GenesisConfig</span>,
 	<span class="ident">Extensions</span>,
 <span class="op">&gt;</span>;
@@ -637,6 +640,7 @@
 			<span class="ident">get_account_id_from_seed</span>::<span class="op">&lt;</span><span class="ident">sr25519</span>::<span class="ident">Public</span><span class="op">&gt;</span>(<span class="string">&quot;Ferdie//stash&quot;</span>),
 		]
 	});
+	<span class="kw">let</span> <span class="ident">num_endowed_accounts</span> <span class="op">=</span> <span class="ident">endowed_accounts</span>.<span class="ident">len</span>();
 
 	<span class="kw">const</span> <span class="ident">ENDOWMENT</span>: <span class="ident">Balance</span> <span class="op">=</span> <span class="number">10_000_000</span> <span class="op">*</span> <span class="ident">DOLLARS</span>;
 	<span class="kw">const</span> <span class="ident">STASH</span>: <span class="ident">Balance</span> <span class="op">=</span> <span class="number">100</span> <span class="op">*</span> <span class="ident">DOLLARS</span>;
@@ -676,11 +680,13 @@
 		}),
 		<span class="ident">democracy</span>: <span class="prelude-val">Some</span>(<span class="ident">DemocracyConfig</span>::<span class="ident">default</span>()),
 		<span class="ident">collective_Instance1</span>: <span class="prelude-val">Some</span>(<span class="ident">CouncilConfig</span> {
-			<span class="ident">members</span>: <span class="macro">vec</span><span class="macro">!</span>[],
+			<span class="ident">members</span>: <span class="ident">endowed_accounts</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>()
+				.<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>()[..(<span class="ident">num_endowed_accounts</span> <span class="op">+</span> <span class="number">1</span>) <span class="op">/</span> <span class="number">2</span>].<span class="ident">to_vec</span>(),
 			<span class="ident">phantom</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
 		}),
 		<span class="ident">collective_Instance2</span>: <span class="prelude-val">Some</span>(<span class="ident">TechnicalCommitteeConfig</span> {
-			<span class="ident">members</span>: <span class="macro">vec</span><span class="macro">!</span>[],
+			<span class="ident">members</span>: <span class="ident">endowed_accounts</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>()
+				.<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>()[..(<span class="ident">num_endowed_accounts</span> <span class="op">+</span> <span class="number">1</span>) <span class="op">/</span> <span class="number">2</span>].<span class="ident">to_vec</span>(),
 			<span class="ident">phantom</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
 		}),
 		<span class="ident">contracts</span>: <span class="prelude-val">Some</span>(<span class="ident">ContractsConfig</span> {
@@ -765,7 +771,7 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod</span> <span class="ident">tests</span> {
 	<span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 	<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">service</span>::<span class="ident">new_full</span>;
-	<span class="kw">use</span> <span class="ident">substrate_service</span>::<span class="ident">Roles</span>;
+	<span class="kw">use</span> <span class="ident">sc_service</span>::<span class="ident">Roles</span>;
 	<span class="kw">use</span> <span class="ident">service_test</span>;
 
 	<span class="kw">fn</span> <span class="ident">local_testnet_genesis_instant_single</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">GenesisConfig</span> {

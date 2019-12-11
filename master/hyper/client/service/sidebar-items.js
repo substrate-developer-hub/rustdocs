@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Connect","Creates a connection via `SendRequest`."]],"trait":[["MakeService","Creates new `Service` values."],["Service","An asynchronous function from a `Request` to a `Response`."]]});

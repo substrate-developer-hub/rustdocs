@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/tokio-executor-0.1.8/src/typed.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>typed.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/tokio-executor-0.2.0-alpha.6/src/typed.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>typed.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -187,11 +187,8 @@
 <span id="176">176</span>
 <span id="177">177</span>
 <span id="178">178</span>
-<span id="179">179</span>
-<span id="180">180</span>
-<span id="181">181</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="kw">use</span> <span class="ident">SpawnError</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">SpawnError</span>;
 
 <span class="doccomment">/// A value that spawns futures of a specific type.</span>
 <span class="doccomment">///</span>
@@ -213,19 +210,19 @@
 <span class="doccomment">/// such, the function takes a stream and an executor on which the background</span>
 <span class="doccomment">/// task is spawned.</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// ```rust</span>
-<span class="doccomment">/// #[macro_use]</span>
-<span class="doccomment">/// extern crate futures;</span>
-<span class="doccomment">/// extern crate tokio;</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// use futures::{Future, Stream, Poll};</span>
+<span class="doccomment">/// [`spawn`]: TypedExecutor::spawn</span>
+<span class="doccomment">/// ```</span>
 <span class="doccomment">/// use tokio::executor::TypedExecutor;</span>
 <span class="doccomment">/// use tokio::sync::oneshot;</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// pub fn drain&lt;T, E&gt;(stream: T, executor: &amp;mut E)</span>
-<span class="doccomment">///     -&gt; impl Future&lt;Item = (), Error = ()&gt;</span>
+<span class="doccomment">/// use futures_core::{ready, Stream};</span>
+<span class="doccomment">/// use std::future::Future;</span>
+<span class="doccomment">/// use std::pin::Pin;</span>
+<span class="doccomment">/// use std::task::{Context, Poll};</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// async fn drain&lt;T, E&gt;(stream: T, executor: &amp;mut E)</span>
 <span class="doccomment">/// where</span>
-<span class="doccomment">///     T: Stream,</span>
+<span class="doccomment">///     T: Stream + Unpin,</span>
 <span class="doccomment">///     E: TypedExecutor&lt;Drain&lt;T&gt;&gt;</span>
 <span class="doccomment">/// {</span>
 <span class="doccomment">///     let (tx, rx) = oneshot::channel();</span>
@@ -235,34 +232,31 @@
 <span class="doccomment">///         tx: Some(tx),</span>
 <span class="doccomment">///     }).unwrap();</span>
 <span class="doccomment">///</span>
-<span class="doccomment">///     rx.map_err(|_| ())</span>
+<span class="doccomment">///     rx.await.unwrap()</span>
 <span class="doccomment">/// }</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// // The background task</span>
-<span class="doccomment">/// pub struct Drain&lt;T: Stream&gt; {</span>
+<span class="doccomment">/// pub struct Drain&lt;T&gt; {</span>
 <span class="doccomment">///     stream: T,</span>
 <span class="doccomment">///     tx: Option&lt;oneshot::Sender&lt;()&gt;&gt;,</span>
 <span class="doccomment">/// }</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// impl&lt;T: Stream&gt; Future for Drain&lt;T&gt; {</span>
-<span class="doccomment">///     type Item = ();</span>
-<span class="doccomment">///     type Error = ();</span>
+<span class="doccomment">/// impl&lt;T: Stream + Unpin&gt; Future for Drain&lt;T&gt; {</span>
+<span class="doccomment">///     type Output = ();</span>
 <span class="doccomment">///</span>
-<span class="doccomment">///     fn poll(&amp;mut self) -&gt; Poll&lt;Self::Item, Self::Error&gt; {</span>
+<span class="doccomment">///     fn poll(mut self: Pin&lt;&amp;mut Self&gt;, cx: &amp;mut Context&lt;&#39;_&gt;) -&gt; Poll&lt;()&gt; {</span>
 <span class="doccomment">///         loop {</span>
-<span class="doccomment">///             let item = try_ready!(</span>
-<span class="doccomment">///                 self.stream.poll()</span>
-<span class="doccomment">///                     .map_err(|_| ())</span>
+<span class="doccomment">///             let item = ready!(</span>
+<span class="doccomment">///                 Pin::new(&amp;mut self.stream).poll_next(cx)</span>
 <span class="doccomment">///             );</span>
 <span class="doccomment">///</span>
 <span class="doccomment">///             if item.is_none() { break; }</span>
 <span class="doccomment">///         }</span>
 <span class="doccomment">///</span>
-<span class="doccomment">///         self.tx.take().unwrap().send(()).map_err(|_| ());</span>
-<span class="doccomment">///         Ok(().into())</span>
+<span class="doccomment">///         let _ = self.tx.take().unwrap().send(()).map_err(|_| ());</span>
+<span class="doccomment">///         Poll::Ready(())</span>
 <span class="doccomment">///     }</span>
 <span class="doccomment">/// }</span>
-<span class="doccomment">/// # pub fn main() {}</span>
 <span class="doccomment">/// ```</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// By doing this, the `drain` fn can accept a stream that is `!Send` as long as</span>
@@ -283,10 +277,12 @@
     <span class="doccomment">/// # Examples</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// ```rust</span>
-    <span class="doccomment">/// # extern crate futures;</span>
-    <span class="doccomment">/// # extern crate tokio_executor;</span>
-    <span class="doccomment">/// # use tokio_executor::TypedExecutor;</span>
-    <span class="doccomment">/// # use futures::{Future, Poll};</span>
+    <span class="doccomment">/// use tokio_executor::TypedExecutor;</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// use std::future::Future;</span>
+    <span class="doccomment">/// use std::pin::Pin;</span>
+    <span class="doccomment">/// use std::task::{Context, Poll};</span>
+    <span class="doccomment">///</span>
     <span class="doccomment">/// fn example&lt;T&gt;(my_executor: &amp;mut T)</span>
     <span class="doccomment">/// where</span>
     <span class="doccomment">///     T: TypedExecutor&lt;MyFuture&gt;,</span>
@@ -297,15 +293,13 @@
     <span class="doccomment">/// struct MyFuture;</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// impl Future for MyFuture {</span>
-    <span class="doccomment">///     type Item = ();</span>
-    <span class="doccomment">///     type Error = ();</span>
+    <span class="doccomment">///     type Output = ();</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">///     fn poll(&amp;mut self) -&gt; Poll&lt;(), ()&gt; {</span>
+    <span class="doccomment">///     fn poll(self: Pin&lt;&amp;mut Self&gt;, _cx: &amp;mut Context&lt;&#39;_&gt;) -&gt; Poll&lt;()&gt; {</span>
     <span class="doccomment">///         println!(&quot;running on the executor&quot;);</span>
-    <span class="doccomment">///         Ok(().into())</span>
+    <span class="doccomment">///         Poll::Ready(())</span>
     <span class="doccomment">///     }</span>
     <span class="doccomment">/// }</span>
-    <span class="doccomment">/// # fn main() {}</span>
     <span class="doccomment">/// ```</span>
     <span class="kw">fn</span> <span class="ident">spawn</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">future</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SpawnError</span><span class="op">&gt;</span>;
 
@@ -327,10 +321,12 @@
     <span class="doccomment">/// # Examples</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// ```rust</span>
-    <span class="doccomment">/// # extern crate futures;</span>
-    <span class="doccomment">/// # extern crate tokio_executor;</span>
-    <span class="doccomment">/// # use tokio_executor::TypedExecutor;</span>
-    <span class="doccomment">/// # use futures::{Future, Poll};</span>
+    <span class="doccomment">/// use tokio_executor::TypedExecutor;</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// use std::future::Future;</span>
+    <span class="doccomment">/// use std::pin::Pin;</span>
+    <span class="doccomment">/// use std::task::{Context, Poll};</span>
+    <span class="doccomment">///</span>
     <span class="doccomment">/// fn example&lt;T&gt;(my_executor: &amp;mut T)</span>
     <span class="doccomment">/// where</span>
     <span class="doccomment">///     T: TypedExecutor&lt;MyFuture&gt;,</span>
@@ -345,15 +341,13 @@
     <span class="doccomment">/// struct MyFuture;</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// impl Future for MyFuture {</span>
-    <span class="doccomment">///     type Item = ();</span>
-    <span class="doccomment">///     type Error = ();</span>
+    <span class="doccomment">///     type Output = ();</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">///     fn poll(&amp;mut self) -&gt; Poll&lt;(), ()&gt; {</span>
+    <span class="doccomment">///     fn poll(self: Pin&lt;&amp;mut Self&gt;, _cx: &amp;mut Context&lt;&#39;_&gt;) -&gt; Poll&lt;()&gt; {</span>
     <span class="doccomment">///         println!(&quot;running on the executor&quot;);</span>
-    <span class="doccomment">///         Ok(().into())</span>
+    <span class="doccomment">///         Poll::Ready(())</span>
     <span class="doccomment">///     }</span>
     <span class="doccomment">/// }</span>
-    <span class="doccomment">/// # fn main() {}</span>
     <span class="doccomment">/// ```</span>
     <span class="kw">fn</span> <span class="ident">status</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SpawnError</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(())

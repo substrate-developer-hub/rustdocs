@@ -1,1 +1,1 @@
-initSidebarItems({"fn":[["create","Instantiate all RPC extensions."]]});
+initSidebarItems({"fn":[["create","Instantiate all RPC extensions."]],"struct":[["LightDeps","Light client extra dependencies."]]});

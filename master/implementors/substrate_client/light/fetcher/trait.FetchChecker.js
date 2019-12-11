@@ -1,9 +1,0 @@
-(function() {var implementors = {};
-implementors["substrate_client"] = [{text:"impl&lt;E, Block, H, S&gt; <a class=\"trait\" href=\"substrate_client/light/fetcher/trait.FetchChecker.html\" title=\"trait substrate_client::light::fetcher::FetchChecker\">FetchChecker</a>&lt;Block&gt; for <a class=\"struct\" href=\"substrate_client/light/fetcher/struct.LightDataChecker.html\" title=\"struct substrate_client::light::fetcher::LightDataChecker\">LightDataChecker</a>&lt;E, H, Block, S&gt; <span class=\"where fmt-newline\">where<br>&nbsp;&nbsp;&nbsp;&nbsp;Block: <a class=\"trait\" href=\"sr_primitives/traits/trait.Block.html\" title=\"trait sr_primitives::traits::Block\">BlockT</a>,<br>&nbsp;&nbsp;&nbsp;&nbsp;E: <a class=\"trait\" href=\"substrate_primitives/traits/trait.CodeExecutor.html\" title=\"trait substrate_primitives::traits::CodeExecutor\">CodeExecutor</a>,<br>&nbsp;&nbsp;&nbsp;&nbsp;H: <a class=\"trait\" href=\"hash_db/trait.Hasher.html\" title=\"trait hash_db::Hasher\">Hasher</a>&lt;Out = <a class=\"struct\" href=\"primitive_types/struct.H256.html\" title=\"struct primitive_types::H256\">H256</a>&gt;,<br>&nbsp;&nbsp;&nbsp;&nbsp;S: <a class=\"trait\" href=\"substrate_client/light/fetcher/trait.BlockchainStorage.html\" title=\"trait substrate_client::light::fetcher::BlockchainStorage\">BlockchainStorage</a>&lt;Block&gt;,&nbsp;</span>",synthetic:false,types:["substrate_client::light::fetcher::LightDataChecker"]},];
-
-            if (window.register_implementors) {
-                window.register_implementors(implementors);
-            } else {
-                window.pending_implementors = implementors;
-            }
-        })()

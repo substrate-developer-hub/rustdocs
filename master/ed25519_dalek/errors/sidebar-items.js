@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["SignatureError","Errors which may occur while processing signatures and keypairs."]]});

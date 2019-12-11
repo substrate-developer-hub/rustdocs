@@ -1,1 +1,0 @@
-initSidebarItems({"constant":[["STORAGE_PREFIX","Local Storage Prefix used by the Offchain Worker API to"]],"mod":[["testing","Offchain Externalities implementation for tests."]],"struct":[["OffchainWorkers","An offchain workers manager."]],"trait":[["OffchainWorkerApi","The offchain worker api."]]});

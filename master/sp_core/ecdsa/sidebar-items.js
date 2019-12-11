@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["DeriveError","An error when deriving a key."],["PublicError","An error type for SS58 decoding."]],"struct":[["Pair","A key pair."],["Public","The ECDSA 64-byte raw public key."],["Signature","A signature (a 512-bit value, plus 8 bits for recovery ID)."]]});
