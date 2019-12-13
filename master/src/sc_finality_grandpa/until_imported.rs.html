@@ -949,6 +949,10 @@
 <span id="938">938</span>
 <span id="939">939</span>
 <span id="940">940</span>
+<span id="941">941</span>
+<span id="942">942</span>
+<span id="943">943</span>
+<span id="944">944</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -984,11 +988,11 @@
 <span class="kw">use</span> <span class="ident">client_api</span>::{<span class="ident">BlockImportNotification</span>, <span class="ident">ImportNotifications</span>};
 <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">stream</span>::<span class="ident">Fuse</span>;
+<span class="kw">use</span> <span class="ident">futures_timer</span>::<span class="ident">Delay</span>;
 <span class="kw">use</span> <span class="ident">futures03</span>::{<span class="ident">StreamExt</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">TryStreamExt</span> <span class="kw">as</span> <span class="kw">_</span>};
 <span class="kw">use</span> <span class="ident">grandpa</span>::<span class="ident">voter</span>;
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">Mutex</span>;
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">traits</span>::{<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">Header</span> <span class="kw">as</span> <span class="ident">HeaderT</span>, <span class="ident">NumberFor</span>};
-<span class="kw">use</span> <span class="ident">tokio_timer</span>::<span class="ident">Interval</span>;
 
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::{<span class="ident">HashMap</span>, <span class="ident">VecDeque</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::{<span class="ident">atomic</span>::{<span class="ident">AtomicUsize</span>, <span class="ident">Ordering</span>}, <span class="ident">Arc</span>};
@@ -1028,7 +1032,7 @@
 	<span class="ident">status_check</span>: <span class="ident">BlockStatus</span>,
 	<span class="ident">inner</span>: <span class="ident">Fuse</span><span class="op">&lt;</span><span class="ident">I</span><span class="op">&gt;</span>,
 	<span class="ident">ready</span>: <span class="ident">VecDeque</span><span class="op">&lt;</span><span class="ident">M</span>::<span class="ident">Blocked</span><span class="op">&gt;</span>,
-	<span class="ident">check_pending</span>: <span class="ident">Interval</span>,
+	<span class="ident">check_pending</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// Mapping block hashes to their block number, the point in time it was</span>
 	<span class="doccomment">/// first encountered (Instant) and a list of GRANDPA messages referencing</span>
 	<span class="doccomment">/// the block hash.</span>
@@ -1056,9 +1060,13 @@
 		<span class="comment">// the import notifications interval takes care of most of this; this is</span>
 		<span class="comment">// used in the event of missed import notifications</span>
 		<span class="kw">const</span> <span class="ident">CHECK_PENDING_INTERVAL</span>: <span class="ident">Duration</span> <span class="op">=</span> <span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">5</span>);
-		<span class="kw">let</span> <span class="ident">now</span> <span class="op">=</span> <span class="ident">Instant</span>::<span class="ident">now</span>();
 
-		<span class="kw">let</span> <span class="ident">check_pending</span> <span class="op">=</span> <span class="ident">Interval</span>::<span class="ident">new</span>(<span class="ident">now</span> <span class="op">+</span> <span class="ident">CHECK_PENDING_INTERVAL</span>, <span class="ident">CHECK_PENDING_INTERVAL</span>);
+		<span class="kw">let</span> <span class="ident">check_pending</span> <span class="op">=</span> <span class="ident">futures03</span>::<span class="ident">stream</span>::<span class="ident">unfold</span>(<span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">CHECK_PENDING_INTERVAL</span>), <span class="op">|</span><span class="ident">delay</span><span class="op">|</span>
+			<span class="ident">Box</span>::<span class="ident">pin</span>(<span class="kw">async</span> <span class="kw">move</span> {
+				<span class="ident">delay</span>.<span class="kw">await</span>;
+				<span class="prelude-val">Some</span>(((), <span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">CHECK_PENDING_INTERVAL</span>)))
+			})).<span class="ident">map</span>(<span class="prelude-val">Ok</span>).<span class="ident">compat</span>();
+
 		<span class="ident">UntilImported</span> {
 			<span class="ident">import_notifications</span>: {
 				<span class="kw">let</span> <span class="ident">stream</span> <span class="op">=</span> <span class="ident">import_notifications</span>.<span class="ident">map</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">fn</span>(<span class="kw">_</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">_</span><span class="op">&gt;</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, ()<span class="op">&gt;</span>(<span class="ident">v</span>)).<span class="ident">compat</span>();
@@ -1068,7 +1076,7 @@
 			<span class="ident">status_check</span>,
 			<span class="ident">inner</span>: <span class="ident">stream</span>.<span class="ident">fuse</span>(),
 			<span class="ident">ready</span>: <span class="ident">VecDeque</span>::<span class="ident">new</span>(),
-			<span class="ident">check_pending</span>,
+			<span class="ident">check_pending</span>: <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">check_pending</span>),
 			<span class="ident">pending</span>: <span class="ident">HashMap</span>::<span class="ident">new</span>(),
 			<span class="ident">identifier</span>,
 		}
@@ -1423,12 +1431,12 @@
 	<span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 	<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">CatchUp</span>, <span class="ident">CompactCommit</span>};
 	<span class="kw">use</span> <span class="ident">tokio</span>::<span class="ident">runtime</span>::<span class="ident">current_thread</span>::<span class="ident">Runtime</span>;
-	<span class="kw">use</span> <span class="ident">tokio_timer</span>::<span class="ident">Delay</span>;
 	<span class="kw">use</span> <span class="ident">test_client</span>::<span class="ident">runtime</span>::{<span class="ident">Block</span>, <span class="ident">Hash</span>, <span class="ident">Header</span>};
 	<span class="kw">use</span> <span class="ident">consensus_common</span>::<span class="ident">BlockOrigin</span>;
 	<span class="kw">use</span> <span class="ident">client_api</span>::<span class="ident">BlockImportNotification</span>;
 	<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">Either</span>;
-	<span class="kw">use</span> <span class="ident">futures03</span>::<span class="ident">channel</span>::<span class="ident">mpsc</span>;
+	<span class="kw">use</span> <span class="ident">futures_timer</span>::<span class="ident">Delay</span>;
+	<span class="kw">use</span> <span class="ident">futures03</span>::{<span class="ident">channel</span>::<span class="ident">mpsc</span>, <span class="ident">future</span>::<span class="ident">FutureExt</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">future</span>::<span class="ident">TryFutureExt</span> <span class="kw">as</span> <span class="kw">_</span>};
 	<span class="kw">use</span> <span class="ident">grandpa</span>::<span class="ident">Precommit</span>;
 
 	<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
@@ -1580,7 +1588,7 @@
 		<span class="kw">let</span> <span class="ident">inner_chain_state</span> <span class="op">=</span> <span class="ident">chain_state</span>.<span class="ident">clone</span>();
 		<span class="kw">let</span> <span class="ident">work</span> <span class="op">=</span> <span class="ident">until_imported</span>
 			.<span class="ident">into_future</span>()
-			.<span class="ident">select2</span>(<span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">Instant</span>::<span class="ident">now</span>() <span class="op">+</span> <span class="ident">Duration</span>::<span class="ident">from_millis</span>(<span class="number">100</span>)))
+			.<span class="ident">select2</span>(<span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">Duration</span>::<span class="ident">from_millis</span>(<span class="number">100</span>)).<span class="ident">unit_error</span>().<span class="ident">compat</span>())
 			.<span class="ident">then</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">res</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">res</span> {
 				<span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;neither should have had error&quot;</span>),
 				<span class="prelude-val">Ok</span>(<span class="ident">Either</span>::<span class="ident">A</span>(<span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;timeout should have fired first&quot;</span>),
@@ -1881,7 +1889,7 @@
 
 		<span class="comment">// the `until_imported` stream doesn&#39;t request the blocks immediately,</span>
 		<span class="comment">// but it should request them after a small timeout</span>
-		<span class="kw">let</span> <span class="ident">timeout</span> <span class="op">=</span> <span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">Instant</span>::<span class="ident">now</span>() <span class="op">+</span> <span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">60</span>));
+		<span class="kw">let</span> <span class="ident">timeout</span> <span class="op">=</span> <span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">60</span>)).<span class="ident">unit_error</span>().<span class="ident">compat</span>();
 		<span class="kw">let</span> <span class="ident">test</span> <span class="op">=</span> <span class="ident">assert</span>.<span class="ident">select2</span>(<span class="ident">timeout</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">res</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">res</span> {
 			<span class="ident">Either</span>::<span class="ident">A</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {},
 			<span class="ident">Either</span>::<span class="ident">B</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;timed out waiting for block sync request&quot;</span>),

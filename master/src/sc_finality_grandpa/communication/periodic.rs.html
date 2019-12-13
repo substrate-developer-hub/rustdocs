@@ -119,6 +119,7 @@
 <span id="108">108</span>
 <span id="109">109</span>
 <span id="110">110</span>
+<span id="111">111</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -143,12 +144,14 @@
 <span class="kw">use</span> <span class="ident">codec</span>::<span class="ident">Encode</span>;
 <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">sync</span>::<span class="ident">mpsc</span>;
+<span class="kw">use</span> <span class="ident">futures_timer</span>::<span class="ident">Delay</span>;
+<span class="kw">use</span> <span class="ident">futures03</span>::<span class="ident">future</span>::{<span class="ident">FutureExt</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">TryFutureExt</span> <span class="kw">as</span> <span class="kw">_</span>};
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">debug</span>, <span class="ident">warn</span>};
-<span class="kw">use</span> <span class="ident">tokio_timer</span>::<span class="ident">Delay</span>;
 
 <span class="kw">use</span> <span class="ident">network</span>::<span class="ident">PeerId</span>;
+<span class="kw">use</span> <span class="ident">network_gossip</span>::<span class="ident">GossipEngine</span>;
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">traits</span>::{<span class="ident">NumberFor</span>, <span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>};
-<span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">gossip</span>::{<span class="ident">NeighborPacket</span>, <span class="ident">GossipMessage</span>}, <span class="ident">Network</span>};
+<span class="kw">use</span> <span class="kw">super</span>::<span class="ident">gossip</span>::{<span class="ident">NeighborPacket</span>, <span class="ident">GossipMessage</span>};
 
 <span class="comment">// how often to rebroadcast, if no other</span>
 <span class="kw">const</span> <span class="ident">REBROADCAST_AFTER</span>: <span class="ident">Duration</span> <span class="op">=</span> <span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">2</span> <span class="op">*</span> <span class="number">60</span>);
@@ -180,16 +183,15 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// It may rebroadcast the last neighbor packet periodically when no</span>
 <span class="doccomment">/// progress is made.</span>
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">neighbor_packet_worker</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">N</span><span class="op">&gt;</span>(<span class="ident">net</span>: <span class="ident">N</span>) <span class="op">-</span><span class="op">&gt;</span> (
+<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">neighbor_packet_worker</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>(<span class="ident">net</span>: <span class="ident">GossipEngine</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> (
 	<span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">NeighborPacketSender</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 ) <span class="kw">where</span>
 	<span class="ident">B</span>: <span class="ident">BlockT</span>,
-	<span class="ident">N</span>: <span class="ident">Network</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 {
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">last</span> <span class="op">=</span> <span class="prelude-val">None</span>;
 	<span class="kw">let</span> (<span class="ident">tx</span>, <span class="kw-2">mut</span> <span class="ident">rx</span>) <span class="op">=</span> <span class="ident">mpsc</span>::<span class="ident">unbounded</span>::<span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">PeerId</span><span class="op">&gt;</span>, <span class="ident">NeighborPacket</span><span class="op">&lt;</span><span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>)<span class="op">&gt;</span>();
-	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">delay</span> <span class="op">=</span> <span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">rebroadcast_instant</span>());
+	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">delay</span> <span class="op">=</span> <span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">REBROADCAST_AFTER</span>);
 
 	<span class="kw">let</span> <span class="ident">work</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">poll_fn</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
 		<span class="kw">loop</span> {
@@ -210,7 +212,7 @@
 		<span class="comment">// has to be done in a loop because it needs to be polled after</span>
 		<span class="comment">// re-scheduling.</span>
 		<span class="kw">loop</span> {
-			<span class="kw">match</span> <span class="ident">delay</span>.<span class="ident">poll</span>() {
+			<span class="kw">match</span> (<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">delay</span>).<span class="ident">unit_error</span>().<span class="ident">compat</span>().<span class="ident">poll</span>() {
 				<span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> {
 					<span class="macro">warn</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;afg&quot;</span>, <span class="string">&quot;Could not rebroadcast neighbor packets: {:?}&quot;</span>, <span class="ident">e</span>);
 					<span class="ident">delay</span>.<span class="ident">reset</span>(<span class="ident">rebroadcast_instant</span>());

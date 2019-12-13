@@ -352,6 +352,7 @@ ALIASES["sc_executor"] = {};
 ALIASES["sc_finality_grandpa"] = {};
 ALIASES["sc_keystore"] = {};
 ALIASES["sc_network"] = {};
+ALIASES["sc_network_gossip"] = {};
 ALIASES["sc_network_test"] = {};
 ALIASES["sc_offchain"] = {};
 ALIASES["sc_peerset"] = {};

@@ -1,5 +1,5 @@
 (function() {var implementors = {};
-implementors["sc_network"] = [];
+implementors["sc_network_gossip"] = [];
 
             if (window.register_implementors) {
                 window.register_implementors(implementors);
