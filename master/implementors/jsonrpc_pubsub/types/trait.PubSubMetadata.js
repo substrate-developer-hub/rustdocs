@@ -1,5 +1,5 @@
 (function() {var implementors = {};
-implementors["sc_rpc"] = [{text:"impl <a class=\"trait\" href=\"jsonrpc_pubsub/types/trait.PubSubMetadata.html\" title=\"trait jsonrpc_pubsub::types::PubSubMetadata\">PubSubMetadata</a> for <a class=\"struct\" href=\"sc_rpc/struct.Metadata.html\" title=\"struct sc_rpc::Metadata\">Metadata</a>",synthetic:false,types:["sc_rpc::metadata::Metadata"]},];
+implementors["sc_rpc"] = [{"text":"impl <a class=\"trait\" href=\"jsonrpc_pubsub/types/trait.PubSubMetadata.html\" title=\"trait jsonrpc_pubsub::types::PubSubMetadata\">PubSubMetadata</a> for <a class=\"struct\" href=\"sc_rpc/struct.Metadata.html\" title=\"struct sc_rpc::Metadata\">Metadata</a>","synthetic":false,"types":["sc_rpc::metadata::Metadata"]}];
 
             if (window.register_implementors) {
                 window.register_implementors(implementors);

@@ -518,6 +518,29 @@
 <span id="507">507</span>
 <span id="508">508</span>
 <span id="509">509</span>
+<span id="510">510</span>
+<span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
+<span id="514">514</span>
+<span id="515">515</span>
+<span id="516">516</span>
+<span id="517">517</span>
+<span id="518">518</span>
+<span id="519">519</span>
+<span id="520">520</span>
+<span id="521">521</span>
+<span id="522">522</span>
+<span id="523">523</span>
+<span id="524">524</span>
+<span id="525">525</span>
+<span id="526">526</span>
+<span id="527">527</span>
+<span id="528">528</span>
+<span id="529">529</span>
+<span id="530">530</span>
+<span id="531">531</span>
+<span id="532">532</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -542,11 +565,12 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">RwLock</span>;
 
+<span class="kw">use</span> <span class="ident">primitives</span>::<span class="ident">storage</span>::{<span class="ident">ChildInfo</span>, <span class="ident">OwnedChildInfo</span>};
 <span class="kw">use</span> <span class="ident">state_machine</span>::{
 	<span class="ident">Backend</span> <span class="kw">as</span> <span class="ident">StateBackend</span>, <span class="ident">TrieBackend</span>, <span class="ident">backend</span>::<span class="ident">InMemory</span> <span class="kw">as</span> <span class="ident">InMemoryState</span>, <span class="ident">ChangesTrieTransaction</span>
 };
 <span class="kw">use</span> <span class="ident">primitives</span>::<span class="ident">offchain</span>::<span class="ident">storage</span>::<span class="ident">InMemOffchainStorage</span>;
-<span class="kw">use</span> <span class="ident">sp_runtime</span>::{<span class="ident">generic</span>::<span class="ident">BlockId</span>, <span class="ident">Justification</span>, <span class="ident">StorageOverlay</span>, <span class="ident">ChildrenStorageOverlay</span>};
+<span class="kw">use</span> <span class="ident">sp_runtime</span>::{<span class="ident">generic</span>::<span class="ident">BlockId</span>, <span class="ident">Justification</span>, <span class="ident">Storage</span>};
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">traits</span>::{<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">NumberFor</span>, <span class="ident">Zero</span>, <span class="ident">Header</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">in_mem</span>::{<span class="self">self</span>, <span class="ident">check_genesis_storage</span>};
 <span class="kw">use</span> <span class="ident">sp_blockchain</span>::{ <span class="ident">Error</span> <span class="kw">as</span> <span class="ident">ClientError</span>, <span class="prelude-ty">Result</span> <span class="kw">as</span> <span class="ident">ClientResult</span> };
@@ -801,22 +825,21 @@
 		<span class="prelude-val">Ok</span>(())
 	}
 
-	<span class="kw">fn</span> <span class="ident">reset_storage</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">top</span>: <span class="ident">StorageOverlay</span>, <span class="ident">children</span>: <span class="ident">ChildrenStorageOverlay</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">H</span>::<span class="ident">Out</span><span class="op">&gt;</span> {
-		<span class="ident">check_genesis_storage</span>(<span class="kw-2">&amp;</span><span class="ident">top</span>, <span class="kw-2">&amp;</span><span class="ident">children</span>)<span class="question-mark">?</span>;
+	<span class="kw">fn</span> <span class="ident">reset_storage</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">input</span>: <span class="ident">Storage</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">H</span>::<span class="ident">Out</span><span class="op">&gt;</span> {
+		<span class="ident">check_genesis_storage</span>(<span class="kw-2">&amp;</span><span class="ident">input</span>)<span class="question-mark">?</span>;
 
 		<span class="comment">// this is only called when genesis block is imported =&gt; shouldn&#39;t be performance bottleneck</span>
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">storage</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">StorageOverlay</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">HashMap</span>::<span class="ident">new</span>();
-		<span class="ident">storage</span>.<span class="ident">insert</span>(<span class="prelude-val">None</span>, <span class="ident">top</span>);
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">storage</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">OwnedChildInfo</span>)<span class="op">&gt;</span>, <span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">HashMap</span>::<span class="ident">new</span>();
+		<span class="ident">storage</span>.<span class="ident">insert</span>(<span class="prelude-val">None</span>, <span class="ident">input</span>.<span class="ident">top</span>);
 
 		<span class="comment">// create a list of children keys to re-compute roots for</span>
-		<span class="kw">let</span> <span class="ident">child_delta</span> <span class="op">=</span> <span class="ident">children</span>.<span class="ident">keys</span>()
-			.<span class="ident">cloned</span>()
-			.<span class="ident">map</span>(<span class="op">|</span><span class="ident">storage_key</span><span class="op">|</span> (<span class="ident">storage_key</span>, <span class="prelude-val">None</span>))
+		<span class="kw">let</span> <span class="ident">child_delta</span> <span class="op">=</span> <span class="ident">input</span>.<span class="ident">children</span>.<span class="ident">iter</span>()
+			.<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">storage_key</span>, <span class="ident">storage_child</span>)<span class="op">|</span> (<span class="ident">storage_key</span>.<span class="ident">clone</span>(), <span class="prelude-val">None</span>, <span class="ident">storage_child</span>.<span class="ident">child_info</span>.<span class="ident">clone</span>()))
 			.<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
 
 		<span class="comment">// make sure to persist the child storage</span>
-		<span class="kw">for</span> (<span class="ident">child_key</span>, <span class="ident">child_storage</span>) <span class="kw">in</span> <span class="ident">children</span> {
-			<span class="ident">storage</span>.<span class="ident">insert</span>(<span class="prelude-val">Some</span>(<span class="ident">child_key</span>), <span class="ident">child_storage</span>);
+		<span class="kw">for</span> (<span class="ident">child_key</span>, <span class="ident">storage_child</span>) <span class="kw">in</span> <span class="ident">input</span>.<span class="ident">children</span> {
+			<span class="ident">storage</span>.<span class="ident">insert</span>(<span class="prelude-val">Some</span>((<span class="ident">child_key</span>, <span class="ident">storage_child</span>.<span class="ident">child_info</span>)), <span class="ident">storage_child</span>.<span class="ident">data</span>);
 		}
 
 		<span class="kw">let</span> <span class="ident">storage_update</span>: <span class="ident">InMemoryState</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">storage</span>.<span class="ident">into</span>();
@@ -878,10 +901,15 @@
 		}
 	}
 
-	<span class="kw">fn</span> <span class="ident">child_storage</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">storage_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">child_storage</span>(
+		<span class="kw-2">&amp;</span><span class="self">self</span>,
+		<span class="ident">storage_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
+		<span class="ident">child_info</span>: <span class="ident">ChildInfo</span>,
+		<span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 		<span class="kw">match</span> <span class="kw-2">*</span><span class="self">self</span> {
 			<span class="ident">GenesisOrUnavailableState</span>::<span class="ident">Genesis</span>(<span class="kw-2">ref</span> <span class="ident">state</span>) <span class="op">=</span><span class="op">&gt;</span>
-				<span class="prelude-val">Ok</span>(<span class="ident">state</span>.<span class="ident">child_storage</span>(<span class="ident">storage_key</span>, <span class="ident">key</span>).<span class="ident">expect</span>(<span class="ident">IN_MEMORY_EXPECT_PROOF</span>)),
+				<span class="prelude-val">Ok</span>(<span class="ident">state</span>.<span class="ident">child_storage</span>(<span class="ident">storage_key</span>, <span class="ident">child_info</span>, <span class="ident">key</span>).<span class="ident">expect</span>(<span class="ident">IN_MEMORY_EXPECT_PROOF</span>)),
 			<span class="ident">GenesisOrUnavailableState</span>::<span class="ident">Unavailable</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">ClientError</span>::<span class="ident">NotAvailableOnLightClient</span>),
 		}
 	}
@@ -894,10 +922,17 @@
 		}
 	}
 
-	<span class="kw">fn</span> <span class="ident">next_child_storage_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">storage_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">next_child_storage_key</span>(
+		<span class="kw-2">&amp;</span><span class="self">self</span>,
+		<span class="ident">storage_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
+		<span class="ident">child_info</span>: <span class="ident">ChildInfo</span>,
+		<span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
 		<span class="kw">match</span> <span class="kw-2">*</span><span class="self">self</span> {
-			<span class="ident">GenesisOrUnavailableState</span>::<span class="ident">Genesis</span>(<span class="kw-2">ref</span> <span class="ident">state</span>) <span class="op">=</span><span class="op">&gt;</span>
-				<span class="prelude-val">Ok</span>(<span class="ident">state</span>.<span class="ident">next_child_storage_key</span>(<span class="ident">storage_key</span>, <span class="ident">key</span>).<span class="ident">expect</span>(<span class="ident">IN_MEMORY_EXPECT_PROOF</span>)),
+			<span class="ident">GenesisOrUnavailableState</span>::<span class="ident">Genesis</span>(<span class="kw-2">ref</span> <span class="ident">state</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(
+				<span class="ident">state</span>.<span class="ident">next_child_storage_key</span>(<span class="ident">storage_key</span>, <span class="ident">child_info</span>, <span class="ident">key</span>)
+					.<span class="ident">expect</span>(<span class="ident">IN_MEMORY_EXPECT_PROOF</span>)
+			),
 			<span class="ident">GenesisOrUnavailableState</span>::<span class="ident">Unavailable</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">ClientError</span>::<span class="ident">NotAvailableOnLightClient</span>),
 		}
 	}
@@ -916,10 +951,15 @@
 		}
 	}
 
-
-	<span class="kw">fn</span> <span class="ident">for_keys_in_child_storage</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">FnMut</span>(<span class="kw-2">&amp;</span>[<span class="ident">u8</span>])<span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">storage_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">action</span>: <span class="ident">A</span>) {
+	<span class="kw">fn</span> <span class="ident">for_keys_in_child_storage</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">FnMut</span>(<span class="kw-2">&amp;</span>[<span class="ident">u8</span>])<span class="op">&gt;</span>(
+		<span class="kw-2">&amp;</span><span class="self">self</span>,
+		<span class="ident">storage_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
+		<span class="ident">child_info</span>: <span class="ident">ChildInfo</span>,
+		<span class="ident">action</span>: <span class="ident">A</span>,
+	) {
 		<span class="kw">match</span> <span class="kw-2">*</span><span class="self">self</span> {
-			<span class="ident">GenesisOrUnavailableState</span>::<span class="ident">Genesis</span>(<span class="kw-2">ref</span> <span class="ident">state</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">state</span>.<span class="ident">for_keys_in_child_storage</span>(<span class="ident">storage_key</span>, <span class="ident">action</span>),
+			<span class="ident">GenesisOrUnavailableState</span>::<span class="ident">Genesis</span>(<span class="kw-2">ref</span> <span class="ident">state</span>) <span class="op">=</span><span class="op">&gt;</span>
+				<span class="ident">state</span>.<span class="ident">for_keys_in_child_storage</span>(<span class="ident">storage_key</span>, <span class="ident">child_info</span>, <span class="ident">action</span>),
 			<span class="ident">GenesisOrUnavailableState</span>::<span class="ident">Unavailable</span> <span class="op">=</span><span class="op">&gt;</span> (),
 		}
 	}
@@ -927,12 +967,13 @@
 	<span class="kw">fn</span> <span class="ident">for_child_keys_with_prefix</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">FnMut</span>(<span class="kw-2">&amp;</span>[<span class="ident">u8</span>])<span class="op">&gt;</span>(
 		<span class="kw-2">&amp;</span><span class="self">self</span>,
 		<span class="ident">storage_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
+		<span class="ident">child_info</span>: <span class="ident">ChildInfo</span>,
 		<span class="ident">prefix</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
 		<span class="ident">action</span>: <span class="ident">A</span>,
 	) {
 		<span class="kw">match</span> <span class="kw-2">*</span><span class="self">self</span> {
 			<span class="ident">GenesisOrUnavailableState</span>::<span class="ident">Genesis</span>(<span class="kw-2">ref</span> <span class="ident">state</span>) <span class="op">=</span><span class="op">&gt;</span>
-				<span class="ident">state</span>.<span class="ident">for_child_keys_with_prefix</span>(<span class="ident">storage_key</span>, <span class="ident">prefix</span>, <span class="ident">action</span>),
+				<span class="ident">state</span>.<span class="ident">for_child_keys_with_prefix</span>(<span class="ident">storage_key</span>, <span class="ident">child_info</span>, <span class="ident">prefix</span>, <span class="ident">action</span>),
 			<span class="ident">GenesisOrUnavailableState</span>::<span class="ident">Unavailable</span> <span class="op">=</span><span class="op">&gt;</span> (),
 		}
 	}
@@ -948,13 +989,18 @@
 		}
 	}
 
-	<span class="kw">fn</span> <span class="ident">child_storage_root</span><span class="op">&lt;</span><span class="ident">I</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">delta</span>: <span class="ident">I</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">H</span>::<span class="ident">Out</span>, <span class="ident">bool</span>, <span class="self">Self</span>::<span class="ident">Transaction</span>)
+	<span class="kw">fn</span> <span class="ident">child_storage_root</span><span class="op">&lt;</span><span class="ident">I</span><span class="op">&gt;</span>(
+		<span class="kw-2">&amp;</span><span class="self">self</span>,
+		<span class="ident">storage_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
+		<span class="ident">child_info</span>: <span class="ident">ChildInfo</span>,
+		<span class="ident">delta</span>: <span class="ident">I</span>,
+	) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">H</span>::<span class="ident">Out</span>, <span class="ident">bool</span>, <span class="self">Self</span>::<span class="ident">Transaction</span>)
 	<span class="kw">where</span>
 		<span class="ident">I</span>: <span class="ident">IntoIterator</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>)<span class="op">&gt;</span>
 	{
 		<span class="kw">match</span> <span class="kw-2">*</span><span class="self">self</span> {
 			<span class="ident">GenesisOrUnavailableState</span>::<span class="ident">Genesis</span>(<span class="kw-2">ref</span> <span class="ident">state</span>) <span class="op">=</span><span class="op">&gt;</span> {
-				<span class="kw">let</span> (<span class="ident">root</span>, <span class="ident">is_equal</span>, <span class="kw">_</span>) <span class="op">=</span> <span class="ident">state</span>.<span class="ident">child_storage_root</span>(<span class="ident">key</span>, <span class="ident">delta</span>);
+				<span class="kw">let</span> (<span class="ident">root</span>, <span class="ident">is_equal</span>, <span class="kw">_</span>) <span class="op">=</span> <span class="ident">state</span>.<span class="ident">child_storage_root</span>(<span class="ident">storage_key</span>, <span class="ident">child_info</span>, <span class="ident">delta</span>);
 				(<span class="ident">root</span>, <span class="ident">is_equal</span>, ())
 			},
 			<span class="ident">GenesisOrUnavailableState</span>::<span class="ident">Unavailable</span> <span class="op">=</span><span class="op">&gt;</span> (<span class="ident">H</span>::<span class="ident">Out</span>::<span class="ident">default</span>(), <span class="bool-val">true</span>, ()),
@@ -999,7 +1045,7 @@
 		<span class="kw">let</span> <span class="ident">backend</span>: <span class="ident">Backend</span><span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Backend</span>::<span class="ident">new</span>(<span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">DummyBlockchain</span>::<span class="ident">new</span>(<span class="ident">DummyStorage</span>::<span class="ident">new</span>())));
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">op</span> <span class="op">=</span> <span class="ident">backend</span>.<span class="ident">begin_operation</span>().<span class="ident">unwrap</span>();
 		<span class="ident">op</span>.<span class="ident">set_block_data</span>(<span class="ident">header0</span>, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, <span class="ident">NewBlockState</span>::<span class="ident">Final</span>).<span class="ident">unwrap</span>();
-		<span class="ident">op</span>.<span class="ident">reset_storage</span>(<span class="ident">Default</span>::<span class="ident">default</span>(), <span class="ident">Default</span>::<span class="ident">default</span>()).<span class="ident">unwrap</span>();
+		<span class="ident">op</span>.<span class="ident">reset_storage</span>(<span class="ident">Default</span>::<span class="ident">default</span>()).<span class="ident">unwrap</span>();
 		<span class="ident">backend</span>.<span class="ident">commit_operation</span>(<span class="ident">op</span>).<span class="ident">unwrap</span>();
 
 		<span class="kw">match</span> <span class="ident">backend</span>.<span class="ident">state_at</span>(<span class="ident">BlockId</span>::<span class="ident">Number</span>(<span class="number">0</span>)).<span class="ident">unwrap</span>() {

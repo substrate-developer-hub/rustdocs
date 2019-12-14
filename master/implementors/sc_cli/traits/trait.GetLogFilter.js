@@ -1,5 +1,5 @@
 (function() {var implementors = {};
-implementors["node_cli"] = [{text:"impl <a class=\"trait\" href=\"sc_cli/traits/trait.GetLogFilter.html\" title=\"trait sc_cli::traits::GetLogFilter\">GetLogFilter</a> for <a class=\"enum\" href=\"node_cli/enum.CustomSubcommands.html\" title=\"enum node_cli::CustomSubcommands\">CustomSubcommands</a>",synthetic:false,types:["node_cli::cli::CustomSubcommands"]},];
+implementors["node_cli"] = [{"text":"impl <a class=\"trait\" href=\"sc_cli/traits/trait.GetLogFilter.html\" title=\"trait sc_cli::traits::GetLogFilter\">GetLogFilter</a> for <a class=\"enum\" href=\"node_cli/enum.CustomSubcommands.html\" title=\"enum node_cli::CustomSubcommands\">CustomSubcommands</a>","synthetic":false,"types":["node_cli::cli::CustomSubcommands"]}];
 
             if (window.register_implementors) {
                 window.register_implementors(implementors);

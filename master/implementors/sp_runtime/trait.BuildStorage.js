@@ -1,5 +1,5 @@
 (function() {var implementors = {};
-implementors["sc_chain_spec"] = [{text:"impl&lt;'a, G:&nbsp;<a class=\"trait\" href=\"sc_chain_spec/trait.RuntimeGenesis.html\" title=\"trait sc_chain_spec::RuntimeGenesis\">RuntimeGenesis</a>, E&gt; <a class=\"trait\" href=\"sp_runtime/trait.BuildStorage.html\" title=\"trait sp_runtime::BuildStorage\">BuildStorage</a> for &amp;'a <a class=\"struct\" href=\"sc_chain_spec/struct.ChainSpec.html\" title=\"struct sc_chain_spec::ChainSpec\">ChainSpec</a>&lt;G, E&gt;",synthetic:false,types:["sc_chain_spec::chain_spec::ChainSpec"]},];
+implementors["sc_chain_spec"] = [{"text":"impl&lt;'a, G:&nbsp;<a class=\"trait\" href=\"sc_chain_spec/trait.RuntimeGenesis.html\" title=\"trait sc_chain_spec::RuntimeGenesis\">RuntimeGenesis</a>, E&gt; <a class=\"trait\" href=\"sp_runtime/trait.BuildStorage.html\" title=\"trait sp_runtime::BuildStorage\">BuildStorage</a> for &amp;'a <a class=\"struct\" href=\"sc_chain_spec/struct.ChainSpec.html\" title=\"struct sc_chain_spec::ChainSpec\">ChainSpec</a>&lt;G, E&gt;","synthetic":false,"types":["sc_chain_spec::chain_spec::ChainSpec"]}];
 implementors["sp_runtime"] = [];
 
             if (window.register_implementors) {

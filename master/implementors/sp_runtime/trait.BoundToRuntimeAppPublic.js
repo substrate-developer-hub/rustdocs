@@ -1,5 +1,5 @@
 (function() {var implementors = {};
-implementors["sp_runtime"] = [{text:"impl <a class=\"trait\" href=\"sp_runtime/trait.BoundToRuntimeAppPublic.html\" title=\"trait sp_runtime::BoundToRuntimeAppPublic\">BoundToRuntimeAppPublic</a> for <a class=\"struct\" href=\"sp_runtime/testing/struct.UintAuthorityId.html\" title=\"struct sp_runtime::testing::UintAuthorityId\">UintAuthorityId</a>",synthetic:false,types:["sp_runtime::testing::UintAuthorityId"]},];
+implementors["sp_runtime"] = [{"text":"impl <a class=\"trait\" href=\"sp_runtime/trait.BoundToRuntimeAppPublic.html\" title=\"trait sp_runtime::BoundToRuntimeAppPublic\">BoundToRuntimeAppPublic</a> for <a class=\"struct\" href=\"sp_runtime/testing/struct.UintAuthorityId.html\" title=\"struct sp_runtime::testing::UintAuthorityId\">UintAuthorityId</a>","synthetic":false,"types":["sp_runtime::testing::UintAuthorityId"]}];
 
             if (window.register_implementors) {
                 window.register_implementors(implementors);
