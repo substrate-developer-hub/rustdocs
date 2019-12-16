@@ -217,7 +217,7 @@
 
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::{<span class="ident">Weak</span>, <span class="ident">Arc</span>};
 <span class="kw">use</span> <span class="ident">codec</span>::<span class="ident">Decode</span>;
-<span class="kw">use</span> <span class="ident">primitives</span>::{
+<span class="kw">use</span> <span class="ident">sp_core</span>::{
 	<span class="ident">ExecutionContext</span>,
 	<span class="ident">offchain</span>::{<span class="self">self</span>, <span class="ident">OffchainExt</span>, <span class="ident">TransactionPoolExt</span>},
 	<span class="ident">traits</span>::{<span class="ident">BareCryptoStorePtr</span>, <span class="ident">KeystoreExt</span>},
@@ -226,8 +226,8 @@
 	<span class="ident">generic</span>::<span class="ident">BlockId</span>,
 	<span class="ident">traits</span>,
 };
-<span class="kw">use</span> <span class="ident">state_machine</span>::{<span class="ident">ExecutionStrategy</span>, <span class="ident">ExecutionManager</span>, <span class="ident">DefaultHandler</span>};
-<span class="kw">use</span> <span class="ident">externalities</span>::<span class="ident">Extensions</span>;
+<span class="kw">use</span> <span class="ident">sp_state_machine</span>::{<span class="ident">ExecutionStrategy</span>, <span class="ident">ExecutionManager</span>, <span class="ident">DefaultHandler</span>};
+<span class="kw">use</span> <span class="ident">sp_externalities</span>::<span class="ident">Extensions</span>;
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">RwLock</span>;
 
 <span class="doccomment">/// Execution strategies settings.</span>
@@ -265,7 +265,7 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ExecutionExtensions</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">traits</span>::<span class="ident">Block</span><span class="op">&gt;</span> {
 	<span class="ident">strategies</span>: <span class="ident">ExecutionStrategies</span>,
 	<span class="ident">keystore</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">BareCryptoStorePtr</span><span class="op">&gt;</span>,
-	<span class="ident">transaction_pool</span>: <span class="ident">RwLock</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Weak</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">txpool_api</span>::<span class="ident">OffchainSubmitTransaction</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">transaction_pool</span>: <span class="ident">RwLock</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Weak</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">sp_transaction_pool</span>::<span class="ident">OffchainSubmitTransaction</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">traits</span>::<span class="ident">Block</span><span class="op">&gt;</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">ExecutionExtensions</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> {
@@ -299,7 +299,7 @@
 	<span class="doccomment">/// extension to be a `Weak` reference.</span>
 	<span class="doccomment">/// That&#39;s also the reason why it&#39;s being registered lazily instead of</span>
 	<span class="doccomment">/// during initialisation.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">register_transaction_pool</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">pool</span>: <span class="ident">Weak</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">txpool_api</span>::<span class="ident">OffchainSubmitTransaction</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>) {
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">register_transaction_pool</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">pool</span>: <span class="ident">Weak</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">sp_transaction_pool</span>::<span class="ident">OffchainSubmitTransaction</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>) {
 		<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">transaction_pool</span>.<span class="ident">write</span>() <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">pool</span>);
 	}
 
@@ -360,7 +360,7 @@
 <span class="doccomment">/// A wrapper type to pass `BlockId` to the actual transaction pool.</span>
 <span class="kw">struct</span> <span class="ident">TransactionPoolAdapter</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">traits</span>::<span class="ident">Block</span><span class="op">&gt;</span> {
 	<span class="ident">at</span>: <span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
-	<span class="ident">pool</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">txpool_api</span>::<span class="ident">OffchainSubmitTransaction</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">pool</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">sp_transaction_pool</span>::<span class="ident">OffchainSubmitTransaction</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">traits</span>::<span class="ident">Block</span><span class="op">&gt;</span> <span class="ident">offchain</span>::<span class="ident">TransactionPool</span> <span class="kw">for</span> <span class="ident">TransactionPoolAdapter</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> {

@@ -344,27 +344,27 @@
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">error</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">builder</span>::{<span class="ident">ServiceBuilderCommand</span>, <span class="ident">ServiceBuilder</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">error</span>::<span class="ident">Error</span>;
-<span class="kw">use</span> <span class="ident">chain_spec</span>::{<span class="ident">ChainSpec</span>, <span class="ident">RuntimeGenesis</span>, <span class="ident">Extension</span>};
+<span class="kw">use</span> <span class="ident">sc_chain_spec</span>::{<span class="ident">ChainSpec</span>, <span class="ident">RuntimeGenesis</span>, <span class="ident">Extension</span>};
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">warn</span>, <span class="ident">info</span>};
 <span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">future</span>, <span class="ident">prelude</span>::<span class="kw-2">*</span>};
 <span class="kw">use</span> <span class="ident">futures03</span>::{
 	<span class="ident">TryFutureExt</span> <span class="kw">as</span> <span class="kw">_</span>,
 };
-<span class="kw">use</span> <span class="ident">primitives</span>::{<span class="ident">Blake2Hasher</span>, <span class="ident">Hasher</span>};
+<span class="kw">use</span> <span class="ident">sp_core</span>::{<span class="ident">Blake2Hasher</span>, <span class="ident">Hasher</span>};
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">traits</span>::{
 	<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">NumberFor</span>, <span class="ident">One</span>, <span class="ident">Zero</span>, <span class="ident">Header</span>, <span class="ident">SaturatedConversion</span>
 };
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">generic</span>::{<span class="ident">BlockId</span>, <span class="ident">SignedBlock</span>};
 <span class="kw">use</span> <span class="ident">codec</span>::{<span class="ident">Decode</span>, <span class="ident">Encode</span>, <span class="ident">IoReader</span>};
-<span class="kw">use</span> <span class="ident">client</span>::<span class="ident">Client</span>;
-<span class="kw">use</span> <span class="ident">consensus_common</span>::<span class="ident">import_queue</span>::{<span class="ident">IncomingBlock</span>, <span class="ident">Link</span>, <span class="ident">BlockImportError</span>, <span class="ident">BlockImportResult</span>, <span class="ident">ImportQueue</span>};
-<span class="kw">use</span> <span class="ident">consensus_common</span>::<span class="ident">BlockOrigin</span>;
+<span class="kw">use</span> <span class="ident">sc_client</span>::<span class="ident">Client</span>;
+<span class="kw">use</span> <span class="ident">sp_consensus</span>::<span class="ident">import_queue</span>::{<span class="ident">IncomingBlock</span>, <span class="ident">Link</span>, <span class="ident">BlockImportError</span>, <span class="ident">BlockImportResult</span>, <span class="ident">ImportQueue</span>};
+<span class="kw">use</span> <span class="ident">sp_consensus</span>::<span class="ident">BlockOrigin</span>;
 
 <span class="kw">use</span> <span class="ident">std</span>::{
 	<span class="ident">io</span>::{<span class="ident">Read</span>, <span class="ident">Write</span>, <span class="ident">Seek</span>},
 };
 
-<span class="kw">use</span> <span class="ident">network</span>::<span class="ident">message</span>;
+<span class="kw">use</span> <span class="ident">sc_network</span>::<span class="ident">message</span>;
 
 <span class="doccomment">/// Build a chain spec json</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">build_spec</span><span class="op">&lt;</span><span class="ident">G</span>, <span class="ident">E</span><span class="op">&gt;</span>(<span class="ident">spec</span>: <span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">G</span>, <span class="ident">E</span><span class="op">&gt;</span>, <span class="ident">raw</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span> <span class="kw">where</span>
@@ -383,8 +383,8 @@
 	<span class="ident">TFchr</span>, <span class="ident">TSc</span>, <span class="ident">TImpQu</span>, <span class="ident">TFprb</span>, <span class="ident">TFpp</span>, <span class="ident">TNetP</span>, <span class="ident">TExPool</span>, <span class="ident">TRpc</span>, <span class="ident">Backend</span>
 <span class="op">&gt;</span> <span class="kw">where</span>
 	<span class="ident">TBl</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">Blake2Hasher</span> <span class="kw">as</span> <span class="ident">Hasher</span><span class="op">&gt;</span>::<span class="ident">Out</span><span class="op">&gt;</span>,
-	<span class="ident">TBackend</span>: <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">client_api</span>::<span class="ident">backend</span>::<span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">TBl</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span>,
-	<span class="ident">TExec</span>: <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">client</span>::<span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">TBl</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="ident">Clone</span>,
+	<span class="ident">TBackend</span>: <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">sc_client_api</span>::<span class="ident">backend</span>::<span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">TBl</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span>,
+	<span class="ident">TExec</span>: <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">sc_client</span>::<span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">TBl</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="ident">Clone</span>,
 	<span class="ident">TImpQu</span>: <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">ImportQueue</span><span class="op">&lt;</span><span class="ident">TBl</span><span class="op">&gt;</span>,
 	<span class="ident">TRtApi</span>: <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
 {
