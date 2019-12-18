@@ -385,6 +385,8 @@
 <span id="374">374</span>
 <span id="375">375</span>
 <span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -420,10 +422,10 @@
 
 <span class="kw">use</span> <span class="kw">crate</span>::{
 	<span class="ident">global_communication</span>, <span class="ident">CommandOrError</span>, <span class="ident">CommunicationIn</span>, <span class="ident">Config</span>, <span class="ident">environment</span>,
-	<span class="ident">LinkHalf</span>, <span class="ident">Network</span>, <span class="ident">Error</span>, <span class="ident">aux_schema</span>::<span class="ident">PersistentData</span>, <span class="ident">VoterCommand</span>, <span class="ident">VoterSetState</span>,
+	<span class="ident">LinkHalf</span>, <span class="ident">Error</span>, <span class="ident">aux_schema</span>::<span class="ident">PersistentData</span>, <span class="ident">VoterCommand</span>, <span class="ident">VoterSetState</span>,
 };
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">authorities</span>::<span class="ident">SharedAuthoritySet</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">communication</span>::<span class="ident">NetworkBridge</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">communication</span>::{<span class="ident">Network</span> <span class="kw">as</span> <span class="ident">NetworkT</span>, <span class="ident">NetworkBridge</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">consensus_changes</span>::<span class="ident">SharedConsensusChanges</span>;
 <span class="kw">use</span> <span class="ident">sp_finality_grandpa</span>::<span class="ident">AuthorityId</span>;
 
@@ -548,7 +550,7 @@
 ) <span class="op">-</span><span class="op">&gt;</span> ::<span class="ident">sp_blockchain</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span>(),<span class="ident">Error</span><span class="op">=</span>()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="kw">where</span>
 	<span class="ident">B</span>: <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">E</span>: <span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-	<span class="ident">N</span>: <span class="ident">Network</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+	<span class="ident">N</span>: <span class="ident">NetworkT</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">SC</span>: <span class="ident">SelectChain</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>: <span class="ident">BlockNumberOps</span>,
 	<span class="ident">RA</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
@@ -590,18 +592,19 @@
 
 <span class="doccomment">/// Future that powers the observer.</span>
 <span class="attribute">#[<span class="ident">must_use</span>]</span>
-<span class="kw">struct</span> <span class="ident">ObserverWork</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">E</span>, <span class="ident">Backend</span>, <span class="ident">RA</span><span class="op">&gt;</span> {
+<span class="kw">struct</span> <span class="ident">ObserverWork</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">N</span>: <span class="ident">NetworkT</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">E</span>, <span class="ident">Backend</span>, <span class="ident">RA</span><span class="op">&gt;</span> {
 	<span class="ident">observer</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> <span class="ident">CommandOrError</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span>,
 	<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Client</span><span class="op">&lt;</span><span class="ident">Backend</span>, <span class="ident">E</span>, <span class="ident">B</span>, <span class="ident">RA</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-	<span class="ident">network</span>: <span class="ident">NetworkBridge</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+	<span class="ident">network</span>: <span class="ident">NetworkBridge</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">N</span><span class="op">&gt;</span>,
 	<span class="ident">persistent_data</span>: <span class="ident">PersistentData</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 	<span class="ident">keystore</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">sc_keystore</span>::<span class="ident">KeyStorePtr</span><span class="op">&gt;</span>,
 	<span class="ident">voter_commands_rx</span>: <span class="ident">mpsc</span>::<span class="ident">UnboundedReceiver</span><span class="op">&lt;</span><span class="ident">VoterCommand</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Bk</span>, <span class="ident">RA</span><span class="op">&gt;</span> <span class="ident">ObserverWork</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Bk</span>, <span class="ident">RA</span><span class="op">&gt;</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">N</span>, <span class="ident">E</span>, <span class="ident">Bk</span>, <span class="ident">RA</span><span class="op">&gt;</span> <span class="ident">ObserverWork</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">N</span>, <span class="ident">E</span>, <span class="ident">Bk</span>, <span class="ident">RA</span><span class="op">&gt;</span>
 <span class="kw">where</span>
 	<span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>,
+	<span class="ident">N</span>: <span class="ident">NetworkT</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 	<span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>: <span class="ident">BlockNumberOps</span>,
 	<span class="ident">RA</span>: <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
 	<span class="ident">E</span>: <span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
@@ -609,7 +612,7 @@
 {
 	<span class="kw">fn</span> <span class="ident">new</span>(
 		<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Client</span><span class="op">&lt;</span><span class="ident">Bk</span>, <span class="ident">E</span>, <span class="ident">B</span>, <span class="ident">RA</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-		<span class="ident">network</span>: <span class="ident">NetworkBridge</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+		<span class="ident">network</span>: <span class="ident">NetworkBridge</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">N</span><span class="op">&gt;</span>,
 		<span class="ident">persistent_data</span>: <span class="ident">PersistentData</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 		<span class="ident">keystore</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">sc_keystore</span>::<span class="ident">KeyStorePtr</span><span class="op">&gt;</span>,
 		<span class="ident">voter_commands_rx</span>: <span class="ident">mpsc</span>::<span class="ident">UnboundedReceiver</span><span class="op">&lt;</span><span class="ident">VoterCommand</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -713,9 +716,10 @@
 	}
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Bk</span>, <span class="ident">RA</span><span class="op">&gt;</span> <span class="ident">Future</span> <span class="kw">for</span> <span class="ident">ObserverWork</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Bk</span>, <span class="ident">RA</span><span class="op">&gt;</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">N</span>, <span class="ident">E</span>, <span class="ident">Bk</span>, <span class="ident">RA</span><span class="op">&gt;</span> <span class="ident">Future</span> <span class="kw">for</span> <span class="ident">ObserverWork</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">N</span>, <span class="ident">E</span>, <span class="ident">Bk</span>, <span class="ident">RA</span><span class="op">&gt;</span>
 <span class="kw">where</span>
 	<span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>,
+	<span class="ident">N</span>: <span class="ident">NetworkT</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 	<span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>: <span class="ident">BlockNumberOps</span>,
 	<span class="ident">RA</span>: <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
 	<span class="ident">E</span>: <span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
