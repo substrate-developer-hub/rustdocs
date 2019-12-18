@@ -331,6 +331,40 @@
 <span id="320">320</span>
 <span id="321">321</span>
 <span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -389,6 +423,38 @@
 }
 
 <span class="doccomment">/// Possible transaction status events.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// This events are being emitted by `TransactionPool` watchers,</span>
+<span class="doccomment">/// which are also exposed over RPC.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// The status events can be grouped based on their kinds as:</span>
+<span class="doccomment">/// 1. Entering/Moving within the pool:</span>
+<span class="doccomment">///		- `Future`</span>
+<span class="doccomment">///		- `Ready`</span>
+<span class="doccomment">/// 2. Inside `Ready` queue:</span>
+<span class="doccomment">///		- `Broadcast`</span>
+<span class="doccomment">/// 3. Leaving the pool:</span>
+<span class="doccomment">///		- `InBlock`</span>
+<span class="doccomment">///		- `Invalid`</span>
+<span class="doccomment">///		- `Usurped`</span>
+<span class="doccomment">///		- `Dropped`</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// The events will always be received in the order described above, however</span>
+<span class="doccomment">/// there might be cases where transactions alternate between `Future` and `Ready`</span>
+<span class="doccomment">/// pool, and are `Broadcast` in the meantime.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// There is also only single event causing the transaction to leave the pool.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// Note that there are conditions that may cause transactions to reappear in the pool.</span>
+<span class="doccomment">/// 1. Due to possible forks, the transaction that ends up being in included</span>
+<span class="doccomment">/// in one block, may later re-enter the pool or be marked as invalid.</span>
+<span class="doccomment">/// 2. Transaction `Dropped` at one point, may later re-enter the pool if some other</span>
+<span class="doccomment">/// transactions are removed.</span>
+<span class="doccomment">/// 3. `Invalid` transaction may become valid at some point in the future.</span>
+<span class="doccomment">/// (Note that runtimes are encouraged to use `UnknownValidity` to inform the pool about</span>
+<span class="doccomment">/// such case).</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// However the user needs to re-subscribe to receive such notifications.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
 <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">rename_all</span> <span class="op">=</span> <span class="string">&quot;camelCase&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">TransactionStatus</span><span class="op">&lt;</span><span class="ident">Hash</span>, <span class="ident">BlockHash</span><span class="op">&gt;</span> {
@@ -396,15 +462,17 @@
 	<span class="ident">Future</span>,
 	<span class="doccomment">/// Transaction is part of the ready queue.</span>
 	<span class="ident">Ready</span>,
-	<span class="doccomment">/// Transaction has been finalized in block with given hash.</span>
-	<span class="ident">Finalized</span>(<span class="ident">BlockHash</span>),
-	<span class="doccomment">/// Some state change (perhaps another transaction was included) rendered this transaction invalid.</span>
-	<span class="ident">Usurped</span>(<span class="ident">Hash</span>),
 	<span class="doccomment">/// The transaction has been broadcast to the given peers.</span>
 	<span class="ident">Broadcast</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>),
+	<span class="doccomment">/// Transaction has been included in block with given hash.</span>
+	<span class="attribute">#[<span class="ident">serde</span>(<span class="ident">rename</span> <span class="op">=</span> <span class="string">&quot;finalized&quot;</span>)]</span> <span class="comment">// See #4438</span>
+	<span class="ident">InBlock</span>(<span class="ident">BlockHash</span>),
+	<span class="doccomment">/// Transaction has been replaced in the pool, by another transaction</span>
+	<span class="doccomment">/// that provides the same tags. (e.g. same (sender, nonce)).</span>
+	<span class="ident">Usurped</span>(<span class="ident">Hash</span>),
 	<span class="doccomment">/// Transaction has been dropped from the pool because of the limit.</span>
 	<span class="ident">Dropped</span>,
-	<span class="doccomment">/// Transaction was detected as invalid.</span>
+	<span class="doccomment">/// Transaction is no longer valid in the current state.</span>
 	<span class="ident">Invalid</span>,
 }
 
