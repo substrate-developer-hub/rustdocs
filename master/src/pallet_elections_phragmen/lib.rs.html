@@ -2047,6 +2047,7 @@
 <span id="2036">2036</span>
 <span id="2037">2037</span>
 <span id="2038">2038</span>
+<span id="2039">2039</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -2133,9 +2134,9 @@
 <span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>), <span class="ident">no_std</span>)]</span>
 
 <span class="kw">use</span> <span class="ident">sp_std</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
-<span class="kw">use</span> <span class="ident">sp_runtime</span>::{<span class="ident">print</span>, <span class="ident">traits</span>::{<span class="ident">Zero</span>, <span class="ident">StaticLookup</span>, <span class="ident">Bounded</span>, <span class="ident">Convert</span>}};
+<span class="kw">use</span> <span class="ident">sp_runtime</span>::{<span class="ident">print</span>, <span class="ident">DispatchResult</span>, <span class="ident">traits</span>::{<span class="ident">Zero</span>, <span class="ident">StaticLookup</span>, <span class="ident">Bounded</span>, <span class="ident">Convert</span>}};
 <span class="kw">use</span> <span class="ident">frame_support</span>::{
-	<span class="ident">decl_storage</span>, <span class="ident">decl_event</span>, <span class="ident">ensure</span>, <span class="ident">decl_module</span>, <span class="ident">dispatch</span>, <span class="ident">weights</span>::<span class="ident">SimpleDispatchInfo</span>,
+	<span class="ident">decl_storage</span>, <span class="ident">decl_event</span>, <span class="ident">ensure</span>, <span class="ident">decl_module</span>, <span class="ident">weights</span>::<span class="ident">SimpleDispatchInfo</span>,
 	<span class="ident">traits</span>::{
 		<span class="ident">Currency</span>, <span class="ident">Get</span>, <span class="ident">LockableCurrency</span>, <span class="ident">LockIdentifier</span>, <span class="ident">ReservableCurrency</span>, <span class="ident">WithdrawReasons</span>,
 		<span class="ident">ChangeMembers</span>, <span class="ident">OnUnbalanced</span>, <span class="ident">WithdrawReason</span>
@@ -2423,7 +2424,7 @@
 				<span class="kw">return</span> <span class="prelude-val">Ok</span>(());
 			}
 
-			<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="string">&quot;origin is not a candidate, member or a runner up.&quot;</span>);
+			<span class="prelude-val">Err</span>(<span class="string">&quot;origin is not a candidate, member or a runner up.&quot;</span>)<span class="question-mark">?</span>
 		}
 
 		<span class="doccomment">/// Remove a particular member from the set. This is effective immediately and the bond of</span>
@@ -2440,7 +2441,7 @@
 		<span class="doccomment">/// Writes: O(do_phragmen)</span>
 		<span class="doccomment">/// # &lt;/weight&gt;</span>
 		<span class="attribute">#[<span class="ident">weight</span> <span class="op">=</span> <span class="ident">SimpleDispatchInfo</span>::<span class="ident">FixedOperational</span>(<span class="number">2_000_000</span>)]</span>
-		<span class="kw">fn</span> <span class="ident">remove_member</span>(<span class="ident">origin</span>, <span class="ident">who</span>: <span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">Lookup</span> <span class="kw">as</span> <span class="ident">StaticLookup</span><span class="op">&gt;</span>::<span class="ident">Source</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">dispatch</span>::<span class="prelude-ty">Result</span> {
+		<span class="kw">fn</span> <span class="ident">remove_member</span>(<span class="ident">origin</span>, <span class="ident">who</span>: <span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">Lookup</span> <span class="kw">as</span> <span class="ident">StaticLookup</span><span class="op">&gt;</span>::<span class="ident">Source</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">DispatchResult</span> {
 			<span class="ident">ensure_root</span>(<span class="ident">origin</span>)<span class="question-mark">?</span>;
 			<span class="kw">let</span> <span class="ident">who</span> <span class="op">=</span> <span class="ident">T</span>::<span class="ident">Lookup</span>::<span class="ident">lookup</span>(<span class="ident">who</span>)<span class="question-mark">?</span>;
 
@@ -2452,7 +2453,7 @@
 				<span class="kw">if</span> <span class="op">!</span><span class="ident">had_replacement</span> {
 					<span class="self">Self</span>::<span class="ident">do_phragmen</span>();
 				}
-			})
+			}).<span class="ident">map_err</span>(<span class="ident">Into</span>::<span class="ident">into</span>)
 		}
 
 		<span class="doccomment">/// What to do at the end of each block. Checks if an election needs to happen or not.</span>
@@ -2616,7 +2617,7 @@
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// Runs phragmen election and cleans all the previous candidate state. The voter state is NOT</span>
 	<span class="doccomment">/// cleaned and voters must themselves submit a transaction to retract.</span>
-	<span class="kw">fn</span> <span class="ident">end_block</span>(<span class="ident">block_number</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">dispatch</span>::<span class="prelude-ty">Result</span> {
+	<span class="kw">fn</span> <span class="ident">end_block</span>(<span class="ident">block_number</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">DispatchResult</span> {
 		<span class="kw">if</span> <span class="op">!</span><span class="self">Self</span>::<span class="ident">term_duration</span>().<span class="ident">is_zero</span>() {
 			<span class="kw">if</span> (<span class="ident">block_number</span> <span class="op">%</span> <span class="self">Self</span>::<span class="ident">term_duration</span>()).<span class="ident">is_zero</span>() {
 				<span class="self">Self</span>::<span class="ident">do_phragmen</span>();
@@ -2818,6 +2819,7 @@
 		<span class="kw">type</span> <span class="ident">MaximumBlockLength</span> <span class="op">=</span> <span class="ident">MaximumBlockLength</span>;
 		<span class="kw">type</span> <span class="ident">AvailableBlockRatio</span> <span class="op">=</span> <span class="ident">AvailableBlockRatio</span>;
 		<span class="kw">type</span> <span class="ident">Version</span> <span class="op">=</span> ();
+		<span class="kw">type</span> <span class="ident">ModuleToIndex</span> <span class="op">=</span> ();
 	}
 
 	<span class="macro">parameter_types</span><span class="macro">!</span> {

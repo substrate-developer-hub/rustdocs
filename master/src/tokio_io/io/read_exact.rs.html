@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/tokio-io-0.2.0-alpha.6/src/io/read_exact.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>read_exact.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/tokio-io-0.1.12/src/io/read_exact.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>read_exact.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -83,79 +83,101 @@
 <span id="72">72</span>
 <span id="73">73</span>
 <span id="74">74</span>
+<span id="75">75</span>
+<span id="76">76</span>
+<span id="77">77</span>
+<span id="78">78</span>
+<span id="79">79</span>
+<span id="80">80</span>
+<span id="81">81</span>
+<span id="82">82</span>
+<span id="83">83</span>
+<span id="84">84</span>
+<span id="85">85</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">AsyncRead</span>;
-<span class="kw">use</span> <span class="ident">futures_core</span>::<span class="ident">ready</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">future</span>::<span class="ident">Future</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">io</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">marker</span>::<span class="ident">Unpin</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">pin</span>::<span class="ident">Pin</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>};
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">mem</span>;
+
+<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">Future</span>, <span class="ident">Poll</span>};
+
+<span class="kw">use</span> <span class="ident">AsyncRead</span>;
 
 <span class="doccomment">/// A future which can be used to easily read exactly enough bytes to fill</span>
 <span class="doccomment">/// a buffer.</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// Created by the [`AsyncRead::read_exact`].</span>
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">read_exact</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">A</span><span class="op">&gt;</span>(<span class="ident">reader</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">A</span>, <span class="ident">buf</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> [<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ReadExact</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">A</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">A</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span>,
-{
-    <span class="ident">ReadExact</span> {
-        <span class="ident">reader</span>,
-        <span class="ident">buf</span>,
-        <span class="ident">pos</span>: <span class="number">0</span>,
-    }
+<span class="doccomment">/// Created by the [`read_exact`] function.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// [`read_exact`]: fn.read_exact.html</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ReadExact</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">T</span><span class="op">&gt;</span> {
+    <span class="ident">state</span>: <span class="ident">State</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">T</span><span class="op">&gt;</span>,
+}
+
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
+<span class="kw">enum</span> <span class="ident">State</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">T</span><span class="op">&gt;</span> {
+    <span class="ident">Reading</span> { <span class="ident">a</span>: <span class="ident">A</span>, <span class="ident">buf</span>: <span class="ident">T</span>, <span class="ident">pos</span>: <span class="ident">usize</span> },
+    <span class="ident">Empty</span>,
 }
 
 <span class="doccomment">/// Creates a future which will read exactly enough bytes to fill `buf`,</span>
 <span class="doccomment">/// returning an error if EOF is hit sooner.</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// On success the number of bytes is returned</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
-<span class="attribute">#[<span class="ident">must_use</span> <span class="op">=</span> <span class="string">&quot;futures do nothing unless you `.await` or poll them&quot;</span>]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ReadExact</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">A</span>: <span class="question-mark">?</span><span class="ident">Sized</span><span class="op">&gt;</span> {
-    <span class="ident">reader</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">A</span>,
-    <span class="ident">buf</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> [<span class="ident">u8</span>],
-    <span class="ident">pos</span>: <span class="ident">usize</span>,
+<span class="doccomment">/// The returned future will resolve to both the I/O stream as well as the</span>
+<span class="doccomment">/// buffer once the read operation is completed.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// In the case of an error the buffer and the object will be discarded, with</span>
+<span class="doccomment">/// the error yielded. In the case of success the object will be destroyed and</span>
+<span class="doccomment">/// the buffer will be returned, with all data read from the stream appended to</span>
+<span class="doccomment">/// the buffer.</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">read_exact</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">T</span><span class="op">&gt;</span>(<span class="ident">a</span>: <span class="ident">A</span>, <span class="ident">buf</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ReadExact</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">T</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">A</span>: <span class="ident">AsyncRead</span>,
+    <span class="ident">T</span>: <span class="ident">AsMut</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span>,
+{
+    <span class="ident">ReadExact</span> {
+        <span class="ident">state</span>: <span class="ident">State</span>::<span class="ident">Reading</span> {
+            <span class="ident">a</span>: <span class="ident">a</span>,
+            <span class="ident">buf</span>: <span class="ident">buf</span>,
+            <span class="ident">pos</span>: <span class="number">0</span>,
+        },
+    }
 }
 
 <span class="kw">fn</span> <span class="ident">eof</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="ident">Error</span> {
     <span class="ident">io</span>::<span class="ident">Error</span>::<span class="ident">new</span>(<span class="ident">io</span>::<span class="ident">ErrorKind</span>::<span class="ident">UnexpectedEof</span>, <span class="string">&quot;early eof&quot;</span>)
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> <span class="ident">Future</span> <span class="kw">for</span> <span class="ident">ReadExact</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">A</span><span class="op">&gt;</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Future</span> <span class="kw">for</span> <span class="ident">ReadExact</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">T</span><span class="op">&gt;</span>
 <span class="kw">where</span>
-    <span class="ident">A</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span>,
+    <span class="ident">A</span>: <span class="ident">AsyncRead</span>,
+    <span class="ident">T</span>: <span class="ident">AsMut</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span>,
 {
-    <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>;
+    <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> (<span class="ident">A</span>, <span class="ident">T</span>);
+    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">io</span>::<span class="ident">Error</span>;
 
-    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">loop</span> {
-            <span class="comment">// if our buffer is empty, then we need to read some data to continue.</span>
-            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">pos</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">buf</span>.<span class="ident">len</span>() {
-                <span class="kw">let</span> <span class="ident">me</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="self">self</span>;
-                <span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> <span class="macro">ready</span><span class="macro">!</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="ident">me</span>.<span class="ident">reader</span>).<span class="ident">poll_read</span>(<span class="ident">cx</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">me</span>.<span class="ident">buf</span>[<span class="ident">me</span>.<span class="ident">pos</span>..]))<span class="question-mark">?</span>;
-                <span class="ident">me</span>.<span class="ident">pos</span> <span class="op">+</span><span class="op">=</span> <span class="ident">n</span>;
-                <span class="kw">if</span> <span class="ident">n</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
-                    <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">eof</span>()).<span class="ident">into</span>();
+    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span>(<span class="ident">A</span>, <span class="ident">T</span>), <span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">state</span> {
+            <span class="ident">State</span>::<span class="ident">Reading</span> {
+                <span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">a</span>,
+                <span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">buf</span>,
+                <span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">pos</span>,
+            } <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="kw">let</span> <span class="ident">buf</span> <span class="op">=</span> <span class="ident">buf</span>.<span class="ident">as_mut</span>();
+                <span class="kw">while</span> <span class="kw-2">*</span><span class="ident">pos</span> <span class="op">&lt;</span> <span class="ident">buf</span>.<span class="ident">len</span>() {
+                    <span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> <span class="macro">try_ready</span><span class="macro">!</span>(<span class="ident">a</span>.<span class="ident">poll_read</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">buf</span>[<span class="kw-2">*</span><span class="ident">pos</span>..]));
+                    <span class="kw-2">*</span><span class="ident">pos</span> <span class="op">+</span><span class="op">=</span> <span class="ident">n</span>;
+                    <span class="kw">if</span> <span class="ident">n</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+                        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">eof</span>());
+                    }
                 }
             }
-
-            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">pos</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">buf</span>.<span class="ident">len</span>() {
-                <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">pos</span>));
-            }
+            <span class="ident">State</span>::<span class="ident">Empty</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;poll a ReadExact after it&#39;s done&quot;</span>),
         }
-    }
-}
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">mod</span> <span class="ident">tests</span> {
-    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">assert_unpin</span>() {
-        <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">marker</span>::<span class="ident">PhantomPinned</span>;
-        <span class="kw">crate</span>::<span class="ident">is_unpin</span>::<span class="op">&lt;</span><span class="ident">ReadExact</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">PhantomPinned</span><span class="op">&gt;</span><span class="op">&gt;</span>();
+        <span class="kw">match</span> <span class="ident">mem</span>::<span class="ident">replace</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">state</span>, <span class="ident">State</span>::<span class="ident">Empty</span>) {
+            <span class="ident">State</span>::<span class="ident">Reading</span> { <span class="ident">a</span>, <span class="ident">buf</span>, .. } <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>((<span class="ident">a</span>, <span class="ident">buf</span>).<span class="ident">into</span>()),
+            <span class="ident">State</span>::<span class="ident">Empty</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(),
+        }
     }
 }
 </pre></div>

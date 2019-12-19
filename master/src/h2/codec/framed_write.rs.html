@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/h2-0.2.0-alpha.3/src/codec/framed_write.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>framed_write.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/h2-0.2.1/src/codec/framed_write.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>framed_write.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -310,18 +310,46 @@
 <span id="299">299</span>
 <span id="300">300</span>
 <span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">codec</span>::<span class="ident">UserError</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">codec</span>::<span class="ident">UserError</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">frame</span>::{<span class="self">self</span>, <span class="ident">Frame</span>, <span class="ident">FrameSize</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">hpack</span>;
 
-<span class="kw">use</span> <span class="ident">bytes</span>::{<span class="ident">Buf</span>, <span class="ident">BufMut</span>, <span class="ident">BytesMut</span>};
+<span class="kw">use</span> <span class="ident">bytes</span>::{
+    <span class="ident">buf</span>::{<span class="ident">BufExt</span>, <span class="ident">BufMutExt</span>},
+    <span class="ident">Buf</span>, <span class="ident">BufMut</span>, <span class="ident">BytesMut</span>,
+};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">pin</span>::<span class="ident">Pin</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>};
-<span class="kw">use</span> <span class="ident">tokio_io</span>::{<span class="ident">AsyncRead</span>, <span class="ident">AsyncWrite</span>};
+<span class="kw">use</span> <span class="ident">tokio</span>::<span class="ident">io</span>::{<span class="ident">AsyncRead</span>, <span class="ident">AsyncWrite</span>};
 
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">io</span>::{<span class="self">self</span>, <span class="ident">Cursor</span>};
+
+<span class="comment">// A macro to get around a method needing to borrow &amp;mut self</span>
+<span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">limited_write_buf</span> {
+    (<span class="macro-nonterminal">$</span><span class="self">self</span>:<span class="macro-nonterminal">expr</span>) <span class="op">=</span><span class="op">&gt;</span> {{
+        <span class="kw">let</span> <span class="ident">limit</span> <span class="op">=</span> <span class="macro-nonterminal">$</span><span class="self">self</span>.<span class="macro-nonterminal">max_frame_size</span>() <span class="op">+</span> <span class="ident">frame</span>::<span class="ident">HEADER_LEN</span>;
+        <span class="macro-nonterminal">$</span><span class="self">self</span>.<span class="macro-nonterminal">buf</span>.<span class="ident">get_mut</span>().<span class="ident">limit</span>(<span class="ident">limit</span>)
+    }};
+}
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">FramedWrite</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">B</span><span class="op">&gt;</span> {
@@ -439,12 +467,14 @@
                 }
             }
             <span class="ident">Frame</span>::<span class="ident">Headers</span>(<span class="ident">v</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">continuation</span>) <span class="op">=</span> <span class="ident">v</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">hpack</span>, <span class="self">self</span>.<span class="ident">buf</span>.<span class="ident">get_mut</span>()) {
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf</span> <span class="op">=</span> <span class="macro">limited_write_buf</span><span class="macro">!</span>(<span class="self">self</span>);
+                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">continuation</span>) <span class="op">=</span> <span class="ident">v</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">hpack</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">buf</span>) {
                     <span class="self">self</span>.<span class="ident">next</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">Next</span>::<span class="ident">Continuation</span>(<span class="ident">continuation</span>));
                 }
             }
             <span class="ident">Frame</span>::<span class="ident">PushPromise</span>(<span class="ident">v</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">continuation</span>) <span class="op">=</span> <span class="ident">v</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">hpack</span>, <span class="self">self</span>.<span class="ident">buf</span>.<span class="ident">get_mut</span>()) {
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf</span> <span class="op">=</span> <span class="macro">limited_write_buf</span><span class="macro">!</span>(<span class="self">self</span>);
+                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">continuation</span>) <span class="op">=</span> <span class="ident">v</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">hpack</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">buf</span>) {
                     <span class="self">self</span>.<span class="ident">next</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">Next</span>::<span class="ident">Continuation</span>(<span class="ident">continuation</span>));
                 }
             }
@@ -490,7 +520,7 @@
                 <span class="kw">match</span> <span class="self">self</span>.<span class="ident">next</span> {
                     <span class="prelude-val">Some</span>(<span class="ident">Next</span>::<span class="ident">Data</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">frame</span>)) <span class="op">=</span><span class="op">&gt;</span> {
                         <span class="ident">log</span>::<span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;  -&gt; queued data frame&quot;</span>);
-                        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf</span> <span class="op">=</span> <span class="ident">Buf</span>::<span class="ident">by_ref</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">buf</span>).<span class="ident">chain</span>(<span class="ident">frame</span>.<span class="ident">payload_mut</span>());
+                        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf</span> <span class="op">=</span> (<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">buf</span>).<span class="ident">chain</span>(<span class="ident">frame</span>.<span class="ident">payload_mut</span>());
                         <span class="macro">ready</span><span class="macro">!</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">inner</span>).<span class="ident">poll_write_buf</span>(<span class="ident">cx</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">buf</span>))<span class="question-mark">?</span>;
                     }
                     <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> {
@@ -513,7 +543,8 @@
                 }
                 <span class="prelude-val">Some</span>(<span class="ident">Next</span>::<span class="ident">Continuation</span>(<span class="ident">frame</span>)) <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="comment">// Buffer the continuation frame, then try to write again</span>
-                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">continuation</span>) <span class="op">=</span> <span class="ident">frame</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">hpack</span>, <span class="self">self</span>.<span class="ident">buf</span>.<span class="ident">get_mut</span>()) {
+                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf</span> <span class="op">=</span> <span class="macro">limited_write_buf</span><span class="macro">!</span>(<span class="self">self</span>);
+                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">continuation</span>) <span class="op">=</span> <span class="ident">frame</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">hpack</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">buf</span>) {
                         <span class="comment">// We previously had a CONTINUATION, and after encoding</span>
                         <span class="comment">// it, we got *another* one? Let&#39;s just double check</span>
                         <span class="comment">// that at least some progress is being made...</span>
@@ -580,8 +611,8 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">Unpin</span>, <span class="ident">B</span>: <span class="ident">Unpin</span><span class="op">&gt;</span> <span class="ident">AsyncRead</span> <span class="kw">for</span> <span class="ident">FramedWrite</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">B</span><span class="op">&gt;</span> {
-    <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">prepare_uninitialized_buffer</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">buf</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">Unpin</span>, <span class="ident">B</span><span class="op">&gt;</span> <span class="ident">AsyncRead</span> <span class="kw">for</span> <span class="ident">FramedWrite</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">B</span><span class="op">&gt;</span> {
+    <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">prepare_uninitialized_buffer</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">buf</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">MaybeUninit</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
         <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">prepare_uninitialized_buffer</span>(<span class="ident">buf</span>)
     }
 
@@ -601,6 +632,9 @@
         <span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">inner</span>).<span class="ident">poll_read_buf</span>(<span class="ident">cx</span>, <span class="ident">buf</span>)
     }
 }
+
+<span class="comment">// We never project the Pin to `B`.</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Unpin</span>, <span class="ident">B</span><span class="op">&gt;</span> <span class="ident">Unpin</span> <span class="kw">for</span> <span class="ident">FramedWrite</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">B</span><span class="op">&gt;</span> {}
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;unstable&quot;</span>)]</span>
 <span class="kw">mod</span> <span class="ident">unstable</span> {

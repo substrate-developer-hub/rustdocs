@@ -169,8 +169,6 @@
 <span id="158">158</span>
 <span id="159">159</span>
 <span id="160">160</span>
-<span id="161">161</span>
-<span id="162">162</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -191,7 +189,7 @@
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Serialize</span>, <span class="ident">de</span>::<span class="ident">DeserializeOwned</span>};
 <span class="kw">use</span> <span class="ident">hyper</span>::{<span class="ident">Body</span>, <span class="ident">Request</span>, <span class="ident">Response</span>, <span class="ident">header</span>, <span class="ident">service</span>::{<span class="ident">service_fn</span>, <span class="ident">make_service_fn</span>}, <span class="ident">Server</span>};
 <span class="kw">use</span> <span class="ident">chrono</span>::{<span class="ident">Duration</span>, <span class="ident">Utc</span>};
-<span class="kw">use</span> <span class="ident">futures_util</span>::{<span class="ident">FutureExt</span>, <span class="ident">future</span>::{<span class="ident">Future</span>, <span class="ident">select</span>, <span class="ident">Either</span>}};
+<span class="kw">use</span> <span class="ident">futures_util</span>::{<span class="ident">FutureExt</span>, <span class="ident">TryStreamExt</span>, <span class="ident">future</span>::{<span class="ident">Future</span>, <span class="ident">select</span>, <span class="ident">Either</span>}};
 <span class="kw">use</span> <span class="ident">futures_timer</span>::<span class="ident">Delay</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">DATABASE</span>, <span class="ident">Error</span>, <span class="ident">types</span>::{<span class="ident">Target</span>, <span class="ident">Query</span>, <span class="ident">TimeseriesData</span>, <span class="ident">Range</span>}};
 
@@ -237,9 +235,8 @@
 		<span class="ident">Res</span>: <span class="ident">Serialize</span>,
 		<span class="ident">T</span>: <span class="ident">Fn</span>(<span class="ident">Req</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Res</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>
 {
-	<span class="kw">use</span> <span class="ident">futures_util_alpha</span>::<span class="ident">TryStreamExt</span>;
-
 	<span class="kw">let</span> <span class="ident">body</span> <span class="op">=</span> <span class="ident">req</span>.<span class="ident">into_body</span>()
+		.<span class="ident">map_ok</span>(<span class="op">|</span><span class="ident">bytes</span><span class="op">|</span> <span class="ident">bytes</span>.<span class="ident">to_vec</span>())
 		.<span class="ident">try_concat</span>()
 		.<span class="kw">await</span>
 		.<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">Hyper</span>)<span class="question-mark">?</span>;
@@ -259,14 +256,13 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Executor</span>;
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">target_os</span> <span class="op">=</span> <span class="string">&quot;unknown&quot;</span>))]</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">tokio_executor</span>::<span class="ident">TypedExecutor</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Executor</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">hyper</span>::<span class="ident">rt</span>::<span class="ident">Executor</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Executor</span>
 	<span class="kw">where</span>
 		<span class="ident">T</span>: <span class="ident">Future</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 		<span class="ident">T</span>::<span class="ident">Output</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 {
-	<span class="kw">fn</span> <span class="ident">spawn</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">future</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">tokio_executor</span>::<span class="ident">SpawnError</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">execute</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">future</span>: <span class="ident">T</span>) {
 		<span class="ident">async_std</span>::<span class="ident">task</span>::<span class="ident">spawn</span>(<span class="ident">future</span>);
-		<span class="prelude-val">Ok</span>(())
 	}
 }
 
@@ -292,7 +288,7 @@
 					<span class="ident">address</span>.<span class="ident">set_port</span>(<span class="number">0</span>);
 					<span class="kw">continue</span>;
 				},
-				<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>)<span class="question-mark">?</span>,
+				<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>.<span class="ident">into</span>()),
 			}
 		}
 	};

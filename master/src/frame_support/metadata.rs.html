@@ -560,8 +560,6 @@
 <span id="549">549</span>
 <span id="550">550</span>
 <span id="551">551</span>
-<span id="552">552</span>
-<span id="553">553</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -805,13 +803,14 @@
 	<span class="kw">mod</span> <span class="ident">system</span> {
 		<span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 
-		<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Trait</span> {
+		<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Trait</span>: <span class="lifetime">&#39;static</span> {
 			<span class="kw">const</span> <span class="ident">ASSOCIATED_CONST</span>: <span class="ident">u64</span> <span class="op">=</span> <span class="number">500</span>;
 			<span class="kw">type</span> <span class="ident">Origin</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">RawOrigin</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">AccountId</span><span class="op">&gt;</span>, <span class="self">Self</span>::<span class="ident">Origin</span><span class="op">&gt;</span><span class="op">&gt;</span>
 				<span class="op">+</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">RawOrigin</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">AccountId</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 			<span class="kw">type</span> <span class="ident">AccountId</span>: <span class="ident">From</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Encode</span>;
 			<span class="kw">type</span> <span class="ident">BlockNumber</span>: <span class="ident">From</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Encode</span>;
 			<span class="kw">type</span> <span class="ident">SomeValue</span>: <span class="ident">Get</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>;
+			<span class="kw">type</span> <span class="ident">ModuleToIndex</span>: <span class="kw">crate</span>::<span class="ident">traits</span>::<span class="ident">ModuleToIndex</span>;
 		}
 
 		<span class="macro">decl_module</span><span class="macro">!</span> {
@@ -851,10 +850,8 @@
 	<span class="kw">mod</span> <span class="ident">event_module</span> {
 		<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">dispatch</span>::<span class="ident">DispatchResult</span>;
 
-		<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Trait</span> {
-			<span class="kw">type</span> <span class="ident">Origin</span>;
+		<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Trait</span>: <span class="kw">super</span>::<span class="ident">system</span>::<span class="ident">Trait</span> {
 			<span class="kw">type</span> <span class="ident">Balance</span>;
-			<span class="kw">type</span> <span class="ident">BlockNumber</span>;
 		}
 
 		<span class="macro">decl_event</span><span class="macro">!</span>(
@@ -867,14 +864,14 @@
 
 		<span class="macro">decl_module</span><span class="macro">!</span> {
 			<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Trait</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="kw">enum</span> <span class="ident">Call</span> <span class="kw">where</span> <span class="ident">origin</span>: <span class="ident">T</span>::<span class="ident">Origin</span> {
-				<span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span>;
+				<span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>;
 
-				<span class="kw">fn</span> <span class="ident">aux_0</span>(<span class="ident">_origin</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">DispatchResult</span><span class="op">&lt;</span><span class="ident">Error</span><span class="op">&gt;</span> { <span class="macro">unreachable</span><span class="macro">!</span>() }
+				<span class="kw">fn</span> <span class="ident">aux_0</span>(<span class="ident">_origin</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">DispatchResult</span> { <span class="macro">unreachable</span><span class="macro">!</span>() }
 			}
 		}
 
 		<span class="kw">crate</span>::<span class="macro">decl_error</span><span class="macro">!</span> {
-			<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">Error</span> {
+			<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">Error</span> <span class="kw">for</span> <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Trait</span><span class="op">&gt;</span> {
 				<span class="doccomment">/// Some user input error</span>
 				<span class="ident">UserInputError</span>,
 				<span class="doccomment">/// Something bad happened</span>
@@ -937,9 +934,7 @@
 	}
 
 	<span class="kw">impl</span> <span class="ident">event_module</span>::<span class="ident">Trait</span> <span class="kw">for</span> <span class="ident">TestRuntime</span> {
-		<span class="kw">type</span> <span class="ident">Origin</span> <span class="op">=</span> <span class="ident">Origin</span>;
 		<span class="kw">type</span> <span class="ident">Balance</span> <span class="op">=</span> <span class="ident">u32</span>;
-		<span class="kw">type</span> <span class="ident">BlockNumber</span> <span class="op">=</span> <span class="ident">u32</span>;
 	}
 
 	<span class="kw">impl</span> <span class="ident">event_module2</span>::<span class="ident">Trait</span> <span class="kw">for</span> <span class="ident">TestRuntime</span> {
@@ -957,6 +952,7 @@
 		<span class="kw">type</span> <span class="ident">AccountId</span> <span class="op">=</span> <span class="ident">u32</span>;
 		<span class="kw">type</span> <span class="ident">BlockNumber</span> <span class="op">=</span> <span class="ident">u32</span>;
 		<span class="kw">type</span> <span class="ident">SomeValue</span> <span class="op">=</span> <span class="ident">SystemValue</span>;
+		<span class="kw">type</span> <span class="ident">ModuleToIndex</span> <span class="op">=</span> ();
 	}
 
 	<span class="macro">impl_runtime_metadata</span><span class="macro">!</span>(
