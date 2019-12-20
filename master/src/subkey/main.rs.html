@@ -606,6 +606,25 @@
 <span id="595">595</span>
 <span id="596">596</span>
 <span id="597">597</span>
+<span id="598">598</span>
+<span id="599">599</span>
+<span id="600">600</span>
+<span id="601">601</span>
+<span id="602">602</span>
+<span id="603">603</span>
+<span id="604">604</span>
+<span id="605">605</span>
+<span id="606">606</span>
+<span id="607">607</span>
+<span id="608">608</span>
+<span id="609">609</span>
+<span id="610">610</span>
+<span id="611">611</span>
+<span id="612">612</span>
+<span id="613">613</span>
+<span id="614">614</span>
+<span id="615">615</span>
+<span id="616">616</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -776,6 +795,7 @@
 			[network] -n, --network &lt;network&gt; &#39;Specify a network. One of substrate \
 									 (default), polkadot, kusama, dothereum, edgeware, or kulupu&#39;
 			[password] -p, --password &lt;password&gt; &#39;The password for the key&#39;
+			--password-interactive &#39;You will be prompted for the password for the key.&#39;
 		&quot;</span>)
 		.<span class="ident">subcommands</span>(<span class="macro">vec</span><span class="macro">!</span>[
 			<span class="ident">SubCommand</span>::<span class="ident">with_name</span>(<span class="string">&quot;generate&quot;</span>)
@@ -786,8 +806,9 @@
 				&quot;</span>),
 			<span class="ident">SubCommand</span>::<span class="ident">with_name</span>(<span class="string">&quot;inspect&quot;</span>)
 				.<span class="ident">about</span>(<span class="string">&quot;Gets a public key and a SS58 address from the provided Secret URI&quot;</span>)
-				.<span class="ident">args_from_usage</span>(<span class="string">&quot;&lt;uri&gt; &#39;A Key URI to be inspected. May be a secret seed, \
-						secret URI (with derivation paths and password), SS58 or public URI.&#39;
+				.<span class="ident">args_from_usage</span>(<span class="string">&quot;[uri] &#39;A Key URI to be inspected. May be a secret seed, \
+						secret URI (with derivation paths and password), SS58 or public URI. \
+						If not given, you will be prompted for the URI.&#39;
 				&quot;</span>),
 			<span class="ident">SubCommand</span>::<span class="ident">with_name</span>(<span class="string">&quot;sign&quot;</span>)
 				.<span class="ident">about</span>(<span class="string">&quot;Sign a message, provided on STDIN, with a given (secret) key&quot;</span>)
@@ -849,7 +870,21 @@
 	<span class="ident">SignatureOf</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span>: <span class="ident">SignatureT</span>,
 	<span class="ident">PublicOf</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span>: <span class="ident">PublicT</span>,
 {
+	<span class="kw">let</span> <span class="ident">password_interactive</span> <span class="op">=</span> <span class="ident">matches</span>.<span class="ident">is_present</span>(<span class="string">&quot;password-interactive&quot;</span>);
 	<span class="kw">let</span> <span class="ident">password</span> <span class="op">=</span> <span class="ident">matches</span>.<span class="ident">value_of</span>(<span class="string">&quot;password&quot;</span>);
+
+	<span class="kw">let</span> <span class="ident">password</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">password</span>.<span class="ident">is_some</span>() <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">password_interactive</span> {
+		<span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;`--password` given and `--password-interactive` selected!&quot;</span>);
+	} <span class="kw">else</span> <span class="kw">if</span> <span class="ident">password_interactive</span> {
+		<span class="prelude-val">Some</span>(
+			<span class="ident">rpassword</span>::<span class="ident">read_password_from_tty</span>(<span class="prelude-val">Some</span>(<span class="string">&quot;Key password: &quot;</span>))
+				.<span class="ident">expect</span>(<span class="string">&quot;Reads password from tty&quot;</span>)
+		)
+	} <span class="kw">else</span> {
+		<span class="ident">password</span>.<span class="ident">map</span>(<span class="ident">Into</span>::<span class="ident">into</span>)
+	};
+	<span class="kw">let</span> <span class="ident">password</span> <span class="op">=</span> <span class="ident">password</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="ident">String</span>::<span class="ident">as_str</span>);
+
 	<span class="kw">let</span> <span class="ident">maybe_network</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Ss58AddressFormat</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">matches</span>.<span class="ident">value_of</span>(<span class="string">&quot;network&quot;</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">network</span><span class="op">|</span> {
 		<span class="ident">network</span>
 			.<span class="ident">try_into</span>()
@@ -864,10 +899,13 @@
 			<span class="ident">C</span>::<span class="ident">print_from_uri</span>(<span class="ident">mnemonic</span>.<span class="ident">phrase</span>(), <span class="ident">password</span>, <span class="ident">maybe_network</span>);
 		}
 		(<span class="string">&quot;inspect&quot;</span>, <span class="prelude-val">Some</span>(<span class="ident">matches</span>)) <span class="op">=</span><span class="op">&gt;</span> {
-			<span class="kw">let</span> <span class="ident">uri</span> <span class="op">=</span> <span class="ident">matches</span>
-				.<span class="ident">value_of</span>(<span class="string">&quot;uri&quot;</span>)
-				.<span class="ident">expect</span>(<span class="string">&quot;URI parameter is required; thus it can&#39;t be None; qed&quot;</span>);
-			<span class="ident">C</span>::<span class="ident">print_from_uri</span>(<span class="ident">uri</span>, <span class="ident">password</span>, <span class="ident">maybe_network</span>);
+			<span class="kw">let</span> <span class="ident">uri</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">matches</span>.<span class="ident">value_of</span>(<span class="string">&quot;uri&quot;</span>) {
+				<span class="prelude-val">Some</span>(<span class="ident">uri</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">uri</span>.<span class="ident">into</span>(),
+				<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">rpassword</span>::<span class="ident">read_password_from_tty</span>(<span class="prelude-val">Some</span>(<span class="string">&quot;URI: &quot;</span>))
+					.<span class="ident">expect</span>(<span class="string">&quot;Failed to read URI&quot;</span>),
+			};
+
+			<span class="ident">C</span>::<span class="ident">print_from_uri</span>(<span class="kw-2">&amp;</span><span class="ident">uri</span>, <span class="ident">password</span>, <span class="ident">maybe_network</span>);
 		}
 		(<span class="string">&quot;sign&quot;</span>, <span class="prelude-val">Some</span>(<span class="ident">matches</span>)) <span class="op">=</span><span class="op">&gt;</span> {
 			<span class="kw">let</span> <span class="ident">should_decode</span> <span class="op">=</span> <span class="ident">matches</span>.<span class="ident">is_present</span>(<span class="string">&quot;hex&quot;</span>);
