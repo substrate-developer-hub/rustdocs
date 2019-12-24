@@ -1,0 +1,39 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `allocator` mod in crate `node_testing`."><meta name="keywords" content="rust, rustlang, rust-lang, allocator"><title>node_testing::client::sc_executor::allocator - Rust</title><link rel="stylesheet" type="text/css" href="../../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../../light.css" id="themeStyle"><script src="../../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
+<script async type="opt-in" data-type="application/javascript"
+		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
+<script type="opt-in" data-type="application/javascript" data-name="googleAnalytics">
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-145158313-2');
+</script>
+
+<style type="text/css">#crate-search{background-image:url("../../../../down-arrow.svg");}</style></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../../node_testing/index.html'><div class='logo-container'><img src='../../../../rust-logo.png' alt='logo'></div></a><p class='location'>Module allocator</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#structs">Structs</a></li></ul></div><p class='location'><a href='../../../index.html'>node_testing</a>::<wbr><a href='../../index.html'>client</a>::<wbr><a href='../index.html'>sc_executor</a></p><script>window.sidebarCurrent = {name: 'allocator', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../../settings.html"><img src="../../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../../../../src/sc_executor_common/lib.rs.html#22' title='goto source code'>[src]</a></span><span class='in-band'>Module <a href='../../../index.html'>node_testing</a>::<wbr><a href='../../index.html'>client</a>::<wbr><a href='../index.html'>sc_executor</a>::<wbr><a class="mod" href=''>allocator</a></span></h1><div class='docblock'><p>This module implements a freeing-bump allocator.</p>
+<p>The algorithm is as follows:
+We store <code>N</code> linked list heads, where <code>N</code> is the total number of sizes
+of allocations to support. A simple set is powers of two from 8 bytes
+to 16,777,216 bytes (2^3 - 2^24 inclusive), resulting in <code>N = 22</code>:</p>
+
+<div class='information'><div class='tooltip ignore'>ⓘ<span class='tooltiptext'>This example is not tested</span></div></div><div class="example-wrap"><pre class="rust rust-example-rendered ignore">
+<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">heads</span> [<span class="ident">u64</span>; <span class="ident">N</span>] <span class="op">=</span> [<span class="number">0</span>; <span class="ident">N</span>];
+<span class="kw">fn</span> <span class="ident">size</span>(<span class="ident">n</span>: <span class="ident">u64</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u64</span> { <span class="number">8</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">n</span> }
+<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bumper</span> <span class="op">=</span> <span class="number">0</span>;
+<span class="kw">fn</span> <span class="ident">bump</span>(<span class="ident">n</span>: <span class="ident">u64</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u64</span> { <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">bumper</span>; <span class="ident">bumper</span> <span class="op">+</span><span class="op">=</span> <span class="ident">n</span>; <span class="ident">res</span> }</pre></div>
+<p>We assume there is a slab of heap to be allocated:</p>
+
+<div class='information'><div class='tooltip ignore'>ⓘ<span class='tooltiptext'>This example is not tested</span></div></div><div class="example-wrap"><pre class="rust rust-example-rendered ignore">
+<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">heap</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="ident">HEAP_SIZE</span>];</pre></div>
+<p>Whenever we allocate, we select the lowest linked list item size that
+will fit the allocation (i.e. the next highest power of two).
+We then check to see if the linked list is empty. If empty, we use
+the bump allocator to get the allocation with an extra 8 bytes
+preceding it. We initialise those preceding 8 bytes to identify the
+list to which it belongs. If it is not empty, we unlink the first item from
+the linked list and then reset the 8 preceding bytes so they now record
+the identity of the linked list.</p>
+<p>To deallocate we use the preceding 8 bytes of the allocation to knit
+back the allocation into the linked list from the head.</p>
+</div><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table><tr class='module-item'><td><a class="struct" href="struct.FreeingBumpHeapAllocator.html" title='node_testing::client::sc_executor::allocator::FreeingBumpHeapAllocator struct'>FreeingBumpHeapAllocator</a></td><td class='docblock-short'><p>An implementation of freeing bump allocator.</p>
+</td></tr></table></section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../../../";window.currentCrate = "node_testing";</script><script src="../../../../aliases.js"></script><script src="../../../../main.js"></script><script defer src="../../../../search-index.js"></script></body></html>

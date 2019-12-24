@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["create_instance",""]],"struct":[["WasmiRuntime","A runtime along with its initial state snapshot."]]});
