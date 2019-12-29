@@ -1,1 +1,1 @@
-initSidebarItems({"trait":[["Future","A future represents an asynchronous computation."]]});
+initSidebarItems({"trait":[["Future","A future represents an asynchronous computation."],["IntoFuture","Conversion into a `Future`."]]});
