@@ -728,6 +728,25 @@
 <span id="717">717</span>
 <span id="718">718</span>
 <span id="719">719</span>
+<span id="720">720</span>
+<span id="721">721</span>
+<span id="722">722</span>
+<span id="723">723</span>
+<span id="724">724</span>
+<span id="725">725</span>
+<span id="726">726</span>
+<span id="727">727</span>
+<span id="728">728</span>
+<span id="729">729</span>
+<span id="730">730</span>
+<span id="731">731</span>
+<span id="732">732</span>
+<span id="733">733</span>
+<span id="734">734</span>
+<span id="735">735</span>
+<span id="736">736</span>
+<span id="737">737</span>
+<span id="738">738</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -943,7 +962,7 @@
 	<span class="ident">Ed25519</span>(<span class="ident">ed25519</span>::<span class="ident">Public</span>),
 	<span class="doccomment">/// An Sr25519 identity.</span>
 	<span class="ident">Sr25519</span>(<span class="ident">sr25519</span>::<span class="ident">Public</span>),
-	<span class="doccomment">/// An SECP256k1/ECDSA identity (actually, the Blake2 hash of the pub key).</span>
+	<span class="doccomment">/// An SECP256k1/ECDSA identity (actually, the Blake2 hash of the compressed pub key).</span>
 	<span class="ident">Ecdsa</span>(<span class="ident">ecdsa</span>::<span class="ident">Public</span>),
 }
 
@@ -977,7 +996,9 @@
 		<span class="kw">match</span> <span class="self">self</span> {
 			<span class="ident">MultiSigner</span>::<span class="ident">Ed25519</span>(<span class="ident">who</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="number">32</span>]<span class="op">&gt;</span>::<span class="ident">from</span>(<span class="ident">who</span>).<span class="ident">into</span>(),
 			<span class="ident">MultiSigner</span>::<span class="ident">Sr25519</span>(<span class="ident">who</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="number">32</span>]<span class="op">&gt;</span>::<span class="ident">from</span>(<span class="ident">who</span>).<span class="ident">into</span>(),
-			<span class="ident">MultiSigner</span>::<span class="ident">Ecdsa</span>(<span class="ident">who</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">sp_io</span>::<span class="ident">hashing</span>::<span class="ident">blake2_256</span>(<span class="ident">who</span>.<span class="ident">as_ref</span>()).<span class="ident">into</span>(),
+			<span class="ident">MultiSigner</span>::<span class="ident">Ecdsa</span>(<span class="ident">who</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">sp_io</span>::<span class="ident">hashing</span>::<span class="ident">blake2_256</span>(
+				<span class="kw-2">&amp;</span><span class="ident">who</span>.<span class="ident">as_compressed</span>().<span class="ident">expect</span>(<span class="string">&quot;`who` is a valid `ECDSA` public key; qed&quot;</span>)[..],
+			).<span class="ident">into</span>(),
 		}
 	}
 }
@@ -1419,8 +1440,9 @@
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span> {
-	<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">DispatchError</span>;
+	<span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 	<span class="kw">use</span> <span class="ident">codec</span>::{<span class="ident">Encode</span>, <span class="ident">Decode</span>};
+	<span class="kw">use</span> <span class="ident">sp_core</span>::<span class="ident">crypto</span>::<span class="ident">Pair</span>;
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
 	<span class="kw">fn</span> <span class="ident">opaque_extrinsic_serialization</span>() {
@@ -1446,6 +1468,22 @@
 				<span class="ident">message</span>: <span class="prelude-val">None</span>,
 			},
 		);
+	}
+
+	<span class="attribute">#[<span class="ident">test</span>]</span>
+	<span class="kw">fn</span> <span class="ident">multi_signature_ecdsa_verify_works</span>() {
+		<span class="kw">let</span> <span class="ident">msg</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="string">b&quot;test-message&quot;</span>[..];
+		<span class="kw">let</span> (<span class="ident">pair</span>, <span class="kw">_</span>) <span class="op">=</span> <span class="ident">ecdsa</span>::<span class="ident">Pair</span>::<span class="ident">generate</span>();
+
+		<span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span> <span class="ident">pair</span>.<span class="ident">sign</span>(<span class="kw-2">&amp;</span><span class="ident">msg</span>);
+		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">ecdsa</span>::<span class="ident">Pair</span>::<span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="ident">signature</span>, <span class="ident">msg</span>, <span class="kw-2">&amp;</span><span class="ident">pair</span>.<span class="ident">public</span>()));
+
+		<span class="kw">let</span> <span class="ident">multi_sig</span> <span class="op">=</span> <span class="ident">MultiSignature</span>::<span class="ident">from</span>(<span class="ident">signature</span>);
+		<span class="kw">let</span> <span class="ident">multi_signer</span> <span class="op">=</span> <span class="ident">MultiSigner</span>::<span class="ident">from</span>(<span class="ident">pair</span>.<span class="ident">public</span>());
+		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">multi_sig</span>.<span class="ident">verify</span>(<span class="ident">msg</span>, <span class="kw-2">&amp;</span><span class="ident">multi_signer</span>.<span class="ident">into_account</span>()));
+
+		<span class="kw">let</span> <span class="ident">multi_signer</span> <span class="op">=</span> <span class="ident">MultiSigner</span>::<span class="ident">from</span>(<span class="ident">pair</span>.<span class="ident">public</span>().<span class="ident">into_compressed</span>().<span class="ident">unwrap</span>());
+		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">multi_sig</span>.<span class="ident">verify</span>(<span class="ident">msg</span>, <span class="kw-2">&amp;</span><span class="ident">multi_signer</span>.<span class="ident">into_account</span>()));
 	}
 }
 </pre></div>
