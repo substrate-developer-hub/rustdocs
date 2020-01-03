@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["Call",""]],"struct":[["Module",""]]});
+initSidebarItems({"enum":[["Call","Dispatchable calls."]],"struct":[["Module",""]]});

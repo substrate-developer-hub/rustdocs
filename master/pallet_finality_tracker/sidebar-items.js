@@ -1,1 +1,1 @@
-initSidebarItems({"constant":[["DEFAULT_REPORT_LATENCY",""],["DEFAULT_WINDOW_SIZE",""]],"enum":[["Call",""],["Error",""]],"struct":[["GenesisConfig",""],["Module",""]],"trait":[["OnFinalizationStalled","Called when finalization stalled at a given number."],["Trait",""]]});
+initSidebarItems({"constant":[["DEFAULT_REPORT_LATENCY",""],["DEFAULT_WINDOW_SIZE",""]],"enum":[["Call","Dispatchable calls."],["Error",""]],"struct":[["GenesisConfig",""],["Module",""]],"trait":[["OnFinalizationStalled","Called when finalization stalled at a given number."],["Trait",""]]});

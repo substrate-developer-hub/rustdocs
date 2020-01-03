@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["Call",""],["Error","Error for the nicks module."],["RawEvent","Events for this module."]],"struct":[["Module",""]],"trait":[["Trait",""]],"type":[["Event","[`RawEvent`] specialized for the configuration [`Trait`]"]]});
+initSidebarItems({"enum":[["Call","Dispatchable calls."],["Error","Error for the nicks module."],["RawEvent","Events for this module."]],"struct":[["Module",""]],"trait":[["Trait",""]],"type":[["Event","[`RawEvent`] specialized for the configuration [`Trait`]"]]});

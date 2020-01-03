@@ -646,9 +646,6 @@
 <span id="635">635</span>
 <span id="636">636</span>
 <span id="637">637</span>
-<span id="638">638</span>
-<span id="639">639</span>
-<span id="640">640</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -765,13 +762,13 @@
 <span class="doccomment">/// concrete types instead.</span>
 <span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">new_full</span> {
 	(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">config</span>:<span class="ident">expr</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">with_startup_data</span>: <span class="ident">expr</span>) <span class="op">=</span><span class="op">&gt;</span> {{
-		<span class="kw">use</span> <span class="ident">futures01</span>::<span class="ident">sync</span>::<span class="ident">mpsc</span>;
-		<span class="kw">use</span> <span class="ident">sc_network</span>::<span class="ident">DhtEvent</span>;
+		<span class="kw">use</span> <span class="ident">futures01</span>::<span class="ident">Stream</span>;
 		<span class="kw">use</span> <span class="ident">futures</span>::{
 			<span class="ident">compat</span>::<span class="ident">Stream01CompatExt</span>,
 			<span class="ident">stream</span>::<span class="ident">StreamExt</span>,
 			<span class="ident">future</span>::{<span class="ident">FutureExt</span>, <span class="ident">TryFutureExt</span>},
 		};
+		<span class="kw">use</span> <span class="ident">sc_network</span>::<span class="ident">Event</span>;
 
 		<span class="kw">let</span> (
 			<span class="ident">is_authority</span>,
@@ -794,18 +791,10 @@
 
 		<span class="kw">let</span> (<span class="ident">builder</span>, <span class="kw-2">mut</span> <span class="ident">import_setup</span>, <span class="ident">inherent_data_providers</span>) <span class="op">=</span> <span class="macro">new_full_start</span><span class="macro">!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">config</span>);
 
-		<span class="comment">// Dht event channel from the network to the authority discovery module. Use bounded channel to ensure</span>
-		<span class="comment">// back-pressure. Authority discovery is triggering one event per authority within the current authority set.</span>
-		<span class="comment">// This estimates the authority set size to be somewhere below 10 000 thereby setting the channel buffer size to</span>
-		<span class="comment">// 10 000.</span>
-		<span class="kw">let</span> (<span class="ident">dht_event_tx</span>, <span class="ident">dht_event_rx</span>) <span class="op">=</span>
-			<span class="ident">mpsc</span>::<span class="ident">channel</span>::<span class="op">&lt;</span><span class="ident">DhtEvent</span><span class="op">&gt;</span>(<span class="number">10_000</span>);
-
 		<span class="kw">let</span> <span class="ident">service</span> <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">with_network_protocol</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="kw">crate</span>::<span class="ident">service</span>::<span class="ident">NodeProtocol</span>::<span class="ident">new</span>()))<span class="question-mark">?</span>
 			.<span class="ident">with_finality_proof_provider</span>(<span class="op">|</span><span class="ident">client</span>, <span class="ident">backend</span><span class="op">|</span>
 				<span class="prelude-val">Ok</span>(<span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">grandpa</span>::<span class="ident">FinalityProofProvider</span>::<span class="ident">new</span>(<span class="ident">backend</span>, <span class="ident">client</span>)) <span class="kw">as</span> <span class="kw">_</span>)
 			)<span class="question-mark">?</span>
-			.<span class="ident">with_dht_event_tx</span>(<span class="ident">dht_event_tx</span>)<span class="question-mark">?</span>
 			.<span class="ident">build</span>()<span class="question-mark">?</span>;
 
 		<span class="kw">let</span> (<span class="ident">block_import</span>, <span class="ident">grandpa_link</span>, <span class="ident">babe_link</span>) <span class="op">=</span> <span class="ident">import_setup</span>.<span class="ident">take</span>()
@@ -842,15 +831,20 @@
 			<span class="kw">let</span> <span class="ident">babe</span> <span class="op">=</span> <span class="ident">sc_consensus_babe</span>::<span class="ident">start_babe</span>(<span class="ident">babe_config</span>)<span class="question-mark">?</span>;
 			<span class="ident">service</span>.<span class="ident">spawn_essential_task</span>(<span class="ident">babe</span>);
 
-			<span class="kw">let</span> <span class="ident">future03_dht_event_rx</span> <span class="op">=</span> <span class="ident">dht_event_rx</span>.<span class="ident">compat</span>()
+			<span class="kw">let</span> <span class="ident">network</span> <span class="op">=</span> <span class="ident">service</span>.<span class="ident">network</span>();
+			<span class="kw">let</span> <span class="ident">dht_event_stream</span> <span class="op">=</span> <span class="ident">network</span>.<span class="ident">event_stream</span>().<span class="ident">filter_map</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">e</span> {
+				<span class="ident">Event</span>::<span class="ident">Dht</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">e</span>),
+				<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">None</span>,
+			});
+			<span class="kw">let</span> <span class="ident">future03_dht_event_stream</span> <span class="op">=</span> <span class="ident">dht_event_stream</span>.<span class="ident">compat</span>()
 				.<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">expect</span>(<span class="string">&quot;&lt;mpsc::channel::Receiver as Stream&gt; never returns an error; qed&quot;</span>))
 				.<span class="ident">boxed</span>();
 			<span class="kw">let</span> <span class="ident">authority_discovery</span> <span class="op">=</span> <span class="ident">sc_authority_discovery</span>::<span class="ident">AuthorityDiscovery</span>::<span class="ident">new</span>(
 				<span class="ident">service</span>.<span class="ident">client</span>(),
-				<span class="ident">service</span>.<span class="ident">network</span>(),
+				<span class="ident">network</span>,
 				<span class="ident">sentry_nodes</span>,
 				<span class="ident">service</span>.<span class="ident">keystore</span>(),
-				<span class="ident">future03_dht_event_rx</span>,
+				<span class="ident">future03_dht_event_stream</span>,
 			);
 			<span class="kw">let</span> <span class="ident">future01_authority_discovery</span> <span class="op">=</span> <span class="ident">authority_discovery</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="ident">x</span>)).<span class="ident">compat</span>();
 

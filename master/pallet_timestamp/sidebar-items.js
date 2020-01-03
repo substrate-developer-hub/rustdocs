@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["Call",""]],"struct":[["GenesisConfig",""],["Module",""],["Now","Current time for the current block."]],"trait":[["Trait","The module configuration trait"]]});
+initSidebarItems({"enum":[["Call","Dispatchable calls."]],"struct":[["GenesisConfig",""],["Module",""],["Now","Current time for the current block."]],"trait":[["Trait","The module configuration trait"]]});

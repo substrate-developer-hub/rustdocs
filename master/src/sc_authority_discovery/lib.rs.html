@@ -522,28 +522,6 @@
 <span id="511">511</span>
 <span id="512">512</span>
 <span id="513">513</span>
-<span id="514">514</span>
-<span id="515">515</span>
-<span id="516">516</span>
-<span id="517">517</span>
-<span id="518">518</span>
-<span id="519">519</span>
-<span id="520">520</span>
-<span id="521">521</span>
-<span id="522">522</span>
-<span id="523">523</span>
-<span id="524">524</span>
-<span id="525">525</span>
-<span id="526">526</span>
-<span id="527">527</span>
-<span id="528">528</span>
-<span id="529">529</span>
-<span id="530">530</span>
-<span id="531">531</span>
-<span id="532">532</span>
-<span id="533">533</span>
-<span id="534">534</span>
-<span id="535">535</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -592,7 +570,6 @@
 <span class="doccomment">//!    4. Adds the retrieved external addresses as priority nodes to the peerset.</span>
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::{<span class="ident">HashMap</span>, <span class="ident">HashSet</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">convert</span>::<span class="ident">TryInto</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">iter</span>::<span class="ident">FromIterator</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">marker</span>::<span class="ident">PhantomData</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">pin</span>::<span class="ident">Pin</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
@@ -602,26 +579,26 @@
 <span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">Future</span>, <span class="ident">FutureExt</span>, <span class="ident">Stream</span>, <span class="ident">StreamExt</span>};
 <span class="kw">use</span> <span class="ident">futures_timer</span>::<span class="ident">Delay</span>;
 
-<span class="kw">use</span> <span class="ident">sp_authority_discovery</span>::{
-	<span class="ident">AuthorityDiscoveryApi</span>, <span class="ident">AuthorityId</span>, <span class="ident">AuthoritySignature</span>, <span class="ident">AuthorityPair</span>
-};
-<span class="kw">use</span> <span class="ident">sc_client_api</span>::<span class="ident">blockchain</span>::<span class="ident">HeaderBackend</span>;
 <span class="kw">use</span> <span class="ident">codec</span>::{<span class="ident">Decode</span>, <span class="ident">Encode</span>};
 <span class="kw">use</span> <span class="ident">error</span>::{<span class="ident">Error</span>, <span class="prelude-ty">Result</span>};
-<span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">debug</span>, <span class="ident">error</span>, <span class="ident">log_enabled</span>, <span class="ident">warn</span>};
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">Multiaddr</span>;
+<span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">debug</span>, <span class="ident">error</span>, <span class="ident">log_enabled</span>, <span class="ident">warn</span>};
+<span class="kw">use</span> <span class="ident">prost</span>::<span class="ident">Message</span>;
+<span class="kw">use</span> <span class="ident">sc_client_api</span>::<span class="ident">blockchain</span>::<span class="ident">HeaderBackend</span>;
 <span class="kw">use</span> <span class="ident">sc_network</span>::<span class="ident">specialization</span>::<span class="ident">NetworkSpecialization</span>;
 <span class="kw">use</span> <span class="ident">sc_network</span>::{<span class="ident">DhtEvent</span>, <span class="ident">ExHashT</span>, <span class="ident">NetworkStateInfo</span>};
+<span class="kw">use</span> <span class="ident">sp_authority_discovery</span>::{<span class="ident">AuthorityDiscoveryApi</span>, <span class="ident">AuthorityId</span>, <span class="ident">AuthoritySignature</span>, <span class="ident">AuthorityPair</span>};
 <span class="kw">use</span> <span class="ident">sp_core</span>::<span class="ident">crypto</span>::{<span class="ident">key_types</span>, <span class="ident">Pair</span>};
 <span class="kw">use</span> <span class="ident">sp_core</span>::<span class="ident">traits</span>::<span class="ident">BareCryptoStorePtr</span>;
-<span class="kw">use</span> <span class="ident">prost</span>::<span class="ident">Message</span>;
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">generic</span>::<span class="ident">BlockId</span>;
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">traits</span>::{<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">ProvideRuntimeApi</span>};
+<span class="kw">use</span> <span class="ident">addr_cache</span>::<span class="ident">AddrCache</span>;
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span>;
 
 <span class="kw">mod</span> <span class="ident">error</span>;
+<span class="kw">mod</span> <span class="ident">addr_cache</span>;
 <span class="doccomment">/// Dht payload schemas generated from Protobuf definitions via Prost crate in build.rs.</span>
 <span class="kw">mod</span> <span class="ident">schema</span> {
 	<span class="macro">include</span><span class="macro">!</span>(<span class="macro">concat</span><span class="macro">!</span>(<span class="macro">env</span><span class="macro">!</span>(<span class="string">&quot;OUT_DIR&quot;</span>), <span class="string">&quot;/authority_discovery.rs&quot;</span>));
@@ -635,12 +612,6 @@
 <span class="doccomment">/// Name of the Substrate peerset priority group for authorities discovered through the authority</span>
 <span class="doccomment">/// discovery module.</span>
 <span class="kw">const</span> <span class="ident">AUTHORITIES_PRIORITY_GROUP_NAME</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> <span class="op">=</span> <span class="string">&quot;authorities&quot;</span>;
-
-<span class="doccomment">/// The maximum number of sentry node public addresses that we accept per authority.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// Everything above this threshold should be dropped to prevent a single authority from filling up</span>
-<span class="doccomment">/// our peer set priority group.</span>
-<span class="kw">const</span> <span class="ident">MAX_NUM_SENTRY_ADDRESSES_PER_AUTHORITY</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">5</span>;
 
 <span class="doccomment">/// An `AuthorityDiscovery` makes a given authority discoverable and discovers other authorities.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">AuthorityDiscovery</span><span class="op">&lt;</span><span class="ident">Client</span>, <span class="ident">Network</span>, <span class="ident">Block</span><span class="op">&gt;</span>
@@ -671,12 +642,7 @@
 	<span class="doccomment">/// Interval on which to query for addresses of other authorities.</span>
 	<span class="ident">query_interval</span>: <span class="ident">Interval</span>,
 
-	<span class="doccomment">/// The network peerset interface for priority groups lets us only set an entire group, but we</span>
-	<span class="doccomment">/// retrieve the addresses of other authorities one by one from the network. To use the peerset</span>
-	<span class="doccomment">/// interface we need to cache the addresses and always overwrite the entire peerset priority</span>
-	<span class="doccomment">/// group. To ensure this map doesn&#39;t grow indefinitely `purge_old_authorities_from_cache`</span>
-	<span class="doccomment">/// function is called each time we add a new entry.</span>
-	<span class="ident">address_cache</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">AuthorityId</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Multiaddr</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">addr_cache</span>: <span class="ident">addr_cache</span>::<span class="ident">AddrCache</span><span class="op">&lt;</span><span class="ident">AuthorityId</span>, <span class="ident">Multiaddr</span><span class="op">&gt;</span>,
 
 	<span class="ident">phantom</span>: <span class="ident">PhantomData</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 }
@@ -729,22 +695,12 @@
 				}
 			}).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Multiaddr</span><span class="op">&gt;</span><span class="op">&gt;</span>();
 
-			<span class="kw">if</span> <span class="ident">addrs</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="ident">MAX_NUM_SENTRY_ADDRESSES_PER_AUTHORITY</span> {
-				<span class="macro">warn</span><span class="macro">!</span>(
-					<span class="ident">target</span>: <span class="string">&quot;sub-authority-discovery&quot;</span>,
-					<span class="string">&quot;More than MAX_NUM_SENTRY_ADDRESSES_PER_AUTHORITY ({:?}) were specified. Other \
-					nodes will likely ignore the remainder.&quot;</span>,
-					<span class="ident">MAX_NUM_SENTRY_ADDRESSES_PER_AUTHORITY</span>,
-				);
-			}
-
 			<span class="prelude-val">Some</span>(<span class="ident">addrs</span>)
 		} <span class="kw">else</span> {
 			<span class="prelude-val">None</span>
 		};
 
-
-		<span class="kw">let</span> <span class="ident">address_cache</span> <span class="op">=</span> <span class="ident">HashMap</span>::<span class="ident">new</span>();
+		<span class="kw">let</span> <span class="ident">addr_cache</span> <span class="op">=</span> <span class="ident">AddrCache</span>::<span class="ident">new</span>();
 
 		<span class="ident">AuthorityDiscovery</span> {
 			<span class="ident">client</span>,
@@ -754,7 +710,7 @@
 			<span class="ident">key_store</span>,
 			<span class="ident">publish_interval</span>,
 			<span class="ident">query_interval</span>,
-			<span class="ident">address_cache</span>,
+			<span class="ident">addr_cache</span>,
 			<span class="ident">phantom</span>: <span class="ident">PhantomData</span>,
 		}
 	}
@@ -851,84 +807,68 @@
 		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
 		<span class="ident">values</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">libp2p</span>::<span class="ident">kad</span>::<span class="ident">record</span>::<span class="ident">Key</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-		<span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-authority-discovery&quot;</span>, <span class="string">&quot;Got Dht value from network.&quot;</span>);
-
-		<span class="kw">let</span> <span class="ident">block_id</span> <span class="op">=</span> <span class="ident">BlockId</span>::<span class="ident">hash</span>(<span class="self">self</span>.<span class="ident">client</span>.<span class="ident">info</span>().<span class="ident">best_hash</span>);
-
-		<span class="comment">// From the Dht we only get the hashed authority id. In order to retrieve the actual</span>
-		<span class="comment">// authority id and to ensure it is actually an authority, we match the hash against the</span>
-		<span class="comment">// hash of the authority id of all other authorities.</span>
-		<span class="kw">let</span> <span class="ident">authorities</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">client</span>.<span class="ident">runtime_api</span>().<span class="ident">authorities</span>(<span class="kw-2">&amp;</span><span class="ident">block_id</span>)<span class="question-mark">?</span>;
-		<span class="self">self</span>.<span class="ident">purge_old_authorities_from_cache</span>(<span class="kw-2">&amp;</span><span class="ident">authorities</span>);
-
-		<span class="kw">let</span> <span class="ident">authorities</span> <span class="op">=</span> <span class="ident">authorities</span>
-			.<span class="ident">into_iter</span>()
-			.<span class="ident">map</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="ident">hash_authority_id</span>(<span class="ident">id</span>.<span class="ident">as_ref</span>()).<span class="ident">map</span>(<span class="op">|</span><span class="ident">h</span><span class="op">|</span> (<span class="ident">h</span>, <span class="ident">id</span>)))
-			.<span class="ident">collect</span>::<span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>()<span class="question-mark">?</span>;
-
-		<span class="kw">for</span> (<span class="ident">key</span>, <span class="ident">value</span>) <span class="kw">in</span> <span class="ident">values</span>.<span class="ident">iter</span>() {
-			<span class="comment">// Check if the event origins from an authority in the current authority set.</span>
-			<span class="kw">let</span> <span class="ident">authority_id</span>: <span class="kw-2">&amp;</span><span class="ident">AuthorityId</span> <span class="op">=</span> <span class="ident">authorities</span>
-				.<span class="ident">get</span>(<span class="ident">key</span>)
-				.<span class="ident">ok_or</span>(<span class="ident">Error</span>::<span class="ident">MatchingHashedAuthorityIdWithAuthorityId</span>)<span class="question-mark">?</span>;
-
-			<span class="kw">let</span> <span class="ident">schema</span>::<span class="ident">SignedAuthorityAddresses</span> {
-				<span class="ident">signature</span>,
-				<span class="ident">addresses</span>,
-			} <span class="op">=</span> <span class="ident">schema</span>::<span class="ident">SignedAuthorityAddresses</span>::<span class="ident">decode</span>(<span class="ident">value</span>).<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">DecodingProto</span>)<span class="question-mark">?</span>;
-			<span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span> <span class="ident">AuthoritySignature</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="ident">signature</span>[..])
-				.<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">EncodingDecodingScale</span>)<span class="question-mark">?</span>;
-
-			<span class="kw">if</span> <span class="op">!</span><span class="ident">AuthorityPair</span>::<span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="ident">signature</span>, <span class="kw-2">&amp;</span><span class="ident">addresses</span>, <span class="ident">authority_id</span>) {
-				<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">VerifyingDhtPayload</span>);
+		<span class="comment">// Ensure `values` is not empty and all its keys equal.</span>
+		<span class="kw">let</span> <span class="ident">remote_key</span> <span class="op">=</span> <span class="ident">values</span>.<span class="ident">iter</span>().<span class="ident">fold</span>(<span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>), <span class="op">|</span><span class="ident">acc</span>, (<span class="ident">key</span>, <span class="kw">_</span>)<span class="op">|</span> {
+			<span class="kw">match</span> <span class="ident">acc</span> {
+				<span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">key</span>.<span class="ident">clone</span>())),
+				<span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">prev_key</span>)) <span class="kw">if</span> <span class="ident">prev_key</span> <span class="op">!</span><span class="op">=</span> <span class="ident">key</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(
+					<span class="ident">Error</span>::<span class="ident">ReceivingDhtValueFoundEventWithDifferentKeys</span>
+				),
+				<span class="ident">x</span> @ <span class="prelude-val">Ok</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">x</span>,
+				<span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>),
 			}
+		})<span class="question-mark">?</span>.<span class="ident">ok_or</span>(<span class="ident">Error</span>::<span class="ident">ReceivingDhtValueFoundEventWithNoRecords</span>)<span class="question-mark">?</span>;
 
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">addresses</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">libp2p</span>::<span class="ident">Multiaddr</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">schema</span>::<span class="ident">AuthorityAddresses</span>::<span class="ident">decode</span>(<span class="ident">addresses</span>)
-				.<span class="ident">map</span>(<span class="op">|</span><span class="ident">a</span><span class="op">|</span> <span class="ident">a</span>.<span class="ident">addresses</span>)
-				.<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">DecodingProto</span>)<span class="question-mark">?</span>
+		<span class="kw">let</span> <span class="ident">authorities</span> <span class="op">=</span> {
+			<span class="kw">let</span> <span class="ident">block_id</span> <span class="op">=</span> <span class="ident">BlockId</span>::<span class="ident">hash</span>(<span class="self">self</span>.<span class="ident">client</span>.<span class="ident">info</span>().<span class="ident">best_hash</span>);
+			<span class="comment">// From the Dht we only get the hashed authority id. In order to retrieve the actual</span>
+			<span class="comment">// authority id and to ensure it is actually an authority, we match the hash against the</span>
+			<span class="comment">// hash of the authority id of all other authorities.</span>
+			<span class="kw">let</span> <span class="ident">authorities</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">client</span>.<span class="ident">runtime_api</span>().<span class="ident">authorities</span>(<span class="kw-2">&amp;</span><span class="ident">block_id</span>)<span class="question-mark">?</span>;
+			<span class="self">self</span>.<span class="ident">addr_cache</span>.<span class="ident">retain_ids</span>(<span class="kw-2">&amp;</span><span class="ident">authorities</span>);
+			<span class="ident">authorities</span>
 				.<span class="ident">into_iter</span>()
-				.<span class="ident">map</span>(<span class="op">|</span><span class="ident">a</span><span class="op">|</span> <span class="ident">a</span>.<span class="ident">try_into</span>())
-				.<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>()
-				.<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">ParsingMultiaddress</span>)<span class="question-mark">?</span>;
+				.<span class="ident">map</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="ident">hash_authority_id</span>(<span class="ident">id</span>.<span class="ident">as_ref</span>()).<span class="ident">map</span>(<span class="op">|</span><span class="ident">h</span><span class="op">|</span> (<span class="ident">h</span>, <span class="ident">id</span>)))
+				.<span class="ident">collect</span>::<span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>()<span class="question-mark">?</span>
+		};
 
-			<span class="kw">if</span> <span class="ident">addresses</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="ident">MAX_NUM_SENTRY_ADDRESSES_PER_AUTHORITY</span> {
-				<span class="macro">warn</span><span class="macro">!</span>(
-					<span class="ident">target</span>: <span class="string">&quot;sub-authority-discovery&quot;</span>,
-					<span class="string">&quot;Got more than MAX_NUM_SENTRY_ADDRESSES_PER_AUTHORITY ({:?}) for Authority \
-					&#39;{:?}&#39; from DHT, dropping the remainder.&quot;</span>,
-					<span class="ident">MAX_NUM_SENTRY_ADDRESSES_PER_AUTHORITY</span>,	<span class="ident">authority_id</span>,
-				);
-				<span class="ident">addresses</span> <span class="op">=</span> <span class="ident">addresses</span>.<span class="ident">into_iter</span>()
-					.<span class="ident">take</span>(<span class="ident">MAX_NUM_SENTRY_ADDRESSES_PER_AUTHORITY</span>)
-					.<span class="ident">collect</span>();
-			}
+		<span class="comment">// Check if the event origins from an authority in the current authority set.</span>
+		<span class="kw">let</span> <span class="ident">authority_id</span>: <span class="kw-2">&amp;</span><span class="ident">AuthorityId</span> <span class="op">=</span> <span class="ident">authorities</span>
+			.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">remote_key</span>)
+			.<span class="ident">ok_or</span>(<span class="ident">Error</span>::<span class="ident">MatchingHashedAuthorityIdWithAuthorityId</span>)<span class="question-mark">?</span>;
 
-			<span class="self">self</span>.<span class="ident">address_cache</span>.<span class="ident">insert</span>(<span class="ident">authority_id</span>.<span class="ident">clone</span>(), <span class="ident">addresses</span>);
+		<span class="kw">let</span> <span class="ident">remote_addresses</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Multiaddr</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">values</span>.<span class="ident">into_iter</span>()
+			.<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">_k</span>, <span class="ident">v</span>)<span class="op">|</span> {
+				<span class="kw">let</span> <span class="ident">schema</span>::<span class="ident">SignedAuthorityAddresses</span> {
+					<span class="ident">signature</span>,
+					<span class="ident">addresses</span>,
+				} <span class="op">=</span> <span class="ident">schema</span>::<span class="ident">SignedAuthorityAddresses</span>::<span class="ident">decode</span>(<span class="ident">v</span>).<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">DecodingProto</span>)<span class="question-mark">?</span>;
+				<span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span> <span class="ident">AuthoritySignature</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="ident">signature</span>[..])
+					.<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">EncodingDecodingScale</span>)<span class="question-mark">?</span>;
+
+				<span class="kw">if</span> <span class="op">!</span><span class="ident">AuthorityPair</span>::<span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="ident">signature</span>, <span class="kw-2">&amp;</span><span class="ident">addresses</span>, <span class="ident">authority_id</span>) {
+					<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">VerifyingDhtPayload</span>);
+				}
+
+				<span class="kw">let</span> <span class="ident">addresses</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">libp2p</span>::<span class="ident">Multiaddr</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">schema</span>::<span class="ident">AuthorityAddresses</span>::<span class="ident">decode</span>(<span class="ident">addresses</span>)
+					.<span class="ident">map</span>(<span class="op">|</span><span class="ident">a</span><span class="op">|</span> <span class="ident">a</span>.<span class="ident">addresses</span>)
+					.<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">DecodingProto</span>)<span class="question-mark">?</span>
+					.<span class="ident">into_iter</span>()
+					.<span class="ident">map</span>(<span class="op">|</span><span class="ident">a</span><span class="op">|</span> <span class="ident">a</span>.<span class="ident">try_into</span>())
+					.<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>()
+					.<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">ParsingMultiaddress</span>)<span class="question-mark">?</span>;
+
+				<span class="prelude-val">Ok</span>(<span class="ident">addresses</span>)
+			})
+			.<span class="ident">collect</span>::<span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Multiaddr</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>()<span class="question-mark">?</span>
+			.<span class="ident">into_iter</span>().<span class="ident">flatten</span>().<span class="ident">collect</span>();
+
+		<span class="kw">if</span> <span class="op">!</span><span class="ident">remote_addresses</span>.<span class="ident">is_empty</span>() {
+			<span class="self">self</span>.<span class="ident">addr_cache</span>.<span class="ident">insert</span>(<span class="ident">authority_id</span>.<span class="ident">clone</span>(), <span class="ident">remote_addresses</span>);
+			<span class="self">self</span>.<span class="ident">update_peer_set_priority_group</span>()<span class="question-mark">?</span>;
 		}
 
-		<span class="comment">// Let&#39;s update the peerset priority group with all the addresses we have in our cache.</span>
-
-		<span class="kw">let</span> <span class="ident">addresses</span> <span class="op">=</span> <span class="ident">HashSet</span>::<span class="ident">from_iter</span>(
-			<span class="self">self</span>.<span class="ident">address_cache</span>
-				.<span class="ident">iter</span>()
-				.<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">_peer_id</span>, <span class="ident">addresses</span>)<span class="op">|</span> <span class="ident">addresses</span>.<span class="ident">clone</span>())
-				.<span class="ident">flatten</span>(),
-		);
-
-		<span class="macro">debug</span><span class="macro">!</span>(
-			<span class="ident">target</span>: <span class="string">&quot;sub-authority-discovery&quot;</span>,
-			<span class="string">&quot;Applying priority group {:#?} to peerset.&quot;</span>, <span class="ident">addresses</span>,
-		);
-		<span class="self">self</span>.<span class="ident">network</span>
-			.<span class="ident">set_priority_group</span>(<span class="ident">AUTHORITIES_PRIORITY_GROUP_NAME</span>.<span class="ident">to_string</span>(), <span class="ident">addresses</span>)
-			.<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">SettingPeersetPriorityGroup</span>)<span class="question-mark">?</span>;
-
 		<span class="prelude-val">Ok</span>(())
-	}
-
-	<span class="kw">fn</span> <span class="ident">purge_old_authorities_from_cache</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">current_authorities</span>: <span class="kw-2">&amp;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">AuthorityId</span><span class="op">&gt;</span>) {
-		<span class="self">self</span>.<span class="ident">address_cache</span>
-			.<span class="ident">retain</span>(<span class="op">|</span><span class="ident">peer_id</span>, <span class="ident">_addresses</span><span class="op">|</span> <span class="ident">current_authorities</span>.<span class="ident">contains</span>(<span class="ident">peer_id</span>))
 	}
 
 	<span class="doccomment">/// Retrieve all local authority discovery private keys that are within the current authority</span>
@@ -975,6 +915,22 @@
 			.<span class="ident">collect</span>();
 
 		<span class="prelude-val">Ok</span>(<span class="ident">intersection</span>)
+	}
+
+	<span class="doccomment">/// Update the peer set &#39;authority&#39; priority group.</span>
+	<span class="comment">//</span>
+	<span class="kw">fn</span> <span class="ident">update_peer_set_priority_group</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>{
+		<span class="kw">let</span> <span class="ident">addresses</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">addr_cache</span>.<span class="ident">get_subset</span>();
+
+		<span class="macro">debug</span><span class="macro">!</span>(
+			<span class="ident">target</span>: <span class="string">&quot;sub-authority-discovery&quot;</span>,
+			<span class="string">&quot;Applying priority group {:?} to peerset.&quot;</span>, <span class="ident">addresses</span>,
+		);
+		<span class="self">self</span>.<span class="ident">network</span>
+			.<span class="ident">set_priority_group</span>(<span class="ident">AUTHORITIES_PRIORITY_GROUP_NAME</span>.<span class="ident">to_string</span>(), <span class="ident">addresses</span>.<span class="ident">into_iter</span>().<span class="ident">collect</span>())
+			.<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">SettingPeersetPriorityGroup</span>)<span class="question-mark">?</span>;
+
+		<span class="prelude-val">Ok</span>(())
 	}
 }
 
