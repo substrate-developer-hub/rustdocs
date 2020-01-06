@@ -2456,6 +2456,45 @@
 <span id="2445">2445</span>
 <span id="2446">2446</span>
 <span id="2447">2447</span>
+<span id="2448">2448</span>
+<span id="2449">2449</span>
+<span id="2450">2450</span>
+<span id="2451">2451</span>
+<span id="2452">2452</span>
+<span id="2453">2453</span>
+<span id="2454">2454</span>
+<span id="2455">2455</span>
+<span id="2456">2456</span>
+<span id="2457">2457</span>
+<span id="2458">2458</span>
+<span id="2459">2459</span>
+<span id="2460">2460</span>
+<span id="2461">2461</span>
+<span id="2462">2462</span>
+<span id="2463">2463</span>
+<span id="2464">2464</span>
+<span id="2465">2465</span>
+<span id="2466">2466</span>
+<span id="2467">2467</span>
+<span id="2468">2468</span>
+<span id="2469">2469</span>
+<span id="2470">2470</span>
+<span id="2471">2471</span>
+<span id="2472">2472</span>
+<span id="2473">2473</span>
+<span id="2474">2474</span>
+<span id="2475">2475</span>
+<span id="2476">2476</span>
+<span id="2477">2477</span>
+<span id="2478">2478</span>
+<span id="2479">2479</span>
+<span id="2480">2480</span>
+<span id="2481">2481</span>
+<span id="2482">2482</span>
+<span id="2483">2483</span>
+<span id="2484">2484</span>
+<span id="2485">2485</span>
+<span id="2486">2486</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -2498,7 +2537,7 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">io</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::{<span class="ident">HashMap</span>, <span class="ident">HashSet</span>};
 
-<span class="kw">use</span> <span class="ident">sc_client_api</span>::{<span class="ident">execution_extensions</span>::<span class="ident">ExecutionExtensions</span>, <span class="ident">ForkBlocks</span>};
+<span class="kw">use</span> <span class="ident">sc_client_api</span>::{<span class="ident">execution_extensions</span>::<span class="ident">ExecutionExtensions</span>, <span class="ident">BadBlocks</span>, <span class="ident">ForkBlocks</span>};
 <span class="kw">use</span> <span class="ident">sc_client_api</span>::<span class="ident">backend</span>::<span class="ident">NewBlockState</span>;
 <span class="kw">use</span> <span class="ident">sc_client_api</span>::<span class="ident">backend</span>::{<span class="ident">StorageCollection</span>, <span class="ident">ChildStorageCollection</span>};
 <span class="kw">use</span> <span class="ident">sp_blockchain</span>::{
@@ -2735,6 +2774,7 @@
 	<span class="ident">executor</span>: <span class="ident">E</span>,
 	<span class="ident">genesis_storage</span>: <span class="ident">S</span>,
 	<span class="ident">fork_blocks</span>: <span class="ident">ForkBlocks</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
+	<span class="ident">bad_blocks</span>: <span class="ident">BadBlocks</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 	<span class="ident">execution_extensions</span>: <span class="ident">ExecutionExtensions</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(
 		<span class="ident">sc_client</span>::<span class="ident">Client</span><span class="op">&lt;</span>
@@ -2755,7 +2795,14 @@
 	<span class="kw">let</span> <span class="ident">backend</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Backend</span>::<span class="ident">new</span>(<span class="ident">settings</span>, <span class="ident">CANONICALIZATION_DELAY</span>)<span class="question-mark">?</span>);
 	<span class="kw">let</span> <span class="ident">executor</span> <span class="op">=</span> <span class="ident">sc_client</span>::<span class="ident">LocalCallExecutor</span>::<span class="ident">new</span>(<span class="ident">backend</span>.<span class="ident">clone</span>(), <span class="ident">executor</span>);
 	<span class="prelude-val">Ok</span>((
-		<span class="ident">sc_client</span>::<span class="ident">Client</span>::<span class="ident">new</span>(<span class="ident">backend</span>.<span class="ident">clone</span>(), <span class="ident">executor</span>, <span class="ident">genesis_storage</span>, <span class="ident">fork_blocks</span>, <span class="ident">execution_extensions</span>)<span class="question-mark">?</span>,
+		<span class="ident">sc_client</span>::<span class="ident">Client</span>::<span class="ident">new</span>(
+			<span class="ident">backend</span>.<span class="ident">clone</span>(),
+			<span class="ident">executor</span>,
+			<span class="ident">genesis_storage</span>,
+			<span class="ident">fork_blocks</span>,
+			<span class="ident">bad_blocks</span>,
+			<span class="ident">execution_extensions</span>,
+		)<span class="question-mark">?</span>,
 		<span class="ident">backend</span>,
 	))
 }
@@ -3943,40 +3990,71 @@
 		<span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">offchain_storage</span>.<span class="ident">clone</span>())
 	}
 
-	<span class="kw">fn</span> <span class="ident">revert</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">n</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">best</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">blockchain</span>.<span class="ident">info</span>().<span class="ident">best_number</span>;
+	<span class="kw">fn</span> <span class="ident">revert</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">n</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>, <span class="ident">revert_finalized</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">best_number</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">blockchain</span>.<span class="ident">info</span>().<span class="ident">best_number</span>;
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">best_hash</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">blockchain</span>.<span class="ident">info</span>().<span class="ident">best_hash</span>;
 		<span class="kw">let</span> <span class="ident">finalized</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">blockchain</span>.<span class="ident">info</span>().<span class="ident">finalized_number</span>;
-		<span class="kw">let</span> <span class="ident">revertible</span> <span class="op">=</span> <span class="ident">best</span> <span class="op">-</span> <span class="ident">finalized</span>;
-		<span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">revertible</span> <span class="op">&lt;</span> <span class="ident">n</span> { <span class="ident">revertible</span> } <span class="kw">else</span> { <span class="ident">n</span> };
 
-		<span class="kw">for</span> <span class="ident">c</span> <span class="kw">in</span> <span class="number">0</span> .. <span class="ident">n</span>.<span class="ident">saturated_into</span>::<span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>() {
-			<span class="kw">if</span> <span class="ident">best</span>.<span class="ident">is_zero</span>() {
-				<span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">c</span>.<span class="ident">saturated_into</span>::<span class="op">&lt;</span><span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>())
-			}
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">transaction</span> <span class="op">=</span> <span class="ident">DBTransaction</span>::<span class="ident">new</span>();
-			<span class="kw">match</span> <span class="self">self</span>.<span class="ident">storage</span>.<span class="ident">state_db</span>.<span class="ident">revert_one</span>() {
-				<span class="prelude-val">Some</span>(<span class="ident">commit</span>) <span class="op">=</span><span class="op">&gt;</span> {
-					<span class="ident">apply_state_commit</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">transaction</span>, <span class="ident">commit</span>);
-					<span class="kw">let</span> <span class="ident">removed</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">blockchain</span>.<span class="ident">header</span>(<span class="ident">BlockId</span>::<span class="ident">Number</span>(<span class="ident">best</span>))<span class="question-mark">?</span>.<span class="ident">ok_or_else</span>(
-						<span class="op">|</span><span class="op">|</span> <span class="ident">sp_blockchain</span>::<span class="ident">Error</span>::<span class="ident">UnknownBlock</span>(
-							<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Error reverting to {}. Block hash not found.&quot;</span>, <span class="ident">best</span>)))<span class="question-mark">?</span>;
+		<span class="kw">let</span> <span class="ident">revertible</span> <span class="op">=</span> <span class="ident">best_number</span> <span class="op">-</span> <span class="ident">finalized</span>;
+		<span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> <span class="kw">if</span> <span class="op">!</span><span class="ident">revert_finalized</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">revertible</span> <span class="op">&lt;</span> <span class="ident">n</span> {
+			<span class="ident">revertible</span>
+		} <span class="kw">else</span> {
+			<span class="ident">n</span>
+		};
 
-					<span class="ident">best</span> <span class="op">-</span><span class="op">=</span> <span class="ident">One</span>::<span class="ident">one</span>();	<span class="comment">// prev block</span>
-					<span class="kw">let</span> <span class="ident">hash</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">blockchain</span>.<span class="ident">hash</span>(<span class="ident">best</span>)<span class="question-mark">?</span>.<span class="ident">ok_or_else</span>(
-						<span class="op">|</span><span class="op">|</span> <span class="ident">sp_blockchain</span>::<span class="ident">Error</span>::<span class="ident">UnknownBlock</span>(
-							<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Error reverting to {}. Block hash not found.&quot;</span>, <span class="ident">best</span>)))<span class="question-mark">?</span>;
-					<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">utils</span>::<span class="ident">number_and_hash_to_lookup_key</span>(<span class="ident">best</span>.<span class="ident">clone</span>(), <span class="kw-2">&amp;</span><span class="ident">hash</span>)<span class="question-mark">?</span>;
-					<span class="ident">transaction</span>.<span class="ident">put</span>(<span class="ident">columns</span>::<span class="ident">META</span>, <span class="ident">meta_keys</span>::<span class="ident">BEST_BLOCK</span>, <span class="kw-2">&amp;</span><span class="ident">key</span>);
-					<span class="ident">transaction</span>.<span class="ident">delete</span>(<span class="ident">columns</span>::<span class="ident">KEY_LOOKUP</span>, <span class="ident">removed</span>.<span class="ident">hash</span>().<span class="ident">as_ref</span>());
-					<span class="ident">children</span>::<span class="ident">remove_children</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">transaction</span>, <span class="ident">columns</span>::<span class="ident">META</span>, <span class="ident">meta_keys</span>::<span class="ident">CHILDREN_PREFIX</span>, <span class="ident">hash</span>);
-					<span class="self">self</span>.<span class="ident">storage</span>.<span class="ident">db</span>.<span class="ident">write</span>(<span class="ident">transaction</span>).<span class="ident">map_err</span>(<span class="ident">db_err</span>)<span class="question-mark">?</span>;
-					<span class="self">self</span>.<span class="ident">blockchain</span>.<span class="ident">update_meta</span>(<span class="ident">hash</span>, <span class="ident">best</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>);
-					<span class="self">self</span>.<span class="ident">blockchain</span>.<span class="ident">leaves</span>.<span class="ident">write</span>().<span class="ident">revert</span>(<span class="ident">removed</span>.<span class="ident">hash</span>().<span class="ident">clone</span>(), <span class="ident">removed</span>.<span class="ident">number</span>().<span class="ident">clone</span>(), <span class="ident">removed</span>.<span class="ident">parent_hash</span>().<span class="ident">clone</span>());
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">revert_blocks</span> <span class="op">=</span> <span class="op">|</span><span class="op">|</span> <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+			<span class="kw">for</span> <span class="ident">c</span> <span class="kw">in</span> <span class="number">0</span> .. <span class="ident">n</span>.<span class="ident">saturated_into</span>::<span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>() {
+				<span class="kw">if</span> <span class="ident">best_number</span>.<span class="ident">is_zero</span>() {
+					<span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">c</span>.<span class="ident">saturated_into</span>::<span class="op">&lt;</span><span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>())
 				}
-				<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">c</span>.<span class="ident">saturated_into</span>::<span class="op">&lt;</span><span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>())
+				<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">transaction</span> <span class="op">=</span> <span class="ident">DBTransaction</span>::<span class="ident">new</span>();
+				<span class="kw">match</span> <span class="self">self</span>.<span class="ident">storage</span>.<span class="ident">state_db</span>.<span class="ident">revert_one</span>() {
+					<span class="prelude-val">Some</span>(<span class="ident">commit</span>) <span class="op">=</span><span class="op">&gt;</span> {
+						<span class="ident">apply_state_commit</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">transaction</span>, <span class="ident">commit</span>);
+						<span class="kw">let</span> <span class="ident">removed</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">blockchain</span>.<span class="ident">header</span>(<span class="ident">BlockId</span>::<span class="ident">Number</span>(<span class="ident">best_number</span>))<span class="question-mark">?</span>.<span class="ident">ok_or_else</span>(
+							<span class="op">|</span><span class="op">|</span> <span class="ident">sp_blockchain</span>::<span class="ident">Error</span>::<span class="ident">UnknownBlock</span>(
+								<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Error reverting to {}. Block hash not found.&quot;</span>, <span class="ident">best_number</span>)))<span class="question-mark">?</span>;
+
+						<span class="ident">best_number</span> <span class="op">-</span><span class="op">=</span> <span class="ident">One</span>::<span class="ident">one</span>();	<span class="comment">// prev block</span>
+						<span class="ident">best_hash</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">blockchain</span>.<span class="ident">hash</span>(<span class="ident">best_number</span>)<span class="question-mark">?</span>.<span class="ident">ok_or_else</span>(
+							<span class="op">|</span><span class="op">|</span> <span class="ident">sp_blockchain</span>::<span class="ident">Error</span>::<span class="ident">UnknownBlock</span>(
+								<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Error reverting to {}. Block hash not found.&quot;</span>, <span class="ident">best_number</span>)))<span class="question-mark">?</span>;
+
+						<span class="kw">let</span> <span class="ident">update_finalized</span> <span class="op">=</span> <span class="ident">best_number</span> <span class="op">&lt;</span> <span class="ident">finalized</span>;
+
+						<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">utils</span>::<span class="ident">number_and_hash_to_lookup_key</span>(<span class="ident">best_number</span>.<span class="ident">clone</span>(), <span class="kw-2">&amp;</span><span class="ident">best_hash</span>)<span class="question-mark">?</span>;
+						<span class="ident">transaction</span>.<span class="ident">put</span>(<span class="ident">columns</span>::<span class="ident">META</span>, <span class="ident">meta_keys</span>::<span class="ident">BEST_BLOCK</span>, <span class="kw-2">&amp;</span><span class="ident">key</span>);
+						<span class="kw">if</span> <span class="ident">update_finalized</span> {
+							<span class="ident">transaction</span>.<span class="ident">put</span>(<span class="ident">columns</span>::<span class="ident">META</span>, <span class="ident">meta_keys</span>::<span class="ident">FINALIZED_BLOCK</span>, <span class="kw-2">&amp;</span><span class="ident">key</span>);
+						}
+						<span class="ident">transaction</span>.<span class="ident">delete</span>(<span class="ident">columns</span>::<span class="ident">KEY_LOOKUP</span>, <span class="ident">removed</span>.<span class="ident">hash</span>().<span class="ident">as_ref</span>());
+						<span class="ident">children</span>::<span class="ident">remove_children</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">transaction</span>, <span class="ident">columns</span>::<span class="ident">META</span>, <span class="ident">meta_keys</span>::<span class="ident">CHILDREN_PREFIX</span>, <span class="ident">best_hash</span>);
+						<span class="self">self</span>.<span class="ident">storage</span>.<span class="ident">db</span>.<span class="ident">write</span>(<span class="ident">transaction</span>).<span class="ident">map_err</span>(<span class="ident">db_err</span>)<span class="question-mark">?</span>;
+						<span class="self">self</span>.<span class="ident">blockchain</span>.<span class="ident">update_meta</span>(<span class="ident">best_hash</span>, <span class="ident">best_number</span>, <span class="bool-val">true</span>, <span class="ident">update_finalized</span>);
+					}
+					<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">c</span>.<span class="ident">saturated_into</span>::<span class="op">&lt;</span><span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>())
+				}
 			}
-		}
-		<span class="prelude-val">Ok</span>(<span class="ident">n</span>)
+
+			<span class="prelude-val">Ok</span>(<span class="ident">n</span>)
+		};
+
+		<span class="kw">let</span> <span class="ident">reverted</span> <span class="op">=</span> <span class="ident">revert_blocks</span>()<span class="question-mark">?</span>;
+
+		<span class="kw">let</span> <span class="ident">revert_leaves</span> <span class="op">=</span> <span class="op">|</span><span class="op">|</span> <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">transaction</span> <span class="op">=</span> <span class="ident">DBTransaction</span>::<span class="ident">new</span>();
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">leaves</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">blockchain</span>.<span class="ident">leaves</span>.<span class="ident">write</span>();
+
+			<span class="ident">leaves</span>.<span class="ident">revert</span>(<span class="ident">best_hash</span>, <span class="ident">best_number</span>);
+			<span class="ident">leaves</span>.<span class="ident">prepare_transaction</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">transaction</span>, <span class="ident">columns</span>::<span class="ident">META</span>, <span class="ident">meta_keys</span>::<span class="ident">LEAF_PREFIX</span>);
+			<span class="self">self</span>.<span class="ident">storage</span>.<span class="ident">db</span>.<span class="ident">write</span>(<span class="ident">transaction</span>).<span class="ident">map_err</span>(<span class="ident">db_err</span>)<span class="question-mark">?</span>;
+
+			<span class="prelude-val">Ok</span>(())
+		};
+
+		<span class="ident">revert_leaves</span>()<span class="question-mark">?</span>;
+
+		<span class="prelude-val">Ok</span>(<span class="ident">reverted</span>)
 	}
 
 	<span class="kw">fn</span> <span class="ident">blockchain</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">BlockchainDb</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> {
