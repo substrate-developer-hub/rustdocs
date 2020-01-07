@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["init","Initializes the global logger with `max_log_level` set to `Level::Info` (a sensible default)."],["init_with_level","Initializes the global logger setting `max_log_level` to the given value."],["log","Print a `log::Record` to the browser's console at the appropriate level."]]});

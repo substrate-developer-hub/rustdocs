@@ -1162,6 +1162,12 @@
 <span id="1151">1151</span>
 <span id="1152">1152</span>
 <span id="1153">1153</span>
+<span id="1154">1154</span>
+<span id="1155">1155</span>
+<span id="1156">1156</span>
+<span id="1157">1157</span>
+<span id="1158">1158</span>
+<span id="1159">1159</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1182,7 +1188,7 @@
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">Service</span>, <span class="ident">NetworkStatus</span>, <span class="ident">NetworkState</span>, <span class="ident">error</span>::<span class="ident">Error</span>, <span class="ident">DEFAULT_PROTOCOL_ID</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">SpawnTaskHandle</span>, <span class="ident">start_rpc_servers</span>, <span class="ident">build_network_future</span>, <span class="ident">TransactionPoolAdapter</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">status_sinks</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">config</span>::{<span class="ident">Configuration</span>, <span class="ident">DatabaseConfig</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">config</span>::{<span class="ident">Configuration</span>, <span class="ident">DatabaseConfig</span>, <span class="ident">KeystoreConfig</span>};
 <span class="kw">use</span> <span class="ident">sc_client_api</span>::{
 	<span class="self">self</span>,
 	<span class="ident">BlockchainEvents</span>,
@@ -1330,10 +1336,13 @@
 	<span class="ident">TGen</span>: <span class="ident">sp_runtime</span>::<span class="ident">BuildStorage</span> <span class="op">+</span> <span class="ident">serde</span>::<span class="ident">Serialize</span> <span class="op">+</span> <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span> <span class="ident">serde</span>::<span class="ident">Deserialize</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span>,
 	<span class="ident">TCSExt</span>: <span class="ident">Extension</span>,
 {
-	<span class="kw">let</span> <span class="ident">keystore</span> <span class="op">=</span> <span class="ident">Keystore</span>::<span class="ident">open</span>(
-		<span class="ident">config</span>.<span class="ident">keystore_path</span>.<span class="ident">clone</span>().<span class="ident">ok_or</span>(<span class="string">&quot;No basepath configured&quot;</span>)<span class="question-mark">?</span>,
-		<span class="ident">config</span>.<span class="ident">keystore_password</span>.<span class="ident">clone</span>()
-	)<span class="question-mark">?</span>;
+	<span class="kw">let</span> <span class="ident">keystore</span> <span class="op">=</span> <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="ident">config</span>.<span class="ident">keystore</span> {
+		<span class="ident">KeystoreConfig</span>::<span class="ident">Path</span> { <span class="ident">path</span>, <span class="ident">password</span> } <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Keystore</span>::<span class="ident">open</span>(
+			<span class="ident">path</span>.<span class="ident">clone</span>().<span class="ident">ok_or</span>(<span class="string">&quot;No basepath configured&quot;</span>)<span class="question-mark">?</span>,
+			<span class="ident">password</span>.<span class="ident">clone</span>()
+		)<span class="question-mark">?</span>,
+		<span class="ident">KeystoreConfig</span>::<span class="ident">InMemory</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Keystore</span>::<span class="ident">new_in_memory</span>()
+	};
 
 	<span class="kw">let</span> <span class="ident">executor</span> <span class="op">=</span> <span class="ident">NativeExecutor</span>::<span class="op">&lt;</span><span class="ident">TExecDisp</span><span class="op">&gt;</span>::<span class="ident">new</span>(
 		<span class="ident">config</span>.<span class="ident">wasm_method</span>,
@@ -1451,10 +1460,13 @@
 		(),
 		<span class="ident">TLightBackend</span><span class="op">&lt;</span><span class="ident">TBl</span><span class="op">&gt;</span>,
 	<span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
-		<span class="kw">let</span> <span class="ident">keystore</span> <span class="op">=</span> <span class="ident">Keystore</span>::<span class="ident">open</span>(
-			<span class="ident">config</span>.<span class="ident">keystore_path</span>.<span class="ident">clone</span>().<span class="ident">ok_or</span>(<span class="string">&quot;No basepath configured&quot;</span>)<span class="question-mark">?</span>,
-			<span class="ident">config</span>.<span class="ident">keystore_password</span>.<span class="ident">clone</span>()
-		)<span class="question-mark">?</span>;
+		<span class="kw">let</span> <span class="ident">keystore</span> <span class="op">=</span> <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="ident">config</span>.<span class="ident">keystore</span> {
+			<span class="ident">KeystoreConfig</span>::<span class="ident">Path</span> { <span class="ident">path</span>, <span class="ident">password</span> } <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Keystore</span>::<span class="ident">open</span>(
+				<span class="ident">path</span>.<span class="ident">clone</span>().<span class="ident">ok_or</span>(<span class="string">&quot;No basepath configured&quot;</span>)<span class="question-mark">?</span>,
+				<span class="ident">password</span>.<span class="ident">clone</span>()
+			)<span class="question-mark">?</span>,
+			<span class="ident">KeystoreConfig</span>::<span class="ident">InMemory</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Keystore</span>::<span class="ident">new_in_memory</span>()
+		};
 
 		<span class="kw">let</span> <span class="ident">executor</span> <span class="op">=</span> <span class="ident">NativeExecutor</span>::<span class="op">&lt;</span><span class="ident">TExecDisp</span><span class="op">&gt;</span>::<span class="ident">new</span>(
 			<span class="ident">config</span>.<span class="ident">wasm_method</span>,

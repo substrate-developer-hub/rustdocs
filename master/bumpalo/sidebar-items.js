@@ -1,1 +1,1 @@
-initSidebarItems({"macro":[["format","Like the `format!` macro for creating `std::string::String`s but for `bumpalo::collections::String`."],["vec","Creates a [`Vec`] containing the arguments."]],"mod":[["collections","Collection types."]],"struct":[["Bump","An arena to bump allocate into."]]});
+initSidebarItems({"struct":[["Bump","An arena to bump allocate into."],["ChunkIter","An iterator over each chunk of allocated memory that an arena has bump allocated into."]]});
