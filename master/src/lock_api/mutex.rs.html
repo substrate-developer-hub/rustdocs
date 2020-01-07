@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/lock_api-0.3.2/src/mutex.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mutex.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/lock_api-0.2.0/src/mutex.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mutex.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -630,15 +630,6 @@
 <span id="619">619</span>
 <span id="620">620</span>
 <span id="621">621</span>
-<span id="622">622</span>
-<span id="623">623</span>
-<span id="624">624</span>
-<span id="625">625</span>
-<span id="626">626</span>
-<span id="627">627</span>
-<span id="628">628</span>
-<span id="629">629</span>
-<span id="630">630</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018 Amanieu d&#39;Antras</span>
 <span class="comment">//</span>
@@ -670,9 +661,6 @@
 <span class="doccomment">/// exclusive: a lock can&#39;t be acquired while the mutex is already locked.</span>
 <span class="kw">pub</span> <span class="kw">unsafe</span> <span class="kw">trait</span> <span class="ident">RawMutex</span> {
     <span class="doccomment">/// Initial value for an unlocked mutex.</span>
-    <span class="comment">// A “non-constant” const item is a legacy way to supply an initialized value to downstream</span>
-    <span class="comment">// static items. Can hopefully be replaced with `const fn new() -&gt; Self` at some point.</span>
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">declare_interior_mutable_const</span>)]</span>
     <span class="kw">const</span> <span class="ident">INIT</span>: <span class="self">Self</span>;
 
     <span class="doccomment">/// Marker type which determines whether a lock guard should be `Send`. Use</span>
@@ -741,6 +729,35 @@
     <span class="ident">data</span>: <span class="ident">UnsafeCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
 }
 
+<span class="comment">// Copied and modified from serde</span>
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde&quot;</span>)]</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Serialize</span> <span class="kw">for</span> <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">T</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">R</span>: <span class="ident">RawMutex</span>,
+    <span class="ident">T</span>: <span class="ident">Serialize</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span>,
+{
+    <span class="kw">fn</span> <span class="ident">serialize</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">serializer</span>: <span class="ident">S</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">S</span>::<span class="prelude-val">Ok</span>, <span class="ident">S</span>::<span class="ident">Error</span><span class="op">&gt;</span>
+    <span class="kw">where</span>
+        <span class="ident">S</span>: <span class="ident">Serializer</span>,
+    {
+        <span class="self">self</span>.<span class="ident">lock</span>().<span class="ident">serialize</span>(<span class="ident">serializer</span>)
+    }
+}
+
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde&quot;</span>)]</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span>, <span class="ident">R</span>, <span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Deserialize</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">T</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">R</span>: <span class="ident">RawMutex</span>,
+    <span class="ident">T</span>: <span class="ident">Deserialize</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span>,
+{
+    <span class="kw">fn</span> <span class="ident">deserialize</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span>(<span class="ident">deserializer</span>: <span class="ident">D</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">D</span>::<span class="ident">Error</span><span class="op">&gt;</span>
+    <span class="kw">where</span>
+        <span class="ident">D</span>: <span class="ident">Deserializer</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span>,
+    {
+        <span class="ident">Deserialize</span>::<span class="ident">deserialize</span>(<span class="ident">deserializer</span>).<span class="ident">map</span>(<span class="ident">Mutex</span>::<span class="ident">new</span>)
+    }
+}
+
 <span class="kw">unsafe</span> <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">RawMutex</span> <span class="op">+</span> <span class="ident">Send</span>, <span class="ident">T</span>: <span class="question-mark">?</span><span class="ident">Sized</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span> <span class="ident">Send</span> <span class="kw">for</span> <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">T</span><span class="op">&gt;</span> {}
 <span class="kw">unsafe</span> <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">RawMutex</span> <span class="op">+</span> <span class="ident">Sync</span>, <span class="ident">T</span>: <span class="question-mark">?</span><span class="ident">Sized</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span> <span class="ident">Sync</span> <span class="kw">for</span> <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">T</span><span class="op">&gt;</span> {}
 
@@ -750,8 +767,8 @@
     <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">val</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">T</span><span class="op">&gt;</span> {
         <span class="ident">Mutex</span> {
-            <span class="ident">raw</span>: <span class="ident">R</span>::<span class="ident">INIT</span>,
             <span class="ident">data</span>: <span class="ident">UnsafeCell</span>::<span class="ident">new</span>(<span class="ident">val</span>),
+            <span class="ident">raw</span>: <span class="ident">R</span>::<span class="ident">INIT</span>,
         }
     }
 
@@ -760,24 +777,22 @@
     <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">val</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">T</span><span class="op">&gt;</span> {
         <span class="ident">Mutex</span> {
-            <span class="ident">raw</span>: <span class="ident">R</span>::<span class="ident">INIT</span>,
             <span class="ident">data</span>: <span class="ident">UnsafeCell</span>::<span class="ident">new</span>(<span class="ident">val</span>),
+            <span class="ident">raw</span>: <span class="ident">R</span>::<span class="ident">INIT</span>,
         }
     }
 
     <span class="doccomment">/// Consumes this mutex, returning the underlying data.</span>
     <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_unsafe</span>)]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">into_inner</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">T</span> {
-        <span class="self">self</span>.<span class="ident">data</span>.<span class="ident">into_inner</span>()
+        <span class="kw">unsafe</span> { <span class="self">self</span>.<span class="ident">data</span>.<span class="ident">into_inner</span>() }
     }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">RawMutex</span>, <span class="ident">T</span>: <span class="question-mark">?</span><span class="ident">Sized</span><span class="op">&gt;</span> <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="doccomment">/// # Safety</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// The lock must be held when calling this method.</span>
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">guard</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">MutexGuard</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">R</span>, <span class="ident">T</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">guard</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">MutexGuard</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">R</span>, <span class="ident">T</span><span class="op">&gt;</span> {
         <span class="ident">MutexGuard</span> {
             <span class="ident">mutex</span>: <span class="self">self</span>,
             <span class="ident">marker</span>: <span class="ident">PhantomData</span>,
@@ -796,8 +811,7 @@
     <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">lock</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">MutexGuard</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">R</span>, <span class="ident">T</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">raw</span>.<span class="ident">lock</span>();
-        <span class="comment">// SAFETY: The lock is held, as required.</span>
-        <span class="kw">unsafe</span> { <span class="self">self</span>.<span class="ident">guard</span>() }
+        <span class="self">self</span>.<span class="ident">guard</span>()
     }
 
     <span class="doccomment">/// Attempts to acquire this lock.</span>
@@ -810,8 +824,7 @@
     <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_lock</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">MutexGuard</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">R</span>, <span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">raw</span>.<span class="ident">try_lock</span>() {
-            <span class="comment">// SAFETY: The lock is held, as required.</span>
-            <span class="prelude-val">Some</span>(<span class="kw">unsafe</span> { <span class="self">self</span>.<span class="ident">guard</span>() })
+            <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">guard</span>())
         } <span class="kw">else</span> {
             <span class="prelude-val">None</span>
         }
@@ -884,8 +897,7 @@
     <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_lock_for</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">timeout</span>: <span class="ident">R</span>::<span class="ident">Duration</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">MutexGuard</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">R</span>, <span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">raw</span>.<span class="ident">try_lock_for</span>(<span class="ident">timeout</span>) {
-            <span class="comment">// SAFETY: The lock is held, as required.</span>
-            <span class="prelude-val">Some</span>(<span class="kw">unsafe</span> { <span class="self">self</span>.<span class="ident">guard</span>() })
+            <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">guard</span>())
         } <span class="kw">else</span> {
             <span class="prelude-val">None</span>
         }
@@ -899,8 +911,7 @@
     <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_lock_until</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">timeout</span>: <span class="ident">R</span>::<span class="ident">Instant</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">MutexGuard</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">R</span>, <span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">raw</span>.<span class="ident">try_lock_until</span>(<span class="ident">timeout</span>) {
-            <span class="comment">// SAFETY: The lock is held, as required.</span>
-            <span class="prelude-val">Some</span>(<span class="kw">unsafe</span> { <span class="self">self</span>.<span class="ident">guard</span>() })
+            <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">guard</span>())
         } <span class="kw">else</span> {
             <span class="prelude-val">None</span>
         }
@@ -938,35 +949,6 @@
                     .<span class="ident">finish</span>()
             }
         }
-    }
-}
-
-<span class="comment">// Copied and modified from serde</span>
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde&quot;</span>)]</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Serialize</span> <span class="kw">for</span> <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">T</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">R</span>: <span class="ident">RawMutex</span>,
-    <span class="ident">T</span>: <span class="ident">Serialize</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span>,
-{
-    <span class="kw">fn</span> <span class="ident">serialize</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">serializer</span>: <span class="ident">S</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">S</span>::<span class="prelude-val">Ok</span>, <span class="ident">S</span>::<span class="ident">Error</span><span class="op">&gt;</span>
-    <span class="kw">where</span>
-        <span class="ident">S</span>: <span class="ident">Serializer</span>,
-    {
-        <span class="self">self</span>.<span class="ident">lock</span>().<span class="ident">serialize</span>(<span class="ident">serializer</span>)
-    }
-}
-
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde&quot;</span>)]</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span>, <span class="ident">R</span>, <span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Deserialize</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">T</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">R</span>: <span class="ident">RawMutex</span>,
-    <span class="ident">T</span>: <span class="ident">Deserialize</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span>,
-{
-    <span class="kw">fn</span> <span class="ident">deserialize</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span>(<span class="ident">deserializer</span>: <span class="ident">D</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">D</span>::<span class="ident">Error</span><span class="op">&gt;</span>
-    <span class="kw">where</span>
-        <span class="ident">D</span>: <span class="ident">Deserializer</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span>,
-    {
-        <span class="ident">Deserialize</span>::<span class="ident">deserialize</span>(<span class="ident">deserializer</span>).<span class="ident">map</span>(<span class="ident">Mutex</span>::<span class="ident">new</span>)
     }
 }
 
@@ -1012,14 +994,14 @@
         }
     }
 
-    <span class="doccomment">/// Attempts to make a new `MappedMutexGuard` for a component of the</span>
-    <span class="doccomment">/// locked data. The original guard is returned if the closure returns `None`.</span>
+    <span class="doccomment">/// Attempts to make  a new `MappedMutexGuard` for a component of the</span>
+    <span class="doccomment">/// locked data. The original guard is return if the closure returns `None`.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This operation cannot fail as the `MutexGuard` passed</span>
     <span class="doccomment">/// in already locked the mutex.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This is an associated function that needs to be</span>
-    <span class="doccomment">/// used as `MutexGuard::try_map(...)`. A method would interfere with methods of</span>
+    <span class="doccomment">/// used as `MutexGuard::map(...)`. A method would interfere with methods of</span>
     <span class="doccomment">/// the same name on the contents of the locked data.</span>
     <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_map</span><span class="op">&lt;</span><span class="ident">U</span>: <span class="question-mark">?</span><span class="ident">Sized</span>, <span class="ident">F</span><span class="op">&gt;</span>(<span class="ident">s</span>: <span class="self">Self</span>, <span class="ident">f</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">MappedMutexGuard</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">R</span>, <span class="ident">U</span><span class="op">&gt;</span>, <span class="self">Self</span><span class="op">&gt;</span>
@@ -1075,7 +1057,7 @@
 
     <span class="doccomment">/// Temporarily unlocks the mutex to execute the given function.</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// The mutex is unlocked using a fair unlock protocol.</span>
+    <span class="doccomment">/// The mutex is unlocked a fair unlock protocol.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This is safe because `&amp;mut` guarantees that there exist no other</span>
     <span class="doccomment">/// references to the data protected by the mutex.</span>
@@ -1184,14 +1166,14 @@
         }
     }
 
-    <span class="doccomment">/// Attempts to make a new `MappedMutexGuard` for a component of the</span>
-    <span class="doccomment">/// locked data. The original guard is returned if the closure returns `None`.</span>
+    <span class="doccomment">/// Attempts to make  a new `MappedMutexGuard` for a component of the</span>
+    <span class="doccomment">/// locked data. The original guard is return if the closure returns `None`.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This operation cannot fail as the `MappedMutexGuard` passed</span>
     <span class="doccomment">/// in already locked the mutex.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This is an associated function that needs to be</span>
-    <span class="doccomment">/// used as `MappedMutexGuard::try_map(...)`. A method would interfere with methods of</span>
+    <span class="doccomment">/// used as `MappedMutexGuard::map(...)`. A method would interfere with methods of</span>
     <span class="doccomment">/// the same name on the contents of the locked data.</span>
     <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_map</span><span class="op">&lt;</span><span class="ident">U</span>: <span class="question-mark">?</span><span class="ident">Sized</span>, <span class="ident">F</span><span class="op">&gt;</span>(<span class="ident">s</span>: <span class="self">Self</span>, <span class="ident">f</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">MappedMutexGuard</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">R</span>, <span class="ident">U</span><span class="op">&gt;</span>, <span class="self">Self</span><span class="op">&gt;</span>
