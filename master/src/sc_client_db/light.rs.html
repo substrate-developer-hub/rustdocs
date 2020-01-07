@@ -1147,6 +1147,30 @@
 <span id="1136">1136</span>
 <span id="1137">1137</span>
 <span id="1138">1138</span>
+<span id="1139">1139</span>
+<span id="1140">1140</span>
+<span id="1141">1141</span>
+<span id="1142">1142</span>
+<span id="1143">1143</span>
+<span id="1144">1144</span>
+<span id="1145">1145</span>
+<span id="1146">1146</span>
+<span id="1147">1147</span>
+<span id="1148">1148</span>
+<span id="1149">1149</span>
+<span id="1150">1150</span>
+<span id="1151">1151</span>
+<span id="1152">1152</span>
+<span id="1153">1153</span>
+<span id="1154">1154</span>
+<span id="1155">1155</span>
+<span id="1156">1156</span>
+<span id="1157">1157</span>
+<span id="1158">1158</span>
+<span id="1159">1159</span>
+<span id="1160">1160</span>
+<span id="1161">1161</span>
+<span id="1162">1162</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1172,7 +1196,7 @@
 
 <span class="kw">use</span> <span class="ident">kvdb</span>::{<span class="ident">KeyValueDB</span>, <span class="ident">DBTransaction</span>};
 
-<span class="kw">use</span> <span class="ident">sc_client_api</span>::<span class="ident">backend</span>::{<span class="ident">AuxStore</span>, <span class="ident">NewBlockState</span>};
+<span class="kw">use</span> <span class="ident">sc_client_api</span>::{<span class="ident">backend</span>::{<span class="ident">AuxStore</span>, <span class="ident">NewBlockState</span>}, <span class="ident">UsageInfo</span>};
 <span class="kw">use</span> <span class="ident">sc_client</span>::<span class="ident">blockchain</span>::{
 	<span class="ident">BlockStatus</span>, <span class="ident">Cache</span> <span class="kw">as</span> <span class="ident">BlockchainCache</span>,<span class="ident">Info</span> <span class="kw">as</span> <span class="ident">BlockchainInfo</span>,
 };
@@ -1180,7 +1204,7 @@
 <span class="kw">use</span> <span class="ident">sp_blockchain</span>::{
 	<span class="ident">CachedHeaderMetadata</span>, <span class="ident">HeaderMetadata</span>, <span class="ident">HeaderMetadataCache</span>,
 	<span class="ident">Error</span> <span class="kw">as</span> <span class="ident">ClientError</span>, <span class="prelude-ty">Result</span> <span class="kw">as</span> <span class="ident">ClientResult</span>,
-	<span class="ident">HeaderBackend</span> <span class="kw">as</span> <span class="ident">BlockchainHeaderBackend</span>, 
+	<span class="ident">HeaderBackend</span> <span class="kw">as</span> <span class="ident">BlockchainHeaderBackend</span>,
 	<span class="ident">well_known_cache_keys</span>,
 };
 <span class="kw">use</span> <span class="ident">sc_client</span>::<span class="ident">light</span>::<span class="ident">blockchain</span>::<span class="ident">Storage</span> <span class="kw">as</span> <span class="ident">LightBlockchainStorage</span>;
@@ -1190,7 +1214,7 @@
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">traits</span>::{<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">Header</span> <span class="kw">as</span> <span class="ident">HeaderT</span>, <span class="ident">Zero</span>, <span class="ident">One</span>, <span class="ident">NumberFor</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">cache</span>::{<span class="ident">DbCacheSync</span>, <span class="ident">DbCache</span>, <span class="ident">ComplexBlockId</span>, <span class="ident">EntryType</span> <span class="kw">as</span> <span class="ident">CacheEntryType</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">utils</span>::{<span class="self">self</span>, <span class="ident">meta_keys</span>, <span class="ident">Meta</span>, <span class="ident">db_err</span>, <span class="ident">read_db</span>, <span class="ident">block_id_to_lookup_key</span>, <span class="ident">read_meta</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">DatabaseSettings</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">DatabaseSettings</span>, <span class="ident">FrozenForDuration</span>};
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">trace</span>, <span class="ident">warn</span>, <span class="ident">debug</span>};
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod</span> <span class="ident">columns</span> {
@@ -1214,6 +1238,7 @@
 	<span class="ident">meta</span>: <span class="ident">RwLock</span><span class="op">&lt;</span><span class="ident">Meta</span><span class="op">&lt;</span><span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>, <span class="ident">Block</span>::<span class="ident">Hash</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">cache</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">DbCacheSync</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">header_metadata_cache</span>: <span class="ident">HeaderMetadataCache</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
+	<span class="ident">io_stats</span>: <span class="ident">FrozenForDuration</span><span class="op">&lt;</span><span class="ident">kvdb</span>::<span class="ident">IoStats</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="ident">LightStorage</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>
@@ -1252,6 +1277,7 @@
 			<span class="ident">meta</span>: <span class="ident">RwLock</span>::<span class="ident">new</span>(<span class="ident">meta</span>),
 			<span class="ident">cache</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">DbCacheSync</span>(<span class="ident">RwLock</span>::<span class="ident">new</span>(<span class="ident">cache</span>))),
 			<span class="ident">header_metadata_cache</span>: <span class="ident">HeaderMetadataCache</span>::<span class="ident">default</span>(),
+			<span class="ident">io_stats</span>: <span class="ident">FrozenForDuration</span>::<span class="ident">new</span>(<span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">1</span>), <span class="ident">kvdb</span>::<span class="ident">IoStats</span>::<span class="ident">empty</span>()),
 		})
 	}
 
@@ -1697,6 +1723,28 @@
 
 	<span class="kw">fn</span> <span class="ident">cache</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">BlockchainCache</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 		<span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">cache</span>.<span class="ident">clone</span>())
+	}
+
+	<span class="kw">fn</span> <span class="ident">usage_info</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">UsageInfo</span><span class="op">&gt;</span> {
+		<span class="kw">use</span> <span class="ident">sc_client_api</span>::{<span class="ident">MemoryInfo</span>, <span class="ident">IoInfo</span>};
+
+		<span class="kw">let</span> <span class="ident">database_cache</span> <span class="op">=</span> <span class="ident">parity_util_mem</span>::<span class="ident">malloc_size</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">db</span>);
+		<span class="kw">let</span> <span class="ident">io_stats</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">io_stats</span>.<span class="ident">take_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">db</span>.<span class="ident">io_stats</span>(<span class="ident">kvdb</span>::<span class="ident">IoStatsKind</span>::<span class="ident">SincePrevious</span>));
+
+		<span class="prelude-val">Some</span>(<span class="ident">UsageInfo</span> {
+			<span class="ident">memory</span>: <span class="ident">MemoryInfo</span> {
+				<span class="ident">database_cache</span>,
+				<span class="ident">state_cache</span>: <span class="number">0</span>,
+			},
+			<span class="ident">io</span>: <span class="ident">IoInfo</span> {
+				<span class="ident">transactions</span>: <span class="ident">io_stats</span>.<span class="ident">transactions</span>,
+				<span class="ident">bytes_read</span>: <span class="ident">io_stats</span>.<span class="ident">bytes_read</span>,
+				<span class="ident">bytes_written</span>: <span class="ident">io_stats</span>.<span class="ident">bytes_written</span>,
+				<span class="ident">writes</span>: <span class="ident">io_stats</span>.<span class="ident">writes</span>,
+				<span class="ident">reads</span>: <span class="ident">io_stats</span>.<span class="ident">reads</span>,
+				<span class="ident">average_transaction_size</span>: <span class="ident">io_stats</span>.<span class="ident">avg_transaction_size</span>() <span class="kw">as</span> <span class="ident">u64</span>,
+			}
+		})
 	}
 }
 

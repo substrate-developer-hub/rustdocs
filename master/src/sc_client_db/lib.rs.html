@@ -2495,6 +2495,66 @@
 <span id="2484">2484</span>
 <span id="2485">2485</span>
 <span id="2486">2486</span>
+<span id="2487">2487</span>
+<span id="2488">2488</span>
+<span id="2489">2489</span>
+<span id="2490">2490</span>
+<span id="2491">2491</span>
+<span id="2492">2492</span>
+<span id="2493">2493</span>
+<span id="2494">2494</span>
+<span id="2495">2495</span>
+<span id="2496">2496</span>
+<span id="2497">2497</span>
+<span id="2498">2498</span>
+<span id="2499">2499</span>
+<span id="2500">2500</span>
+<span id="2501">2501</span>
+<span id="2502">2502</span>
+<span id="2503">2503</span>
+<span id="2504">2504</span>
+<span id="2505">2505</span>
+<span id="2506">2506</span>
+<span id="2507">2507</span>
+<span id="2508">2508</span>
+<span id="2509">2509</span>
+<span id="2510">2510</span>
+<span id="2511">2511</span>
+<span id="2512">2512</span>
+<span id="2513">2513</span>
+<span id="2514">2514</span>
+<span id="2515">2515</span>
+<span id="2516">2516</span>
+<span id="2517">2517</span>
+<span id="2518">2518</span>
+<span id="2519">2519</span>
+<span id="2520">2520</span>
+<span id="2521">2521</span>
+<span id="2522">2522</span>
+<span id="2523">2523</span>
+<span id="2524">2524</span>
+<span id="2525">2525</span>
+<span id="2526">2526</span>
+<span id="2527">2527</span>
+<span id="2528">2528</span>
+<span id="2529">2529</span>
+<span id="2530">2530</span>
+<span id="2531">2531</span>
+<span id="2532">2532</span>
+<span id="2533">2533</span>
+<span id="2534">2534</span>
+<span id="2535">2535</span>
+<span id="2536">2536</span>
+<span id="2537">2537</span>
+<span id="2538">2538</span>
+<span id="2539">2539</span>
+<span id="2540">2540</span>
+<span id="2541">2541</span>
+<span id="2542">2542</span>
+<span id="2543">2543</span>
+<span id="2544">2544</span>
+<span id="2545">2545</span>
+<span id="2546">2546</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -2537,7 +2597,7 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">io</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::{<span class="ident">HashMap</span>, <span class="ident">HashSet</span>};
 
-<span class="kw">use</span> <span class="ident">sc_client_api</span>::{<span class="ident">execution_extensions</span>::<span class="ident">ExecutionExtensions</span>, <span class="ident">BadBlocks</span>, <span class="ident">ForkBlocks</span>};
+<span class="kw">use</span> <span class="ident">sc_client_api</span>::{<span class="ident">execution_extensions</span>::<span class="ident">ExecutionExtensions</span>, <span class="ident">ForkBlocks</span>, <span class="ident">UsageInfo</span>, <span class="ident">MemoryInfo</span>, <span class="ident">BadBlocks</span>, <span class="ident">IoInfo</span>};
 <span class="kw">use</span> <span class="ident">sc_client_api</span>::<span class="ident">backend</span>::<span class="ident">NewBlockState</span>;
 <span class="kw">use</span> <span class="ident">sc_client_api</span>::<span class="ident">backend</span>::{<span class="ident">StorageCollection</span>, <span class="ident">ChildStorageCollection</span>};
 <span class="kw">use</span> <span class="ident">sp_blockchain</span>::{
@@ -3329,7 +3389,48 @@
 	}
 }
 
-<span class="doccomment">/// Disk backend. Keeps data in a key-value store. In archive mode, trie nodes are kept from all blocks.</span>
+<span class="doccomment">/// Frozen `value` at time `at`.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// Used as inner structure under lock in `FrozenForDuration`.</span>
+<span class="kw">struct</span> <span class="ident">Frozen</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Clone</span><span class="op">&gt;</span> {
+	<span class="ident">at</span>: <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Instant</span>,
+	<span class="ident">value</span>: <span class="ident">T</span>,
+}
+
+<span class="doccomment">/// Some value frozen for period of time.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// If time `duration` not passed since the value was instantiated,</span>
+<span class="doccomment">/// current frozen value is returned. Otherwise, you have to provide</span>
+<span class="doccomment">/// a new value which will be again frozen for `duration`.</span>
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">FrozenForDuration</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Clone</span><span class="op">&gt;</span> {
+	<span class="ident">duration</span>: <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>,
+	<span class="ident">value</span>: <span class="ident">RwLock</span><span class="op">&lt;</span><span class="ident">Frozen</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Clone</span><span class="op">&gt;</span> <span class="ident">FrozenForDuration</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">duration</span>: <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>, <span class="ident">initial</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+		<span class="self">Self</span> {
+			<span class="ident">duration</span>,
+			<span class="ident">value</span>: <span class="ident">Frozen</span> { <span class="ident">at</span>: <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Instant</span>::<span class="ident">now</span>(), <span class="ident">value</span>: <span class="ident">initial</span> }.<span class="ident">into</span>(),
+		}
+	}
+
+	<span class="kw">fn</span> <span class="ident">take_or_else</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">T</span> <span class="kw">where</span> <span class="ident">F</span>: <span class="ident">FnOnce</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">T</span> {
+		<span class="kw">if</span> <span class="self">self</span>.<span class="ident">value</span>.<span class="ident">read</span>().<span class="ident">at</span>.<span class="ident">elapsed</span>() <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">duration</span> {
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">write_lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">value</span>.<span class="ident">write</span>();
+			<span class="kw">let</span> <span class="ident">new_value</span> <span class="op">=</span> <span class="ident">f</span>();
+			<span class="ident">write_lock</span>.<span class="ident">at</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Instant</span>::<span class="ident">now</span>();
+			<span class="ident">write_lock</span>.<span class="ident">value</span> <span class="op">=</span> <span class="ident">new_value</span>.<span class="ident">clone</span>();
+			<span class="ident">new_value</span>
+		} <span class="kw">else</span> {
+			<span class="self">self</span>.<span class="ident">value</span>.<span class="ident">read</span>().<span class="ident">value</span>.<span class="ident">clone</span>()
+		}
+	}
+}
+
+<span class="doccomment">/// Disk backend.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// Disk backend keps data in a key-value store. In archive mode, trie nodes are kept from all blocks.</span>
 <span class="doccomment">/// Otherwise, trie nodes are kept only from some recent blocks.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> {
 	<span class="ident">storage</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">StorageDb</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -3343,6 +3444,7 @@
 	<span class="ident">shared_cache</span>: <span class="ident">SharedCache</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span>,
 	<span class="ident">import_lock</span>: <span class="ident">RwLock</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
 	<span class="ident">is_archive</span>: <span class="ident">bool</span>,
+	<span class="ident">io_stats</span>: <span class="ident">FrozenForDuration</span><span class="op">&lt;</span><span class="ident">kvdb</span>::<span class="ident">IoStats</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> {
@@ -3404,6 +3506,7 @@
 			),
 			<span class="ident">import_lock</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
 			<span class="ident">is_archive</span>: <span class="ident">is_archive_pruning</span>,
+			<span class="ident">io_stats</span>: <span class="ident">FrozenForDuration</span>::<span class="ident">new</span>(<span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">1</span>), <span class="ident">kvdb</span>::<span class="ident">IoStats</span>::<span class="ident">empty</span>()),
 		})
 	}
 
@@ -3990,9 +4093,31 @@
 		<span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">offchain_storage</span>.<span class="ident">clone</span>())
 	}
 
+	<span class="kw">fn</span> <span class="ident">usage_info</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">UsageInfo</span><span class="op">&gt;</span> {
+		<span class="kw">let</span> <span class="ident">io_stats</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">io_stats</span>.<span class="ident">take_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">storage</span>.<span class="ident">db</span>.<span class="ident">io_stats</span>(<span class="ident">kvdb</span>::<span class="ident">IoStatsKind</span>::<span class="ident">SincePrevious</span>));
+		<span class="kw">let</span> <span class="ident">database_cache</span> <span class="op">=</span> <span class="ident">parity_util_mem</span>::<span class="ident">malloc_size</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">storage</span>.<span class="ident">db</span>);
+		<span class="kw">let</span> <span class="ident">state_cache</span> <span class="op">=</span> (<span class="kw-2">*</span><span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">shared_cache</span>).<span class="ident">lock</span>().<span class="ident">used_storage_cache_size</span>();
+
+		<span class="prelude-val">Some</span>(<span class="ident">UsageInfo</span> {
+			<span class="ident">memory</span>: <span class="ident">MemoryInfo</span> {
+				<span class="ident">state_cache</span>,
+				<span class="ident">database_cache</span>,
+			},
+			<span class="ident">io</span>: <span class="ident">IoInfo</span> {
+				<span class="ident">transactions</span>: <span class="ident">io_stats</span>.<span class="ident">transactions</span>,
+				<span class="ident">bytes_read</span>: <span class="ident">io_stats</span>.<span class="ident">bytes_read</span>,
+				<span class="ident">bytes_written</span>: <span class="ident">io_stats</span>.<span class="ident">bytes_written</span>,
+				<span class="ident">writes</span>: <span class="ident">io_stats</span>.<span class="ident">writes</span>,
+				<span class="ident">reads</span>: <span class="ident">io_stats</span>.<span class="ident">reads</span>,
+				<span class="ident">average_transaction_size</span>: <span class="ident">io_stats</span>.<span class="ident">avg_transaction_size</span>() <span class="kw">as</span> <span class="ident">u64</span>,
+			},
+		})
+	}
+
 	<span class="kw">fn</span> <span class="ident">revert</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">n</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>, <span class="ident">revert_finalized</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">best_number</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">blockchain</span>.<span class="ident">info</span>().<span class="ident">best_number</span>;
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">best_hash</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">blockchain</span>.<span class="ident">info</span>().<span class="ident">best_hash</span>;
+
 		<span class="kw">let</span> <span class="ident">finalized</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">blockchain</span>.<span class="ident">info</span>().<span class="ident">finalized_number</span>;
 
 		<span class="kw">let</span> <span class="ident">revertible</span> <span class="op">=</span> <span class="ident">best_number</span> <span class="op">-</span> <span class="ident">finalized</span>;
@@ -4059,11 +4184,6 @@
 
 	<span class="kw">fn</span> <span class="ident">blockchain</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">BlockchainDb</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> {
 		<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">blockchain</span>
-	}
-
-	<span class="kw">fn</span> <span class="ident">used_state_cache_size</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> {
-		<span class="kw">let</span> <span class="ident">used</span> <span class="op">=</span> (<span class="kw-2">*</span><span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">shared_cache</span>).<span class="ident">lock</span>().<span class="ident">used_storage_cache_size</span>();
-		<span class="prelude-val">Some</span>(<span class="ident">used</span>)
 	}
 
 	<span class="kw">fn</span> <span class="ident">state_at</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block</span>: <span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">State</span><span class="op">&gt;</span> {

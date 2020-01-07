@@ -300,6 +300,7 @@ ALIASES["parity_scale_codec"] = {};
 ALIASES["parity_scale_codec_derive"] = {};
 ALIASES["parity_send_wrapper"] = {};
 ALIASES["parity_util_mem"] = {};
+ALIASES["parity_util_mem_derive"] = {};
 ALIASES["parity_wasm"] = {};
 ALIASES["parking_lot"] = {};
 ALIASES["parking_lot_core"] = {};
