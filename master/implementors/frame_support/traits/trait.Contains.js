@@ -1,5 +1,5 @@
 (function() {var implementors = {};
-implementors["frame_support"] = [];
+implementors["pallet_elections_phragmen"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=\"pallet_elections_phragmen/trait.Trait.html\" title=\"trait pallet_elections_phragmen::Trait\">Trait</a>&gt; <a class=\"trait\" href=\"frame_support/traits/trait.Contains.html\" title=\"trait frame_support::traits::Contains\">Contains</a>&lt;&lt;T as <a class=\"trait\" href=\"frame_system/trait.Trait.html\" title=\"trait frame_system::Trait\">Trait</a>&gt;::<a class=\"type\" href=\"frame_system/trait.Trait.html#associatedtype.AccountId\" title=\"type frame_system::Trait::AccountId\">AccountId</a>&gt; for <a class=\"struct\" href=\"pallet_elections_phragmen/struct.Module.html\" title=\"struct pallet_elections_phragmen::Module\">Module</a>&lt;T&gt;","synthetic":false,"types":["pallet_elections_phragmen::Module"]}];
 
             if (window.register_implementors) {
                 window.register_implementors(implementors);
