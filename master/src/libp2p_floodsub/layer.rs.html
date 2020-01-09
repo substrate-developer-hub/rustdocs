@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-floodsub-0.13.1/src/layer.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>layer.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-floodsub-0.14.0-alpha.1/src/layer.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>layer.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -429,6 +429,7 @@
 <span id="418">418</span>
 <span id="419">419</span>
 <span id="420">420</span>
+<span id="421">421</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018 Parity Technologies (UK) Ltd.</span>
 <span class="comment">//</span>
@@ -467,7 +468,7 @@
 <span class="kw">use</span> <span class="ident">smallvec</span>::<span class="ident">SmallVec</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">collections</span>::<span class="ident">VecDeque</span>, <span class="ident">iter</span>, <span class="ident">marker</span>::<span class="ident">PhantomData</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">hash_map</span>::{<span class="ident">DefaultHasher</span>, <span class="ident">HashMap</span>};
-<span class="kw">use</span> <span class="ident">tokio_io</span>::{<span class="ident">AsyncRead</span>, <span class="ident">AsyncWrite</span>};
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>};
 
 <span class="doccomment">/// Network behaviour that automatically identifies nodes periodically, and returns information</span>
 <span class="doccomment">/// about them.</span>
@@ -662,7 +663,7 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span> <span class="ident">NetworkBehaviour</span> <span class="kw">for</span> <span class="ident">Floodsub</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>
 <span class="kw">where</span>
-    <span class="ident">TSubstream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span>,
+    <span class="ident">TSubstream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 {
     <span class="kw">type</span> <span class="ident">ProtocolsHandler</span> <span class="op">=</span> <span class="ident">OneShotHandler</span><span class="op">&lt;</span><span class="ident">TSubstream</span>, <span class="ident">FloodsubConfig</span>, <span class="ident">FloodsubRpc</span>, <span class="ident">InnerMessage</span><span class="op">&gt;</span>;
     <span class="kw">type</span> <span class="ident">OutEvent</span> <span class="op">=</span> <span class="ident">FloodsubEvent</span>;
@@ -791,18 +792,19 @@
 
     <span class="kw">fn</span> <span class="ident">poll</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>,
         <span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">impl</span> <span class="ident">PollParameters</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Async</span><span class="op">&lt;</span>
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span>
         <span class="ident">NetworkBehaviourAction</span><span class="op">&lt;</span>
             <span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">ProtocolsHandler</span> <span class="kw">as</span> <span class="ident">ProtocolsHandler</span><span class="op">&gt;</span>::<span class="ident">InEvent</span>,
             <span class="self">Self</span>::<span class="ident">OutEvent</span>,
         <span class="op">&gt;</span>,
     <span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">event</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">events</span>.<span class="ident">pop_front</span>() {
-            <span class="kw">return</span> <span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">event</span>);
+            <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">event</span>);
         }
 
-        <span class="ident">Async</span>::<span class="ident">NotReady</span>
+        <span class="ident">Poll</span>::<span class="ident">Pending</span>
     }
 }
 

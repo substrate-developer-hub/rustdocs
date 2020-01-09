@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-core-0.13.2/src/nodes/tasks/task.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>task.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../../light.css" id="themeStyle"><script src="../../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-core-0.14.0-alpha.1/src/nodes/tasks/task.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>task.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../../light.css" id="themeStyle"><script src="../../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -344,38 +344,6 @@
 <span id="333">333</span>
 <span id="334">334</span>
 <span id="335">335</span>
-<span id="336">336</span>
-<span id="337">337</span>
-<span id="338">338</span>
-<span id="339">339</span>
-<span id="340">340</span>
-<span id="341">341</span>
-<span id="342">342</span>
-<span id="343">343</span>
-<span id="344">344</span>
-<span id="345">345</span>
-<span id="346">346</span>
-<span id="347">347</span>
-<span id="348">348</span>
-<span id="349">349</span>
-<span id="350">350</span>
-<span id="351">351</span>
-<span id="352">352</span>
-<span id="353">353</span>
-<span id="354">354</span>
-<span id="355">355</span>
-<span id="356">356</span>
-<span id="357">357</span>
-<span id="358">358</span>
-<span id="359">359</span>
-<span id="360">360</span>
-<span id="361">361</span>
-<span id="362">362</span>
-<span id="363">363</span>
-<span id="364">364</span>
-<span id="365">365</span>
-<span id="366">366</span>
-<span id="367">367</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">//</span>
@@ -404,8 +372,9 @@
         <span class="ident">node</span>::{<span class="ident">Close</span>, <span class="ident">Substream</span>}
     }
 };
-<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">stream</span>, <span class="ident">sync</span>::<span class="ident">mpsc</span>};
+<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">channel</span>::<span class="ident">mpsc</span>, <span class="ident">stream</span>};
 <span class="kw">use</span> <span class="ident">smallvec</span>::<span class="ident">SmallVec</span>;
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">pin</span>::<span class="ident">Pin</span>, <span class="ident">task</span>::<span class="ident">Context</span>, <span class="ident">task</span>::<span class="ident">Poll</span>};
 <span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">TaskId</span>, <span class="ident">Error</span>};
 
 <span class="doccomment">/// Message to transmit from the public API to a task.</span>
@@ -519,13 +488,6 @@
         <span class="ident">event</span>: <span class="ident">FromTaskMessage</span><span class="op">&lt;</span><span class="ident">O</span>, <span class="ident">H</span>, <span class="ident">E</span>, <span class="op">&lt;</span><span class="ident">H</span>::<span class="ident">Handler</span> <span class="kw">as</span> <span class="ident">NodeHandler</span><span class="op">&gt;</span>::<span class="ident">Error</span>, <span class="ident">C</span><span class="op">&gt;</span>
     },
 
-    <span class="doccomment">/// We started sending an event, now drive the sending to completion.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// The `bool` parameter determines if we transition to `State::Node`</span>
-    <span class="doccomment">/// afterwards or to `State::Closing` (assuming we have `Some` node,</span>
-    <span class="doccomment">/// otherwise the task will end).</span>
-    <span class="ident">PollComplete</span>(<span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">HandledNode</span><span class="op">&lt;</span><span class="ident">M</span>, <span class="ident">H</span>::<span class="ident">Handler</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">bool</span>),
-
     <span class="doccomment">/// Fully functional node.</span>
     <span class="ident">Node</span>(<span class="ident">HandledNode</span><span class="op">&lt;</span><span class="ident">M</span>, <span class="ident">H</span>::<span class="ident">Handler</span><span class="op">&gt;</span>),
 
@@ -537,94 +499,103 @@
     <span class="ident">Undefined</span>
 }
 
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">M</span>, <span class="ident">H</span>, <span class="ident">I</span>, <span class="ident">O</span>, <span class="ident">E</span>, <span class="ident">C</span><span class="op">&gt;</span> <span class="ident">Unpin</span> <span class="kw">for</span> <span class="ident">Task</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">M</span>, <span class="ident">H</span>, <span class="ident">I</span>, <span class="ident">O</span>, <span class="ident">E</span>, <span class="ident">C</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">M</span>: <span class="ident">StreamMuxer</span>,
+    <span class="ident">H</span>: <span class="ident">IntoNodeHandler</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span>,
+    <span class="ident">H</span>::<span class="ident">Handler</span>: <span class="ident">NodeHandler</span><span class="op">&lt;</span><span class="ident">Substream</span> <span class="op">=</span> <span class="ident">Substream</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span><span class="op">&gt;</span>
+{
+}
+
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">M</span>, <span class="ident">H</span>, <span class="ident">I</span>, <span class="ident">O</span>, <span class="ident">E</span>, <span class="ident">C</span><span class="op">&gt;</span> <span class="ident">Future</span> <span class="kw">for</span> <span class="ident">Task</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">M</span>, <span class="ident">H</span>, <span class="ident">I</span>, <span class="ident">O</span>, <span class="ident">E</span>, <span class="ident">C</span><span class="op">&gt;</span>
 <span class="kw">where</span>
     <span class="ident">M</span>: <span class="ident">StreamMuxer</span>,
-    <span class="ident">F</span>: <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (<span class="ident">C</span>, <span class="ident">M</span>), <span class="ident">Error</span> <span class="op">=</span> <span class="ident">E</span><span class="op">&gt;</span>,
+    <span class="ident">F</span>: <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">C</span>, <span class="ident">M</span>), <span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Unpin</span>,
     <span class="ident">H</span>: <span class="ident">IntoNodeHandler</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span>,
     <span class="ident">H</span>::<span class="ident">Handler</span>: <span class="ident">NodeHandler</span><span class="op">&lt;</span><span class="ident">Substream</span> <span class="op">=</span> <span class="ident">Substream</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>, <span class="ident">InEvent</span> <span class="op">=</span> <span class="ident">I</span>, <span class="ident">OutEvent</span> <span class="op">=</span> <span class="ident">O</span><span class="op">&gt;</span>
 {
-    <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> ();
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> ();
+    <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> ();
 
     <span class="comment">// NOTE: It is imperative to always consume all incoming event messages</span>
     <span class="comment">// first in order to not prevent the outside from making progress because</span>
     <span class="comment">// they are blocked on the channel capacity.</span>
-    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span>(), ()<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+        <span class="comment">// We use a `this` because the compiler isn&#39;t smart enough to allow mutably borrowing</span>
+        <span class="comment">// multiple different fields from the `Pin` at the same time.</span>
+        <span class="kw">let</span> <span class="ident">this</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="self">self</span>;
+
         <span class="lifetime">&#39;poll</span>: <span class="kw">loop</span> {
-            <span class="kw">match</span> <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">replace</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">state</span>, <span class="ident">State</span>::<span class="ident">Undefined</span>) {
+            <span class="kw">match</span> <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">replace</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">this</span>.<span class="ident">state</span>, <span class="ident">State</span>::<span class="ident">Undefined</span>) {
                 <span class="ident">State</span>::<span class="ident">Future</span> { <span class="kw-2">mut</span> <span class="ident">future</span>, <span class="ident">handler</span>, <span class="kw-2">mut</span> <span class="ident">events_buffer</span> } <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="comment">// If self.receiver is closed, we stop the task.</span>
+                    <span class="comment">// If this.receiver is closed, we stop the task.</span>
                     <span class="kw">loop</span> {
-                        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">receiver</span>.<span class="ident">poll</span>() {
-                            <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">break</span>,
-                            <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(())),
-                            <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">ToTaskMessage</span>::<span class="ident">HandlerEvent</span>(<span class="ident">event</span>)))) <span class="op">=</span><span class="op">&gt;</span>
+                        <span class="kw">match</span> <span class="ident">Stream</span>::<span class="ident">poll_next</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">this</span>.<span class="ident">receiver</span>), <span class="ident">cx</span>) {
+                            <span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">break</span>,
+                            <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(()),
+                            <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">ToTaskMessage</span>::<span class="ident">HandlerEvent</span>(<span class="ident">event</span>))) <span class="op">=</span><span class="op">&gt;</span>
                                 <span class="ident">events_buffer</span>.<span class="ident">push</span>(<span class="ident">event</span>),
-                            <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">ToTaskMessage</span>::<span class="ident">TakeOver</span>(<span class="ident">take_over</span>)))) <span class="op">=</span><span class="op">&gt;</span>
-                                <span class="self">self</span>.<span class="ident">taken_over</span>.<span class="ident">push</span>(<span class="ident">take_over</span>),
-                            <span class="prelude-val">Err</span>(()) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(<span class="string">&quot;An `mpsc::Receiver` does not error.&quot;</span>)
+                            <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">ToTaskMessage</span>::<span class="ident">TakeOver</span>(<span class="ident">take_over</span>))) <span class="op">=</span><span class="op">&gt;</span>
+                                <span class="ident">this</span>.<span class="ident">taken_over</span>.<span class="ident">push</span>(<span class="ident">take_over</span>),
                         }
                     }
                     <span class="comment">// Check if dialing succeeded.</span>
-                    <span class="kw">match</span> <span class="ident">future</span>.<span class="ident">poll</span>() {
-                        <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>((<span class="ident">conn_info</span>, <span class="ident">muxer</span>))) <span class="op">=</span><span class="op">&gt;</span> {
+                    <span class="kw">match</span> <span class="ident">Future</span>::<span class="ident">poll</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">future</span>), <span class="ident">cx</span>) {
+                        <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Ok</span>((<span class="ident">conn_info</span>, <span class="ident">muxer</span>))) <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">node</span> <span class="op">=</span> <span class="ident">HandledNode</span>::<span class="ident">new</span>(<span class="ident">muxer</span>, <span class="ident">handler</span>.<span class="ident">into_handler</span>(<span class="kw-2">&amp;</span><span class="ident">conn_info</span>));
                             <span class="kw">for</span> <span class="ident">event</span> <span class="kw">in</span> <span class="ident">events_buffer</span> {
                                 <span class="ident">node</span>.<span class="ident">inject_event</span>(<span class="ident">event</span>)
                             }
-                            <span class="self">self</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">SendEvent</span> {
+                            <span class="ident">this</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">SendEvent</span> {
                                 <span class="ident">node</span>: <span class="prelude-val">Some</span>(<span class="ident">node</span>),
                                 <span class="ident">event</span>: <span class="ident">FromTaskMessage</span>::<span class="ident">NodeReached</span>(<span class="ident">conn_info</span>)
                             }
                         }
-                        <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                            <span class="self">self</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">Future</span> { <span class="ident">future</span>, <span class="ident">handler</span>, <span class="ident">events_buffer</span> };
-                            <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>)
+                        <span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> {
+                            <span class="ident">this</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">Future</span> { <span class="ident">future</span>, <span class="ident">handler</span>, <span class="ident">events_buffer</span> };
+                            <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Pending</span>
                         }
-                        <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                        <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">e</span>)) <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="kw">let</span> <span class="ident">event</span> <span class="op">=</span> <span class="ident">FromTaskMessage</span>::<span class="ident">TaskClosed</span>(<span class="ident">Error</span>::<span class="ident">Reach</span>(<span class="ident">e</span>), <span class="prelude-val">Some</span>(<span class="ident">handler</span>));
-                            <span class="self">self</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">SendEvent</span> { <span class="ident">node</span>: <span class="prelude-val">None</span>, <span class="ident">event</span> }
+                            <span class="ident">this</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">SendEvent</span> { <span class="ident">node</span>: <span class="prelude-val">None</span>, <span class="ident">event</span> }
                         }
                     }
                 }
                 <span class="ident">State</span>::<span class="ident">Node</span>(<span class="kw-2">mut</span> <span class="ident">node</span>) <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="comment">// Start by handling commands received from the outside of the task.</span>
                     <span class="kw">loop</span> {
-                        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">receiver</span>.<span class="ident">poll</span>() {
-                            <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">break</span>,
-                            <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">ToTaskMessage</span>::<span class="ident">HandlerEvent</span>(<span class="ident">event</span>)))) <span class="op">=</span><span class="op">&gt;</span>
+                        <span class="kw">match</span> <span class="ident">Stream</span>::<span class="ident">poll_next</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">this</span>.<span class="ident">receiver</span>), <span class="ident">cx</span>) {
+                            <span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">break</span>,
+                            <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">ToTaskMessage</span>::<span class="ident">HandlerEvent</span>(<span class="ident">event</span>))) <span class="op">=</span><span class="op">&gt;</span>
                                 <span class="ident">node</span>.<span class="ident">inject_event</span>(<span class="ident">event</span>),
-                            <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">ToTaskMessage</span>::<span class="ident">TakeOver</span>(<span class="ident">take_over</span>)))) <span class="op">=</span><span class="op">&gt;</span>
-                                <span class="self">self</span>.<span class="ident">taken_over</span>.<span class="ident">push</span>(<span class="ident">take_over</span>),
-                            <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+                            <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">ToTaskMessage</span>::<span class="ident">TakeOver</span>(<span class="ident">take_over</span>))) <span class="op">=</span><span class="op">&gt;</span>
+                                <span class="ident">this</span>.<span class="ident">taken_over</span>.<span class="ident">push</span>(<span class="ident">take_over</span>),
+                            <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>) <span class="op">=</span><span class="op">&gt;</span> {
                                 <span class="comment">// Node closed by the external API; start closing.</span>
-                                <span class="self">self</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">Closing</span>(<span class="ident">node</span>.<span class="ident">close</span>());
+                                <span class="ident">this</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">Closing</span>(<span class="ident">node</span>.<span class="ident">close</span>());
                                 <span class="kw">continue</span> <span class="lifetime">&#39;poll</span>
                             }
-                            <span class="prelude-val">Err</span>(()) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(<span class="string">&quot;An `mpsc::Receiver` does not error.&quot;</span>)
                         }
                     }
                     <span class="comment">// Process the node.</span>
                     <span class="kw">loop</span> {
-                        <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">taken_over</span>.<span class="ident">is_empty</span>() <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">node</span>.<span class="ident">is_remote_acknowledged</span>() {
-                            <span class="self">self</span>.<span class="ident">taken_over</span>.<span class="ident">clear</span>()
+                        <span class="kw">if</span> <span class="op">!</span><span class="ident">this</span>.<span class="ident">taken_over</span>.<span class="ident">is_empty</span>() <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">node</span>.<span class="ident">is_remote_acknowledged</span>() {
+                            <span class="ident">this</span>.<span class="ident">taken_over</span>.<span class="ident">clear</span>()
                         }
-                        <span class="kw">match</span> <span class="ident">node</span>.<span class="ident">poll</span>() {
-                            <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                                <span class="self">self</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">Node</span>(<span class="ident">node</span>);
-                                <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>)
+                        <span class="kw">match</span> <span class="ident">HandledNode</span>::<span class="ident">poll</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">node</span>), <span class="ident">cx</span>) {
+                            <span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> {
+                                <span class="ident">this</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">Node</span>(<span class="ident">node</span>);
+                                <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Pending</span>
                             }
-                            <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">event</span>)) <span class="op">=</span><span class="op">&gt;</span> {
-                                <span class="self">self</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">SendEvent</span> {
+                            <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Ok</span>(<span class="ident">event</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+                                <span class="ident">this</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">SendEvent</span> {
                                     <span class="ident">node</span>: <span class="prelude-val">Some</span>(<span class="ident">node</span>),
                                     <span class="ident">event</span>: <span class="ident">FromTaskMessage</span>::<span class="ident">NodeEvent</span>(<span class="ident">event</span>)
                                 };
                                 <span class="kw">continue</span> <span class="lifetime">&#39;poll</span>
                             }
-                            <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                            <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">err</span>)) <span class="op">=</span><span class="op">&gt;</span> {
                                 <span class="kw">let</span> <span class="ident">event</span> <span class="op">=</span> <span class="ident">FromTaskMessage</span>::<span class="ident">TaskClosed</span>(<span class="ident">Error</span>::<span class="ident">Node</span>(<span class="ident">err</span>), <span class="prelude-val">None</span>);
-                                <span class="self">self</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">SendEvent</span> { <span class="ident">node</span>: <span class="prelude-val">None</span>, <span class="ident">event</span> };
+                                <span class="ident">this</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">SendEvent</span> { <span class="ident">node</span>: <span class="prelude-val">None</span>, <span class="ident">event</span> };
                                 <span class="kw">continue</span> <span class="lifetime">&#39;poll</span>
                             }
                         }
@@ -633,23 +604,22 @@
                 <span class="comment">// Deliver an event to the outside.</span>
                 <span class="ident">State</span>::<span class="ident">SendEvent</span> { <span class="kw-2">mut</span> <span class="ident">node</span>, <span class="ident">event</span> } <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="kw">loop</span> {
-                        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">receiver</span>.<span class="ident">poll</span>() {
-                            <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">break</span>,
-                            <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">ToTaskMessage</span>::<span class="ident">HandlerEvent</span>(<span class="ident">event</span>)))) <span class="op">=</span><span class="op">&gt;</span>
+                        <span class="kw">match</span> <span class="ident">Stream</span>::<span class="ident">poll_next</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">this</span>.<span class="ident">receiver</span>), <span class="ident">cx</span>) {
+                            <span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">break</span>,
+                            <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">ToTaskMessage</span>::<span class="ident">HandlerEvent</span>(<span class="ident">event</span>))) <span class="op">=</span><span class="op">&gt;</span>
                                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">n</span>) <span class="op">=</span> <span class="ident">node</span> {
                                     <span class="ident">n</span>.<span class="ident">inject_event</span>(<span class="ident">event</span>)
                                 }
-                            <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">ToTaskMessage</span>::<span class="ident">TakeOver</span>(<span class="ident">take_over</span>)))) <span class="op">=</span><span class="op">&gt;</span>
-                                <span class="self">self</span>.<span class="ident">taken_over</span>.<span class="ident">push</span>(<span class="ident">take_over</span>),
-                            <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>)) <span class="op">=</span><span class="op">&gt;</span>
+                            <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">ToTaskMessage</span>::<span class="ident">TakeOver</span>(<span class="ident">take_over</span>))) <span class="op">=</span><span class="op">&gt;</span>
+                                <span class="ident">this</span>.<span class="ident">taken_over</span>.<span class="ident">push</span>(<span class="ident">take_over</span>),
+                            <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>) <span class="op">=</span><span class="op">&gt;</span>
                                 <span class="comment">// Node closed by the external API; start closing.</span>
                                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">n</span>) <span class="op">=</span> <span class="ident">node</span> {
-                                    <span class="self">self</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">Closing</span>(<span class="ident">n</span>.<span class="ident">close</span>());
+                                    <span class="ident">this</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">Closing</span>(<span class="ident">n</span>.<span class="ident">close</span>());
                                     <span class="kw">continue</span> <span class="lifetime">&#39;poll</span>
                                 } <span class="kw">else</span> {
-                                    <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(())) <span class="comment">// end task</span>
+                                    <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(()) <span class="comment">// end task</span>
                                 }
-                            <span class="prelude-val">Err</span>(()) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(<span class="string">&quot;An `mpsc::Receiver` does not error.&quot;</span>)
                         }
                     }
                     <span class="comment">// Check if this task is about to close. We pass the flag to</span>
@@ -660,80 +630,46 @@
                         } <span class="kw">else</span> {
                             <span class="bool-val">false</span>
                         };
-                    <span class="kw">match</span> <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">start_send</span>((<span class="ident">event</span>, <span class="self">self</span>.<span class="ident">id</span>)) {
-                        <span class="prelude-val">Ok</span>(<span class="ident">AsyncSink</span>::<span class="ident">NotReady</span>((<span class="ident">event</span>, <span class="kw">_</span>))) <span class="op">=</span><span class="op">&gt;</span> {
+                    <span class="kw">match</span> <span class="ident">this</span>.<span class="ident">sender</span>.<span class="ident">poll_ready</span>(<span class="ident">cx</span>) {
+                        <span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="self">self</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">SendEvent</span> { <span class="ident">node</span>, <span class="ident">event</span> };
-                            <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>)
+                            <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Pending</span>
                         }
-                        <span class="prelude-val">Ok</span>(<span class="ident">AsyncSink</span>::<span class="ident">Ready</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">PollComplete</span>(<span class="ident">node</span>, <span class="ident">close</span>),
-                        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">n</span>) <span class="op">=</span> <span class="ident">node</span> {
-                                <span class="self">self</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">Closing</span>(<span class="ident">n</span>.<span class="ident">close</span>());
-                                <span class="kw">continue</span> <span class="lifetime">&#39;poll</span>
-                            }
-                            <span class="comment">// We can not communicate to the outside and there is no</span>
-                            <span class="comment">// node to handle, so this is the end of this task.</span>
-                            <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(()))
-                        }
-                    }
-                }
-                <span class="comment">// We started delivering an event, now try to complete the sending.</span>
-                <span class="ident">State</span>::<span class="ident">PollComplete</span>(<span class="kw-2">mut</span> <span class="ident">node</span>, <span class="ident">close</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="kw">loop</span> {
-                        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">receiver</span>.<span class="ident">poll</span>() {
-                            <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">break</span>,
-                            <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">ToTaskMessage</span>::<span class="ident">HandlerEvent</span>(<span class="ident">event</span>)))) <span class="op">=</span><span class="op">&gt;</span>
-                                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">n</span>) <span class="op">=</span> <span class="ident">node</span> {
-                                    <span class="ident">n</span>.<span class="ident">inject_event</span>(<span class="ident">event</span>)
-                                }
-                            <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">ToTaskMessage</span>::<span class="ident">TakeOver</span>(<span class="ident">take_over</span>)))) <span class="op">=</span><span class="op">&gt;</span>
-                                <span class="self">self</span>.<span class="ident">taken_over</span>.<span class="ident">push</span>(<span class="ident">take_over</span>),
-                            <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>)) <span class="op">=</span><span class="op">&gt;</span>
-                                <span class="comment">// Node closed by the external API; start closing.</span>
-                                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">n</span>) <span class="op">=</span> <span class="ident">node</span> {
-                                    <span class="self">self</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">Closing</span>(<span class="ident">n</span>.<span class="ident">close</span>());
-                                    <span class="kw">continue</span> <span class="lifetime">&#39;poll</span>
-                                } <span class="kw">else</span> {
-                                    <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(())) <span class="comment">// end task</span>
-                                }
-                            <span class="prelude-val">Err</span>(()) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(<span class="string">&quot;An `mpsc::Receiver` does not error.&quot;</span>)
-                        }
-                    }
-                    <span class="kw">match</span> <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">poll_complete</span>() {
-                        <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                            <span class="self">self</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">PollComplete</span>(<span class="ident">node</span>, <span class="ident">close</span>);
-                            <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>)
-                        }
-                        <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(())) <span class="op">=</span><span class="op">&gt;</span>
+                        <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Ok</span>(())) <span class="op">=</span><span class="op">&gt;</span> {
+                            <span class="comment">// We assume that if `poll_ready` has succeeded, then sending the event</span>
+                            <span class="comment">// will succeed as well. If it turns out that it didn&#39;t, we will detect</span>
+                            <span class="comment">// the closing at the next loop iteration.</span>
+                            <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">sender</span>.<span class="ident">start_send</span>((<span class="ident">event</span>, <span class="ident">this</span>.<span class="ident">id</span>));
                             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">n</span>) <span class="op">=</span> <span class="ident">node</span> {
                                 <span class="kw">if</span> <span class="ident">close</span> {
-                                    <span class="self">self</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">Closing</span>(<span class="ident">n</span>.<span class="ident">close</span>())
+                                    <span class="ident">this</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">Closing</span>(<span class="ident">n</span>.<span class="ident">close</span>())
                                 } <span class="kw">else</span> {
-                                    <span class="self">self</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">Node</span>(<span class="ident">n</span>)
+                                    <span class="ident">this</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">Node</span>(<span class="ident">n</span>)
                                 }
                             } <span class="kw">else</span> {
                                 <span class="comment">// Since we have no node we terminate this task.</span>
                                 <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">close</span>);
-                                <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(()))
+                                <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(())
                             }
-                        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                        },
+                        <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">n</span>) <span class="op">=</span> <span class="ident">node</span> {
-                                <span class="self">self</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">Closing</span>(<span class="ident">n</span>.<span class="ident">close</span>());
+                                <span class="ident">this</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">Closing</span>(<span class="ident">n</span>.<span class="ident">close</span>());
                                 <span class="kw">continue</span> <span class="lifetime">&#39;poll</span>
                             }
                             <span class="comment">// We can not communicate to the outside and there is no</span>
                             <span class="comment">// node to handle, so this is the end of this task.</span>
-                            <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(()))
+                            <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(())
                         }
                     }
                 }
                 <span class="ident">State</span>::<span class="ident">Closing</span>(<span class="kw-2">mut</span> <span class="ident">closing</span>) <span class="op">=</span><span class="op">&gt;</span>
-                    <span class="kw">match</span> <span class="ident">closing</span>.<span class="ident">poll</span>() {
-                        <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(())) <span class="op">|</span> <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span>
-                            <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(())), <span class="comment">// end task</span>
-                        <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                            <span class="self">self</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">Closing</span>(<span class="ident">closing</span>);
-                            <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>)
+                    <span class="kw">match</span> <span class="ident">Future</span>::<span class="ident">poll</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">closing</span>), <span class="ident">cx</span>) {
+                        <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span>
+                            <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(()), <span class="comment">// end task</span>
+                        <span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> {
+                            <span class="ident">this</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">Closing</span>(<span class="ident">closing</span>);
+                            <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Pending</span>
                         }
                     }
                 <span class="comment">// This happens if a previous poll has resolved the future.</span>

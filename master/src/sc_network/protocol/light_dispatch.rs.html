@@ -1301,6 +1301,9 @@
 <span id="1290">1290</span>
 <span id="1291">1291</span>
 <span id="1292">1292</span>
+<span id="1293">1293</span>
+<span id="1294">1294</span>
+<span id="1295">1295</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1327,7 +1330,7 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::{<span class="ident">Instant</span>, <span class="ident">Duration</span>};
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">trace</span>, <span class="ident">info</span>};
-<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">sync</span>::<span class="ident">oneshot</span>::{<span class="ident">Sender</span> <span class="kw">as</span> <span class="ident">OneShotSender</span>};
+<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">channel</span>::<span class="ident">oneshot</span>::{<span class="ident">Sender</span> <span class="kw">as</span> <span class="ident">OneShotSender</span>};
 <span class="kw">use</span> <span class="ident">linked_hash_map</span>::{<span class="ident">Entry</span>, <span class="ident">LinkedHashMap</span>};
 <span class="kw">use</span> <span class="ident">sp_blockchain</span>::<span class="ident">Error</span> <span class="kw">as</span> <span class="ident">ClientError</span>;
 <span class="kw">use</span> <span class="ident">sc_client_api</span>::{<span class="ident">FetchChecker</span>, <span class="ident">RemoteHeaderRequest</span>,
@@ -1984,7 +1987,7 @@
 	<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::{<span class="ident">HashMap</span>, <span class="ident">HashSet</span>};
 	<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 	<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Instant</span>;
-	<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">Future</span>, <span class="ident">sync</span>::<span class="ident">oneshot</span>};
+	<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">channel</span>::<span class="ident">oneshot</span>;
 	<span class="kw">use</span> <span class="ident">sp_core</span>::<span class="ident">storage</span>::<span class="ident">ChildInfo</span>;
 	<span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">traits</span>::{<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">NumberFor</span>, <span class="ident">Header</span> <span class="kw">as</span> <span class="ident">HeaderT</span>};
 	<span class="kw">use</span> <span class="ident">sp_blockchain</span>::{<span class="ident">Error</span> <span class="kw">as</span> <span class="ident">ClientError</span>, <span class="prelude-ty">Result</span> <span class="kw">as</span> <span class="ident">ClientResult</span>};
@@ -2303,7 +2306,7 @@
 		}, <span class="ident">tx</span>));
 
 		<span class="ident">receive_call_response</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">network_interface</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">light_dispatch</span>, <span class="ident">peer0</span>.<span class="ident">clone</span>(), <span class="number">0</span>);
-		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">response</span>.<span class="ident">wait</span>().<span class="ident">unwrap</span>().<span class="ident">unwrap</span>(), <span class="macro">vec</span><span class="macro">!</span>[<span class="number">42</span>]);
+		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on</span>(<span class="ident">response</span>).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>(), <span class="macro">vec</span><span class="macro">!</span>[<span class="number">42</span>]);
 	}
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
@@ -2325,7 +2328,10 @@
 			<span class="ident">id</span>: <span class="number">0</span>,
 			<span class="ident">proof</span>: <span class="ident">StorageProof</span>::<span class="ident">empty</span>(),
 		});
-		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">response</span>.<span class="ident">wait</span>().<span class="ident">unwrap</span>().<span class="ident">unwrap</span>().<span class="ident">remove</span>(<span class="string">b&quot;:key&quot;</span>.<span class="ident">as_ref</span>()).<span class="ident">unwrap</span>(), <span class="prelude-val">Some</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="number">42</span>]));
+		<span class="macro">assert_eq</span><span class="macro">!</span>(
+			<span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on</span>(<span class="ident">response</span>).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>().<span class="ident">remove</span>(<span class="string">b&quot;:key&quot;</span>.<span class="ident">as_ref</span>()).<span class="ident">unwrap</span>(),
+			<span class="prelude-val">Some</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="number">42</span>])
+		);
 	}
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
@@ -2353,7 +2359,7 @@
 				<span class="ident">id</span>: <span class="number">0</span>,
 				<span class="ident">proof</span>: <span class="ident">StorageProof</span>::<span class="ident">empty</span>(),
 		});
-		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">response</span>.<span class="ident">wait</span>().<span class="ident">unwrap</span>().<span class="ident">unwrap</span>().<span class="ident">remove</span>(<span class="string">b&quot;:key&quot;</span>.<span class="ident">as_ref</span>()).<span class="ident">unwrap</span>(), <span class="prelude-val">Some</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="number">42</span>]));
+		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on</span>(<span class="ident">response</span>).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>().<span class="ident">remove</span>(<span class="string">b&quot;:key&quot;</span>.<span class="ident">as_ref</span>()).<span class="ident">unwrap</span>(), <span class="prelude-val">Some</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="number">42</span>]));
 	}
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
@@ -2382,7 +2388,7 @@
 			<span class="ident">proof</span>: <span class="ident">StorageProof</span>::<span class="ident">empty</span>(),
 		});
 		<span class="macro">assert_eq</span><span class="macro">!</span>(
-			<span class="ident">response</span>.<span class="ident">wait</span>().<span class="ident">unwrap</span>().<span class="ident">unwrap</span>().<span class="ident">hash</span>(),
+			<span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on</span>(<span class="ident">response</span>).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>().<span class="ident">hash</span>(),
 			<span class="string">&quot;6443a0b46e0412e626363028115a9f2cf963eeed526b8b33e5316f08b50d0dc3&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>(),
 		);
 	}
@@ -2413,7 +2419,7 @@
 			<span class="ident">roots</span>: <span class="macro">vec</span><span class="macro">!</span>[],
 			<span class="ident">roots_proof</span>: <span class="ident">StorageProof</span>::<span class="ident">empty</span>(),
 		});
-		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">response</span>.<span class="ident">wait</span>().<span class="ident">unwrap</span>().<span class="ident">unwrap</span>(), <span class="macro">vec</span><span class="macro">!</span>[(<span class="number">100</span>, <span class="number">2</span>)]);
+		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on</span>(<span class="ident">response</span>).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>(), <span class="macro">vec</span><span class="macro">!</span>[(<span class="number">100</span>, <span class="number">2</span>)]);
 	}
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>

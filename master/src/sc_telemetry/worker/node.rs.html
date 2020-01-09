@@ -304,6 +304,15 @@
 <span id="293">293</span>
 <span id="294">294</span>
 <span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -324,7 +333,7 @@
 <span class="doccomment">//! Contains the `Node` struct, which handles communications with a single telemetry endpoint.</span>
 
 <span class="kw">use</span> <span class="ident">bytes</span>::<span class="ident">BytesMut</span>;
-<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">compat</span>::{<span class="ident">Future01CompatExt</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">Compat01As03</span>}};
+<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">futures_timer</span>::<span class="ident">Delay</span>;
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">Multiaddr</span>;
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">core</span>::<span class="ident">transport</span>::<span class="ident">Transport</span>;
@@ -349,7 +358,7 @@
 	<span class="doccomment">/// We&#39;re connected to the node. This is the normal state.</span>
 	<span class="ident">Connected</span>(<span class="ident">NodeSocketConnected</span><span class="op">&lt;</span><span class="ident">TTrans</span><span class="op">&gt;</span>),
 	<span class="doccomment">/// We are currently dialing the node.</span>
-	<span class="ident">Dialing</span>(<span class="ident">Compat01As03</span><span class="op">&lt;</span><span class="ident">TTrans</span>::<span class="ident">Dial</span><span class="op">&gt;</span>),
+	<span class="ident">Dialing</span>(<span class="ident">TTrans</span>::<span class="ident">Dial</span>),
 	<span class="doccomment">/// A new connection should be started as soon as possible.</span>
 	<span class="ident">ReconnectNow</span>,
 	<span class="doccomment">/// Waiting before attempting to dial again.</span>
@@ -383,6 +392,9 @@
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">ConnectionError</span><span class="op">&lt;</span><span class="ident">TSinkErr</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// The connection timed-out.</span>
 	<span class="ident">Timeout</span>,
+	<span class="doccomment">/// Reading from the socket returned and end-of-file, indicating that the socket has been</span>
+	<span class="doccomment">/// closed.</span>
+	<span class="ident">Closed</span>,
 	<span class="doccomment">/// The sink errored.</span>
 	<span class="ident">Sink</span>(<span class="ident">TSinkErr</span>),
 }
@@ -413,7 +425,7 @@
 	<span class="doccomment">/// Sends a WebSocket frame to the node. Returns an error if we are not connected to the node.</span>
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// After calling this method, you should call `poll` in order for it to be properly processed.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">send_message</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">payload</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), ()<span class="op">&gt;</span> {
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">send_message</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">payload</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">BytesMut</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), ()<span class="op">&gt;</span> {
 		<span class="kw">if</span> <span class="kw">let</span> <span class="ident">NodeSocket</span>::<span class="ident">Connected</span>(<span class="ident">NodeSocketConnected</span> { <span class="ident">pending</span>, .. }) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">socket</span> {
 			<span class="kw">if</span> <span class="ident">pending</span>.<span class="ident">len</span>() <span class="op">&lt;</span><span class="op">=</span> <span class="ident">MAX_PENDING</span> {
 				<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;telemetry&quot;</span>, <span class="string">&quot;Adding log entry to queue for {:?}&quot;</span>, <span class="self">self</span>.<span class="ident">addr</span>);
@@ -470,7 +482,7 @@
 				<span class="ident">NodeSocket</span>::<span class="ident">ReconnectNow</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">match</span> <span class="self">self</span>.<span class="ident">transport</span>.<span class="ident">clone</span>().<span class="ident">dial</span>(<span class="self">self</span>.<span class="ident">addr</span>.<span class="ident">clone</span>()) {
 					<span class="prelude-val">Ok</span>(<span class="ident">d</span>) <span class="op">=</span><span class="op">&gt;</span> {
 						<span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;telemetry&quot;</span>, <span class="string">&quot;Started dialing {}&quot;</span>, <span class="self">self</span>.<span class="ident">addr</span>);
-						<span class="ident">socket</span> <span class="op">=</span> <span class="ident">NodeSocket</span>::<span class="ident">Dialing</span>(<span class="ident">d</span>.<span class="ident">compat</span>());
+						<span class="ident">socket</span> <span class="op">=</span> <span class="ident">NodeSocket</span>::<span class="ident">Dialing</span>(<span class="ident">d</span>);
 					}
 					<span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span><span class="op">&gt;</span> {
 						<span class="macro">warn</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;telemetry&quot;</span>, <span class="string">&quot;Error while dialing {}: {:?}&quot;</span>, <span class="self">self</span>.<span class="ident">addr</span>, <span class="ident">err</span>);
@@ -519,10 +531,13 @@
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">futures</span>::<span class="ident">never</span>::<span class="ident">Never</span>, <span class="ident">ConnectionError</span><span class="op">&lt;</span><span class="ident">TSinkErr</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 
 		<span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">item</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">pop_front</span>() {
-			<span class="kw">if</span> <span class="kw">let</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="kw">_</span>) <span class="op">=</span> <span class="ident">Sink</span>::<span class="ident">poll_ready</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">sink</span>), <span class="ident">cx</span>) {
+			<span class="kw">if</span> <span class="kw">let</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">result</span>) <span class="op">=</span> <span class="ident">Sink</span>::<span class="ident">poll_ready</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">sink</span>), <span class="ident">cx</span>) {
+				<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="ident">result</span> {
+					<span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">ConnectionError</span>::<span class="ident">Sink</span>(<span class="ident">err</span>)))
+				}
+
 				<span class="kw">let</span> <span class="ident">item_len</span> <span class="op">=</span> <span class="ident">item</span>.<span class="ident">len</span>();
 				<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="ident">Sink</span>::<span class="ident">start_send</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">sink</span>), <span class="ident">item</span>) {
-					<span class="self">self</span>.<span class="ident">timeout</span> <span class="op">=</span> <span class="prelude-val">None</span>;
 					<span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">ConnectionError</span>::<span class="ident">Sink</span>(<span class="ident">err</span>)))
 				}
 				<span class="macro">trace</span><span class="macro">!</span>(
@@ -577,7 +592,10 @@
 			<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(<span class="ident">err</span>))) <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">ConnectionError</span>::<span class="ident">Sink</span>(<span class="ident">err</span>)))
 			},
-			<span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">|</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>) <span class="op">=</span><span class="op">&gt;</span> {},
+			<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>) <span class="op">=</span><span class="op">&gt;</span> {
+				<span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">ConnectionError</span>::<span class="ident">Closed</span>))
+			},
+			<span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> {},
 		}
 
 		<span class="ident">Poll</span>::<span class="ident">Pending</span>

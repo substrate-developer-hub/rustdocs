@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Incoming","Data received from the remote end."]],"struct":[["ByteSlice125","Wrapper which restricts the length of its byte slice to 125 bytes."],["Data","Application data."],["SliceTooLarge","Error, if converting to [`ByteSlice125`] fails."]]});

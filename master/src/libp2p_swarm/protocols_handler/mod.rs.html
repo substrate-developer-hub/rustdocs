@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-swarm-0.3.0/src/protocols_handler/mod.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mod.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-swarm-0.4.0-alpha.1/src/protocols_handler/mod.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mod.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -524,6 +524,26 @@
 <span id="513">513</span>
 <span id="514">514</span>
 <span id="515">515</span>
+<span id="516">516</span>
+<span id="517">517</span>
+<span id="518">518</span>
+<span id="519">519</span>
+<span id="520">520</span>
+<span id="521">521</span>
+<span id="522">522</span>
+<span id="523">523</span>
+<span id="524">524</span>
+<span id="525">525</span>
+<span id="526">526</span>
+<span id="527">527</span>
+<span id="528">528</span>
+<span id="529">529</span>
+<span id="530">530</span>
+<span id="531">531</span>
+<span id="532">532</span>
+<span id="533">533</span>
+<span id="534">534</span>
+<span id="535">535</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018 Parity Technologies (UK) Ltd.</span>
 <span class="comment">//</span>
@@ -577,8 +597,7 @@
     <span class="ident">PeerId</span>,
     <span class="ident">upgrade</span>::{<span class="self">self</span>, <span class="ident">InboundUpgrade</span>, <span class="ident">OutboundUpgrade</span>, <span class="ident">UpgradeError</span>},
 };
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">cmp</span>::<span class="ident">Ordering</span>, <span class="ident">error</span>, <span class="ident">fmt</span>, <span class="ident">time</span>::<span class="ident">Duration</span>};
-<span class="kw">use</span> <span class="ident">tokio_io</span>::{<span class="ident">AsyncRead</span>, <span class="ident">AsyncWrite</span>};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">cmp</span>::<span class="ident">Ordering</span>, <span class="ident">error</span>, <span class="ident">fmt</span>, <span class="ident">task</span>::<span class="ident">Context</span>, <span class="ident">task</span>::<span class="ident">Poll</span>, <span class="ident">time</span>::<span class="ident">Duration</span>};
 <span class="kw">use</span> <span class="ident">wasm_timer</span>::<span class="ident">Instant</span>;
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">dummy</span>::<span class="ident">DummyProtocolsHandler</span>;
@@ -628,7 +647,7 @@
     <span class="doccomment">/// The type of errors returned by [`ProtocolsHandler::poll`].</span>
     <span class="kw">type</span> <span class="ident">Error</span>: <span class="ident">error</span>::<span class="ident">Error</span>;
     <span class="doccomment">/// The type of substreams on which the protocol(s) are negotiated.</span>
-    <span class="kw">type</span> <span class="ident">Substream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span>;
+    <span class="kw">type</span> <span class="ident">Substream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span>;
     <span class="doccomment">/// The inbound upgrade for the protocol(s) used by the handler.</span>
     <span class="kw">type</span> <span class="ident">InboundProtocol</span>: <span class="ident">InboundUpgrade</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Substream</span><span class="op">&gt;</span>;
     <span class="doccomment">/// The outbound upgrade for the protocol(s) used by the handler.</span>
@@ -696,11 +715,8 @@
     <span class="kw">fn</span> <span class="ident">connection_keep_alive</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">KeepAlive</span>;
 
     <span class="doccomment">/// Should behave like `Stream::poll()`.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Returning an error will close the connection to the remote.</span>
-    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span>
-        <span class="ident">ProtocolsHandlerEvent</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">OutboundProtocol</span>, <span class="self">Self</span>::<span class="ident">OutboundOpenInfo</span>, <span class="self">Self</span>::<span class="ident">OutEvent</span><span class="op">&gt;</span>,
-        <span class="self">Self</span>::<span class="ident">Error</span>
+    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span>
+        <span class="ident">ProtocolsHandlerEvent</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">OutboundProtocol</span>, <span class="self">Self</span>::<span class="ident">OutboundOpenInfo</span>, <span class="self">Self</span>::<span class="ident">OutEvent</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span>
     <span class="op">&gt;</span>;
 
     <span class="doccomment">/// Adds a closure that turns the input event into something else.</span>
@@ -837,7 +853,7 @@
 
 <span class="doccomment">/// Event produced by a handler.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Copy</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">ProtocolsHandlerEvent</span><span class="op">&lt;</span><span class="ident">TConnectionUpgrade</span>, <span class="ident">TOutboundOpenInfo</span>, <span class="ident">TCustom</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">ProtocolsHandlerEvent</span><span class="op">&lt;</span><span class="ident">TConnectionUpgrade</span>, <span class="ident">TOutboundOpenInfo</span>, <span class="ident">TCustom</span>, <span class="ident">TErr</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Request a new outbound substream to be opened with the remote.</span>
     <span class="ident">OutboundSubstreamRequest</span> {
         <span class="doccomment">/// The protocol(s) to apply on the substream.</span>
@@ -846,13 +862,16 @@
         <span class="ident">info</span>: <span class="ident">TOutboundOpenInfo</span>,
     },
 
+    <span class="doccomment">/// Close the connection for the given reason.</span>
+    <span class="ident">Close</span>(<span class="ident">TErr</span>),
+
     <span class="doccomment">/// Other event.</span>
     <span class="ident">Custom</span>(<span class="ident">TCustom</span>),
 }
 
 <span class="doccomment">/// Event produced by a handler.</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">TConnectionUpgrade</span>, <span class="ident">TOutboundOpenInfo</span>, <span class="ident">TCustom</span><span class="op">&gt;</span>
-    <span class="ident">ProtocolsHandlerEvent</span><span class="op">&lt;</span><span class="ident">TConnectionUpgrade</span>, <span class="ident">TOutboundOpenInfo</span>, <span class="ident">TCustom</span><span class="op">&gt;</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">TConnectionUpgrade</span>, <span class="ident">TOutboundOpenInfo</span>, <span class="ident">TCustom</span>, <span class="ident">TErr</span><span class="op">&gt;</span>
+    <span class="ident">ProtocolsHandlerEvent</span><span class="op">&lt;</span><span class="ident">TConnectionUpgrade</span>, <span class="ident">TOutboundOpenInfo</span>, <span class="ident">TCustom</span>, <span class="ident">TErr</span><span class="op">&gt;</span>
 {
     <span class="doccomment">/// If this is an `OutboundSubstreamRequest`, maps the `info` member from a</span>
     <span class="doccomment">/// `TOutboundOpenInfo` to something else.</span>
@@ -860,7 +879,7 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">map_outbound_open_info</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">I</span><span class="op">&gt;</span>(
         <span class="self">self</span>,
         <span class="ident">map</span>: <span class="ident">F</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ProtocolsHandlerEvent</span><span class="op">&lt;</span><span class="ident">TConnectionUpgrade</span>, <span class="ident">I</span>, <span class="ident">TCustom</span><span class="op">&gt;</span>
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ProtocolsHandlerEvent</span><span class="op">&lt;</span><span class="ident">TConnectionUpgrade</span>, <span class="ident">I</span>, <span class="ident">TCustom</span>, <span class="ident">TErr</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">F</span>: <span class="ident">FnOnce</span>(<span class="ident">TOutboundOpenInfo</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">I</span>,
     {
@@ -872,6 +891,7 @@
                 }
             }
             <span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">val</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">val</span>),
+            <span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Close</span>(<span class="ident">val</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Close</span>(<span class="ident">val</span>),
         }
     }
 
@@ -881,7 +901,7 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">map_protocol</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">I</span><span class="op">&gt;</span>(
         <span class="self">self</span>,
         <span class="ident">map</span>: <span class="ident">F</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ProtocolsHandlerEvent</span><span class="op">&lt;</span><span class="ident">I</span>, <span class="ident">TOutboundOpenInfo</span>, <span class="ident">TCustom</span><span class="op">&gt;</span>
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ProtocolsHandlerEvent</span><span class="op">&lt;</span><span class="ident">I</span>, <span class="ident">TOutboundOpenInfo</span>, <span class="ident">TCustom</span>, <span class="ident">TErr</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">F</span>: <span class="ident">FnOnce</span>(<span class="ident">TConnectionUpgrade</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">I</span>,
     {
@@ -893,6 +913,7 @@
                 }
             }
             <span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">val</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">val</span>),
+            <span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Close</span>(<span class="ident">val</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Close</span>(<span class="ident">val</span>),
         }
     }
 
@@ -901,7 +922,7 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">map_custom</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">I</span><span class="op">&gt;</span>(
         <span class="self">self</span>,
         <span class="ident">map</span>: <span class="ident">F</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ProtocolsHandlerEvent</span><span class="op">&lt;</span><span class="ident">TConnectionUpgrade</span>, <span class="ident">TOutboundOpenInfo</span>, <span class="ident">I</span><span class="op">&gt;</span>
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ProtocolsHandlerEvent</span><span class="op">&lt;</span><span class="ident">TConnectionUpgrade</span>, <span class="ident">TOutboundOpenInfo</span>, <span class="ident">I</span>, <span class="ident">TErr</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">F</span>: <span class="ident">FnOnce</span>(<span class="ident">TCustom</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">I</span>,
     {
@@ -910,6 +931,25 @@
                 <span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">OutboundSubstreamRequest</span> { <span class="ident">protocol</span>, <span class="ident">info</span> }
             }
             <span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">val</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">map</span>(<span class="ident">val</span>)),
+            <span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Close</span>(<span class="ident">val</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Close</span>(<span class="ident">val</span>),
+        }
+    }
+
+    <span class="doccomment">/// If this is a `Close` event, maps the content to something else.</span>
+    <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">map_close</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">I</span><span class="op">&gt;</span>(
+        <span class="self">self</span>,
+        <span class="ident">map</span>: <span class="ident">F</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ProtocolsHandlerEvent</span><span class="op">&lt;</span><span class="ident">TConnectionUpgrade</span>, <span class="ident">TOutboundOpenInfo</span>, <span class="ident">TCustom</span>, <span class="ident">I</span><span class="op">&gt;</span>
+    <span class="kw">where</span>
+        <span class="ident">F</span>: <span class="ident">FnOnce</span>(<span class="ident">TErr</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">I</span>,
+    {
+        <span class="kw">match</span> <span class="self">self</span> {
+            <span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">OutboundSubstreamRequest</span> { <span class="ident">protocol</span>, <span class="ident">info</span> } <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">OutboundSubstreamRequest</span> { <span class="ident">protocol</span>, <span class="ident">info</span> }
+            }
+            <span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">val</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">val</span>),
+            <span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Close</span>(<span class="ident">val</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Close</span>(<span class="ident">map</span>(<span class="ident">val</span>)),
         }
     }
 }

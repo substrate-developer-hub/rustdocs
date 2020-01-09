@@ -301,6 +301,12 @@
 <span id="290">290</span>
 <span id="291">291</span>
 <span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -319,12 +325,12 @@
 <span class="comment">// along with Substrate.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">config</span>::<span class="ident">ProtocolId</span>;
-<span class="kw">use</span> <span class="ident">bytes</span>::{<span class="ident">Bytes</span>, <span class="ident">BytesMut</span>};
+<span class="kw">use</span> <span class="ident">bytes</span>::<span class="ident">BytesMut</span>;
+<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
+<span class="kw">use</span> <span class="ident">futures_codec</span>::<span class="ident">Framed</span>;
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">core</span>::{<span class="ident">Negotiated</span>, <span class="ident">Endpoint</span>, <span class="ident">UpgradeInfo</span>, <span class="ident">InboundUpgrade</span>, <span class="ident">OutboundUpgrade</span>, <span class="ident">upgrade</span>::<span class="ident">ProtocolName</span>};
-<span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">tokio_codec</span>::<span class="ident">Framed</span>;
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">collections</span>::<span class="ident">VecDeque</span>, <span class="ident">io</span>, <span class="ident">vec</span>::<span class="ident">IntoIter</span> <span class="kw">as</span> <span class="ident">VecIntoIter</span>};
-<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">future</span>, <span class="ident">stream</span>};
-<span class="kw">use</span> <span class="ident">tokio_io</span>::{<span class="ident">AsyncRead</span>, <span class="ident">AsyncWrite</span>};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">collections</span>::<span class="ident">VecDeque</span>, <span class="ident">io</span>, <span class="ident">pin</span>::<span class="ident">Pin</span>, <span class="ident">vec</span>::<span class="ident">IntoIter</span> <span class="kw">as</span> <span class="ident">VecIntoIter</span>};
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>};
 <span class="kw">use</span> <span class="ident">unsigned_varint</span>::<span class="ident">codec</span>::<span class="ident">UviBytes</span>;
 
 <span class="doccomment">/// Connection upgrade for a single protocol.</span>
@@ -336,7 +342,7 @@
 	<span class="ident">id</span>: <span class="ident">ProtocolId</span>,
 	<span class="doccomment">/// Base name of the protocol as advertised on the network.</span>
 	<span class="doccomment">/// Ends with `/` so that we can append a version number behind.</span>
-	<span class="ident">base_name</span>: <span class="ident">Bytes</span>,
+	<span class="ident">base_name</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// List of protocol versions that we support.</span>
 	<span class="doccomment">/// Ordered in descending order so that the best comes first.</span>
 	<span class="ident">supported_versions</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
@@ -348,7 +354,7 @@
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">protocol</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">ProtocolId</span><span class="op">&gt;</span>, <span class="ident">versions</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>])
 		<span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
 		<span class="kw">let</span> <span class="ident">protocol</span> <span class="op">=</span> <span class="ident">protocol</span>.<span class="ident">into</span>();
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">base_name</span> <span class="op">=</span> <span class="ident">Bytes</span>::<span class="ident">from_static</span>(<span class="string">b&quot;/substrate/&quot;</span>);
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">base_name</span> <span class="op">=</span> <span class="string">b&quot;/substrate/&quot;</span>.<span class="ident">to_vec</span>();
 		<span class="ident">base_name</span>.<span class="ident">extend_from_slice</span>(<span class="ident">protocol</span>.<span class="ident">as_bytes</span>());
 		<span class="ident">base_name</span>.<span class="ident">extend_from_slice</span>(<span class="string">b&quot;/&quot;</span>);
 
@@ -382,11 +388,11 @@
 	<span class="doccomment">/// the remote (listener).</span>
 	<span class="ident">endpoint</span>: <span class="ident">Endpoint</span>,
 	<span class="doccomment">/// Buffer of packets to send.</span>
-	<span class="ident">send_queue</span>: <span class="ident">VecDeque</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">send_queue</span>: <span class="ident">VecDeque</span><span class="op">&lt;</span><span class="ident">BytesMut</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// If true, we should call `poll_complete` on the inner sink.</span>
-	<span class="ident">requires_poll_complete</span>: <span class="ident">bool</span>,
+	<span class="ident">requires_poll_flush</span>: <span class="ident">bool</span>,
 	<span class="doccomment">/// The underlying substream.</span>
-	<span class="ident">inner</span>: <span class="ident">stream</span>::<span class="ident">Fuse</span><span class="op">&lt;</span><span class="ident">Framed</span><span class="op">&lt;</span><span class="ident">Negotiated</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>, <span class="ident">UviBytes</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">inner</span>: <span class="ident">stream</span>::<span class="ident">Fuse</span><span class="op">&lt;</span><span class="ident">Framed</span><span class="op">&lt;</span><span class="ident">Negotiated</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>, <span class="ident">UviBytes</span><span class="op">&lt;</span><span class="ident">BytesMut</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// Version of the protocol that was negotiated.</span>
 	<span class="ident">protocol_version</span>: <span class="ident">u8</span>,
 	<span class="doccomment">/// If true, we have sent a &quot;remote is clogged&quot; event recently and shouldn&#39;t send another one</span>
@@ -423,7 +429,7 @@
 			<span class="kw">return</span>
 		}
 
-		<span class="self">self</span>.<span class="ident">send_queue</span>.<span class="ident">push_back</span>(<span class="ident">data</span>);
+		<span class="self">self</span>.<span class="ident">send_queue</span>.<span class="ident">push_back</span>(<span class="ident">From</span>::<span class="ident">from</span>(<span class="kw-2">&amp;</span><span class="ident">data</span>[..]));
 	}
 }
 
@@ -442,25 +448,31 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span> <span class="ident">Stream</span> <span class="kw">for</span> <span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>
-<span class="kw">where</span> <span class="ident">TSubstream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> {
-	<span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="ident">RegisteredProtocolEvent</span>;
-	<span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">io</span>::<span class="ident">Error</span>;
+<span class="kw">where</span> <span class="ident">TSubstream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span> {
+	<span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">RegisteredProtocolEvent</span>, <span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
 
-	<span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Item</span><span class="op">&gt;</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">poll_next</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Item</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 		<span class="comment">// Flushing the local queue.</span>
-		<span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">packet</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">send_queue</span>.<span class="ident">pop_front</span>() {
-			<span class="kw">match</span> <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">start_send</span>(<span class="ident">packet</span>)<span class="question-mark">?</span> {
-				<span class="ident">AsyncSink</span>::<span class="ident">NotReady</span>(<span class="ident">packet</span>) <span class="op">=</span><span class="op">&gt;</span> {
-					<span class="self">self</span>.<span class="ident">send_queue</span>.<span class="ident">push_front</span>(<span class="ident">packet</span>);
-					<span class="kw">break</span>
-				},
-				<span class="ident">AsyncSink</span>::<span class="ident">Ready</span> <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">requires_poll_complete</span> <span class="op">=</span> <span class="bool-val">true</span>,
+		<span class="kw">while</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">send_queue</span>.<span class="ident">is_empty</span>() {
+			<span class="kw">match</span> <span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">inner</span>).<span class="ident">poll_ready</span>(<span class="ident">cx</span>) {
+				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Ok</span>(())) <span class="op">=</span><span class="op">&gt;</span> {},
+				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">err</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(<span class="ident">err</span>))),
+				<span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">break</span>,
+			}
+
+			<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">packet</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">send_queue</span>.<span class="ident">pop_front</span>() {
+				<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">inner</span>).<span class="ident">start_send</span>(<span class="ident">packet</span>)<span class="question-mark">?</span>;
+				<span class="self">self</span>.<span class="ident">requires_poll_flush</span> <span class="op">=</span> <span class="bool-val">true</span>;
 			}
 		}
 
 		<span class="comment">// If we are closing, close as soon as the Sink is closed.</span>
 		<span class="kw">if</span> <span class="self">self</span>.<span class="ident">is_closing</span> {
-			<span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">close</span>()<span class="question-mark">?</span>.<span class="ident">map</span>(<span class="op">|</span>()<span class="op">|</span> <span class="prelude-val">None</span>))
+			<span class="kw">return</span> <span class="kw">match</span> <span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">inner</span>).<span class="ident">poll_close</span>(<span class="ident">cx</span>) {
+				<span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Poll</span>::<span class="ident">Pending</span>,
+				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Ok</span>(<span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>),
+				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">err</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(<span class="ident">err</span>))),
+			}
 		}
 
 		<span class="comment">// Indicating that the remote is clogged if that&#39;s the case.</span>
@@ -470,9 +482,9 @@
 				<span class="comment">// 	if you remove the fuse, then we will always return early from this function and</span>
 				<span class="comment">//	thus never read any message from the network.</span>
 				<span class="self">self</span>.<span class="ident">clogged_fuse</span> <span class="op">=</span> <span class="bool-val">true</span>;
-				<span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">RegisteredProtocolEvent</span>::<span class="ident">Clogged</span> {
+				<span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">RegisteredProtocolEvent</span>::<span class="ident">Clogged</span> {
 					<span class="ident">messages</span>: <span class="self">self</span>.<span class="ident">send_queue</span>.<span class="ident">iter</span>()
-						.<span class="ident">map</span>(<span class="op">|</span><span class="ident">m</span><span class="op">|</span> <span class="ident">m</span>.<span class="ident">clone</span>())
+						.<span class="ident">map</span>(<span class="op">|</span><span class="ident">m</span><span class="op">|</span> <span class="ident">m</span>.<span class="ident">clone</span>().<span class="ident">to_vec</span>())
 						.<span class="ident">collect</span>(),
 				})))
 			}
@@ -481,25 +493,25 @@
 		}
 
 		<span class="comment">// Flushing if necessary.</span>
-		<span class="kw">if</span> <span class="self">self</span>.<span class="ident">requires_poll_complete</span> {
-			<span class="kw">if</span> <span class="kw">let</span> <span class="ident">Async</span>::<span class="ident">Ready</span>(()) <span class="op">=</span> <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">poll_complete</span>()<span class="question-mark">?</span> {
-				<span class="self">self</span>.<span class="ident">requires_poll_complete</span> <span class="op">=</span> <span class="bool-val">false</span>;
+		<span class="kw">if</span> <span class="self">self</span>.<span class="ident">requires_poll_flush</span> {
+			<span class="kw">if</span> <span class="kw">let</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(()) <span class="op">=</span> <span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">inner</span>).<span class="ident">poll_flush</span>(<span class="ident">cx</span>)<span class="question-mark">?</span> {
+				<span class="self">self</span>.<span class="ident">requires_poll_flush</span> <span class="op">=</span> <span class="bool-val">false</span>;
 			}
 		}
 
 		<span class="comment">// Receiving incoming packets.</span>
 		<span class="comment">// Note that `inner` is wrapped in a `Fuse`, therefore we can poll it forever.</span>
-		<span class="kw">match</span> <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">poll</span>()<span class="question-mark">?</span> {
-			<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">data</span>)) <span class="op">=</span><span class="op">&gt;</span> {
-				<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">RegisteredProtocolEvent</span>::<span class="ident">Message</span>(<span class="ident">data</span>))))
+		<span class="kw">match</span> <span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">inner</span>).<span class="ident">poll_next</span>(<span class="ident">cx</span>)<span class="question-mark">?</span> {
+			<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">data</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">RegisteredProtocolEvent</span>::<span class="ident">Message</span>(<span class="ident">data</span>))))
 			}
-			<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>) <span class="op">=</span><span class="op">&gt;</span>
-				<span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">requires_poll_complete</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="self">self</span>.<span class="ident">send_queue</span>.<span class="ident">is_empty</span>() {
-					<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>))
+			<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>) <span class="op">=</span><span class="op">&gt;</span>
+				<span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">requires_poll_flush</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="self">self</span>.<span class="ident">send_queue</span>.<span class="ident">is_empty</span>() {
+					<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>)
 				} <span class="kw">else</span> {
-					<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>)
+					<span class="ident">Poll</span>::<span class="ident">Pending</span>
 				}
-			<span class="ident">Async</span>::<span class="ident">NotReady</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>),
+			<span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Poll</span>::<span class="ident">Pending</span>,
 		}
 	}
 }
@@ -528,7 +540,7 @@
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">RegisteredProtocolName</span> {
 	<span class="doccomment">/// Protocol name, as advertised on the wire.</span>
-	<span class="ident">name</span>: <span class="ident">Bytes</span>,
+	<span class="ident">name</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// Version number. Stored in string form in `name`, but duplicated here for easier retrieval.</span>
 	<span class="ident">version</span>: <span class="ident">u8</span>,
 }
@@ -540,10 +552,10 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span> <span class="ident">InboundUpgrade</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">RegisteredProtocol</span>
-<span class="kw">where</span> <span class="ident">TSubstream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span>,
+<span class="kw">where</span> <span class="ident">TSubstream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span>,
 {
 	<span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>;
-	<span class="kw">type</span> <span class="ident">Future</span> <span class="op">=</span> <span class="ident">future</span>::<span class="ident">FutureResult</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Output</span>, <span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
+	<span class="kw">type</span> <span class="ident">Future</span> <span class="op">=</span> <span class="ident">future</span>::<span class="ident">Ready</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Output</span>, <span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 	<span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">io</span>::<span class="ident">Error</span>;
 
 	<span class="kw">fn</span> <span class="ident">upgrade_inbound</span>(
@@ -561,7 +573,7 @@
 			<span class="ident">is_closing</span>: <span class="bool-val">false</span>,
 			<span class="ident">endpoint</span>: <span class="ident">Endpoint</span>::<span class="ident">Listener</span>,
 			<span class="ident">send_queue</span>: <span class="ident">VecDeque</span>::<span class="ident">new</span>(),
-			<span class="ident">requires_poll_complete</span>: <span class="bool-val">false</span>,
+			<span class="ident">requires_poll_flush</span>: <span class="bool-val">false</span>,
 			<span class="ident">inner</span>: <span class="ident">framed</span>.<span class="ident">fuse</span>(),
 			<span class="ident">protocol_version</span>: <span class="ident">info</span>.<span class="ident">version</span>,
 			<span class="ident">clogged_fuse</span>: <span class="bool-val">false</span>,
@@ -570,7 +582,7 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span> <span class="ident">OutboundUpgrade</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">RegisteredProtocol</span>
-<span class="kw">where</span> <span class="ident">TSubstream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span>,
+<span class="kw">where</span> <span class="ident">TSubstream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span>,
 {
 	<span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="ident">InboundUpgrade</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">Output</span>;
 	<span class="kw">type</span> <span class="ident">Future</span> <span class="op">=</span> <span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="ident">InboundUpgrade</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">Future</span>;
@@ -587,7 +599,7 @@
 			<span class="ident">is_closing</span>: <span class="bool-val">false</span>,
 			<span class="ident">endpoint</span>: <span class="ident">Endpoint</span>::<span class="ident">Dialer</span>,
 			<span class="ident">send_queue</span>: <span class="ident">VecDeque</span>::<span class="ident">new</span>(),
-			<span class="ident">requires_poll_complete</span>: <span class="bool-val">false</span>,
+			<span class="ident">requires_poll_flush</span>: <span class="bool-val">false</span>,
 			<span class="ident">inner</span>: <span class="ident">framed</span>.<span class="ident">fuse</span>(),
 			<span class="ident">protocol_version</span>: <span class="ident">info</span>.<span class="ident">version</span>,
 			<span class="ident">clogged_fuse</span>: <span class="bool-val">false</span>,

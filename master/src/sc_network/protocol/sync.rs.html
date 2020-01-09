@@ -1332,6 +1332,38 @@
 <span id="1321">1321</span>
 <span id="1322">1322</span>
 <span id="1323">1323</span>
+<span id="1324">1324</span>
+<span id="1325">1325</span>
+<span id="1326">1326</span>
+<span id="1327">1327</span>
+<span id="1328">1328</span>
+<span id="1329">1329</span>
+<span id="1330">1330</span>
+<span id="1331">1331</span>
+<span id="1332">1332</span>
+<span id="1333">1333</span>
+<span id="1334">1334</span>
+<span id="1335">1335</span>
+<span id="1336">1336</span>
+<span id="1337">1337</span>
+<span id="1338">1338</span>
+<span id="1339">1339</span>
+<span id="1340">1340</span>
+<span id="1341">1341</span>
+<span id="1342">1342</span>
+<span id="1343">1343</span>
+<span id="1344">1344</span>
+<span id="1345">1345</span>
+<span id="1346">1346</span>
+<span id="1347">1347</span>
+<span id="1348">1348</span>
+<span id="1349">1349</span>
+<span id="1350">1350</span>
+<span id="1351">1351</span>
+<span id="1352">1352</span>
+<span id="1353">1353</span>
+<span id="1354">1354</span>
+<span id="1355">1355</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1687,6 +1719,11 @@
 		}
 	}
 
+	<span class="doccomment">/// Number of active sync requests.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">num_sync_requests</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+		<span class="self">self</span>.<span class="ident">fork_targets</span>.<span class="ident">len</span>()
+	}
+
 	<span class="doccomment">/// Handle a new connected peer.</span>
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// Call this method whenever we connect to a new peer.</span>
@@ -1808,7 +1845,7 @@
 			<span class="macro">debug</span><span class="macro">!</span>(
 				<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>,
 				<span class="string">&quot;Explicit sync request for block {:?} with no peers specified. \
-				 Syncing from all connected peers {:?} instead.&quot;</span>,
+				Syncing from all connected peers {:?} instead.&quot;</span>,
 				<span class="ident">hash</span>, <span class="ident">peers</span>,
 			);
 
@@ -1923,7 +1960,27 @@
 				<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Peer {} is busy&quot;</span>, <span class="ident">id</span>);
 				<span class="kw">return</span> <span class="prelude-val">None</span>
 			}
-			<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">hash</span>, <span class="ident">req</span>)) <span class="op">=</span> <span class="ident">fork_sync_request</span>(
+			<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">range</span>, <span class="ident">req</span>)) <span class="op">=</span> <span class="ident">peer_block_request</span>(
+				<span class="ident">id</span>,
+				<span class="ident">peer</span>,
+				<span class="ident">blocks</span>,
+				<span class="ident">attrs</span>,
+				<span class="ident">max_parallel</span>,
+				<span class="ident">last_finalized</span>,
+				<span class="ident">best_queued</span>,
+			) {
+				<span class="ident">peer</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">PeerSyncState</span>::<span class="ident">DownloadingNew</span>(<span class="ident">range</span>.<span class="ident">start</span>);
+				<span class="macro">trace</span><span class="macro">!</span>(
+					<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>,
+					<span class="string">&quot;New block request for {}, (best:{}, common:{}) {:?}&quot;</span>,
+					<span class="ident">id</span>,
+					<span class="ident">peer</span>.<span class="ident">best_number</span>,
+					<span class="ident">peer</span>.<span class="ident">common_number</span>,
+					<span class="ident">req</span>,
+				);
+				<span class="ident">have_requests</span> <span class="op">=</span> <span class="bool-val">true</span>;
+				<span class="prelude-val">Some</span>((<span class="ident">id</span>.<span class="ident">clone</span>(), <span class="ident">req</span>))
+			} <span class="kw">else</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">hash</span>, <span class="ident">req</span>)) <span class="op">=</span> <span class="ident">fork_sync_request</span>(
 				<span class="ident">id</span>,
 				<span class="ident">fork_targets</span>,
 				<span class="ident">best_queued</span>,
@@ -1939,25 +1996,6 @@
 				<span class="ident">peer</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">PeerSyncState</span>::<span class="ident">DownloadingStale</span>(<span class="ident">hash</span>);
 				<span class="ident">have_requests</span> <span class="op">=</span> <span class="bool-val">true</span>;
 				<span class="prelude-val">Some</span>((<span class="ident">id</span>.<span class="ident">clone</span>(), <span class="ident">req</span>))
-			} <span class="kw">else</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">range</span>, <span class="ident">req</span>)) <span class="op">=</span> <span class="ident">peer_block_request</span>(
-				<span class="ident">id</span>,
-				<span class="ident">peer</span>,
-				<span class="ident">blocks</span>,
-				<span class="ident">attrs</span>,
-				<span class="ident">max_parallel</span>,
-				<span class="ident">last_finalized</span>
-			) {
-				<span class="ident">peer</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">PeerSyncState</span>::<span class="ident">DownloadingNew</span>(<span class="ident">range</span>.<span class="ident">start</span>);
-				<span class="macro">trace</span><span class="macro">!</span>(
-					<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>,
-					<span class="string">&quot;New block request for {}, (best:{}, common:{}) {:?}&quot;</span>,
-					<span class="ident">id</span>,
-					<span class="ident">peer</span>.<span class="ident">best_number</span>,
-					<span class="ident">peer</span>.<span class="ident">common_number</span>,
-					<span class="ident">req</span>,
-				);
-				<span class="ident">have_requests</span> <span class="op">=</span> <span class="bool-val">true</span>;
-				<span class="prelude-val">Some</span>((<span class="ident">id</span>.<span class="ident">clone</span>(), <span class="ident">req</span>))
 			} <span class="kw">else</span> {
 				<span class="prelude-val">None</span>
 			}
@@ -1971,111 +2009,127 @@
 	<span class="doccomment">/// Handle a response from the remote to a block request that we made.</span>
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// `request` must be the original request that triggered `response`.</span>
+	<span class="doccomment">/// or `None` if data comes from the block announcement.</span>
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// If this corresponds to a valid block, this outputs the block that</span>
 	<span class="doccomment">/// must be imported in the import queue.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">on_block_data</span>
-		(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">who</span>: <span class="ident">PeerId</span>, <span class="ident">request</span>: <span class="ident">BlockRequest</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">response</span>: <span class="ident">BlockResponse</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">OnBlockData</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">BadPeer</span><span class="op">&gt;</span>
+		(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">who</span>: <span class="ident">PeerId</span>, <span class="ident">request</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">BlockRequest</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">response</span>: <span class="ident">BlockResponse</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">OnBlockData</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">BadPeer</span><span class="op">&gt;</span>
 	{
 		<span class="kw">let</span> <span class="ident">new_blocks</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">IncomingBlock</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span>
 			<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">peer</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">peers</span>.<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">who</span>) {
 				<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">blocks</span> <span class="op">=</span> <span class="ident">response</span>.<span class="ident">blocks</span>;
-				<span class="kw">if</span> <span class="ident">request</span>.<span class="ident">direction</span> <span class="op">=</span><span class="op">=</span> <span class="ident">message</span>::<span class="ident">Direction</span>::<span class="ident">Descending</span> {
+				<span class="kw">if</span> <span class="ident">request</span>.<span class="ident">as_ref</span>().<span class="ident">map_or</span>(<span class="bool-val">false</span>, <span class="op">|</span><span class="ident">r</span><span class="op">|</span> <span class="ident">r</span>.<span class="ident">direction</span> <span class="op">=</span><span class="op">=</span> <span class="ident">message</span>::<span class="ident">Direction</span>::<span class="ident">Descending</span>) {
 					<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Reversing incoming block list&quot;</span>);
 					<span class="ident">blocks</span>.<span class="ident">reverse</span>()
 				}
 				<span class="self">self</span>.<span class="ident">is_idle</span> <span class="op">=</span> <span class="bool-val">false</span>;
-				<span class="kw">match</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">peer</span>.<span class="ident">state</span> {
-					<span class="ident">PeerSyncState</span>::<span class="ident">DownloadingNew</span>(<span class="ident">start_block</span>) <span class="op">=</span><span class="op">&gt;</span> {
-						<span class="self">self</span>.<span class="ident">blocks</span>.<span class="ident">clear_peer_download</span>(<span class="kw-2">&amp;</span><span class="ident">who</span>);
-						<span class="self">self</span>.<span class="ident">blocks</span>.<span class="ident">insert</span>(<span class="kw-2">*</span><span class="ident">start_block</span>, <span class="ident">blocks</span>, <span class="ident">who</span>);
-						<span class="ident">peer</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">PeerSyncState</span>::<span class="ident">Available</span>;
-						<span class="self">self</span>.<span class="ident">blocks</span>
-							.<span class="ident">drain</span>(<span class="self">self</span>.<span class="ident">best_queued_number</span> <span class="op">+</span> <span class="ident">One</span>::<span class="ident">one</span>())
-							.<span class="ident">into_iter</span>()
-							.<span class="ident">map</span>(<span class="op">|</span><span class="ident">block_data</span><span class="op">|</span> {
+				<span class="kw">if</span> <span class="ident">request</span>.<span class="ident">is_some</span>() {
+					<span class="kw">match</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">peer</span>.<span class="ident">state</span> {
+						<span class="ident">PeerSyncState</span>::<span class="ident">DownloadingNew</span>(<span class="ident">start_block</span>) <span class="op">=</span><span class="op">&gt;</span> {
+							<span class="self">self</span>.<span class="ident">blocks</span>.<span class="ident">clear_peer_download</span>(<span class="kw-2">&amp;</span><span class="ident">who</span>);
+							<span class="self">self</span>.<span class="ident">blocks</span>.<span class="ident">insert</span>(<span class="kw-2">*</span><span class="ident">start_block</span>, <span class="ident">blocks</span>, <span class="ident">who</span>);
+							<span class="ident">peer</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">PeerSyncState</span>::<span class="ident">Available</span>;
+							<span class="self">self</span>.<span class="ident">blocks</span>
+								.<span class="ident">drain</span>(<span class="self">self</span>.<span class="ident">best_queued_number</span> <span class="op">+</span> <span class="ident">One</span>::<span class="ident">one</span>())
+								.<span class="ident">into_iter</span>()
+								.<span class="ident">map</span>(<span class="op">|</span><span class="ident">block_data</span><span class="op">|</span> {
+									<span class="ident">IncomingBlock</span> {
+										<span class="ident">hash</span>: <span class="ident">block_data</span>.<span class="ident">block</span>.<span class="ident">hash</span>,
+										<span class="ident">header</span>: <span class="ident">block_data</span>.<span class="ident">block</span>.<span class="ident">header</span>,
+										<span class="ident">body</span>: <span class="ident">block_data</span>.<span class="ident">block</span>.<span class="ident">body</span>,
+										<span class="ident">justification</span>: <span class="ident">block_data</span>.<span class="ident">block</span>.<span class="ident">justification</span>,
+										<span class="ident">origin</span>: <span class="ident">block_data</span>.<span class="ident">origin</span>,
+										<span class="ident">allow_missing_state</span>: <span class="bool-val">true</span>,
+										<span class="ident">import_existing</span>: <span class="bool-val">false</span>,
+									}
+								}).<span class="ident">collect</span>()
+						}
+						<span class="ident">PeerSyncState</span>::<span class="ident">DownloadingStale</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
+							<span class="ident">peer</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">PeerSyncState</span>::<span class="ident">Available</span>;
+							<span class="ident">blocks</span>.<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">b</span><span class="op">|</span> {
 								<span class="ident">IncomingBlock</span> {
-									<span class="ident">hash</span>: <span class="ident">block_data</span>.<span class="ident">block</span>.<span class="ident">hash</span>,
-									<span class="ident">header</span>: <span class="ident">block_data</span>.<span class="ident">block</span>.<span class="ident">header</span>,
-									<span class="ident">body</span>: <span class="ident">block_data</span>.<span class="ident">block</span>.<span class="ident">body</span>,
-									<span class="ident">justification</span>: <span class="ident">block_data</span>.<span class="ident">block</span>.<span class="ident">justification</span>,
-									<span class="ident">origin</span>: <span class="ident">block_data</span>.<span class="ident">origin</span>,
-									<span class="ident">allow_missing_state</span>: <span class="bool-val">false</span>,
+									<span class="ident">hash</span>: <span class="ident">b</span>.<span class="ident">hash</span>,
+									<span class="ident">header</span>: <span class="ident">b</span>.<span class="ident">header</span>,
+									<span class="ident">body</span>: <span class="ident">b</span>.<span class="ident">body</span>,
+									<span class="ident">justification</span>: <span class="ident">b</span>.<span class="ident">justification</span>,
+									<span class="ident">origin</span>: <span class="prelude-val">Some</span>(<span class="ident">who</span>.<span class="ident">clone</span>()),
+									<span class="ident">allow_missing_state</span>: <span class="bool-val">true</span>,
 									<span class="ident">import_existing</span>: <span class="bool-val">false</span>,
 								}
 							}).<span class="ident">collect</span>()
-					}
-					<span class="ident">PeerSyncState</span>::<span class="ident">DownloadingStale</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
-						<span class="ident">peer</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">PeerSyncState</span>::<span class="ident">Available</span>;
-						<span class="ident">blocks</span>.<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">b</span><span class="op">|</span> {
-							<span class="ident">IncomingBlock</span> {
-								<span class="ident">hash</span>: <span class="ident">b</span>.<span class="ident">hash</span>,
-								<span class="ident">header</span>: <span class="ident">b</span>.<span class="ident">header</span>,
-								<span class="ident">body</span>: <span class="ident">b</span>.<span class="ident">body</span>,
-								<span class="ident">justification</span>: <span class="ident">b</span>.<span class="ident">justification</span>,
-								<span class="ident">origin</span>: <span class="prelude-val">Some</span>(<span class="ident">who</span>.<span class="ident">clone</span>()),
-								<span class="ident">allow_missing_state</span>: <span class="bool-val">true</span>,
-								<span class="ident">import_existing</span>: <span class="bool-val">false</span>,
-							}
-						}).<span class="ident">collect</span>()
-					}
-					<span class="ident">PeerSyncState</span>::<span class="ident">AncestorSearch</span>(<span class="ident">num</span>, <span class="ident">state</span>) <span class="op">=</span><span class="op">&gt;</span> {
-						<span class="kw">let</span> <span class="ident">matching_hash</span> <span class="op">=</span> <span class="kw">match</span> (<span class="ident">blocks</span>.<span class="ident">get</span>(<span class="number">0</span>), <span class="self">self</span>.<span class="ident">client</span>.<span class="ident">block_hash</span>(<span class="kw-2">*</span><span class="ident">num</span>)) {
-							(<span class="prelude-val">Some</span>(<span class="ident">block</span>), <span class="prelude-val">Ok</span>(<span class="ident">maybe_our_block_hash</span>)) <span class="op">=</span><span class="op">&gt;</span> {
-								<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Got ancestry block #{} ({}) from peer {}&quot;</span>, <span class="ident">num</span>, <span class="ident">block</span>.<span class="ident">hash</span>, <span class="ident">who</span>);
-								<span class="ident">maybe_our_block_hash</span>.<span class="ident">filter</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span> <span class="op">=</span><span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">block</span>.<span class="ident">hash</span>)
-							},
-							(<span class="prelude-val">None</span>, <span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
-								<span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Invalid response when searching for ancestor from {}&quot;</span>, <span class="ident">who</span>);
-								<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">BadPeer</span>(<span class="ident">who</span>, <span class="ident">rep</span>::<span class="ident">UNKNOWN_ANCESTOR</span>))
-							},
-							(<span class="kw">_</span>, <span class="prelude-val">Err</span>(<span class="ident">e</span>)) <span class="op">=</span><span class="op">&gt;</span> {
-								<span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;Error answering legitimate blockchain query: {:?}&quot;</span>, <span class="ident">e</span>);
-								<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">BadPeer</span>(<span class="ident">who</span>, <span class="ident">rep</span>::<span class="ident">BLOCKCHAIN_READ_ERROR</span>))
-							}
-						};
-						<span class="kw">if</span> <span class="ident">matching_hash</span>.<span class="ident">is_some</span>() <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">peer</span>.<span class="ident">common_number</span> <span class="op">&lt;</span> <span class="kw-2">*</span><span class="ident">num</span> {
-							<span class="ident">peer</span>.<span class="ident">common_number</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">num</span>;
 						}
-						<span class="kw">if</span> <span class="ident">matching_hash</span>.<span class="ident">is_none</span>() <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">num</span>.<span class="ident">is_zero</span>() {
-							<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>:<span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Ancestry search: genesis mismatch for peer {}&quot;</span>, <span class="ident">who</span>);
-							<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">BadPeer</span>(<span class="ident">who</span>, <span class="ident">rep</span>::<span class="ident">GENESIS_MISMATCH</span>))
-						}
-						<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">next_state</span>, <span class="ident">next_num</span>)) <span class="op">=</span> <span class="ident">handle_ancestor_search_state</span>(<span class="ident">state</span>, <span class="kw-2">*</span><span class="ident">num</span>, <span class="ident">matching_hash</span>.<span class="ident">is_some</span>()) {
-							<span class="ident">peer</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">PeerSyncState</span>::<span class="ident">AncestorSearch</span>(<span class="ident">next_num</span>, <span class="ident">next_state</span>);
-							<span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">OnBlockData</span>::<span class="ident">Request</span>(<span class="ident">who</span>, <span class="ident">ancestry_request</span>::<span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>(<span class="ident">next_num</span>)))
-						} <span class="kw">else</span> {
-							<span class="comment">// Ancestry search is complete. Check if peer is on a stale fork unknown to us and</span>
-							<span class="comment">// add it to sync targets if necessary.</span>
-							<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Ancestry search complete. Ours={} ({}), Theirs={} ({}), Common={:?} ({})&quot;</span>,
-								<span class="self">self</span>.<span class="ident">best_queued_hash</span>,
-								<span class="self">self</span>.<span class="ident">best_queued_number</span>,
-								<span class="ident">peer</span>.<span class="ident">best_hash</span>,
-								<span class="ident">peer</span>.<span class="ident">best_number</span>,
-								<span class="ident">matching_hash</span>,
-								<span class="ident">peer</span>.<span class="ident">common_number</span>,
-							);
-							<span class="kw">if</span> <span class="ident">peer</span>.<span class="ident">common_number</span> <span class="op">&lt;</span> <span class="ident">peer</span>.<span class="ident">best_number</span>
-								<span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">peer</span>.<span class="ident">best_number</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">best_queued_number</span>
-							{
-								<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Added fork target {} for {}&quot;</span> , <span class="ident">peer</span>.<span class="ident">best_hash</span>, <span class="ident">who</span>);
-								<span class="self">self</span>.<span class="ident">fork_targets</span>
-									.<span class="ident">entry</span>(<span class="ident">peer</span>.<span class="ident">best_hash</span>.<span class="ident">clone</span>())
-									.<span class="ident">or_insert_with</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ForkTarget</span> {
-										<span class="ident">number</span>: <span class="ident">peer</span>.<span class="ident">best_number</span>,
-										<span class="ident">parent_hash</span>: <span class="prelude-val">None</span>,
-										<span class="ident">peers</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
-									})
-								.<span class="ident">peers</span>.<span class="ident">insert</span>(<span class="ident">who</span>);
+						<span class="ident">PeerSyncState</span>::<span class="ident">AncestorSearch</span>(<span class="ident">num</span>, <span class="ident">state</span>) <span class="op">=</span><span class="op">&gt;</span> {
+							<span class="kw">let</span> <span class="ident">matching_hash</span> <span class="op">=</span> <span class="kw">match</span> (<span class="ident">blocks</span>.<span class="ident">get</span>(<span class="number">0</span>), <span class="self">self</span>.<span class="ident">client</span>.<span class="ident">block_hash</span>(<span class="kw-2">*</span><span class="ident">num</span>)) {
+								(<span class="prelude-val">Some</span>(<span class="ident">block</span>), <span class="prelude-val">Ok</span>(<span class="ident">maybe_our_block_hash</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+									<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Got ancestry block #{} ({}) from peer {}&quot;</span>, <span class="ident">num</span>, <span class="ident">block</span>.<span class="ident">hash</span>, <span class="ident">who</span>);
+									<span class="ident">maybe_our_block_hash</span>.<span class="ident">filter</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span> <span class="op">=</span><span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">block</span>.<span class="ident">hash</span>)
+								},
+								(<span class="prelude-val">None</span>, <span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
+									<span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Invalid response when searching for ancestor from {}&quot;</span>, <span class="ident">who</span>);
+									<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">BadPeer</span>(<span class="ident">who</span>, <span class="ident">rep</span>::<span class="ident">UNKNOWN_ANCESTOR</span>))
+								},
+								(<span class="kw">_</span>, <span class="prelude-val">Err</span>(<span class="ident">e</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+									<span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;Error answering legitimate blockchain query: {:?}&quot;</span>, <span class="ident">e</span>);
+									<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">BadPeer</span>(<span class="ident">who</span>, <span class="ident">rep</span>::<span class="ident">BLOCKCHAIN_READ_ERROR</span>))
+								}
+							};
+							<span class="kw">if</span> <span class="ident">matching_hash</span>.<span class="ident">is_some</span>() <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">peer</span>.<span class="ident">common_number</span> <span class="op">&lt;</span> <span class="kw-2">*</span><span class="ident">num</span> {
+								<span class="ident">peer</span>.<span class="ident">common_number</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">num</span>;
 							}
-							<span class="ident">peer</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">PeerSyncState</span>::<span class="ident">Available</span>;
-							<span class="ident">Vec</span>::<span class="ident">new</span>()
+							<span class="kw">if</span> <span class="ident">matching_hash</span>.<span class="ident">is_none</span>() <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">num</span>.<span class="ident">is_zero</span>() {
+								<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>:<span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Ancestry search: genesis mismatch for peer {}&quot;</span>, <span class="ident">who</span>);
+								<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">BadPeer</span>(<span class="ident">who</span>, <span class="ident">rep</span>::<span class="ident">GENESIS_MISMATCH</span>))
+							}
+							<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">next_state</span>, <span class="ident">next_num</span>)) <span class="op">=</span> <span class="ident">handle_ancestor_search_state</span>(<span class="ident">state</span>, <span class="kw-2">*</span><span class="ident">num</span>, <span class="ident">matching_hash</span>.<span class="ident">is_some</span>()) {
+								<span class="ident">peer</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">PeerSyncState</span>::<span class="ident">AncestorSearch</span>(<span class="ident">next_num</span>, <span class="ident">next_state</span>);
+								<span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">OnBlockData</span>::<span class="ident">Request</span>(<span class="ident">who</span>, <span class="ident">ancestry_request</span>::<span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>(<span class="ident">next_num</span>)))
+							} <span class="kw">else</span> {
+								<span class="comment">// Ancestry search is complete. Check if peer is on a stale fork unknown to us and</span>
+								<span class="comment">// add it to sync targets if necessary.</span>
+								<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Ancestry search complete. Ours={} ({}), Theirs={} ({}), Common={:?} ({})&quot;</span>,
+									<span class="self">self</span>.<span class="ident">best_queued_hash</span>,
+									<span class="self">self</span>.<span class="ident">best_queued_number</span>,
+									<span class="ident">peer</span>.<span class="ident">best_hash</span>,
+									<span class="ident">peer</span>.<span class="ident">best_number</span>,
+									<span class="ident">matching_hash</span>,
+									<span class="ident">peer</span>.<span class="ident">common_number</span>,
+								);
+								<span class="kw">if</span> <span class="ident">peer</span>.<span class="ident">common_number</span> <span class="op">&lt;</span> <span class="ident">peer</span>.<span class="ident">best_number</span>
+									<span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">peer</span>.<span class="ident">best_number</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">best_queued_number</span>
+								{
+									<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Added fork target {} for {}&quot;</span> , <span class="ident">peer</span>.<span class="ident">best_hash</span>, <span class="ident">who</span>);
+									<span class="self">self</span>.<span class="ident">fork_targets</span>
+										.<span class="ident">entry</span>(<span class="ident">peer</span>.<span class="ident">best_hash</span>.<span class="ident">clone</span>())
+										.<span class="ident">or_insert_with</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ForkTarget</span> {
+											<span class="ident">number</span>: <span class="ident">peer</span>.<span class="ident">best_number</span>,
+											<span class="ident">parent_hash</span>: <span class="prelude-val">None</span>,
+											<span class="ident">peers</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
+										})
+									.<span class="ident">peers</span>.<span class="ident">insert</span>(<span class="ident">who</span>);
+								}
+								<span class="ident">peer</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">PeerSyncState</span>::<span class="ident">Available</span>;
+								<span class="ident">Vec</span>::<span class="ident">new</span>()
+							}
 						}
-					}
 
-					<span class="op">|</span> <span class="ident">PeerSyncState</span>::<span class="ident">Available</span>
-					<span class="op">|</span> <span class="ident">PeerSyncState</span>::<span class="ident">DownloadingJustification</span>(..)
-					<span class="op">|</span> <span class="ident">PeerSyncState</span>::<span class="ident">DownloadingFinalityProof</span>(..) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Vec</span>::<span class="ident">new</span>()
+						<span class="op">|</span> <span class="ident">PeerSyncState</span>::<span class="ident">Available</span>
+						<span class="op">|</span> <span class="ident">PeerSyncState</span>::<span class="ident">DownloadingJustification</span>(..)
+						<span class="op">|</span> <span class="ident">PeerSyncState</span>::<span class="ident">DownloadingFinalityProof</span>(..) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Vec</span>::<span class="ident">new</span>()
+					}
+				} <span class="kw">else</span> {
+					<span class="comment">// When request.is_none() just acccept blocks</span>
+					<span class="ident">blocks</span>.<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">b</span><span class="op">|</span> {
+						<span class="ident">IncomingBlock</span> {
+							<span class="ident">hash</span>: <span class="ident">b</span>.<span class="ident">hash</span>,
+							<span class="ident">header</span>: <span class="ident">b</span>.<span class="ident">header</span>,
+							<span class="ident">body</span>: <span class="ident">b</span>.<span class="ident">body</span>,
+							<span class="ident">justification</span>: <span class="ident">b</span>.<span class="ident">justification</span>,
+							<span class="ident">origin</span>: <span class="prelude-val">Some</span>(<span class="ident">who</span>.<span class="ident">clone</span>()),
+							<span class="ident">allow_missing_state</span>: <span class="bool-val">true</span>,
+							<span class="ident">import_existing</span>: <span class="bool-val">false</span>,
+						}
+					}).<span class="ident">collect</span>()
 				}
 			} <span class="kw">else</span> {
 				<span class="ident">Vec</span>::<span class="ident">new</span>()
@@ -2590,8 +2644,13 @@
 	<span class="ident">attrs</span>: <span class="kw-2">&amp;</span><span class="ident">message</span>::<span class="ident">BlockAttributes</span>,
 	<span class="ident">max_parallel_downloads</span>: <span class="ident">u32</span>,
 	<span class="ident">finalized</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+	<span class="ident">best_num</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">Range</span><span class="op">&lt;</span><span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">BlockRequest</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>)<span class="op">&gt;</span> {
 	<span class="kw">if</span> <span class="ident">peer</span>.<span class="ident">common_number</span> <span class="op">&lt;</span> <span class="ident">finalized</span> {
+		<span class="kw">return</span> <span class="prelude-val">None</span>;
+	}
+	<span class="kw">if</span> <span class="ident">best_num</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">peer</span>.<span class="ident">best_number</span> {
+		<span class="comment">// Will be downloaded as alternative fork instead.</span>
 		<span class="kw">return</span> <span class="prelude-val">None</span>;
 	}
 	<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">range</span>) <span class="op">=</span> <span class="ident">blocks</span>.<span class="ident">needed_blocks</span>(
@@ -2626,11 +2685,16 @@
 	<span class="ident">check_block</span>: <span class="kw">impl</span> <span class="ident">Fn</span>(<span class="kw-2">&amp;</span><span class="ident">B</span>::<span class="ident">Hash</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">BlockStatus</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">B</span>::<span class="ident">Hash</span>, <span class="ident">BlockRequest</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>)<span class="op">&gt;</span>
 {
-	<span class="ident">targets</span>.<span class="ident">retain</span>(<span class="op">|</span><span class="ident">hash</span>, <span class="ident">r</span><span class="op">|</span> <span class="kw">if</span> <span class="ident">r</span>.<span class="ident">number</span> <span class="op">&gt;</span> <span class="ident">finalized</span> {
+	<span class="ident">targets</span>.<span class="ident">retain</span>(<span class="op">|</span><span class="ident">hash</span>, <span class="ident">r</span><span class="op">|</span> {
+		<span class="kw">if</span> <span class="ident">r</span>.<span class="ident">number</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">finalized</span> {
+			<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Removed expired fork sync request {:?} (#{})&quot;</span>, <span class="ident">hash</span>, <span class="ident">r</span>.<span class="ident">number</span>);
+			<span class="kw">return</span> <span class="bool-val">false</span>;
+		}
+		<span class="kw">if</span> <span class="ident">check_block</span>(<span class="ident">hash</span>) <span class="op">!</span><span class="op">=</span> <span class="ident">BlockStatus</span>::<span class="ident">Unknown</span> {
+			<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Removed obsolete fork sync request {:?} (#{})&quot;</span>, <span class="ident">hash</span>, <span class="ident">r</span>.<span class="ident">number</span>);
+			<span class="kw">return</span> <span class="bool-val">false</span>;
+		}
 		<span class="bool-val">true</span>
-	} <span class="kw">else</span> {
-		<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Removed expired fork sync request {:?} (#{})&quot;</span>, <span class="ident">hash</span>, <span class="ident">r</span>.<span class="ident">number</span>);
-		<span class="bool-val">false</span>
 	});
 	<span class="kw">for</span> (<span class="ident">hash</span>, <span class="ident">r</span>) <span class="kw">in</span> <span class="ident">targets</span> {
 		<span class="kw">if</span> <span class="op">!</span><span class="ident">r</span>.<span class="ident">peers</span>.<span class="ident">contains</span>(<span class="ident">id</span>) {

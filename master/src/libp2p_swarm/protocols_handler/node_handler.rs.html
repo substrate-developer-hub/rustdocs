@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-swarm-0.3.0/src/protocols_handler/node_handler.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>node_handler.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-swarm-0.4.0-alpha.1/src/protocols_handler/node_handler.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>node_handler.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -333,6 +333,14 @@
 <span id="322">322</span>
 <span id="323">323</span>
 <span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018 Parity Technologies (UK) Ltd.</span>
 <span class="comment">//</span>
@@ -369,8 +377,8 @@
     <span class="ident">nodes</span>::<span class="ident">handled_node</span>::{<span class="ident">IntoNodeHandler</span>, <span class="ident">NodeHandler</span>, <span class="ident">NodeHandlerEndpoint</span>, <span class="ident">NodeHandlerEvent</span>},
     <span class="ident">upgrade</span>::{<span class="self">self</span>, <span class="ident">InboundUpgradeApply</span>, <span class="ident">OutboundUpgradeApply</span>}
 };
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">error</span>, <span class="ident">fmt</span>, <span class="ident">time</span>::<span class="ident">Duration</span>};
-<span class="kw">use</span> <span class="ident">wasm_timer</span>::{<span class="ident">Delay</span>, <span class="ident">Timeout</span>};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">error</span>, <span class="ident">fmt</span>, <span class="ident">pin</span>::<span class="ident">Pin</span>, <span class="ident">task</span>::<span class="ident">Context</span>, <span class="ident">task</span>::<span class="ident">Poll</span>, <span class="ident">time</span>::<span class="ident">Duration</span>};
+<span class="kw">use</span> <span class="ident">wasm_timer</span>::{<span class="ident">Delay</span>, <span class="ident">Instant</span>};
 
 <span class="doccomment">/// Prototype for a `NodeHandlerWrapper`.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">NodeHandlerWrapperBuilder</span><span class="op">&lt;</span><span class="ident">TIntoProtoHandler</span><span class="op">&gt;</span> {
@@ -438,12 +446,13 @@
     <span class="ident">handler</span>: <span class="ident">TProtoHandler</span>,
     <span class="doccomment">/// Futures that upgrade incoming substreams.</span>
     <span class="ident">negotiating_in</span>:
-        <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Timeout</span><span class="op">&lt;</span><span class="ident">InboundUpgradeApply</span><span class="op">&lt;</span><span class="ident">TProtoHandler</span>::<span class="ident">Substream</span>, <span class="ident">TProtoHandler</span>::<span class="ident">InboundProtocol</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">InboundUpgradeApply</span><span class="op">&lt;</span><span class="ident">TProtoHandler</span>::<span class="ident">Substream</span>, <span class="ident">TProtoHandler</span>::<span class="ident">InboundProtocol</span><span class="op">&gt;</span>, <span class="ident">Delay</span>)<span class="op">&gt;</span>,
     <span class="doccomment">/// Futures that upgrade outgoing substreams. The first element of the tuple is the userdata</span>
     <span class="doccomment">/// to pass back once successfully opened.</span>
     <span class="ident">negotiating_out</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(
         <span class="ident">TProtoHandler</span>::<span class="ident">OutboundOpenInfo</span>,
-        <span class="ident">Timeout</span><span class="op">&lt;</span><span class="ident">OutboundUpgradeApply</span><span class="op">&lt;</span><span class="ident">TProtoHandler</span>::<span class="ident">Substream</span>, <span class="ident">TProtoHandler</span>::<span class="ident">OutboundProtocol</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">OutboundUpgradeApply</span><span class="op">&lt;</span><span class="ident">TProtoHandler</span>::<span class="ident">Substream</span>, <span class="ident">TProtoHandler</span>::<span class="ident">OutboundProtocol</span><span class="op">&gt;</span>,
+        <span class="ident">Delay</span>,
     )<span class="op">&gt;</span>,
     <span class="doccomment">/// For each outbound substream request, how to upgrade it. The first element of the tuple</span>
     <span class="doccomment">/// is the unique identifier (see `unique_dial_upgrade_id`).</span>
@@ -469,7 +478,7 @@
     <span class="doccomment">/// A shut down is planned as soon as possible.</span>
     <span class="ident">Asap</span>,
     <span class="doccomment">/// A shut down is planned for when a `Delay` has elapsed.</span>
-    <span class="ident">Later</span>(<span class="ident">Delay</span>)
+    <span class="ident">Later</span>(<span class="ident">Delay</span>, <span class="ident">Instant</span>)
 }
 
 <span class="doccomment">/// Error generated by the `NodeHandlerWrapper`.</span>
@@ -534,8 +543,8 @@
                 <span class="kw">let</span> <span class="ident">protocol</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">handler</span>.<span class="ident">listen_protocol</span>();
                 <span class="kw">let</span> <span class="ident">timeout</span> <span class="op">=</span> <span class="ident">protocol</span>.<span class="ident">timeout</span>().<span class="ident">clone</span>();
                 <span class="kw">let</span> <span class="ident">upgrade</span> <span class="op">=</span> <span class="ident">upgrade</span>::<span class="ident">apply_inbound</span>(<span class="ident">substream</span>, <span class="ident">protocol</span>.<span class="ident">into_upgrade</span>().<span class="number">1</span>);
-                <span class="kw">let</span> <span class="ident">with_timeout</span> <span class="op">=</span> <span class="ident">Timeout</span>::<span class="ident">new</span>(<span class="ident">upgrade</span>, <span class="ident">timeout</span>);
-                <span class="self">self</span>.<span class="ident">negotiating_in</span>.<span class="ident">push</span>(<span class="ident">with_timeout</span>);
+                <span class="kw">let</span> <span class="ident">timeout</span> <span class="op">=</span> <span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">timeout</span>);
+                <span class="self">self</span>.<span class="ident">negotiating_in</span>.<span class="ident">push</span>((<span class="ident">upgrade</span>, <span class="ident">timeout</span>));
             }
             <span class="ident">NodeHandlerEndpoint</span>::<span class="ident">Dialer</span>((<span class="ident">upgrade_id</span>, <span class="ident">user_data</span>, <span class="ident">timeout</span>)) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">let</span> <span class="ident">pos</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>
@@ -552,8 +561,8 @@
 
                 <span class="kw">let</span> (<span class="kw">_</span>, (<span class="ident">version</span>, <span class="ident">upgrade</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="ident">queued_dial_upgrades</span>.<span class="ident">remove</span>(<span class="ident">pos</span>);
                 <span class="kw">let</span> <span class="ident">upgrade</span> <span class="op">=</span> <span class="ident">upgrade</span>::<span class="ident">apply_outbound</span>(<span class="ident">substream</span>, <span class="ident">upgrade</span>, <span class="ident">version</span>);
-                <span class="kw">let</span> <span class="ident">with_timeout</span> <span class="op">=</span> <span class="ident">Timeout</span>::<span class="ident">new</span>(<span class="ident">upgrade</span>, <span class="ident">timeout</span>);
-                <span class="self">self</span>.<span class="ident">negotiating_out</span>.<span class="ident">push</span>((<span class="ident">user_data</span>, <span class="ident">with_timeout</span>));
+                <span class="kw">let</span> <span class="ident">timeout</span> <span class="op">=</span> <span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">timeout</span>);
+                <span class="self">self</span>.<span class="ident">negotiating_out</span>.<span class="ident">push</span>((<span class="ident">user_data</span>, <span class="ident">upgrade</span>, <span class="ident">timeout</span>));
             }
         }
     }
@@ -563,44 +572,50 @@
         <span class="self">self</span>.<span class="ident">handler</span>.<span class="ident">inject_event</span>(<span class="ident">event</span>);
     }
 
-    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident">NodeHandlerEvent</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">OutboundOpenInfo</span>, <span class="self">Self</span>::<span class="ident">OutEvent</span><span class="op">&gt;</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">NodeHandlerEvent</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">OutboundOpenInfo</span>, <span class="self">Self</span>::<span class="ident">OutEvent</span><span class="op">&gt;</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="comment">// Continue negotiation of newly-opened substreams on the listening side.</span>
         <span class="comment">// We remove each element from `negotiating_in` one by one and add them back if not ready.</span>
         <span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> (<span class="number">0</span>..<span class="self">self</span>.<span class="ident">negotiating_in</span>.<span class="ident">len</span>()).<span class="ident">rev</span>() {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">in_progress</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">negotiating_in</span>.<span class="ident">swap_remove</span>(<span class="ident">n</span>);
-            <span class="kw">match</span> <span class="ident">in_progress</span>.<span class="ident">poll</span>() {
-                <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">upgrade</span>)) <span class="op">=</span><span class="op">&gt;</span>
+            <span class="kw">let</span> (<span class="kw-2">mut</span> <span class="ident">in_progress</span>, <span class="kw-2">mut</span> <span class="ident">timeout</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">negotiating_in</span>.<span class="ident">swap_remove</span>(<span class="ident">n</span>);
+            <span class="kw">match</span> <span class="ident">Future</span>::<span class="ident">poll</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">timeout</span>), <span class="ident">cx</span>) {
+                <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">continue</span>,
+                <span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> {},
+            }
+            <span class="kw">match</span> <span class="ident">Future</span>::<span class="ident">poll</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">in_progress</span>), <span class="ident">cx</span>) {
+                <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Ok</span>(<span class="ident">upgrade</span>)) <span class="op">=</span><span class="op">&gt;</span>
                     <span class="self">self</span>.<span class="ident">handler</span>.<span class="ident">inject_fully_negotiated_inbound</span>(<span class="ident">upgrade</span>),
-                <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">negotiating_in</span>.<span class="ident">push</span>(<span class="ident">in_progress</span>),
+                <span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">negotiating_in</span>.<span class="ident">push</span>((<span class="ident">in_progress</span>, <span class="ident">timeout</span>)),
                 <span class="comment">// TODO: return a diagnostic event?</span>
-                <span class="prelude-val">Err</span>(<span class="ident">_err</span>) <span class="op">=</span><span class="op">&gt;</span> {}
+                <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">_err</span>)) <span class="op">=</span><span class="op">&gt;</span> {}
             }
         }
 
         <span class="comment">// Continue negotiation of newly-opened substreams.</span>
         <span class="comment">// We remove each element from `negotiating_out` one by one and add them back if not ready.</span>
         <span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> (<span class="number">0</span>..<span class="self">self</span>.<span class="ident">negotiating_out</span>.<span class="ident">len</span>()).<span class="ident">rev</span>() {
-            <span class="kw">let</span> (<span class="ident">upgr_info</span>, <span class="kw-2">mut</span> <span class="ident">in_progress</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">negotiating_out</span>.<span class="ident">swap_remove</span>(<span class="ident">n</span>);
-            <span class="kw">match</span> <span class="ident">in_progress</span>.<span class="ident">poll</span>() {
-                <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">upgrade</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="kw">let</span> (<span class="ident">upgr_info</span>, <span class="kw-2">mut</span> <span class="ident">in_progress</span>, <span class="kw-2">mut</span> <span class="ident">timeout</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">negotiating_out</span>.<span class="ident">swap_remove</span>(<span class="ident">n</span>);
+            <span class="kw">match</span> <span class="ident">Future</span>::<span class="ident">poll</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">timeout</span>), <span class="ident">cx</span>) {
+                <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Ok</span>(<span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+                    <span class="kw">let</span> <span class="ident">err</span> <span class="op">=</span> <span class="ident">ProtocolsHandlerUpgrErr</span>::<span class="ident">Timeout</span>;
+                    <span class="self">self</span>.<span class="ident">handler</span>.<span class="ident">inject_dial_upgrade_error</span>(<span class="ident">upgr_info</span>, <span class="ident">err</span>);
+                    <span class="kw">continue</span>;
+                },
+                <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+                    <span class="kw">let</span> <span class="ident">err</span> <span class="op">=</span> <span class="ident">ProtocolsHandlerUpgrErr</span>::<span class="ident">Timer</span>;
+                    <span class="self">self</span>.<span class="ident">handler</span>.<span class="ident">inject_dial_upgrade_error</span>(<span class="ident">upgr_info</span>, <span class="ident">err</span>);
+                    <span class="kw">continue</span>;
+                },
+                <span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> {},
+            }
+            <span class="kw">match</span> <span class="ident">Future</span>::<span class="ident">poll</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">in_progress</span>), <span class="ident">cx</span>) {
+                <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Ok</span>(<span class="ident">upgrade</span>)) <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="self">self</span>.<span class="ident">handler</span>.<span class="ident">inject_fully_negotiated_outbound</span>(<span class="ident">upgrade</span>, <span class="ident">upgr_info</span>);
                 }
-                <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="self">self</span>.<span class="ident">negotiating_out</span>.<span class="ident">push</span>((<span class="ident">upgr_info</span>, <span class="ident">in_progress</span>));
+                <span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> {
+                    <span class="self">self</span>.<span class="ident">negotiating_out</span>.<span class="ident">push</span>((<span class="ident">upgr_info</span>, <span class="ident">in_progress</span>, <span class="ident">timeout</span>));
                 }
-                <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="kw">let</span> <span class="ident">err</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">err</span>.<span class="ident">is_elapsed</span>() {
-                        <span class="ident">ProtocolsHandlerUpgrErr</span>::<span class="ident">Timeout</span>
-                    } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">err</span>.<span class="ident">is_timer</span>() {
-                        <span class="ident">ProtocolsHandlerUpgrErr</span>::<span class="ident">Timer</span>
-                    } <span class="kw">else</span> {
-                        <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">err</span>.<span class="ident">is_inner</span>());
-                        <span class="kw">let</span> <span class="ident">err</span> <span class="op">=</span> <span class="ident">err</span>.<span class="ident">into_inner</span>().<span class="ident">expect</span>(<span class="string">&quot;Timeout error is one of {elapsed, \
-                            timer, inner}; is_elapsed and is_timer are both false; error is \
-                            inner; QED&quot;</span>);
-                        <span class="ident">ProtocolsHandlerUpgrErr</span>::<span class="ident">Upgrade</span>(<span class="ident">err</span>)
-                    };
-
+                <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">err</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+                    <span class="kw">let</span> <span class="ident">err</span> <span class="op">=</span> <span class="ident">ProtocolsHandlerUpgrErr</span>::<span class="ident">Upgrade</span>(<span class="ident">err</span>);
                     <span class="self">self</span>.<span class="ident">handler</span>.<span class="ident">inject_dial_upgrade_error</span>(<span class="ident">upgr_info</span>, <span class="ident">err</span>);
                 }
             }
@@ -608,25 +623,26 @@
 
         <span class="comment">// Poll the handler at the end so that we see the consequences of the method</span>
         <span class="comment">// calls on `self.handler`.</span>
-        <span class="kw">let</span> <span class="ident">poll_result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">handler</span>.<span class="ident">poll</span>()<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">poll_result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">handler</span>.<span class="ident">poll</span>(<span class="ident">cx</span>);
 
         <span class="comment">// Ask the handler whether it wants the connection (and the handler itself)</span>
         <span class="comment">// to be kept alive, which determines the planned shutdown, if any.</span>
         <span class="kw">match</span> (<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">shutdown</span>, <span class="self">self</span>.<span class="ident">handler</span>.<span class="ident">connection_keep_alive</span>()) {
-            (<span class="ident">Shutdown</span>::<span class="ident">Later</span>(<span class="ident">d</span>), <span class="ident">KeepAlive</span>::<span class="ident">Until</span>(<span class="ident">t</span>)) <span class="op">=</span><span class="op">&gt;</span>
-                <span class="kw">if</span> <span class="ident">d</span>.<span class="ident">deadline</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">t</span> {
-                    <span class="ident">d</span>.<span class="ident">reset</span>(<span class="ident">t</span>)
+            (<span class="ident">Shutdown</span>::<span class="ident">Later</span>(<span class="ident">timer</span>, <span class="ident">deadline</span>), <span class="ident">KeepAlive</span>::<span class="ident">Until</span>(<span class="ident">t</span>)) <span class="op">=</span><span class="op">&gt;</span>
+                <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">deadline</span> <span class="op">!</span><span class="op">=</span> <span class="ident">t</span> {
+                    <span class="kw-2">*</span><span class="ident">deadline</span> <span class="op">=</span> <span class="ident">t</span>;
+                    <span class="ident">timer</span>.<span class="ident">reset_at</span>(<span class="ident">t</span>)
                 },
-            (<span class="kw">_</span>, <span class="ident">KeepAlive</span>::<span class="ident">Until</span>(<span class="ident">t</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">shutdown</span> <span class="op">=</span> <span class="ident">Shutdown</span>::<span class="ident">Later</span>(<span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">t</span>)),
+            (<span class="kw">_</span>, <span class="ident">KeepAlive</span>::<span class="ident">Until</span>(<span class="ident">t</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">shutdown</span> <span class="op">=</span> <span class="ident">Shutdown</span>::<span class="ident">Later</span>(<span class="ident">Delay</span>::<span class="ident">new_at</span>(<span class="ident">t</span>), <span class="ident">t</span>),
             (<span class="kw">_</span>, <span class="ident">KeepAlive</span>::<span class="ident">No</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">shutdown</span> <span class="op">=</span> <span class="ident">Shutdown</span>::<span class="ident">Asap</span>,
             (<span class="kw">_</span>, <span class="ident">KeepAlive</span>::<span class="ident">Yes</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">shutdown</span> <span class="op">=</span> <span class="ident">Shutdown</span>::<span class="prelude-val">None</span>
         };
 
         <span class="kw">match</span> <span class="ident">poll_result</span> {
-            <span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">event</span>)) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">NodeHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">event</span>)));
+            <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">event</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Ok</span>(<span class="ident">NodeHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">event</span>)));
             }
-            <span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">OutboundSubstreamRequest</span> {
+            <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">OutboundSubstreamRequest</span> {
                 <span class="ident">protocol</span>,
                 <span class="ident">info</span>,
             }) <span class="op">=</span><span class="op">&gt;</span> {
@@ -634,11 +650,12 @@
                 <span class="kw">let</span> <span class="ident">timeout</span> <span class="op">=</span> <span class="ident">protocol</span>.<span class="ident">timeout</span>().<span class="ident">clone</span>();
                 <span class="self">self</span>.<span class="ident">unique_dial_upgrade_id</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
                 <span class="self">self</span>.<span class="ident">queued_dial_upgrades</span>.<span class="ident">push</span>((<span class="ident">id</span>, <span class="ident">protocol</span>.<span class="ident">into_upgrade</span>()));
-                <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(
+                <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Ok</span>(
                     <span class="ident">NodeHandlerEvent</span>::<span class="ident">OutboundSubstreamRequest</span>((<span class="ident">id</span>, <span class="ident">info</span>, <span class="ident">timeout</span>)),
                 ));
             }
-            <span class="ident">Async</span>::<span class="ident">NotReady</span> <span class="op">=</span><span class="op">&gt;</span> (),
+            <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Close</span>(<span class="ident">err</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">err</span>.<span class="ident">into</span>())),
+            <span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> (),
         };
 
         <span class="comment">// Check if the connection (and handler) should be shut down.</span>
@@ -646,16 +663,15 @@
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">negotiating_in</span>.<span class="ident">is_empty</span>() <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="self">self</span>.<span class="ident">negotiating_out</span>.<span class="ident">is_empty</span>() {
             <span class="kw">match</span> <span class="self">self</span>.<span class="ident">shutdown</span> {
                 <span class="ident">Shutdown</span>::<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> {},
-                <span class="ident">Shutdown</span>::<span class="ident">Asap</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">NodeHandlerWrapperError</span>::<span class="ident">UselessTimeout</span>),
-                <span class="ident">Shutdown</span>::<span class="ident">Later</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">delay</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">match</span> <span class="ident">delay</span>.<span class="ident">poll</span>() {
-                    <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="kw">_</span>)) <span class="op">|</span> <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span>
-                        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">NodeHandlerWrapperError</span>::<span class="ident">UselessTimeout</span>),
-                    <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> {}
+                <span class="ident">Shutdown</span>::<span class="ident">Asap</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">NodeHandlerWrapperError</span>::<span class="ident">UselessTimeout</span>)),
+                <span class="ident">Shutdown</span>::<span class="ident">Later</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">delay</span>, <span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">match</span> <span class="ident">Future</span>::<span class="ident">poll</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="ident">delay</span>), <span class="ident">cx</span>) {
+                    <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">NodeHandlerWrapperError</span>::<span class="ident">UselessTimeout</span>)),
+                    <span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> {}
                 }
             }
         }
 
-        <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>)
+        <span class="ident">Poll</span>::<span class="ident">Pending</span>
     }
 }
 </pre></div>

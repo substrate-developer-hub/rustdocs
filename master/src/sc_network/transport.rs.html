@@ -141,6 +141,10 @@
 <span id="130">130</span>
 <span id="131">131</span>
 <span id="132">132</span>
+<span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -215,7 +219,11 @@
 		<span class="kw">let</span> <span class="ident">desktop_trans</span> <span class="op">=</span> <span class="ident">tcp</span>::<span class="ident">TcpConfig</span>::<span class="ident">new</span>();
 		<span class="kw">let</span> <span class="ident">desktop_trans</span> <span class="op">=</span> <span class="ident">websocket</span>::<span class="ident">WsConfig</span>::<span class="ident">new</span>(<span class="ident">desktop_trans</span>.<span class="ident">clone</span>())
 			.<span class="ident">or_transport</span>(<span class="ident">desktop_trans</span>);
-		<span class="ident">OptionalTransport</span>::<span class="ident">some</span>(<span class="ident">dns</span>::<span class="ident">DnsConfig</span>::<span class="ident">new</span>(<span class="ident">desktop_trans</span>))
+		<span class="ident">OptionalTransport</span>::<span class="ident">some</span>(<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">dns</span>) <span class="op">=</span> <span class="ident">dns</span>::<span class="ident">DnsConfig</span>::<span class="ident">new</span>(<span class="ident">desktop_trans</span>.<span class="ident">clone</span>()) {
+			<span class="ident">dns</span>.<span class="ident">boxed</span>()
+		} <span class="kw">else</span> {
+			<span class="ident">desktop_trans</span>.<span class="ident">map_err</span>(<span class="ident">dns</span>::<span class="ident">DnsErr</span>::<span class="ident">Underlying</span>).<span class="ident">boxed</span>()
+		})
 	} <span class="kw">else</span> {
 		<span class="ident">OptionalTransport</span>::<span class="ident">none</span>()
 	});
@@ -235,7 +243,7 @@
 	<span class="kw">let</span> <span class="ident">transport</span> <span class="op">=</span> <span class="ident">transport</span>.<span class="ident">and_then</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">stream</span>, <span class="ident">endpoint</span><span class="op">|</span> {
 		<span class="kw">let</span> <span class="ident">upgrade</span> <span class="op">=</span> <span class="ident">core</span>::<span class="ident">upgrade</span>::<span class="ident">SelectUpgrade</span>::<span class="ident">new</span>(<span class="ident">noise_config</span>, <span class="ident">secio_config</span>);
 		<span class="ident">core</span>::<span class="ident">upgrade</span>::<span class="ident">apply</span>(<span class="ident">stream</span>, <span class="ident">upgrade</span>, <span class="ident">endpoint</span>, <span class="ident">upgrade</span>::<span class="ident">Version</span>::<span class="ident">V1</span>)
-			.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">out</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">out</span> {
+			.<span class="ident">map</span>(<span class="op">|</span><span class="ident">out</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">out</span><span class="question-mark">?</span> {
 				<span class="comment">// We negotiated noise</span>
 				<span class="ident">EitherOutput</span>::<span class="ident">First</span>((<span class="ident">remote_id</span>, <span class="ident">out</span>)) <span class="op">=</span><span class="op">&gt;</span> {
 					<span class="kw">let</span> <span class="ident">remote_key</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">remote_id</span> {
@@ -254,7 +262,7 @@
 	<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">target_os</span> <span class="op">=</span> <span class="string">&quot;unknown&quot;</span>)]</span>
 	<span class="kw">let</span> <span class="ident">transport</span> <span class="op">=</span> <span class="ident">transport</span>.<span class="ident">and_then</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">stream</span>, <span class="ident">endpoint</span><span class="op">|</span> {
 		<span class="ident">core</span>::<span class="ident">upgrade</span>::<span class="ident">apply</span>(<span class="ident">stream</span>, <span class="ident">secio_config</span>, <span class="ident">endpoint</span>, <span class="ident">upgrade</span>::<span class="ident">Version</span>::<span class="ident">V1</span>)
-			.<span class="ident">and_then</span>(<span class="op">|</span>(<span class="ident">id</span>, <span class="ident">stream</span>)<span class="op">|</span> <span class="prelude-val">Ok</span>((<span class="ident">stream</span>, <span class="ident">id</span>)))
+			.<span class="ident">map_ok</span>(<span class="op">|</span>(<span class="ident">id</span>, <span class="ident">stream</span>)<span class="op">|</span> ((<span class="ident">stream</span>, <span class="ident">id</span>)))
 	});
 
 	<span class="comment">// Multiplexing</span>
@@ -265,7 +273,7 @@
 				.<span class="ident">map_outbound</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">muxer</span><span class="op">|</span> (<span class="ident">peer_id2</span>, <span class="ident">muxer</span>));
 
 			<span class="ident">core</span>::<span class="ident">upgrade</span>::<span class="ident">apply</span>(<span class="ident">stream</span>, <span class="ident">upgrade</span>, <span class="ident">endpoint</span>, <span class="ident">upgrade</span>::<span class="ident">Version</span>::<span class="ident">V1</span>)
-				.<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">id</span>, <span class="ident">muxer</span>)<span class="op">|</span> (<span class="ident">id</span>, <span class="ident">core</span>::<span class="ident">muxing</span>::<span class="ident">StreamMuxerBox</span>::<span class="ident">new</span>(<span class="ident">muxer</span>)))
+				.<span class="ident">map_ok</span>(<span class="op">|</span>(<span class="ident">id</span>, <span class="ident">muxer</span>)<span class="op">|</span> (<span class="ident">id</span>, <span class="ident">core</span>::<span class="ident">muxing</span>::<span class="ident">StreamMuxerBox</span>::<span class="ident">new</span>(<span class="ident">muxer</span>)))
 		})
 
 		.<span class="ident">timeout</span>(<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">20</span>))

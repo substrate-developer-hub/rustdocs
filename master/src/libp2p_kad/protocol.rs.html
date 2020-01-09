@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-kad-0.13.2/src/protocol.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>protocol.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-kad-0.14.0-alpha.1/src/protocol.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>protocol.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -707,6 +707,12 @@
 <span id="696">696</span>
 <span id="697">697</span>
 <span id="698">698</span>
+<span id="699">699</span>
+<span id="700">700</span>
+<span id="701">701</span>
+<span id="702">702</span>
+<span id="703">703</span>
+<span id="704">704</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018 Parity Technologies (UK) Ltd.</span>
 <span class="comment">//</span>
@@ -744,14 +750,13 @@
 <span class="kw">use</span> <span class="ident">codec</span>::<span class="ident">UviBytes</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">dht_proto</span> <span class="kw">as</span> <span class="ident">proto</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">record</span>::{<span class="self">self</span>, <span class="ident">Record</span>};
-<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">future</span>::{<span class="self">self</span>, <span class="ident">FutureResult</span>}, <span class="ident">sink</span>, <span class="ident">stream</span>, <span class="ident">Sink</span>, <span class="ident">Stream</span>};
+<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
+<span class="kw">use</span> <span class="ident">futures_codec</span>::<span class="ident">Framed</span>;
 <span class="kw">use</span> <span class="ident">libp2p_core</span>::{<span class="ident">Multiaddr</span>, <span class="ident">PeerId</span>};
 <span class="kw">use</span> <span class="ident">libp2p_core</span>::<span class="ident">upgrade</span>::{<span class="ident">InboundUpgrade</span>, <span class="ident">OutboundUpgrade</span>, <span class="ident">UpgradeInfo</span>, <span class="ident">Negotiated</span>};
 <span class="kw">use</span> <span class="ident">protobuf</span>::{<span class="self">self</span>, <span class="ident">Message</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">borrow</span>::<span class="ident">Cow</span>, <span class="ident">convert</span>::<span class="ident">TryFrom</span>, <span class="ident">time</span>::<span class="ident">Duration</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">io</span>, <span class="ident">iter</span>};
-<span class="kw">use</span> <span class="ident">tokio_codec</span>::<span class="ident">Framed</span>;
-<span class="kw">use</span> <span class="ident">tokio_io</span>::{<span class="ident">AsyncRead</span>, <span class="ident">AsyncWrite</span>};
 <span class="kw">use</span> <span class="ident">unsigned_varint</span>::<span class="ident">codec</span>;
 <span class="kw">use</span> <span class="ident">wasm_timer</span>::<span class="ident">Instant</span>;
 
@@ -769,7 +774,6 @@
 }
 
 <span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">proto</span>::<span class="ident">Message_ConnectionType</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">KadConnectionType</span> {
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">raw</span>: <span class="ident">proto</span>::<span class="ident">Message_ConnectionType</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">KadConnectionType</span> {
         <span class="kw">use</span> <span class="ident">proto</span>::<span class="ident">Message_ConnectionType</span>::{
             <span class="ident">CAN_CONNECT</span>, <span class="ident">CANNOT_CONNECT</span>, <span class="ident">CONNECTED</span>, <span class="ident">NOT_CONNECTED</span>
@@ -784,7 +788,6 @@
 }
 
 <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">proto</span>::<span class="ident">Message_ConnectionType</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">KadConnectionType</span> {
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">fn</span> <span class="ident">into</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">proto</span>::<span class="ident">Message_ConnectionType</span> {
         <span class="kw">use</span> <span class="ident">proto</span>::<span class="ident">Message_ConnectionType</span>::{
             <span class="ident">CAN_CONNECT</span>, <span class="ident">CANNOT_CONNECT</span>, <span class="ident">CONNECTED</span>, <span class="ident">NOT_CONNECTED</span>
@@ -886,27 +889,31 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span> <span class="ident">InboundUpgrade</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">KademliaProtocolConfig</span>
 <span class="kw">where</span>
-    <span class="ident">C</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span>,
+    <span class="ident">C</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span>,
 {
     <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="ident">KadInStreamSink</span><span class="op">&lt;</span><span class="ident">Negotiated</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span><span class="op">&gt;</span>;
-    <span class="kw">type</span> <span class="ident">Future</span> <span class="op">=</span> <span class="ident">FutureResult</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Output</span>, <span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
+    <span class="kw">type</span> <span class="ident">Future</span> <span class="op">=</span> <span class="ident">future</span>::<span class="ident">Ready</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Output</span>, <span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>;
     <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">io</span>::<span class="ident">Error</span>;
 
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">fn</span> <span class="ident">upgrade_inbound</span>(<span class="self">self</span>, <span class="ident">incoming</span>: <span class="ident">Negotiated</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span>, <span class="kw">_</span>: <span class="self">Self</span>::<span class="ident">Info</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>::<span class="ident">Future</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">codec</span> <span class="op">=</span> <span class="ident">UviBytes</span>::<span class="ident">default</span>();
         <span class="ident">codec</span>.<span class="ident">set_max_len</span>(<span class="number">4096</span>);
 
         <span class="ident">future</span>::<span class="ident">ok</span>(
             <span class="ident">Framed</span>::<span class="ident">new</span>(<span class="ident">incoming</span>, <span class="ident">codec</span>)
-                .<span class="ident">from_err</span>()
-                .<span class="ident">with</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">fn</span>(<span class="kw">_</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="op">|</span><span class="ident">response</span><span class="op">|</span> {
+                .<span class="ident">err_into</span>()
+                .<span class="ident">with</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">fn</span>(<span class="kw">_</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="op">|</span><span class="ident">response</span><span class="op">|</span> {
                     <span class="kw">let</span> <span class="ident">proto_struct</span> <span class="op">=</span> <span class="ident">resp_msg_to_proto</span>(<span class="ident">response</span>);
-                    <span class="ident">proto_struct</span>.<span class="ident">write_to_bytes</span>().<span class="ident">map_err</span>(<span class="ident">invalid_data</span>)
+                    <span class="ident">future</span>::<span class="ident">ready</span>(<span class="ident">proto_struct</span>.<span class="ident">write_to_bytes</span>()
+                        .<span class="ident">map</span>(<span class="ident">io</span>::<span class="ident">Cursor</span>::<span class="ident">new</span>)
+                        .<span class="ident">map_err</span>(<span class="ident">invalid_data</span>))
                 })
-                .<span class="ident">and_then</span>::<span class="op">&lt;</span><span class="kw">fn</span>(<span class="kw">_</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="op">|</span><span class="ident">bytes</span><span class="op">|</span> {
-                    <span class="kw">let</span> <span class="ident">request</span> <span class="op">=</span> <span class="ident">protobuf</span>::<span class="ident">parse_from_bytes</span>(<span class="kw-2">&amp;</span><span class="ident">bytes</span>)<span class="question-mark">?</span>;
-                    <span class="ident">proto_to_req_msg</span>(<span class="ident">request</span>)
+                .<span class="ident">and_then</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">fn</span>(<span class="kw">_</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">_</span><span class="op">&gt;</span>(<span class="op">|</span><span class="ident">bytes</span><span class="op">|</span> {
+                    <span class="kw">let</span> <span class="ident">request</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">protobuf</span>::<span class="ident">parse_from_bytes</span>(<span class="kw-2">&amp;</span><span class="ident">bytes</span>) {
+                        <span class="prelude-val">Ok</span>(<span class="ident">r</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">r</span>,
+                        <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">future</span>::<span class="ident">ready</span>(<span class="prelude-val">Err</span>(<span class="ident">err</span>.<span class="ident">into</span>()))
+                    };
+                    <span class="ident">future</span>::<span class="ident">ready</span>(<span class="ident">proto_to_req_msg</span>(<span class="ident">request</span>))
                 }),
         )
     }
@@ -914,27 +921,31 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span> <span class="ident">OutboundUpgrade</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">KademliaProtocolConfig</span>
 <span class="kw">where</span>
-    <span class="ident">C</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span>,
+    <span class="ident">C</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span>,
 {
     <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="ident">KadOutStreamSink</span><span class="op">&lt;</span><span class="ident">Negotiated</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span><span class="op">&gt;</span>;
-    <span class="kw">type</span> <span class="ident">Future</span> <span class="op">=</span> <span class="ident">FutureResult</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Output</span>, <span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
+    <span class="kw">type</span> <span class="ident">Future</span> <span class="op">=</span> <span class="ident">future</span>::<span class="ident">Ready</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Output</span>, <span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>;
     <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">io</span>::<span class="ident">Error</span>;
 
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">fn</span> <span class="ident">upgrade_outbound</span>(<span class="self">self</span>, <span class="ident">incoming</span>: <span class="ident">Negotiated</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span>, <span class="kw">_</span>: <span class="self">Self</span>::<span class="ident">Info</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>::<span class="ident">Future</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">codec</span> <span class="op">=</span> <span class="ident">UviBytes</span>::<span class="ident">default</span>();
         <span class="ident">codec</span>.<span class="ident">set_max_len</span>(<span class="number">4096</span>);
 
         <span class="ident">future</span>::<span class="ident">ok</span>(
             <span class="ident">Framed</span>::<span class="ident">new</span>(<span class="ident">incoming</span>, <span class="ident">codec</span>)
-                .<span class="ident">from_err</span>()
-                .<span class="ident">with</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">fn</span>(<span class="kw">_</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="op">|</span><span class="ident">request</span><span class="op">|</span> {
+                .<span class="ident">err_into</span>()
+                .<span class="ident">with</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">fn</span>(<span class="kw">_</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="op">|</span><span class="ident">request</span><span class="op">|</span> {
                     <span class="kw">let</span> <span class="ident">proto_struct</span> <span class="op">=</span> <span class="ident">req_msg_to_proto</span>(<span class="ident">request</span>);
-                    <span class="ident">proto_struct</span>.<span class="ident">write_to_bytes</span>().<span class="ident">map_err</span>(<span class="ident">invalid_data</span>)
+                    <span class="ident">future</span>::<span class="ident">ready</span>(<span class="ident">proto_struct</span>.<span class="ident">write_to_bytes</span>()
+                        .<span class="ident">map</span>(<span class="ident">io</span>::<span class="ident">Cursor</span>::<span class="ident">new</span>)
+                        .<span class="ident">map_err</span>(<span class="ident">invalid_data</span>))
                 })
-                .<span class="ident">and_then</span>::<span class="op">&lt;</span><span class="kw">fn</span>(<span class="kw">_</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="op">|</span><span class="ident">bytes</span><span class="op">|</span> {
-                    <span class="kw">let</span> <span class="ident">response</span> <span class="op">=</span> <span class="ident">protobuf</span>::<span class="ident">parse_from_bytes</span>(<span class="kw-2">&amp;</span><span class="ident">bytes</span>)<span class="question-mark">?</span>;
-                    <span class="ident">proto_to_resp_msg</span>(<span class="ident">response</span>)
+                .<span class="ident">and_then</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">fn</span>(<span class="kw">_</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">_</span><span class="op">&gt;</span>(<span class="op">|</span><span class="ident">bytes</span><span class="op">|</span> {
+                    <span class="kw">let</span> <span class="ident">response</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">protobuf</span>::<span class="ident">parse_from_bytes</span>(<span class="kw-2">&amp;</span><span class="ident">bytes</span>) {
+                        <span class="prelude-val">Ok</span>(<span class="ident">r</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">r</span>,
+                        <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">future</span>::<span class="ident">ready</span>(<span class="prelude-val">Err</span>(<span class="ident">err</span>.<span class="ident">into</span>()))
+                    };
+                    <span class="ident">future</span>::<span class="ident">ready</span>(<span class="ident">proto_to_resp_msg</span>(<span class="ident">response</span>))
                 }),
         )
     }
@@ -948,13 +959,14 @@
 
 <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">KadStreamSink</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">A</span>, <span class="ident">B</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">stream</span>::<span class="ident">AndThen</span><span class="op">&lt;</span>
     <span class="ident">sink</span>::<span class="ident">With</span><span class="op">&lt;</span>
-        <span class="ident">stream</span>::<span class="ident">FromErr</span><span class="op">&lt;</span><span class="ident">Framed</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">UviBytes</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span>,
+        <span class="ident">stream</span>::<span class="ident">ErrInto</span><span class="op">&lt;</span><span class="ident">Framed</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">UviBytes</span><span class="op">&lt;</span><span class="ident">io</span>::<span class="ident">Cursor</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span>,
+        <span class="ident">io</span>::<span class="ident">Cursor</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">A</span>,
-        <span class="kw">fn</span>(<span class="ident">A</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span>,
-        <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span>,
+        <span class="ident">future</span>::<span class="ident">Ready</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">io</span>::<span class="ident">Cursor</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="kw">fn</span>(<span class="ident">A</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">future</span>::<span class="ident">Ready</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">io</span>::<span class="ident">Cursor</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="op">&gt;</span>,
-    <span class="kw">fn</span>(<span class="ident">BytesMut</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span>,
-    <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span>,
+    <span class="ident">future</span>::<span class="ident">Ready</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="kw">fn</span>(<span class="ident">BytesMut</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">future</span>::<span class="ident">Ready</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 <span class="op">&gt;</span>;
 
 <span class="doccomment">/// Request that we can send to a peer or that we received from a peer.</span>

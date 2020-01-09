@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["DeflateConfig",""]],"type":[["DeflateOutput","Output of the deflate protocol."]]});
+initSidebarItems({"struct":[["DeflateConfig",""],["DeflateOutput","Decodes and encodes traffic using DEFLATE."]]});

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-mdns-0.13.1/src/service.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>service.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-mdns-0.14.0-alpha.1/src/service.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>service.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -594,6 +594,67 @@
 <span id="583">583</span>
 <span id="584">584</span>
 <span id="585">585</span>
+<span id="586">586</span>
+<span id="587">587</span>
+<span id="588">588</span>
+<span id="589">589</span>
+<span id="590">590</span>
+<span id="591">591</span>
+<span id="592">592</span>
+<span id="593">593</span>
+<span id="594">594</span>
+<span id="595">595</span>
+<span id="596">596</span>
+<span id="597">597</span>
+<span id="598">598</span>
+<span id="599">599</span>
+<span id="600">600</span>
+<span id="601">601</span>
+<span id="602">602</span>
+<span id="603">603</span>
+<span id="604">604</span>
+<span id="605">605</span>
+<span id="606">606</span>
+<span id="607">607</span>
+<span id="608">608</span>
+<span id="609">609</span>
+<span id="610">610</span>
+<span id="611">611</span>
+<span id="612">612</span>
+<span id="613">613</span>
+<span id="614">614</span>
+<span id="615">615</span>
+<span id="616">616</span>
+<span id="617">617</span>
+<span id="618">618</span>
+<span id="619">619</span>
+<span id="620">620</span>
+<span id="621">621</span>
+<span id="622">622</span>
+<span id="623">623</span>
+<span id="624">624</span>
+<span id="625">625</span>
+<span id="626">626</span>
+<span id="627">627</span>
+<span id="628">628</span>
+<span id="629">629</span>
+<span id="630">630</span>
+<span id="631">631</span>
+<span id="632">632</span>
+<span id="633">633</span>
+<span id="634">634</span>
+<span id="635">635</span>
+<span id="636">636</span>
+<span id="637">637</span>
+<span id="638">638</span>
+<span id="639">639</span>
+<span id="640">640</span>
+<span id="641">641</span>
+<span id="642">642</span>
+<span id="643">643</span>
+<span id="644">644</span>
+<span id="645">645</span>
+<span id="646">646</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018 Parity Technologies (UK) Ltd.</span>
 <span class="comment">//</span>
@@ -616,16 +677,24 @@
 <span class="comment">// DEALINGS IN THE SOFTWARE.</span>
 
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">SERVICE_NAME</span>, <span class="ident">META_QUERY_SERVICE</span>, <span class="ident">dns</span>};
+<span class="kw">use</span> <span class="ident">async_std</span>::<span class="ident">net</span>::<span class="ident">UdpSocket</span>;
 <span class="kw">use</span> <span class="ident">dns_parser</span>::{<span class="ident">Packet</span>, <span class="ident">RData</span>};
-<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">task</span>};
+<span class="kw">use</span> <span class="ident">either</span>::<span class="ident">Either</span>::{<span class="ident">Left</span>, <span class="ident">Right</span>};
+<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">future</span>, <span class="ident">prelude</span>::<span class="kw-2">*</span>};
 <span class="kw">use</span> <span class="ident">libp2p_core</span>::{<span class="ident">Multiaddr</span>, <span class="ident">PeerId</span>};
 <span class="kw">use</span> <span class="ident">multiaddr</span>::<span class="ident">Protocol</span>;
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">fmt</span>, <span class="ident">io</span>, <span class="ident">net</span>::<span class="ident">Ipv4Addr</span>, <span class="ident">net</span>::<span class="ident">SocketAddr</span>, <span class="ident">str</span>, <span class="ident">time</span>::<span class="ident">Duration</span>};
-<span class="kw">use</span> <span class="ident">tokio_reactor</span>::<span class="ident">Handle</span>;
-<span class="kw">use</span> <span class="ident">wasm_timer</span>::{<span class="ident">Instant</span>, <span class="ident">Interval</span>};
-<span class="kw">use</span> <span class="ident">tokio_udp</span>::<span class="ident">UdpSocket</span>;
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">fmt</span>, <span class="ident">io</span>, <span class="ident">net</span>::<span class="ident">Ipv4Addr</span>, <span class="ident">net</span>::<span class="ident">SocketAddr</span>, <span class="ident">str</span>, <span class="ident">time</span>::{<span class="ident">Duration</span>, <span class="ident">Instant</span>}};
+<span class="kw">use</span> <span class="ident">wasm_timer</span>::<span class="ident">Interval</span>;
+<span class="kw">use</span> <span class="ident">lazy_static</span>::<span class="ident">lazy_static</span>;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">dns</span>::<span class="ident">MdnsResponseError</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">dns</span>::{<span class="ident">MdnsResponseError</span>, <span class="ident">build_query_response</span>, <span class="ident">build_service_discovery_response</span>};
+
+<span class="macro">lazy_static</span><span class="macro">!</span> {
+    <span class="kw">static</span> <span class="kw-2">ref</span> <span class="ident">IPV4_MDNS_MULTICAST_ADDRESS</span>: <span class="ident">SocketAddr</span> <span class="op">=</span> <span class="ident">SocketAddr</span>::<span class="ident">from</span>((
+        <span class="ident">Ipv4Addr</span>::<span class="ident">new</span>(<span class="number">224</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">251</span>),
+        <span class="number">5353</span>,
+    ));
+}
 
 <span class="doccomment">/// A running service that discovers libp2p peers and responds to other libp2p peers&#39; queries on</span>
 <span class="doccomment">/// the local network.</span>
@@ -650,43 +719,47 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// ```rust</span>
 <span class="doccomment">/// # use futures::prelude::*;</span>
-<span class="doccomment">/// # use libp2p_core::{identity, PeerId};</span>
-<span class="doccomment">/// # use libp2p_mdns::service::{MdnsService, MdnsPacket};</span>
-<span class="doccomment">/// # use std::{io, time::Duration};</span>
+<span class="doccomment">/// # use futures::executor::block_on;</span>
+<span class="doccomment">/// # use libp2p_core::{identity, Multiaddr, PeerId};</span>
+<span class="doccomment">/// # use libp2p_mdns::service::{MdnsService, MdnsPacket, build_query_response, build_service_discovery_response};</span>
+<span class="doccomment">/// # use std::{io, time::Duration, task::Poll};</span>
 <span class="doccomment">/// # fn main() {</span>
 <span class="doccomment">/// # let my_peer_id = PeerId::from(identity::Keypair::generate_ed25519().public());</span>
-<span class="doccomment">/// # let my_listened_addrs = Vec::new();</span>
-<span class="doccomment">/// let mut service = MdnsService::new().expect(&quot;Error while creating mDNS service&quot;);</span>
-<span class="doccomment">/// let _future_to_poll = futures::stream::poll_fn(move || -&gt; Poll&lt;Option&lt;()&gt;, io::Error&gt; {</span>
-<span class="doccomment">///     loop {</span>
-<span class="doccomment">///         let packet = match service.poll() {</span>
-<span class="doccomment">///             Async::Ready(packet) =&gt; packet,</span>
-<span class="doccomment">///             Async::NotReady =&gt; return Ok(Async::NotReady),</span>
-<span class="doccomment">///         };</span>
+<span class="doccomment">/// # let my_listened_addrs: Vec&lt;Multiaddr&gt; = vec![];</span>
+<span class="doccomment">/// # block_on(async {</span>
+<span class="doccomment">/// let mut service = MdnsService::new().await.expect(&quot;Error while creating mDNS service&quot;);</span>
+<span class="doccomment">/// let _future_to_poll = async {</span>
+<span class="doccomment">///     let (mut service, packet) = service.next().await;</span>
 <span class="doccomment">///</span>
-<span class="doccomment">///         match packet {</span>
-<span class="doccomment">///             MdnsPacket::Query(query) =&gt; {</span>
-<span class="doccomment">///                 println!(&quot;Query from {:?}&quot;, query.remote_addr());</span>
-<span class="doccomment">///                 query.respond(</span>
-<span class="doccomment">///                     my_peer_id.clone(),</span>
-<span class="doccomment">///                     my_listened_addrs.clone(),</span>
-<span class="doccomment">///                     Duration::from_secs(120),</span>
-<span class="doccomment">///                 );</span>
-<span class="doccomment">///             }</span>
-<span class="doccomment">///             MdnsPacket::Response(response) =&gt; {</span>
-<span class="doccomment">///                 for peer in response.discovered_peers() {</span>
-<span class="doccomment">///                     println!(&quot;Discovered peer {:?}&quot;, peer.id());</span>
-<span class="doccomment">///                     for addr in peer.addresses() {</span>
-<span class="doccomment">///                         println!(&quot;Address = {:?}&quot;, addr);</span>
-<span class="doccomment">///                     }</span>
+<span class="doccomment">///     match packet {</span>
+<span class="doccomment">///         MdnsPacket::Query(query) =&gt; {</span>
+<span class="doccomment">///             println!(&quot;Query from {:?}&quot;, query.remote_addr());</span>
+<span class="doccomment">///             let resp = build_query_response(</span>
+<span class="doccomment">///                 query.query_id(),</span>
+<span class="doccomment">///                 my_peer_id.clone(),</span>
+<span class="doccomment">///                 vec![].into_iter(),</span>
+<span class="doccomment">///                 Duration::from_secs(120),</span>
+<span class="doccomment">///             ).unwrap();</span>
+<span class="doccomment">///             service.enqueue_response(resp);</span>
+<span class="doccomment">///         }</span>
+<span class="doccomment">///         MdnsPacket::Response(response) =&gt; {</span>
+<span class="doccomment">///             for peer in response.discovered_peers() {</span>
+<span class="doccomment">///                 println!(&quot;Discovered peer {:?}&quot;, peer.id());</span>
+<span class="doccomment">///                 for addr in peer.addresses() {</span>
+<span class="doccomment">///                     println!(&quot;Address = {:?}&quot;, addr);</span>
 <span class="doccomment">///                 }</span>
 <span class="doccomment">///             }</span>
-<span class="doccomment">///             MdnsPacket::ServiceDiscovery(query) =&gt; {</span>
-<span class="doccomment">///                 query.respond(std::time::Duration::from_secs(120));</span>
-<span class="doccomment">///             }</span>
+<span class="doccomment">///         }</span>
+<span class="doccomment">///         MdnsPacket::ServiceDiscovery(disc) =&gt; {</span>
+<span class="doccomment">///             let resp = build_service_discovery_response(</span>
+<span class="doccomment">///                 disc.query_id(),</span>
+<span class="doccomment">///                 Duration::from_secs(120),</span>
+<span class="doccomment">///             );</span>
+<span class="doccomment">///             service.enqueue_response(resp);</span>
 <span class="doccomment">///         }</span>
 <span class="doccomment">///     }</span>
-<span class="doccomment">/// }).for_each(|_| Ok(()));</span>
+<span class="doccomment">/// };</span>
+<span class="doccomment">/// # })</span>
 <span class="doccomment">/// # }</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MdnsService</span> {
     <span class="doccomment">/// Main socket for listening.</span>
@@ -710,18 +783,18 @@
 <span class="kw">impl</span> <span class="ident">MdnsService</span> {
     <span class="doccomment">/// Starts a new mDNS service.</span>
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">MdnsService</span><span class="op">&gt;</span> {
-        <span class="self">Self</span>::<span class="ident">new_inner</span>(<span class="bool-val">false</span>)
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">new</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">MdnsService</span><span class="op">&gt;</span> {
+        <span class="self">Self</span>::<span class="ident">new_inner</span>(<span class="bool-val">false</span>).<span class="kw">await</span>
     }
 
     <span class="doccomment">/// Same as `new`, but we don&#39;t send automatically send queries on the network.</span>
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">silent</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">MdnsService</span><span class="op">&gt;</span> {
-        <span class="self">Self</span>::<span class="ident">new_inner</span>(<span class="bool-val">true</span>)
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">silent</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">MdnsService</span><span class="op">&gt;</span> {
+        <span class="self">Self</span>::<span class="ident">new_inner</span>(<span class="bool-val">true</span>).<span class="kw">await</span>
     }
 
     <span class="doccomment">/// Starts a new mDNS service.</span>
-    <span class="kw">fn</span> <span class="ident">new_inner</span>(<span class="ident">silent</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">MdnsService</span><span class="op">&gt;</span> {
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">new_inner</span>(<span class="ident">silent</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">MdnsService</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">socket</span> <span class="op">=</span> {
             <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">unix</span>)]</span>
             <span class="kw">fn</span> <span class="ident">platform_specific</span>(<span class="ident">s</span>: <span class="kw-2">&amp;</span><span class="ident">net2</span>::<span class="ident">UdpBuilder</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
@@ -736,16 +809,16 @@
             <span class="ident">builder</span>.<span class="ident">bind</span>((<span class="string">&quot;0.0.0.0&quot;</span>, <span class="number">5353</span>))<span class="question-mark">?</span>
         };
 
-        <span class="kw">let</span> <span class="ident">socket</span> <span class="op">=</span> <span class="ident">UdpSocket</span>::<span class="ident">from_std</span>(<span class="ident">socket</span>, <span class="kw-2">&amp;</span><span class="ident">Handle</span>::<span class="ident">default</span>())<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">socket</span> <span class="op">=</span> <span class="ident">UdpSocket</span>::<span class="ident">from</span>(<span class="ident">socket</span>);
         <span class="ident">socket</span>.<span class="ident">set_multicast_loop_v4</span>(<span class="bool-val">true</span>)<span class="question-mark">?</span>;
         <span class="ident">socket</span>.<span class="ident">set_multicast_ttl_v4</span>(<span class="number">255</span>)<span class="question-mark">?</span>;
         <span class="comment">// TODO: correct interfaces?</span>
-        <span class="ident">socket</span>.<span class="ident">join_multicast_v4</span>(<span class="kw-2">&amp;</span><span class="ident">From</span>::<span class="ident">from</span>([<span class="number">224</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">251</span>]), <span class="kw-2">&amp;</span><span class="ident">Ipv4Addr</span>::<span class="ident">UNSPECIFIED</span>)<span class="question-mark">?</span>;
+        <span class="ident">socket</span>.<span class="ident">join_multicast_v4</span>(<span class="ident">From</span>::<span class="ident">from</span>([<span class="number">224</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">251</span>]), <span class="ident">Ipv4Addr</span>::<span class="ident">UNSPECIFIED</span>)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(<span class="ident">MdnsService</span> {
             <span class="ident">socket</span>,
-            <span class="ident">query_socket</span>: <span class="ident">UdpSocket</span>::<span class="ident">bind</span>(<span class="kw-2">&amp;</span><span class="ident">From</span>::<span class="ident">from</span>(([<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>], <span class="number">0</span>)))<span class="question-mark">?</span>,
-            <span class="ident">query_interval</span>: <span class="ident">Interval</span>::<span class="ident">new</span>(<span class="ident">Instant</span>::<span class="ident">now</span>(), <span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">20</span>)),
+            <span class="ident">query_socket</span>: <span class="ident">UdpSocket</span>::<span class="ident">bind</span>((<span class="ident">Ipv4Addr</span>::<span class="ident">from</span>([<span class="number">0u8</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>]), <span class="number">0u16</span>)).<span class="kw">await</span><span class="question-mark">?</span>,
+            <span class="ident">query_interval</span>: <span class="ident">Interval</span>::<span class="ident">new_at</span>(<span class="ident">Instant</span>::<span class="ident">now</span>(), <span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">20</span>)),
             <span class="ident">silent</span>,
             <span class="ident">recv_buffer</span>: [<span class="number">0</span>; <span class="number">2048</span>],
             <span class="ident">send_buffers</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
@@ -753,132 +826,102 @@
         })
     }
 
-    <span class="doccomment">/// Polls the service for packets.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Async</span><span class="op">&lt;</span><span class="ident">MdnsPacket</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="comment">// Send a query every time `query_interval` fires.</span>
-        <span class="comment">// Note that we don&#39;t use a loop here—it is pretty unlikely that we need it, and there is</span>
-        <span class="comment">// no point in sending multiple requests in a row.</span>
-        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">query_interval</span>.<span class="ident">poll</span>() {
-            <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">silent</span> {
-                    <span class="kw">let</span> <span class="ident">query</span> <span class="op">=</span> <span class="ident">dns</span>::<span class="ident">build_query</span>();
-                    <span class="self">self</span>.<span class="ident">query_send_buffers</span>.<span class="ident">push</span>(<span class="ident">query</span>.<span class="ident">to_vec</span>());
-                }
-            }
-            <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> (),
-            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(<span class="string">&quot;A wasm_timer::Interval never errors&quot;</span>), <span class="comment">// TODO: is that true?</span>
-        };
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">enqueue_response</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">rsp</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) {
+        <span class="self">self</span>.<span class="ident">send_buffers</span>.<span class="ident">push</span>(<span class="ident">rsp</span>);
+    }
 
-        <span class="comment">// Flush the send buffer of the main socket.</span>
-        <span class="kw">while</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">send_buffers</span>.<span class="ident">is_empty</span>() {
-            <span class="kw">let</span> <span class="ident">to_send</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">send_buffers</span>.<span class="ident">remove</span>(<span class="number">0</span>);
-            <span class="kw">match</span> <span class="self">self</span>
-                .<span class="ident">socket</span>
-                .<span class="ident">poll_send_to</span>(<span class="kw-2">&amp;</span><span class="ident">to_send</span>, <span class="kw-2">&amp;</span><span class="ident">From</span>::<span class="ident">from</span>(([<span class="number">224</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">251</span>], <span class="number">5353</span>)))
-            {
-                <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">bytes_written</span>)) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="macro">debug_assert_eq</span><span class="macro">!</span>(<span class="ident">bytes_written</span>, <span class="ident">to_send</span>.<span class="ident">len</span>());
-                }
-                <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="self">self</span>.<span class="ident">send_buffers</span>.<span class="ident">insert</span>(<span class="number">0</span>, <span class="ident">to_send</span>);
-                    <span class="kw">break</span>;
-                }
-                <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="comment">// Errors are non-fatal because they can happen for example if we lose</span>
-                    <span class="comment">// connection to the network.</span>
-                    <span class="self">self</span>.<span class="ident">send_buffers</span>.<span class="ident">clear</span>();
-                    <span class="kw">break</span>;
-                }
-            }
-        }
+    <span class="doccomment">/// Returns a future resolving to itself and the next received `MdnsPacket`.</span>
+    <span class="comment">//</span>
+    <span class="comment">// **Note**: Why does `next` take ownership of itself?</span>
+    <span class="comment">//</span>
+    <span class="comment">// `MdnsService::next` needs to be called from within `NetworkBehaviour`</span>
+    <span class="comment">// implementations. Given that traits cannot have async methods the</span>
+    <span class="comment">// respective `NetworkBehaviour` implementation needs to somehow keep the</span>
+    <span class="comment">// Future returned by `MdnsService::next` across classic `poll`</span>
+    <span class="comment">// invocations. The instance method `next` can either take a reference or</span>
+    <span class="comment">// ownership of itself:</span>
+    <span class="comment">//</span>
+    <span class="comment">// 1. Taking a reference - If `MdnsService::poll` takes a reference to</span>
+    <span class="comment">// `&amp;self` the respective `NetworkBehaviour` implementation would need to</span>
+    <span class="comment">// keep both the Future as well as its `MdnsService` instance across poll</span>
+    <span class="comment">// invocations. Given that in this case the Future would have a reference</span>
+    <span class="comment">// to `MdnsService`, the `NetworkBehaviour` implementation struct would</span>
+    <span class="comment">// need to be self-referential which is not possible without unsafe code in</span>
+    <span class="comment">// Rust.</span>
+    <span class="comment">//</span>
+    <span class="comment">// 2. Taking ownership - Instead `MdnsService::next` takes ownership of</span>
+    <span class="comment">// self and returns it alongside an `MdnsPacket` once the actual future</span>
+    <span class="comment">// resolves, not forcing self-referential structures on the caller.</span>
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">next</span>(<span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="self">Self</span>, <span class="ident">MdnsPacket</span>) {
+        <span class="kw">loop</span> {
+            <span class="comment">// Flush the send buffer of the main socket.</span>
+            <span class="kw">while</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">send_buffers</span>.<span class="ident">is_empty</span>() {
+                <span class="kw">let</span> <span class="ident">to_send</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">send_buffers</span>.<span class="ident">remove</span>(<span class="number">0</span>);
 
-        <span class="comment">// Flush the query send buffer.</span>
-        <span class="comment">// This has to be after the push to `query_send_buffers`.</span>
-        <span class="kw">while</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">query_send_buffers</span>.<span class="ident">is_empty</span>() {
-            <span class="kw">let</span> <span class="ident">to_send</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">query_send_buffers</span>.<span class="ident">remove</span>(<span class="number">0</span>);
-            <span class="kw">match</span> <span class="self">self</span>
-                .<span class="ident">query_socket</span>
-                .<span class="ident">poll_send_to</span>(<span class="kw-2">&amp;</span><span class="ident">to_send</span>, <span class="kw-2">&amp;</span><span class="ident">From</span>::<span class="ident">from</span>(([<span class="number">224</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">251</span>], <span class="number">5353</span>)))
-            {
-                <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">bytes_written</span>)) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="macro">debug_assert_eq</span><span class="macro">!</span>(<span class="ident">bytes_written</span>, <span class="ident">to_send</span>.<span class="ident">len</span>());
-                }
-                <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="self">self</span>.<span class="ident">query_send_buffers</span>.<span class="ident">insert</span>(<span class="number">0</span>, <span class="ident">to_send</span>);
-                    <span class="kw">break</span>;
-                }
-                <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="comment">// Errors are non-fatal because they can happen for example if we lose</span>
-                    <span class="comment">// connection to the network.</span>
-                    <span class="self">self</span>.<span class="ident">query_send_buffers</span>.<span class="ident">clear</span>();
-                    <span class="kw">break</span>;
-                }
-            }
-        }
-
-        <span class="comment">// Check for any incoming packet.</span>
-        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">socket</span>.<span class="ident">poll_recv_from</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">recv_buffer</span>) {
-            <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>((<span class="ident">len</span>, <span class="ident">from</span>))) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="kw">match</span> <span class="ident">Packet</span>::<span class="ident">parse</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">recv_buffer</span>[..<span class="ident">len</span>]) {
-                    <span class="prelude-val">Ok</span>(<span class="ident">packet</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                        <span class="kw">if</span> <span class="ident">packet</span>.<span class="ident">header</span>.<span class="ident">query</span> {
-                            <span class="kw">if</span> <span class="ident">packet</span>
-                                .<span class="ident">questions</span>
-                                .<span class="ident">iter</span>()
-                                .<span class="ident">any</span>(<span class="op">|</span><span class="ident">q</span><span class="op">|</span> <span class="ident">q</span>.<span class="ident">qname</span>.<span class="ident">to_string</span>().<span class="ident">as_bytes</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">SERVICE_NAME</span>)
-                            {
-                                <span class="kw">return</span> <span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">MdnsPacket</span>::<span class="ident">Query</span>(<span class="ident">MdnsQuery</span> {
-                                    <span class="ident">from</span>,
-                                    <span class="ident">query_id</span>: <span class="ident">packet</span>.<span class="ident">header</span>.<span class="ident">id</span>,
-                                    <span class="ident">send_buffers</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">send_buffers</span>,
-                                }));
-                            } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">packet</span>
-                                .<span class="ident">questions</span>
-                                .<span class="ident">iter</span>()
-                                .<span class="ident">any</span>(<span class="op">|</span><span class="ident">q</span><span class="op">|</span> <span class="ident">q</span>.<span class="ident">qname</span>.<span class="ident">to_string</span>().<span class="ident">as_bytes</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">META_QUERY_SERVICE</span>)
-                            {
-                                <span class="comment">// TODO: what if multiple questions, one with SERVICE_NAME and one with META_QUERY_SERVICE?</span>
-                                <span class="kw">return</span> <span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">MdnsPacket</span>::<span class="ident">ServiceDiscovery</span>(
-                                    <span class="ident">MdnsServiceDiscovery</span> {
-                                        <span class="ident">from</span>,
-                                        <span class="ident">query_id</span>: <span class="ident">packet</span>.<span class="ident">header</span>.<span class="ident">id</span>,
-                                        <span class="ident">send_buffers</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">send_buffers</span>,
-                                    },
-                                ));
-                            } <span class="kw">else</span> {
-                                <span class="comment">// Note that ideally we would use a loop instead. However as of the</span>
-                                <span class="comment">// writing of this code non-lexical lifetimes haven&#39;t been merged</span>
-                                <span class="comment">// yet, and I can&#39;t manage to write this code without having borrow</span>
-                                <span class="comment">// issues.</span>
-                                <span class="ident">task</span>::<span class="ident">current</span>().<span class="ident">notify</span>();
-                                <span class="kw">return</span> <span class="ident">Async</span>::<span class="ident">NotReady</span>;
-                            }
-                        } <span class="kw">else</span> {
-                            <span class="kw">return</span> <span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">MdnsPacket</span>::<span class="ident">Response</span>(<span class="ident">MdnsResponse</span> {
-                                <span class="ident">packet</span>,
-                                <span class="ident">from</span>,
-                            }));
-                        }
+                <span class="kw">match</span> <span class="self">self</span>.<span class="ident">socket</span>.<span class="ident">send_to</span>(<span class="kw-2">&amp;</span><span class="ident">to_send</span>, <span class="kw-2">*</span><span class="ident">IPV4_MDNS_MULTICAST_ADDRESS</span>).<span class="kw">await</span> {
+                    <span class="prelude-val">Ok</span>(<span class="ident">bytes_written</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                        <span class="macro">debug_assert_eq</span><span class="macro">!</span>(<span class="ident">bytes_written</span>, <span class="ident">to_send</span>.<span class="ident">len</span>());
                     }
                     <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                        <span class="comment">// Ignore errors while parsing the packet. We need to poll again for the</span>
-                        <span class="comment">// next packet.</span>
-                        <span class="comment">// Note that ideally we would use a loop instead. However as of the writing</span>
-                        <span class="comment">// of this code non-lexical lifetimes haven&#39;t been merged yet, and I can&#39;t</span>
-                        <span class="comment">// manage to write this code without having borrow issues.</span>
-                        <span class="ident">task</span>::<span class="ident">current</span>().<span class="ident">notify</span>();
-                        <span class="kw">return</span> <span class="ident">Async</span>::<span class="ident">NotReady</span>;
+                        <span class="comment">// Errors are non-fatal because they can happen for example if we lose</span>
+                        <span class="comment">// connection to the network.</span>
+                        <span class="self">self</span>.<span class="ident">send_buffers</span>.<span class="ident">clear</span>();
+                        <span class="kw">break</span>;
                     }
                 }
             }
-            <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> (),
-            <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="comment">// Error are non-fatal and can happen if we get disconnected from example.</span>
-                <span class="comment">// The query interval will wake up the task at some point so that we can try again.</span>
-            }
-        };
 
-        <span class="ident">Async</span>::<span class="ident">NotReady</span>
+            <span class="comment">// Flush the query send buffer.</span>
+            <span class="kw">while</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">query_send_buffers</span>.<span class="ident">is_empty</span>() {
+                <span class="kw">let</span> <span class="ident">to_send</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">query_send_buffers</span>.<span class="ident">remove</span>(<span class="number">0</span>);
+
+                <span class="kw">match</span> <span class="self">self</span>.<span class="ident">query_socket</span>.<span class="ident">send_to</span>(<span class="kw-2">&amp;</span><span class="ident">to_send</span>, <span class="kw-2">*</span><span class="ident">IPV4_MDNS_MULTICAST_ADDRESS</span>).<span class="kw">await</span> {
+                    <span class="prelude-val">Ok</span>(<span class="ident">bytes_written</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                        <span class="macro">debug_assert_eq</span><span class="macro">!</span>(<span class="ident">bytes_written</span>, <span class="ident">to_send</span>.<span class="ident">len</span>());
+                    }
+                    <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                        <span class="comment">// Errors are non-fatal because they can happen for example if we lose</span>
+                        <span class="comment">// connection to the network.</span>
+                        <span class="self">self</span>.<span class="ident">query_send_buffers</span>.<span class="ident">clear</span>();
+                        <span class="kw">break</span>;
+                    }
+                }
+            }
+
+            <span class="comment">// Either (left) listen for incoming packets or (right) send query packets whenever the</span>
+            <span class="comment">// query interval fires.</span>
+            <span class="kw">let</span> <span class="ident">selected_output</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">select</span>(
+                <span class="ident">Box</span>::<span class="ident">pin</span>(<span class="self">self</span>.<span class="ident">socket</span>.<span class="ident">recv_from</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">recv_buffer</span>)),
+                <span class="ident">Box</span>::<span class="ident">pin</span>(<span class="self">self</span>.<span class="ident">query_interval</span>.<span class="ident">next</span>()),
+            ).<span class="kw">await</span> {
+                <span class="ident">future</span>::<span class="ident">Either</span>::<span class="ident">Left</span>((<span class="ident">recved</span>, <span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Left</span>(<span class="ident">recved</span>),
+                <span class="ident">future</span>::<span class="ident">Either</span>::<span class="ident">Right</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Right</span>(()),
+            };
+
+            <span class="kw">match</span> <span class="ident">selected_output</span> {
+                <span class="ident">Left</span>(<span class="ident">left</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">match</span> <span class="ident">left</span> {
+                    <span class="prelude-val">Ok</span>((<span class="ident">len</span>, <span class="ident">from</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+                        <span class="kw">match</span> <span class="ident">MdnsPacket</span>::<span class="ident">new_from_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">recv_buffer</span>[..<span class="ident">len</span>], <span class="ident">from</span>) {
+                            <span class="prelude-val">Some</span>(<span class="ident">packet</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> (<span class="self">self</span>, <span class="ident">packet</span>),
+                            <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> {},
+                        }
+                    },
+                    <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                        <span class="comment">// Errors are non-fatal and can happen if we get disconnected from the network.</span>
+                        <span class="comment">// The query interval will wake up the task at some point so that we can try again.</span>
+                    },
+                },
+                <span class="ident">Right</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                    <span class="comment">// Ensure underlying task is woken up on the next interval tick.</span>
+                    <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw">_</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">query_interval</span>.<span class="ident">next</span>().<span class="ident">now_or_never</span>() {};
+
+                    <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">silent</span> {
+                        <span class="kw">let</span> <span class="ident">query</span> <span class="op">=</span> <span class="ident">dns</span>::<span class="ident">build_query</span>();
+                        <span class="self">self</span>.<span class="ident">query_send_buffers</span>.<span class="ident">push</span>(<span class="ident">query</span>.<span class="ident">to_vec</span>());
+                    }
+                }
+            };
+        }
     }
 }
 
@@ -892,58 +935,82 @@
 
 <span class="doccomment">/// A valid mDNS packet received by the service.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">MdnsPacket</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">MdnsPacket</span> {
     <span class="doccomment">/// A query made by a remote.</span>
-    <span class="ident">Query</span>(<span class="ident">MdnsQuery</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>),
+    <span class="ident">Query</span>(<span class="ident">MdnsQuery</span>),
     <span class="doccomment">/// A response sent by a remote in response to one of our queries.</span>
-    <span class="ident">Response</span>(<span class="ident">MdnsResponse</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>),
+    <span class="ident">Response</span>(<span class="ident">MdnsResponse</span>),
     <span class="doccomment">/// A request for service discovery.</span>
-    <span class="ident">ServiceDiscovery</span>(<span class="ident">MdnsServiceDiscovery</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>),
+    <span class="ident">ServiceDiscovery</span>(<span class="ident">MdnsServiceDiscovery</span>),
+}
+
+<span class="kw">impl</span> <span class="ident">MdnsPacket</span> {
+    <span class="kw">fn</span> <span class="ident">new_from_bytes</span>(<span class="ident">buf</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">from</span>: <span class="ident">SocketAddr</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">MdnsPacket</span><span class="op">&gt;</span> {
+        <span class="kw">match</span> <span class="ident">Packet</span>::<span class="ident">parse</span>(<span class="ident">buf</span>) {
+            <span class="prelude-val">Ok</span>(<span class="ident">packet</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="kw">if</span> <span class="ident">packet</span>.<span class="ident">header</span>.<span class="ident">query</span> {
+                    <span class="kw">if</span> <span class="ident">packet</span>
+                        .<span class="ident">questions</span>
+                        .<span class="ident">iter</span>()
+                        .<span class="ident">any</span>(<span class="op">|</span><span class="ident">q</span><span class="op">|</span> <span class="ident">q</span>.<span class="ident">qname</span>.<span class="ident">to_string</span>().<span class="ident">as_bytes</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">SERVICE_NAME</span>)
+                    {
+                        <span class="kw">let</span> <span class="ident">query</span> <span class="op">=</span> <span class="ident">MdnsPacket</span>::<span class="ident">Query</span>(<span class="ident">MdnsQuery</span> {
+                            <span class="ident">from</span>,
+                            <span class="ident">query_id</span>: <span class="ident">packet</span>.<span class="ident">header</span>.<span class="ident">id</span>,
+                        });
+                        <span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="ident">query</span>);
+                    } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">packet</span>
+                        .<span class="ident">questions</span>
+                        .<span class="ident">iter</span>()
+                        .<span class="ident">any</span>(<span class="op">|</span><span class="ident">q</span><span class="op">|</span> <span class="ident">q</span>.<span class="ident">qname</span>.<span class="ident">to_string</span>().<span class="ident">as_bytes</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">META_QUERY_SERVICE</span>)
+                    {
+                        <span class="comment">// TODO: what if multiple questions, one with SERVICE_NAME and one with META_QUERY_SERVICE?</span>
+                        <span class="kw">let</span> <span class="ident">discovery</span> <span class="op">=</span> <span class="ident">MdnsPacket</span>::<span class="ident">ServiceDiscovery</span>(
+                            <span class="ident">MdnsServiceDiscovery</span> {
+                                <span class="ident">from</span>,
+                                <span class="ident">query_id</span>: <span class="ident">packet</span>.<span class="ident">header</span>.<span class="ident">id</span>,
+                            },
+                        );
+                        <span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="ident">discovery</span>);
+                    } <span class="kw">else</span> {
+                        <span class="kw">return</span> <span class="prelude-val">None</span>;
+                    }
+                } <span class="kw">else</span> {
+                    <span class="kw">let</span> <span class="ident">resp</span> <span class="op">=</span> <span class="ident">MdnsPacket</span>::<span class="ident">Response</span>(<span class="ident">MdnsResponse</span>::<span class="ident">new</span> (
+                        <span class="ident">packet</span>,
+                        <span class="ident">from</span>,
+                    ));
+                    <span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="ident">resp</span>);
+                }
+            }
+            <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="kw">return</span> <span class="prelude-val">None</span>;
+            }
+        }
+    }
 }
 
 <span class="doccomment">/// A received mDNS query.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MdnsQuery</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MdnsQuery</span> {
     <span class="doccomment">/// Sender of the address.</span>
     <span class="ident">from</span>: <span class="ident">SocketAddr</span>,
     <span class="doccomment">/// Id of the received DNS query. We need to pass this ID back in the results.</span>
     <span class="ident">query_id</span>: <span class="ident">u16</span>,
-    <span class="doccomment">/// Queue of pending buffers.</span>
-    <span class="ident">send_buffers</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">MdnsQuery</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
-    <span class="doccomment">/// Respond to the query.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Pass the ID of the local peer, and the list of addresses we&#39;re listening on.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// If there are more than 2^16-1 addresses, ignores the others.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// &gt; **Note**: Keep in mind that we will also receive this response in an `MdnsResponse`.</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">respond</span><span class="op">&lt;</span><span class="ident">TAddresses</span><span class="op">&gt;</span>(
-        <span class="self">self</span>,
-        <span class="ident">peer_id</span>: <span class="ident">PeerId</span>,
-        <span class="ident">addresses</span>: <span class="ident">TAddresses</span>,
-        <span class="ident">ttl</span>: <span class="ident">Duration</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">MdnsResponseError</span><span class="op">&gt;</span>
-    <span class="kw">where</span>
-        <span class="ident">TAddresses</span>: <span class="ident">IntoIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">Multiaddr</span><span class="op">&gt;</span>,
-        <span class="ident">TAddresses</span>::<span class="ident">IntoIter</span>: <span class="ident">ExactSizeIterator</span>,
-    {
-        <span class="kw">let</span> <span class="ident">response</span> <span class="op">=</span>
-            <span class="ident">dns</span>::<span class="ident">build_query_response</span>(<span class="self">self</span>.<span class="ident">query_id</span>, <span class="ident">peer_id</span>, <span class="ident">addresses</span>.<span class="ident">into_iter</span>(), <span class="ident">ttl</span>)<span class="question-mark">?</span>;
-        <span class="self">self</span>.<span class="ident">send_buffers</span>.<span class="ident">push</span>(<span class="ident">response</span>);
-        <span class="prelude-val">Ok</span>(())
-    }
-
+<span class="kw">impl</span> <span class="ident">MdnsQuery</span> {
     <span class="doccomment">/// Source address of the packet.</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">remote_addr</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">SocketAddr</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">from</span>
     }
+
+    <span class="doccomment">/// Query id of the packet.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">query_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u16</span> {
+        <span class="self">self</span>.<span class="ident">query_id</span>
+    }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">MdnsQuery</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
+<span class="kw">impl</span> <span class="ident">fmt</span>::<span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">MdnsQuery</span> {
     <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
         <span class="ident">f</span>.<span class="ident">debug_struct</span>(<span class="string">&quot;MdnsQuery&quot;</span>)
             .<span class="ident">field</span>(<span class="string">&quot;from&quot;</span>, <span class="self">self</span>.<span class="ident">remote_addr</span>())
@@ -953,31 +1020,26 @@
 }
 
 <span class="doccomment">/// A received mDNS service discovery query.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MdnsServiceDiscovery</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MdnsServiceDiscovery</span> {
     <span class="doccomment">/// Sender of the address.</span>
     <span class="ident">from</span>: <span class="ident">SocketAddr</span>,
     <span class="doccomment">/// Id of the received DNS query. We need to pass this ID back in the results.</span>
     <span class="ident">query_id</span>: <span class="ident">u16</span>,
-    <span class="doccomment">/// Queue of pending buffers.</span>
-    <span class="ident">send_buffers</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">MdnsServiceDiscovery</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
-    <span class="doccomment">/// Respond to the query.</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">respond</span>(<span class="self">self</span>, <span class="ident">ttl</span>: <span class="ident">Duration</span>) {
-        <span class="kw">let</span> <span class="ident">response</span> <span class="op">=</span> <span class="ident">dns</span>::<span class="ident">build_service_discovery_response</span>(<span class="self">self</span>.<span class="ident">query_id</span>, <span class="ident">ttl</span>);
-        <span class="self">self</span>.<span class="ident">send_buffers</span>.<span class="ident">push</span>(<span class="ident">response</span>);
-    }
-
+<span class="kw">impl</span> <span class="ident">MdnsServiceDiscovery</span> {
     <span class="doccomment">/// Source address of the packet.</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">remote_addr</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">SocketAddr</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">from</span>
     }
+
+    <span class="doccomment">/// Query id of the packet.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">query_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u16</span> {
+        <span class="self">self</span>.<span class="ident">query_id</span>
+    }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">MdnsServiceDiscovery</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
+<span class="kw">impl</span> <span class="ident">fmt</span>::<span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">MdnsServiceDiscovery</span> {
     <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
         <span class="ident">f</span>.<span class="ident">debug_struct</span>(<span class="string">&quot;MdnsServiceDiscovery&quot;</span>)
             .<span class="ident">field</span>(<span class="string">&quot;from&quot;</span>, <span class="self">self</span>.<span class="ident">remote_addr</span>())
@@ -987,18 +1049,15 @@
 }
 
 <span class="doccomment">/// A received mDNS response.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MdnsResponse</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
-    <span class="ident">packet</span>: <span class="ident">Packet</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>,
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MdnsResponse</span> {
+    <span class="ident">peers</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">MdnsPeer</span><span class="op">&gt;</span>,
     <span class="ident">from</span>: <span class="ident">SocketAddr</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">MdnsResponse</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
-    <span class="doccomment">/// Returns the list of peers that have been reported in this packet.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// &gt; **Note**: Keep in mind that this will also contain the responses we sent ourselves.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">discovered_peers</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;b</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">MdnsPeer</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">packet</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">packet</span>;
-        <span class="self">self</span>.<span class="ident">packet</span>.<span class="ident">answers</span>.<span class="ident">iter</span>().<span class="ident">filter_map</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">record</span><span class="op">|</span> {
+<span class="kw">impl</span> <span class="ident">MdnsResponse</span> {
+    <span class="doccomment">/// Creates a new `MdnsResponse` based on the provided `Packet`.</span>
+    <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">packet</span>: <span class="ident">Packet</span>, <span class="ident">from</span>: <span class="ident">SocketAddr</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">MdnsResponse</span> {
+        <span class="kw">let</span> <span class="ident">peers</span> <span class="op">=</span> <span class="ident">packet</span>.<span class="ident">answers</span>.<span class="ident">iter</span>().<span class="ident">filter_map</span>(<span class="op">|</span><span class="ident">record</span><span class="op">|</span> {
             <span class="kw">if</span> <span class="ident">record</span>.<span class="ident">name</span>.<span class="ident">to_string</span>().<span class="ident">as_bytes</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">SERVICE_NAME</span> {
                 <span class="kw">return</span> <span class="prelude-val">None</span>;
             }
@@ -1024,13 +1083,25 @@
                 <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">None</span>,
             };
 
-            <span class="prelude-val">Some</span>(<span class="ident">MdnsPeer</span> {
-                <span class="ident">packet</span>,
+            <span class="prelude-val">Some</span>(<span class="ident">MdnsPeer</span>::<span class="ident">new</span> (
+                <span class="kw-2">&amp;</span><span class="ident">packet</span>,
                 <span class="ident">record_value</span>,
                 <span class="ident">peer_id</span>,
-                <span class="ident">ttl</span>: <span class="ident">record</span>.<span class="ident">ttl</span>,
-            })
-        })
+                <span class="ident">record</span>.<span class="ident">ttl</span>,
+            ))
+        }).<span class="ident">collect</span>();
+
+        <span class="ident">MdnsResponse</span> {
+            <span class="ident">peers</span>,
+            <span class="ident">from</span>,
+        }
+    }
+
+    <span class="doccomment">/// Returns the list of peers that have been reported in this packet.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// &gt; **Note**: Keep in mind that this will also contain the responses we sent ourselves.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">discovered_peers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">MdnsPeer</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">peers</span>.<span class="ident">iter</span>()
     }
 
     <span class="doccomment">/// Source address of the packet.</span>
@@ -1040,7 +1111,7 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">MdnsResponse</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
+<span class="kw">impl</span> <span class="ident">fmt</span>::<span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">MdnsResponse</span> {
     <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
         <span class="ident">f</span>.<span class="ident">debug_struct</span>(<span class="string">&quot;MdnsResponse&quot;</span>)
             .<span class="ident">field</span>(<span class="string">&quot;from&quot;</span>, <span class="self">self</span>.<span class="ident">remote_addr</span>())
@@ -1049,41 +1120,22 @@
 }
 
 <span class="doccomment">/// A peer discovered by the service.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MdnsPeer</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
-    <span class="doccomment">/// The original packet which will be used to determine the addresses.</span>
-    <span class="ident">packet</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Packet</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>,
-    <span class="doccomment">/// Cached value of `concat(base32(peer_id), service name)`.</span>
-    <span class="ident">record_value</span>: <span class="ident">String</span>,
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MdnsPeer</span> {
+    <span class="ident">addrs</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Multiaddr</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Id of the peer.</span>
     <span class="ident">peer_id</span>: <span class="ident">PeerId</span>,
     <span class="doccomment">/// TTL of the record in seconds.</span>
     <span class="ident">ttl</span>: <span class="ident">u32</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">MdnsPeer</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
-    <span class="doccomment">/// Returns the id of the peer.</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">PeerId</span> {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">peer_id</span>
-    }
-
-    <span class="doccomment">/// Returns the requested time-to-live for the record.</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">ttl</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Duration</span> {
-        <span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="ident">u64</span>::<span class="ident">from</span>(<span class="self">self</span>.<span class="ident">ttl</span>))
-    }
-
-    <span class="doccomment">/// Returns the list of addresses the peer says it is listening on.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Filters out invalid addresses.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">addresses</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;b</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">Multiaddr</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;b</span> {
-        <span class="kw">let</span> <span class="ident">my_peer_id</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">peer_id</span>;
-        <span class="kw">let</span> <span class="ident">record_value</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">record_value</span>;
-        <span class="self">self</span>.<span class="ident">packet</span>
+<span class="kw">impl</span> <span class="ident">MdnsPeer</span> {
+    <span class="doccomment">/// Creates a new `MdnsPeer` based on the provided `Packet`.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">packet</span>: <span class="kw-2">&amp;</span><span class="ident">Packet</span>, <span class="ident">record_value</span>: <span class="ident">String</span>, <span class="ident">my_peer_id</span>: <span class="ident">PeerId</span>, <span class="ident">ttl</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">MdnsPeer</span> {
+        <span class="kw">let</span> <span class="ident">addrs</span> <span class="op">=</span> <span class="ident">packet</span>
             .<span class="ident">additional</span>
             .<span class="ident">iter</span>()
-            .<span class="ident">filter_map</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">add_record</span><span class="op">|</span> {
-                <span class="kw">if</span> <span class="kw-2">&amp;</span><span class="ident">add_record</span>.<span class="ident">name</span>.<span class="ident">to_string</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">record_value</span> {
+            .<span class="ident">filter_map</span>(<span class="op">|</span><span class="ident">add_record</span><span class="op">|</span> {
+                <span class="kw">if</span> <span class="ident">add_record</span>.<span class="ident">name</span>.<span class="ident">to_string</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">record_value</span> {
                     <span class="kw">return</span> <span class="prelude-val">None</span>;
                 }
 
@@ -1094,7 +1146,7 @@
                 }
             })
             .<span class="ident">flat_map</span>(<span class="op">|</span><span class="ident">txt</span><span class="op">|</span> <span class="ident">txt</span>.<span class="ident">iter</span>())
-            .<span class="ident">filter_map</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">txt</span><span class="op">|</span> {
+            .<span class="ident">filter_map</span>(<span class="op">|</span><span class="ident">txt</span><span class="op">|</span> {
                 <span class="comment">// TODO: wrong, txt can be multiple character strings</span>
                 <span class="kw">let</span> <span class="ident">addr</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">dns</span>::<span class="ident">decode_character_string</span>(<span class="ident">txt</span>) {
                     <span class="prelude-val">Ok</span>(<span class="ident">a</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">a</span>,
@@ -1112,15 +1164,40 @@
                     <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">None</span>,
                 };
                 <span class="kw">match</span> <span class="ident">addr</span>.<span class="ident">pop</span>() {
-                    <span class="prelude-val">Some</span>(<span class="ident">Protocol</span>::<span class="ident">P2p</span>(<span class="kw-2">ref</span> <span class="ident">peer_id</span>)) <span class="kw">if</span> <span class="ident">peer_id</span> <span class="op">=</span><span class="op">=</span> <span class="ident">my_peer_id</span> <span class="op">=</span><span class="op">&gt;</span> (),
+                    <span class="prelude-val">Some</span>(<span class="ident">Protocol</span>::<span class="ident">P2p</span>(<span class="kw-2">ref</span> <span class="ident">peer_id</span>)) <span class="kw">if</span> <span class="ident">peer_id</span> <span class="op">=</span><span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">my_peer_id</span> <span class="op">=</span><span class="op">&gt;</span> (),
                     <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">None</span>,
                 };
                 <span class="prelude-val">Some</span>(<span class="ident">addr</span>)
-            })
+            }).<span class="ident">collect</span>();
+
+        <span class="ident">MdnsPeer</span> {
+            <span class="ident">addrs</span>,
+            <span class="ident">peer_id</span>: <span class="ident">my_peer_id</span>.<span class="ident">clone</span>(),
+            <span class="ident">ttl</span>,
+        }
+    }
+
+    <span class="doccomment">/// Returns the id of the peer.</span>
+    <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">PeerId</span> {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">peer_id</span>
+    }
+
+    <span class="doccomment">/// Returns the requested time-to-live for the record.</span>
+    <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">ttl</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Duration</span> {
+        <span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="ident">u64</span>::<span class="ident">from</span>(<span class="self">self</span>.<span class="ident">ttl</span>))
+    }
+
+    <span class="doccomment">/// Returns the list of addresses the peer says it is listening on.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Filters out invalid addresses.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">addresses</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Multiaddr</span><span class="op">&gt;</span> {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">addrs</span>
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">MdnsPeer</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
+<span class="kw">impl</span> <span class="ident">fmt</span>::<span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">MdnsPeer</span> {
     <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
         <span class="ident">f</span>.<span class="ident">debug_struct</span>(<span class="string">&quot;MdnsPeer&quot;</span>)
             .<span class="ident">field</span>(<span class="string">&quot;peer_id&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">peer_id</span>)
@@ -1130,42 +1207,87 @@
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span> {
+    <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on</span>;
     <span class="kw">use</span> <span class="ident">libp2p_core</span>::<span class="ident">PeerId</span>;
-    <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">io</span>, <span class="ident">time</span>::<span class="ident">Duration</span>};
-    <span class="kw">use</span> <span class="ident">tokio</span>::{<span class="self">self</span>, <span class="ident">prelude</span>::<span class="kw-2">*</span>};
+    <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">io</span>::{<span class="ident">Error</span>, <span class="ident">ErrorKind</span>}, <span class="ident">time</span>::<span class="ident">Duration</span>};
+    <span class="kw">use</span> <span class="ident">wasm_timer</span>::<span class="ident">ext</span>::<span class="ident">TryFutureExt</span>;
     <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">service</span>::{<span class="ident">MdnsPacket</span>, <span class="ident">MdnsService</span>};
     <span class="kw">use</span> <span class="ident">multiaddr</span>::<span class="ident">multihash</span>::<span class="kw-2">*</span>;
 
     <span class="kw">fn</span> <span class="ident">discover</span>(<span class="ident">peer_id</span>: <span class="ident">PeerId</span>) {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">service</span> <span class="op">=</span> <span class="ident">MdnsService</span>::<span class="ident">new</span>().<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">stream</span> <span class="op">=</span> <span class="ident">stream</span>::<span class="ident">poll_fn</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>()<span class="op">&gt;</span>, <span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="ident">block_on</span>(<span class="kw">async</span> {
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">service</span> <span class="op">=</span> <span class="ident">MdnsService</span>::<span class="ident">new</span>().<span class="kw">await</span>.<span class="ident">unwrap</span>();
             <span class="kw">loop</span> {
-                <span class="kw">let</span> <span class="ident">packet</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">service</span>.<span class="ident">poll</span>() {
-                    <span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">packet</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">packet</span>,
-                    <span class="ident">Async</span>::<span class="ident">NotReady</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>),
-                };
+                <span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> <span class="ident">service</span>.<span class="ident">next</span>().<span class="kw">await</span>;
+                <span class="ident">service</span> <span class="op">=</span> <span class="ident">next</span>.<span class="number">0</span>;
 
-                <span class="kw">match</span> <span class="ident">packet</span> {
+                <span class="kw">match</span> <span class="ident">next</span>.<span class="number">1</span> {
                     <span class="ident">MdnsPacket</span>::<span class="ident">Query</span>(<span class="ident">query</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                        <span class="ident">query</span>.<span class="ident">respond</span>(<span class="ident">peer_id</span>.<span class="ident">clone</span>(), <span class="prelude-val">None</span>, <span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">120</span>)).<span class="ident">unwrap</span>();
+                        <span class="kw">let</span> <span class="ident">resp</span> <span class="op">=</span> <span class="kw">crate</span>::<span class="ident">dns</span>::<span class="ident">build_query_response</span>(
+                            <span class="ident">query</span>.<span class="ident">query_id</span>(),
+                            <span class="ident">peer_id</span>.<span class="ident">clone</span>(),
+                            <span class="macro">vec</span><span class="macro">!</span>[].<span class="ident">into_iter</span>(),
+                            <span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">120</span>),
+                        ).<span class="ident">unwrap</span>();
+                        <span class="ident">service</span>.<span class="ident">enqueue_response</span>(<span class="ident">resp</span>);
                     }
                     <span class="ident">MdnsPacket</span>::<span class="ident">Response</span>(<span class="ident">response</span>) <span class="op">=</span><span class="op">&gt;</span> {
                         <span class="kw">for</span> <span class="ident">peer</span> <span class="kw">in</span> <span class="ident">response</span>.<span class="ident">discovered_peers</span>() {
                             <span class="kw">if</span> <span class="ident">peer</span>.<span class="ident">id</span>() <span class="op">=</span><span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">peer_id</span> {
-                                <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>));
+                                <span class="kw">return</span>;
                             }
                         }
                     }
-                    <span class="ident">MdnsPacket</span>::<span class="ident">ServiceDiscovery</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {}
+                    <span class="ident">MdnsPacket</span>::<span class="ident">ServiceDiscovery</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;did not expect a service discovery packet&quot;</span>)
                 }
             }
-        });
+        })
+    }
 
-        <span class="ident">tokio</span>::<span class="ident">run</span>(
-            <span class="ident">stream</span>
-                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">err</span>))
-                .<span class="ident">for_each</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(())),
-        );
+    <span class="comment">// As of today the underlying UDP socket is not stubbed out. Thus tests run in parallel to this</span>
+    <span class="comment">// unit tests inter fear with it. Test needs to be run in sequence to ensure test properties.</span>
+    <span class="attribute">#[<span class="ident">test</span>]</span>
+    <span class="kw">fn</span> <span class="ident">respect_query_interval</span>() {
+        <span class="kw">let</span> <span class="ident">own_ips</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">std</span>::<span class="ident">net</span>::<span class="ident">IpAddr</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">get_if_addrs</span>::<span class="ident">get_if_addrs</span>().<span class="ident">unwrap</span>()
+            .<span class="ident">into_iter</span>()
+            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">i</span>.<span class="ident">addr</span>.<span class="ident">ip</span>())
+            .<span class="ident">collect</span>();
+
+        <span class="kw">let</span> <span class="ident">fut</span> <span class="op">=</span> <span class="kw">async</span> {
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">service</span> <span class="op">=</span> <span class="ident">MdnsService</span>::<span class="ident">new</span>().<span class="kw">await</span>.<span class="ident">unwrap</span>();
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sent_queries</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
+
+            <span class="kw">loop</span> {
+                <span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> <span class="ident">service</span>.<span class="ident">next</span>().<span class="kw">await</span>;
+                <span class="ident">service</span> <span class="op">=</span> <span class="ident">next</span>.<span class="number">0</span>;
+
+                <span class="kw">match</span> <span class="ident">next</span>.<span class="number">1</span> {
+                    <span class="ident">MdnsPacket</span>::<span class="ident">Query</span>(<span class="ident">query</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                        <span class="comment">// Ignore queries from other nodes.</span>
+                        <span class="kw">let</span> <span class="ident">source_ip</span> <span class="op">=</span> <span class="ident">query</span>.<span class="ident">remote_addr</span>().<span class="ident">ip</span>();
+                        <span class="kw">if</span> <span class="op">!</span><span class="ident">own_ips</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">source_ip</span>) {
+                            <span class="kw">continue</span>;
+                        }
+
+                        <span class="ident">sent_queries</span>.<span class="ident">push</span>(<span class="ident">query</span>);
+
+                        <span class="kw">if</span> <span class="ident">sent_queries</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="number">1</span> {
+                            <span class="kw">return</span> <span class="prelude-val">Ok</span>(())
+                        }
+                    }
+                    <span class="comment">// Ignore response packets. We don&#39;t stub out the UDP socket, thus this is</span>
+                    <span class="comment">// either random noise from the network, or noise from other unit tests running</span>
+                    <span class="comment">// in parallel.</span>
+                    <span class="ident">MdnsPacket</span>::<span class="ident">Response</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {},
+                    <span class="ident">MdnsPacket</span>::<span class="ident">ServiceDiscovery</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">new</span>(<span class="ident">ErrorKind</span>::<span class="ident">Other</span>, <span class="string">&quot;did not expect a service discovery packet&quot;</span>));
+                    },
+                }
+            }
+        };
+
+        <span class="comment">// TODO: This might be too long for a unit test.</span>
+        <span class="ident">block_on</span>(<span class="ident">fut</span>.<span class="ident">timeout</span>(<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">41</span>))).<span class="ident">unwrap</span>();
     }
 
     <span class="attribute">#[<span class="ident">test</span>]</span>

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-swarm-0.3.0/src/protocols_handler/select.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>select.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-swarm-0.4.0-alpha.1/src/protocols_handler/select.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>select.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -249,6 +249,11 @@
 <span id="238">238</span>
 <span id="239">239</span>
 <span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">//</span>
@@ -285,8 +290,7 @@
     <span class="ident">either</span>::{<span class="ident">EitherError</span>, <span class="ident">EitherOutput</span>},
     <span class="ident">upgrade</span>::{<span class="ident">InboundUpgrade</span>, <span class="ident">OutboundUpgrade</span>, <span class="ident">EitherUpgrade</span>, <span class="ident">SelectUpgrade</span>, <span class="ident">UpgradeError</span>}
 };
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cmp</span>;
-<span class="kw">use</span> <span class="ident">tokio_io</span>::{<span class="ident">AsyncRead</span>, <span class="ident">AsyncWrite</span>};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">cmp</span>, <span class="ident">task</span>::<span class="ident">Context</span>, <span class="ident">task</span>::<span class="ident">Poll</span>};
 
 <span class="doccomment">/// Implementation of `IntoProtocolsHandler` that combines two protocols into one.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>)]</span>
@@ -314,7 +318,7 @@
     <span class="ident">TProto2</span>: <span class="ident">IntoProtocolsHandler</span>,
     <span class="ident">TProto1</span>::<span class="ident">Handler</span>: <span class="ident">ProtocolsHandler</span><span class="op">&lt;</span><span class="ident">Substream</span> <span class="op">=</span> <span class="ident">TSubstream</span><span class="op">&gt;</span>,
     <span class="ident">TProto2</span>::<span class="ident">Handler</span>: <span class="ident">ProtocolsHandler</span><span class="op">&lt;</span><span class="ident">Substream</span> <span class="op">=</span> <span class="ident">TSubstream</span><span class="op">&gt;</span>,
-    <span class="ident">TSubstream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span>,
+    <span class="ident">TSubstream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span>,
     <span class="op">&lt;</span><span class="ident">TProto1</span>::<span class="ident">Handler</span> <span class="kw">as</span> <span class="ident">ProtocolsHandler</span><span class="op">&gt;</span>::<span class="ident">InboundProtocol</span>: <span class="ident">InboundUpgrade</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>,
     <span class="op">&lt;</span><span class="ident">TProto2</span>::<span class="ident">Handler</span> <span class="kw">as</span> <span class="ident">ProtocolsHandler</span><span class="op">&gt;</span>::<span class="ident">InboundProtocol</span>: <span class="ident">InboundUpgrade</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>,
     <span class="op">&lt;</span><span class="ident">TProto1</span>::<span class="ident">Handler</span> <span class="kw">as</span> <span class="ident">ProtocolsHandler</span><span class="op">&gt;</span>::<span class="ident">OutboundProtocol</span>: <span class="ident">OutboundUpgrade</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>,
@@ -359,7 +363,7 @@
 <span class="kw">where</span>
     <span class="ident">TProto1</span>: <span class="ident">ProtocolsHandler</span><span class="op">&lt;</span><span class="ident">Substream</span> <span class="op">=</span> <span class="ident">TSubstream</span><span class="op">&gt;</span>,
     <span class="ident">TProto2</span>: <span class="ident">ProtocolsHandler</span><span class="op">&lt;</span><span class="ident">Substream</span> <span class="op">=</span> <span class="ident">TSubstream</span><span class="op">&gt;</span>,
-    <span class="ident">TSubstream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span>,
+    <span class="ident">TSubstream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span>,
     <span class="ident">TProto1</span>::<span class="ident">InboundProtocol</span>: <span class="ident">InboundUpgrade</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>,
     <span class="ident">TProto2</span>::<span class="ident">InboundProtocol</span>: <span class="ident">InboundUpgrade</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>,
     <span class="ident">TProto1</span>::<span class="ident">OutboundProtocol</span>: <span class="ident">OutboundUpgrade</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>,
@@ -453,41 +457,47 @@
         <span class="ident">cmp</span>::<span class="ident">max</span>(<span class="self">self</span>.<span class="ident">proto1</span>.<span class="ident">connection_keep_alive</span>(), <span class="self">self</span>.<span class="ident">proto2</span>.<span class="ident">connection_keep_alive</span>())
     }
 
-    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident">ProtocolsHandlerEvent</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">OutboundProtocol</span>, <span class="self">Self</span>::<span class="ident">OutboundOpenInfo</span>, <span class="self">Self</span>::<span class="ident">OutEvent</span><span class="op">&gt;</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident">ProtocolsHandlerEvent</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">OutboundProtocol</span>, <span class="self">Self</span>::<span class="ident">OutboundOpenInfo</span>, <span class="self">Self</span>::<span class="ident">OutEvent</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 
-        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">proto1</span>.<span class="ident">poll</span>().<span class="ident">map_err</span>(<span class="ident">EitherError</span>::<span class="ident">A</span>)<span class="question-mark">?</span> {
-            <span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">event</span>)) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">EitherOutput</span>::<span class="ident">First</span>(<span class="ident">event</span>))));
+        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">proto1</span>.<span class="ident">poll</span>(<span class="ident">cx</span>) {
+            <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">event</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">EitherOutput</span>::<span class="ident">First</span>(<span class="ident">event</span>)));
             },
-            <span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">OutboundSubstreamRequest</span> {
+            <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Close</span>(<span class="ident">event</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Close</span>(<span class="ident">EitherError</span>::<span class="ident">A</span>(<span class="ident">event</span>)));
+            },
+            <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">OutboundSubstreamRequest</span> {
                 <span class="ident">protocol</span>,
                 <span class="ident">info</span>,
             }) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">OutboundSubstreamRequest</span> {
+                <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">OutboundSubstreamRequest</span> {
                     <span class="ident">protocol</span>: <span class="ident">protocol</span>.<span class="ident">map_upgrade</span>(<span class="ident">EitherUpgrade</span>::<span class="ident">A</span>),
                     <span class="ident">info</span>: <span class="ident">EitherOutput</span>::<span class="ident">First</span>(<span class="ident">info</span>),
-                }));
+                });
             },
-            <span class="ident">Async</span>::<span class="ident">NotReady</span> <span class="op">=</span><span class="op">&gt;</span> ()
+            <span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> ()
         };
 
-        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">proto2</span>.<span class="ident">poll</span>().<span class="ident">map_err</span>(<span class="ident">EitherError</span>::<span class="ident">B</span>)<span class="question-mark">?</span> {
-            <span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">event</span>)) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">EitherOutput</span>::<span class="ident">Second</span>(<span class="ident">event</span>))));
+        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">proto2</span>.<span class="ident">poll</span>(<span class="ident">cx</span>) {
+            <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">event</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">EitherOutput</span>::<span class="ident">Second</span>(<span class="ident">event</span>)));
             },
-            <span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">OutboundSubstreamRequest</span> {
+            <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Close</span>(<span class="ident">event</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Close</span>(<span class="ident">EitherError</span>::<span class="ident">B</span>(<span class="ident">event</span>)));
+            },
+            <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">OutboundSubstreamRequest</span> {
                 <span class="ident">protocol</span>,
                 <span class="ident">info</span>,
             }) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">OutboundSubstreamRequest</span> {
+                <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">OutboundSubstreamRequest</span> {
                     <span class="ident">protocol</span>: <span class="ident">protocol</span>.<span class="ident">map_upgrade</span>(<span class="ident">EitherUpgrade</span>::<span class="ident">B</span>),
                     <span class="ident">info</span>: <span class="ident">EitherOutput</span>::<span class="ident">Second</span>(<span class="ident">info</span>),
-                }));
+                });
             },
-            <span class="ident">Async</span>::<span class="ident">NotReady</span> <span class="op">=</span><span class="op">&gt;</span> ()
+            <span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> ()
         };
 
-        <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>)
+        <span class="ident">Poll</span>::<span class="ident">Pending</span>
     }
 }
 </pre></div>

@@ -297,6 +297,19 @@
 <span id="286">286</span>
 <span id="287">287</span>
 <span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -360,11 +373,12 @@
 
 <span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">channel</span>::<span class="ident">mpsc</span>};
 <span class="kw">use</span> <span class="ident">libp2p</span>::{<span class="ident">Multiaddr</span>, <span class="ident">wasm_ext</span>};
-<span class="kw">use</span> <span class="ident">log</span>::<span class="ident">warn</span>;
+<span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">error</span>, <span class="ident">warn</span>};
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">Mutex</span>;
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Serialize</span>, <span class="ident">Deserialize</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">pin</span>::<span class="ident">Pin</span>, <span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>}, <span class="ident">time</span>::{<span class="ident">Duration</span>, <span class="ident">Instant</span>}};
 
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">wasm_ext</span>::<span class="ident">ExtTransport</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">slog_scope</span>::<span class="ident">with_logger</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">slog</span>;
 
@@ -429,8 +443,8 @@
 <span class="doccomment">/// where we extract the telemetry registration so that it continues running during the shutdown</span>
 <span class="doccomment">/// process.</span>
 <span class="kw">struct</span> <span class="ident">TelemetryInner</span> {
-	<span class="doccomment">/// Worker for the telemetry.</span>
-	<span class="ident">worker</span>: <span class="ident">worker</span>::<span class="ident">TelemetryWorker</span>,
+	<span class="doccomment">/// Worker for the telemetry. `None` if it failed to initialize.</span>
+	<span class="ident">worker</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">worker</span>::<span class="ident">TelemetryWorker</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// Receives log entries for them to be dispatched to the worker.</span>
 	<span class="ident">receiver</span>: <span class="ident">mpsc</span>::<span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">async_record</span>::<span class="ident">AsyncRecord</span><span class="op">&gt;</span>,
 }
@@ -462,9 +476,17 @@
 		<span class="ident">slog_scope</span>::<span class="ident">set_global_logger</span>(<span class="ident">root</span>)
 	};
 
+	<span class="kw">let</span> <span class="ident">worker</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">worker</span>::<span class="ident">TelemetryWorker</span>::<span class="ident">new</span>(<span class="ident">endpoints</span>, <span class="ident">config</span>.<span class="ident">wasm_external_transport</span>) {
+		<span class="prelude-val">Ok</span>(<span class="ident">w</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">w</span>),
+		<span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span><span class="op">&gt;</span> {
+			<span class="macro">error</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;telemetry&quot;</span>, <span class="string">&quot;Failed to initialize telemetry worker: {:?}&quot;</span>, <span class="ident">err</span>);
+			<span class="prelude-val">None</span>
+		}
+	};
+
 	<span class="ident">Telemetry</span> {
 		<span class="ident">inner</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Mutex</span>::<span class="ident">new</span>(<span class="ident">TelemetryInner</span> {
-			<span class="ident">worker</span>: <span class="ident">worker</span>::<span class="ident">TelemetryWorker</span>::<span class="ident">new</span>(<span class="ident">endpoints</span>, <span class="ident">config</span>.<span class="ident">wasm_external_transport</span>),
+			<span class="ident">worker</span>,
 			<span class="ident">receiver</span>,
 		})),
 		<span class="ident">_guard</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">guard</span>),
@@ -509,15 +531,19 @@
 		<span class="comment">// The polling pattern is: poll the worker so that it processes its queue, then add one</span>
 		<span class="comment">// message from the receiver (if possible), then poll the worker again, and so on.</span>
 		<span class="kw">loop</span> {
-			<span class="kw">while</span> <span class="kw">let</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">event</span>) <span class="op">=</span> <span class="ident">inner</span>.<span class="ident">worker</span>.<span class="ident">poll</span>(<span class="ident">cx</span>) {
-				<span class="comment">// Right now we only have one possible event. This line is here in order to not</span>
-				<span class="comment">// forget to handle any possible new event type.</span>
-				<span class="kw">let</span> <span class="ident">worker</span>::<span class="ident">TelemetryWorkerEvent</span>::<span class="ident">Connected</span> <span class="op">=</span> <span class="ident">event</span>;
-				<span class="ident">has_connected</span> <span class="op">=</span> <span class="bool-val">true</span>;
+			<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">worker</span>) <span class="op">=</span> <span class="ident">inner</span>.<span class="ident">worker</span>.<span class="ident">as_mut</span>() {
+				<span class="kw">while</span> <span class="kw">let</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">event</span>) <span class="op">=</span> <span class="ident">worker</span>.<span class="ident">poll</span>(<span class="ident">cx</span>) {
+					<span class="comment">// Right now we only have one possible event. This line is here in order to not</span>
+					<span class="comment">// forget to handle any possible new event type.</span>
+					<span class="kw">let</span> <span class="ident">worker</span>::<span class="ident">TelemetryWorkerEvent</span>::<span class="ident">Connected</span> <span class="op">=</span> <span class="ident">event</span>;
+					<span class="ident">has_connected</span> <span class="op">=</span> <span class="bool-val">true</span>;
+				}
 			}
 
 			<span class="kw">if</span> <span class="kw">let</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">log_entry</span>)) <span class="op">=</span> <span class="ident">Stream</span>::<span class="ident">poll_next</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">inner</span>.<span class="ident">receiver</span>), <span class="ident">cx</span>) {
-				<span class="ident">log_entry</span>.<span class="ident">as_record_values</span>(<span class="op">|</span><span class="ident">rec</span>, <span class="ident">val</span><span class="op">|</span> { <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">inner</span>.<span class="ident">worker</span>.<span class="ident">log</span>(<span class="ident">rec</span>, <span class="ident">val</span>); });
+				<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">worker</span>) <span class="op">=</span> <span class="ident">inner</span>.<span class="ident">worker</span>.<span class="ident">as_mut</span>() {
+					<span class="ident">log_entry</span>.<span class="ident">as_record_values</span>(<span class="op">|</span><span class="ident">rec</span>, <span class="ident">val</span><span class="op">|</span> { <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">worker</span>.<span class="ident">log</span>(<span class="ident">rec</span>, <span class="ident">val</span>); });
+				}
 			} <span class="kw">else</span> {
 				<span class="kw">break</span>;
 			}

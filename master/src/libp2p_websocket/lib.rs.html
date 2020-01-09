@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-websocket-0.13.0/src/lib.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>lib.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-websocket-0.14.0-alpha.1/src/lib.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>lib.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -230,6 +230,20 @@
 <span id="219">219</span>
 <span id="220">220</span>
 <span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">//</span>
@@ -257,9 +271,10 @@
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">framed</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">tls</span>;
 
+<span class="kw">use</span> <span class="ident">bytes</span>::<span class="ident">BytesMut</span>;
 <span class="kw">use</span> <span class="ident">error</span>::<span class="ident">Error</span>;
-<span class="kw">use</span> <span class="ident">framed</span>::<span class="ident">BytesConnection</span>;
-<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
+<span class="kw">use</span> <span class="ident">framed</span>::<span class="ident">Connection</span>;
+<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">future</span>::<span class="ident">BoxFuture</span>, <span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">stream</span>::<span class="ident">BoxStream</span>, <span class="ident">ready</span>};
 <span class="kw">use</span> <span class="ident">libp2p_core</span>::{
     <span class="ident">ConnectedPoint</span>,
     <span class="ident">Transport</span>,
@@ -267,7 +282,7 @@
     <span class="ident">transport</span>::{<span class="ident">map</span>::{<span class="ident">MapFuture</span>, <span class="ident">MapStream</span>}, <span class="ident">ListenerEvent</span>, <span class="ident">TransportError</span>}
 };
 <span class="kw">use</span> <span class="ident">rw_stream_sink</span>::<span class="ident">RwStreamSink</span>;
-<span class="kw">use</span> <span class="ident">tokio_io</span>::{<span class="ident">AsyncRead</span>, <span class="ident">AsyncWrite</span>};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">io</span>, <span class="ident">pin</span>::<span class="ident">Pin</span>, <span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>}};
 
 <span class="doccomment">/// A Websocket transport.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>)]</span>
@@ -293,12 +308,12 @@
     }
 
     <span class="doccomment">/// Get the max. frame data size we support.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">max_data_size</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u64</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">max_data_size</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
         <span class="self">self</span>.<span class="ident">transport</span>.<span class="ident">max_data_size</span>()
     }
 
     <span class="doccomment">/// Set the max. frame data size we support.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_max_data_size</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">size</span>: <span class="ident">u64</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_max_data_size</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">size</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span> {
         <span class="self">self</span>.<span class="ident">transport</span>.<span class="ident">set_max_data_size</span>(<span class="ident">size</span>);
         <span class="self">self</span>
     }
@@ -329,9 +344,9 @@
     <span class="ident">T</span>: <span class="ident">Transport</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
     <span class="ident">T</span>::<span class="ident">Error</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
     <span class="ident">T</span>::<span class="ident">Dial</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    <span class="ident">T</span>::<span class="ident">Listener</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+    <span class="ident">T</span>::<span class="ident">Listener</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
     <span class="ident">T</span>::<span class="ident">ListenerUpgrade</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    <span class="ident">T</span>::<span class="ident">Output</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>
+    <span class="ident">T</span>::<span class="ident">Output</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>
 {
     <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="ident">RwStreamSink</span><span class="op">&lt;</span><span class="ident">BytesConnection</span><span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">Output</span><span class="op">&gt;</span><span class="op">&gt;</span>;
     <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span><span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
@@ -349,84 +364,99 @@
 }
 
 <span class="doccomment">/// Type alias corresponding to `framed::WsConfig::Listener`.</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">InnerStream</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;</span> <span class="op">=</span>
-    <span class="ident">Box</span><span class="op">&lt;</span>(<span class="kw">dyn</span> <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span><span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span>, <span class="ident">Item</span> <span class="op">=</span> <span class="ident">ListenerEvent</span><span class="op">&lt;</span><span class="ident">InnerFuture</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span>)<span class="op">&gt;</span>;
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">InnerStream</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">BoxStream</span><span class="op">&lt;</span><span class="lifetime">&#39;static</span>, <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ListenerEvent</span><span class="op">&lt;</span><span class="ident">InnerFuture</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
 <span class="doccomment">/// Type alias corresponding to `framed::WsConfig::Dial` and `framed::WsConfig::ListenerUpgrade`.</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">InnerFuture</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;</span> <span class="op">=</span>
-    <span class="ident">Box</span><span class="op">&lt;</span>(<span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">BytesConnection</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span><span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span>)<span class="op">&gt;</span>;
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">InnerFuture</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">BoxFuture</span><span class="op">&lt;</span><span class="lifetime">&#39;static</span>, <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Connection</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
 <span class="doccomment">/// Function type that wraps a websocket connection (see. `wrap_connection`).</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">WrapperFn</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span>
-    <span class="kw">fn</span>(<span class="ident">BytesConnection</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">ConnectedPoint</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">RwStreamSink</span><span class="op">&lt;</span><span class="ident">BytesConnection</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">WrapperFn</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="kw">fn</span>(<span class="ident">Connection</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">ConnectedPoint</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">RwStreamSink</span><span class="op">&lt;</span><span class="ident">BytesConnection</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
 <span class="doccomment">/// Wrap a websocket connection producing data frames into a `RwStreamSink`</span>
 <span class="doccomment">/// implementing `AsyncRead` + `AsyncWrite`.</span>
-<span class="kw">fn</span> <span class="ident">wrap_connection</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="ident">c</span>: <span class="ident">BytesConnection</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="kw">_</span>: <span class="ident">ConnectedPoint</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">RwStreamSink</span><span class="op">&lt;</span><span class="ident">BytesConnection</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>
+<span class="kw">fn</span> <span class="ident">wrap_connection</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="ident">c</span>: <span class="ident">Connection</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="kw">_</span>: <span class="ident">ConnectedPoint</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">RwStreamSink</span><span class="op">&lt;</span><span class="ident">BytesConnection</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>
 <span class="kw">where</span>
-    <span class="ident">T</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span>
+    <span class="ident">T</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>
 {
-    <span class="ident">RwStreamSink</span>::<span class="ident">new</span>(<span class="ident">c</span>)
+    <span class="ident">RwStreamSink</span>::<span class="ident">new</span>(<span class="ident">BytesConnection</span>(<span class="ident">c</span>))
+}
+
+<span class="doccomment">/// The websocket connection.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BytesConnection</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="ident">Connection</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>);
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Stream</span> <span class="kw">for</span> <span class="ident">BytesConnection</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">T</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>
+{
+    <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">BytesMut</span><span class="op">&gt;</span>;
+
+    <span class="kw">fn</span> <span class="ident">poll_next</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Item</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="kw">loop</span> {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">item</span>) <span class="op">=</span> <span class="macro">ready</span><span class="macro">!</span>(<span class="self">self</span>.<span class="number">0</span>.<span class="ident">try_poll_next_unpin</span>(<span class="ident">cx</span>)<span class="question-mark">?</span>) {
+                <span class="kw">if</span> <span class="ident">item</span>.<span class="ident">is_data</span>() {
+                    <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">BytesMut</span>::<span class="ident">from</span>(<span class="ident">item</span>.<span class="ident">as_ref</span>()))))
+                }
+            } <span class="kw">else</span> {
+                <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>)
+            }
+        }
+    }
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Sink</span><span class="op">&lt;</span><span class="ident">BytesMut</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">BytesConnection</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">T</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>
+{
+    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">io</span>::<span class="ident">Error</span>;
+
+    <span class="kw">fn</span> <span class="ident">poll_ready</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="number">0</span>).<span class="ident">poll_ready</span>(<span class="ident">cx</span>)
+    }
+
+    <span class="kw">fn</span> <span class="ident">start_send</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">item</span>: <span class="ident">BytesMut</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+        <span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="number">0</span>).<span class="ident">start_send</span>(<span class="ident">framed</span>::<span class="ident">OutgoingData</span>::<span class="ident">Binary</span>(<span class="ident">item</span>))
+    }
+
+    <span class="kw">fn</span> <span class="ident">poll_flush</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="number">0</span>).<span class="ident">poll_flush</span>(<span class="ident">cx</span>)
+    }
+
+    <span class="kw">fn</span> <span class="ident">poll_close</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="number">0</span>).<span class="ident">poll_close</span>(<span class="ident">cx</span>)
+    }
 }
 
 <span class="comment">// Tests //////////////////////////////////////////////////////////////////////////////////////////</span>
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span> {
+    <span class="kw">use</span> <span class="ident">libp2p_core</span>::<span class="ident">Multiaddr</span>;
     <span class="kw">use</span> <span class="ident">libp2p_tcp</span> <span class="kw">as</span> <span class="ident">tcp</span>;
-    <span class="kw">use</span> <span class="ident">tokio</span>::<span class="ident">runtime</span>::<span class="ident">current_thread</span>::<span class="ident">Runtime</span>;
-    <span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">Future</span>, <span class="ident">Stream</span>};
-    <span class="kw">use</span> <span class="ident">libp2p_core</span>::{
-        <span class="ident">Transport</span>,
-        <span class="ident">multiaddr</span>::<span class="ident">Protocol</span>,
-        <span class="ident">transport</span>::<span class="ident">ListenerEvent</span>
-    };
+    <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
+    <span class="kw">use</span> <span class="ident">libp2p_core</span>::{<span class="ident">Transport</span>, <span class="ident">multiaddr</span>::<span class="ident">Protocol</span>};
     <span class="kw">use</span> <span class="kw">super</span>::<span class="ident">WsConfig</span>;
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">dialer_connects_to_listener_ipv4</span>() {
-        <span class="kw">let</span> <span class="ident">ws_config</span> <span class="op">=</span> <span class="ident">WsConfig</span>::<span class="ident">new</span>(<span class="ident">tcp</span>::<span class="ident">TcpConfig</span>::<span class="ident">new</span>());
-
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">listener</span> <span class="op">=</span> <span class="ident">ws_config</span>.<span class="ident">clone</span>()
-            .<span class="ident">listen_on</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/0/ws&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>())
-            .<span class="ident">unwrap</span>();
-
-        <span class="kw">let</span> <span class="ident">addr</span> <span class="op">=</span> <span class="ident">listener</span>.<span class="ident">by_ref</span>().<span class="ident">wait</span>()
-            .<span class="ident">next</span>()
-            .<span class="ident">expect</span>(<span class="string">&quot;some event&quot;</span>)
-            .<span class="ident">expect</span>(<span class="string">&quot;no error&quot;</span>)
-            .<span class="ident">into_new_address</span>()
-            .<span class="ident">expect</span>(<span class="string">&quot;listen address&quot;</span>);
-
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="prelude-val">Some</span>(<span class="ident">Protocol</span>::<span class="ident">Ws</span>(<span class="string">&quot;/&quot;</span>.<span class="ident">into</span>())), <span class="ident">addr</span>.<span class="ident">iter</span>().<span class="ident">nth</span>(<span class="number">2</span>));
-        <span class="macro">assert_ne</span><span class="macro">!</span>(<span class="prelude-val">Some</span>(<span class="ident">Protocol</span>::<span class="ident">Tcp</span>(<span class="number">0</span>)), <span class="ident">addr</span>.<span class="ident">iter</span>().<span class="ident">nth</span>(<span class="number">1</span>));
-
-        <span class="kw">let</span> <span class="ident">listener</span> <span class="op">=</span> <span class="ident">listener</span>
-            .<span class="ident">filter_map</span>(<span class="ident">ListenerEvent</span>::<span class="ident">into_upgrade</span>)
-            .<span class="ident">into_future</span>()
-            .<span class="ident">map_err</span>(<span class="op">|</span>(<span class="ident">e</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">e</span>)
-            .<span class="ident">and_then</span>(<span class="op">|</span>(<span class="ident">c</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">c</span>.<span class="ident">unwrap</span>().<span class="number">0</span>);
-
-        <span class="kw">let</span> <span class="ident">dialer</span> <span class="op">=</span> <span class="ident">ws_config</span>.<span class="ident">clone</span>().<span class="ident">dial</span>(<span class="ident">addr</span>.<span class="ident">clone</span>()).<span class="ident">unwrap</span>();
-
-        <span class="kw">let</span> <span class="ident">future</span> <span class="op">=</span> <span class="ident">listener</span>
-            .<span class="ident">select</span>(<span class="ident">dialer</span>)
-            .<span class="ident">map_err</span>(<span class="op">|</span>(<span class="ident">e</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">e</span>)
-            .<span class="ident">and_then</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">n</span>)<span class="op">|</span> <span class="ident">n</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rt</span> <span class="op">=</span> <span class="ident">Runtime</span>::<span class="ident">new</span>().<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">rt</span>.<span class="ident">block_on</span>(<span class="ident">future</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">a</span> <span class="op">=</span> <span class="string">&quot;/ip4/127.0.0.1/tcp/0/ws&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>();
+        <span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on</span>(<span class="ident">connect</span>(<span class="ident">a</span>))
     }
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">dialer_connects_to_listener_ipv6</span>() {
+        <span class="kw">let</span> <span class="ident">a</span> <span class="op">=</span> <span class="string">&quot;/ip6/::1/tcp/0/ws&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>();
+        <span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on</span>(<span class="ident">connect</span>(<span class="ident">a</span>))
+    }
+
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">connect</span>(<span class="ident">listen_addr</span>: <span class="ident">Multiaddr</span>) {
         <span class="kw">let</span> <span class="ident">ws_config</span> <span class="op">=</span> <span class="ident">WsConfig</span>::<span class="ident">new</span>(<span class="ident">tcp</span>::<span class="ident">TcpConfig</span>::<span class="ident">new</span>());
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">listener</span> <span class="op">=</span> <span class="ident">ws_config</span>.<span class="ident">clone</span>()
-            .<span class="ident">listen_on</span>(<span class="string">&quot;/ip6/::1/tcp/0/ws&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>())
-            .<span class="ident">unwrap</span>();
+            .<span class="ident">listen_on</span>(<span class="ident">listen_addr</span>)
+            .<span class="ident">expect</span>(<span class="string">&quot;listener&quot;</span>);
 
-        <span class="kw">let</span> <span class="ident">addr</span> <span class="op">=</span> <span class="ident">listener</span>.<span class="ident">by_ref</span>().<span class="ident">wait</span>()
-            .<span class="ident">next</span>()
+        <span class="kw">let</span> <span class="ident">addr</span> <span class="op">=</span> <span class="ident">listener</span>.<span class="ident">try_next</span>().<span class="kw">await</span>
             .<span class="ident">expect</span>(<span class="string">&quot;some event&quot;</span>)
             .<span class="ident">expect</span>(<span class="string">&quot;no error&quot;</span>)
             .<span class="ident">into_new_address</span>()
@@ -435,21 +465,19 @@
         <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="prelude-val">Some</span>(<span class="ident">Protocol</span>::<span class="ident">Ws</span>(<span class="string">&quot;/&quot;</span>.<span class="ident">into</span>())), <span class="ident">addr</span>.<span class="ident">iter</span>().<span class="ident">nth</span>(<span class="number">2</span>));
         <span class="macro">assert_ne</span><span class="macro">!</span>(<span class="prelude-val">Some</span>(<span class="ident">Protocol</span>::<span class="ident">Tcp</span>(<span class="number">0</span>)), <span class="ident">addr</span>.<span class="ident">iter</span>().<span class="ident">nth</span>(<span class="number">1</span>));
 
-        <span class="kw">let</span> <span class="ident">listener</span> <span class="op">=</span> <span class="ident">listener</span>
-            .<span class="ident">filter_map</span>(<span class="ident">ListenerEvent</span>::<span class="ident">into_upgrade</span>)
-            .<span class="ident">into_future</span>()
-            .<span class="ident">map_err</span>(<span class="op">|</span>(<span class="ident">e</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">e</span>)
-            .<span class="ident">and_then</span>(<span class="op">|</span>(<span class="ident">c</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">c</span>.<span class="ident">unwrap</span>().<span class="number">0</span>);
+        <span class="kw">let</span> <span class="ident">inbound</span> <span class="op">=</span> <span class="kw">async</span> <span class="kw">move</span> {
+            <span class="kw">let</span> (<span class="ident">conn</span>, <span class="ident">_addr</span>) <span class="op">=</span> <span class="ident">listener</span>.<span class="ident">try_filter_map</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">future</span>::<span class="ident">ready</span>(<span class="prelude-val">Ok</span>(<span class="ident">e</span>.<span class="ident">into_upgrade</span>())))
+                .<span class="ident">try_next</span>()
+                .<span class="kw">await</span>
+                .<span class="ident">unwrap</span>()
+                .<span class="ident">unwrap</span>();
+            <span class="ident">conn</span>.<span class="kw">await</span>
+        };
 
-        <span class="kw">let</span> <span class="ident">dialer</span> <span class="op">=</span> <span class="ident">ws_config</span>.<span class="ident">clone</span>().<span class="ident">dial</span>(<span class="ident">addr</span>.<span class="ident">clone</span>()).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">outbound</span> <span class="op">=</span> <span class="ident">ws_config</span>.<span class="ident">dial</span>(<span class="ident">addr</span>).<span class="ident">unwrap</span>();
 
-        <span class="kw">let</span> <span class="ident">future</span> <span class="op">=</span> <span class="ident">listener</span>
-            .<span class="ident">select</span>(<span class="ident">dialer</span>)
-            .<span class="ident">map_err</span>(<span class="op">|</span>(<span class="ident">e</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">e</span>)
-            .<span class="ident">and_then</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">n</span>)<span class="op">|</span> <span class="ident">n</span>);
-
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rt</span> <span class="op">=</span> <span class="ident">Runtime</span>::<span class="ident">new</span>().<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">rt</span>.<span class="ident">block_on</span>(<span class="ident">future</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> (<span class="ident">a</span>, <span class="ident">b</span>) <span class="op">=</span> <span class="ident">futures</span>::<span class="macro">join</span><span class="macro">!</span>(<span class="ident">inbound</span>, <span class="ident">outbound</span>);
+        <span class="ident">a</span>.<span class="ident">and</span>(<span class="ident">b</span>).<span class="ident">unwrap</span>();
     }
 }
 </pre></div>

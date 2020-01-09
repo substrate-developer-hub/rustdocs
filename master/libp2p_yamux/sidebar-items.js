@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["Config",""],["Yamux",""]]});
+initSidebarItems({"struct":[["Config","The yamux configuration."],["Incoming","The [`futures::stream::Stream`] of incoming substreams."],["LocalConfig","The yamux configuration for upgrading I/O resources which are ![`Send`]."],["LocalIncoming","The [`futures::stream::Stream`] of incoming substreams (`!Send`)."],["OpenSubstreamToken","A token to poll for an outbound substream."],["Yamux","A Yamux connection."],["YamuxError","The Yamux [`StreamMuxer`] error type."]]});

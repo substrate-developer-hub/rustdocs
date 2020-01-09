@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-identify-0.13.2/src/handler.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>handler.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-identify-0.14.0-alpha.1/src/handler.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>handler.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -179,6 +179,7 @@
 <span id="168">168</span>
 <span id="169">169</span>
 <span id="170">170</span>
+<span id="171">171</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018 Parity Technologies (UK) Ltd.</span>
 <span class="comment">//</span>
@@ -205,6 +206,7 @@
 <span class="kw">use</span> <span class="ident">libp2p_core</span>::<span class="ident">upgrade</span>::{
     <span class="ident">InboundUpgrade</span>,
     <span class="ident">OutboundUpgrade</span>,
+    <span class="ident">ReadOneError</span>,
     <span class="ident">Negotiated</span>
 };
 <span class="kw">use</span> <span class="ident">libp2p_swarm</span>::{
@@ -215,9 +217,8 @@
     <span class="ident">ProtocolsHandlerUpgrErr</span>
 };
 <span class="kw">use</span> <span class="ident">smallvec</span>::<span class="ident">SmallVec</span>;
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">io</span>, <span class="ident">marker</span>::<span class="ident">PhantomData</span>, <span class="ident">time</span>::<span class="ident">Duration</span>};
-<span class="kw">use</span> <span class="ident">tokio_io</span>::{<span class="ident">AsyncRead</span>, <span class="ident">AsyncWrite</span>};
-<span class="kw">use</span> <span class="ident">wasm_timer</span>::{<span class="ident">Delay</span>, <span class="ident">Instant</span>};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">marker</span>::<span class="ident">PhantomData</span>, <span class="ident">pin</span>::<span class="ident">Pin</span>, <span class="ident">task</span>::<span class="ident">Context</span>, <span class="ident">task</span>::<span class="ident">Poll</span>, <span class="ident">time</span>::<span class="ident">Duration</span>};
+<span class="kw">use</span> <span class="ident">wasm_timer</span>::<span class="ident">Delay</span>;
 
 <span class="doccomment">/// Delay between the moment we connect and the first time we identify.</span>
 <span class="kw">const</span> <span class="ident">DELAY_TO_FIRST_ID</span>: <span class="ident">Duration</span> <span class="op">=</span> <span class="ident">Duration</span>::<span class="ident">from_millis</span>(<span class="number">500</span>);
@@ -256,7 +257,7 @@
     <span class="doccomment">/// We received a request for identification.</span>
     <span class="ident">Identify</span>(<span class="ident">ReplySubstream</span><span class="op">&lt;</span><span class="ident">Negotiated</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span><span class="op">&gt;</span>),
     <span class="doccomment">/// Failed to identify the remote.</span>
-    <span class="ident">IdentificationError</span>(<span class="ident">ProtocolsHandlerUpgrErr</span><span class="op">&lt;</span><span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span>),
+    <span class="ident">IdentificationError</span>(<span class="ident">ProtocolsHandlerUpgrErr</span><span class="op">&lt;</span><span class="ident">ReadOneError</span><span class="op">&gt;</span>),
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span> <span class="ident">IdentifyHandler</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span> {
@@ -265,7 +266,7 @@
         <span class="ident">IdentifyHandler</span> {
             <span class="ident">config</span>: <span class="ident">IdentifyProtocolConfig</span>,
             <span class="ident">events</span>: <span class="ident">SmallVec</span>::<span class="ident">new</span>(),
-            <span class="ident">next_id</span>: <span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">Instant</span>::<span class="ident">now</span>() <span class="op">+</span> <span class="ident">DELAY_TO_FIRST_ID</span>),
+            <span class="ident">next_id</span>: <span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">DELAY_TO_FIRST_ID</span>),
             <span class="ident">keep_alive</span>: <span class="ident">KeepAlive</span>::<span class="ident">Yes</span>,
             <span class="ident">marker</span>: <span class="ident">PhantomData</span>,
         }
@@ -274,11 +275,11 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span> <span class="ident">ProtocolsHandler</span> <span class="kw">for</span> <span class="ident">IdentifyHandler</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>
 <span class="kw">where</span>
-    <span class="ident">TSubstream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span>,
+    <span class="ident">TSubstream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 {
     <span class="kw">type</span> <span class="ident">InEvent</span> <span class="op">=</span> ();
     <span class="kw">type</span> <span class="ident">OutEvent</span> <span class="op">=</span> <span class="ident">IdentifyHandlerEvent</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>;
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">wasm_timer</span>::<span class="ident">Error</span>;
+    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ReadOneError</span>;
     <span class="kw">type</span> <span class="ident">Substream</span> <span class="op">=</span> <span class="ident">TSubstream</span>;
     <span class="kw">type</span> <span class="ident">InboundProtocol</span> <span class="op">=</span> <span class="ident">IdentifyProtocolConfig</span>;
     <span class="kw">type</span> <span class="ident">OutboundProtocol</span> <span class="op">=</span> <span class="ident">IdentifyProtocolConfig</span>;
@@ -315,38 +316,39 @@
     ) {
         <span class="self">self</span>.<span class="ident">events</span>.<span class="ident">push</span>(<span class="ident">IdentifyHandlerEvent</span>::<span class="ident">IdentificationError</span>(<span class="ident">err</span>));
         <span class="self">self</span>.<span class="ident">keep_alive</span> <span class="op">=</span> <span class="ident">KeepAlive</span>::<span class="ident">No</span>;
-        <span class="self">self</span>.<span class="ident">next_id</span>.<span class="ident">reset</span>(<span class="ident">Instant</span>::<span class="ident">now</span>() <span class="op">+</span> <span class="ident">TRY_AGAIN_ON_ERR</span>);
+        <span class="self">self</span>.<span class="ident">next_id</span>.<span class="ident">reset</span>(<span class="ident">TRY_AGAIN_ON_ERR</span>);
     }
 
     <span class="kw">fn</span> <span class="ident">connection_keep_alive</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">KeepAlive</span> {
         <span class="self">self</span>.<span class="ident">keep_alive</span>
     }
 
-    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span>
+    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span>
         <span class="ident">ProtocolsHandlerEvent</span><span class="op">&lt;</span>
             <span class="self">Self</span>::<span class="ident">OutboundProtocol</span>,
             <span class="self">Self</span>::<span class="ident">OutboundOpenInfo</span>,
             <span class="ident">IdentifyHandlerEvent</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>,
+            <span class="self">Self</span>::<span class="ident">Error</span>,
         <span class="op">&gt;</span>,
-        <span class="self">Self</span>::<span class="ident">Error</span>,
     <span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">events</span>.<span class="ident">is_empty</span>() {
-            <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(
+            <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(
                 <span class="self">self</span>.<span class="ident">events</span>.<span class="ident">remove</span>(<span class="number">0</span>),
-            )));
+            ));
         }
 
         <span class="comment">// Poll the future that fires when we need to identify the node again.</span>
-        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">next_id</span>.<span class="ident">poll</span>()<span class="question-mark">?</span> {
-            <span class="ident">Async</span>::<span class="ident">NotReady</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>),
-            <span class="ident">Async</span>::<span class="ident">Ready</span>(()) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="self">self</span>.<span class="ident">next_id</span>.<span class="ident">reset</span>(<span class="ident">Instant</span>::<span class="ident">now</span>() <span class="op">+</span> <span class="ident">DELAY_TO_NEXT_ID</span>);
+        <span class="kw">match</span> <span class="ident">Future</span>::<span class="ident">poll</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">next_id</span>), <span class="ident">cx</span>) {
+            <span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Poll</span>::<span class="ident">Pending</span>,
+            <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Ok</span>(())) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="self">self</span>.<span class="ident">next_id</span>.<span class="ident">reset</span>(<span class="ident">DELAY_TO_NEXT_ID</span>);
                 <span class="kw">let</span> <span class="ident">ev</span> <span class="op">=</span> <span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">OutboundSubstreamRequest</span> {
                     <span class="ident">protocol</span>: <span class="ident">SubstreamProtocol</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">config</span>.<span class="ident">clone</span>()),
                     <span class="ident">info</span>: (),
                 };
-                <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">ev</span>))
+                <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ev</span>)
             }
+            <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">err</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Close</span>(<span class="ident">err</span>.<span class="ident">into</span>()))
         }
     }
 }

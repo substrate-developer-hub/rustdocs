@@ -230,7 +230,6 @@
 <span id="219">219</span>
 <span id="220">220</span>
 <span id="221">221</span>
-<span id="222">222</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -254,7 +253,6 @@
 };
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">ExHashT</span>, <span class="ident">specialization</span>::<span class="ident">NetworkSpecialization</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">protocol</span>::{<span class="ident">CustomMessageOutcome</span>, <span class="ident">Protocol</span>};
-<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">NetworkBehaviour</span>;
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">core</span>::{<span class="ident">Multiaddr</span>, <span class="ident">PeerId</span>, <span class="ident">PublicKey</span>};
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">kad</span>::<span class="ident">record</span>;
@@ -263,7 +261,7 @@
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">debug</span>, <span class="ident">warn</span>};
 <span class="kw">use</span> <span class="ident">sp_consensus</span>::{<span class="ident">BlockOrigin</span>, <span class="ident">import_queue</span>::{<span class="ident">IncomingBlock</span>, <span class="ident">Origin</span>}};
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::{<span class="ident">traits</span>::{<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">NumberFor</span>}, <span class="ident">Justification</span>};
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">iter</span>;
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">iter</span>, <span class="ident">task</span>::<span class="ident">Context</span>, <span class="ident">task</span>::<span class="ident">Poll</span>};
 <span class="kw">use</span> <span class="ident">void</span>;
 
 <span class="doccomment">/// General behaviour of the network. Combines all protocols together.</span>
@@ -293,7 +291,7 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">S</span>: <span class="ident">NetworkSpecialization</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">H</span>: <span class="ident">ExHashT</span><span class="op">&gt;</span> <span class="ident">Behaviour</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">S</span>, <span class="ident">H</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Builds a new `Behaviour`.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
+	<span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">new</span>(
 		<span class="ident">substrate</span>: <span class="ident">Protocol</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">S</span>, <span class="ident">H</span><span class="op">&gt;</span>,
 		<span class="ident">user_agent</span>: <span class="ident">String</span>,
 		<span class="ident">local_public_key</span>: <span class="ident">PublicKey</span>,
@@ -309,7 +307,7 @@
 				<span class="ident">known_addresses</span>,
 				<span class="ident">enable_mdns</span>,
 				<span class="ident">allow_private_ipv4</span>
-			),
+			).<span class="kw">await</span>,
 			<span class="ident">events</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
 		}
 	}
@@ -446,12 +444,12 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">S</span>: <span class="ident">NetworkSpecialization</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">H</span>: <span class="ident">ExHashT</span><span class="op">&gt;</span> <span class="ident">Behaviour</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">S</span>, <span class="ident">H</span><span class="op">&gt;</span> {
-	<span class="kw">fn</span> <span class="ident">poll</span><span class="op">&lt;</span><span class="ident">TEv</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Async</span><span class="op">&lt;</span><span class="ident">NetworkBehaviourAction</span><span class="op">&lt;</span><span class="ident">TEv</span>, <span class="ident">BehaviourOut</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">poll</span><span class="op">&lt;</span><span class="ident">TEv</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident">NetworkBehaviourAction</span><span class="op">&lt;</span><span class="ident">TEv</span>, <span class="ident">BehaviourOut</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 		<span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">events</span>.<span class="ident">is_empty</span>() {
-			<span class="kw">return</span> <span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">NetworkBehaviourAction</span>::<span class="ident">GenerateEvent</span>(<span class="self">self</span>.<span class="ident">events</span>.<span class="ident">remove</span>(<span class="number">0</span>)))
+			<span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">NetworkBehaviourAction</span>::<span class="ident">GenerateEvent</span>(<span class="self">self</span>.<span class="ident">events</span>.<span class="ident">remove</span>(<span class="number">0</span>)))
 		}
 
-		<span class="ident">Async</span>::<span class="ident">NotReady</span>
+		<span class="ident">Poll</span>::<span class="ident">Pending</span>
 	}
 }
 </pre></div>
