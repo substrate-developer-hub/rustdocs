@@ -1812,6 +1812,52 @@
 <span id="1801">1801</span>
 <span id="1802">1802</span>
 <span id="1803">1803</span>
+<span id="1804">1804</span>
+<span id="1805">1805</span>
+<span id="1806">1806</span>
+<span id="1807">1807</span>
+<span id="1808">1808</span>
+<span id="1809">1809</span>
+<span id="1810">1810</span>
+<span id="1811">1811</span>
+<span id="1812">1812</span>
+<span id="1813">1813</span>
+<span id="1814">1814</span>
+<span id="1815">1815</span>
+<span id="1816">1816</span>
+<span id="1817">1817</span>
+<span id="1818">1818</span>
+<span id="1819">1819</span>
+<span id="1820">1820</span>
+<span id="1821">1821</span>
+<span id="1822">1822</span>
+<span id="1823">1823</span>
+<span id="1824">1824</span>
+<span id="1825">1825</span>
+<span id="1826">1826</span>
+<span id="1827">1827</span>
+<span id="1828">1828</span>
+<span id="1829">1829</span>
+<span id="1830">1830</span>
+<span id="1831">1831</span>
+<span id="1832">1832</span>
+<span id="1833">1833</span>
+<span id="1834">1834</span>
+<span id="1835">1835</span>
+<span id="1836">1836</span>
+<span id="1837">1837</span>
+<span id="1838">1838</span>
+<span id="1839">1839</span>
+<span id="1840">1840</span>
+<span id="1841">1841</span>
+<span id="1842">1842</span>
+<span id="1843">1843</span>
+<span id="1844">1844</span>
+<span id="1845">1845</span>
+<span id="1846">1846</span>
+<span id="1847">1847</span>
+<span id="1848">1848</span>
+<span id="1849">1849</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -2210,7 +2256,7 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span>
 	<span class="ident">AccountId</span>,
-	<span class="ident">Balance</span>: <span class="ident">HasCompact</span> <span class="op">+</span> <span class="ident">Copy</span> <span class="op">+</span> <span class="ident">Saturating</span>,
+	<span class="ident">Balance</span>: <span class="ident">HasCompact</span> <span class="op">+</span> <span class="ident">Copy</span> <span class="op">+</span> <span class="ident">Saturating</span> <span class="op">+</span> <span class="ident">SimpleArithmetic</span>,
 <span class="op">&gt;</span> <span class="ident">StakingLedger</span><span class="op">&lt;</span><span class="ident">AccountId</span>, <span class="ident">Balance</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Remove entries from `unlocking` that are sufficiently old and reduce the</span>
 	<span class="doccomment">/// total by the sum of their balances.</span>
@@ -2227,6 +2273,30 @@
 		<span class="self">Self</span> { <span class="ident">total</span>, <span class="ident">active</span>: <span class="self">self</span>.<span class="ident">active</span>, <span class="ident">stash</span>: <span class="self">self</span>.<span class="ident">stash</span>, <span class="ident">unlocking</span> }
 	}
 
+	<span class="doccomment">/// Re-bond funds that were scheduled for unlocking.</span>
+	<span class="kw">fn</span> <span class="ident">rebond</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">value</span>: <span class="ident">Balance</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">unlocking_balance</span>: <span class="ident">Balance</span> <span class="op">=</span> <span class="ident">Zero</span>::<span class="ident">zero</span>();
+
+		<span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">last</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">unlocking</span>.<span class="ident">last_mut</span>() {
+			<span class="kw">if</span> <span class="ident">unlocking_balance</span> <span class="op">+</span> <span class="ident">last</span>.<span class="ident">value</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">value</span> {
+				<span class="ident">unlocking_balance</span> <span class="op">+</span><span class="op">=</span> <span class="ident">last</span>.<span class="ident">value</span>;
+				<span class="self">self</span>.<span class="ident">active</span> <span class="op">+</span><span class="op">=</span> <span class="ident">last</span>.<span class="ident">value</span>;
+				<span class="self">self</span>.<span class="ident">unlocking</span>.<span class="ident">pop</span>();
+			} <span class="kw">else</span> {
+				<span class="kw">let</span> <span class="ident">diff</span> <span class="op">=</span> <span class="ident">value</span> <span class="op">-</span> <span class="ident">unlocking_balance</span>;
+
+				<span class="ident">unlocking_balance</span> <span class="op">+</span><span class="op">=</span> <span class="ident">diff</span>;
+				<span class="self">self</span>.<span class="ident">active</span> <span class="op">+</span><span class="op">=</span> <span class="ident">diff</span>;
+				<span class="ident">last</span>.<span class="ident">value</span> <span class="op">-</span><span class="op">=</span> <span class="ident">diff</span>;
+			}
+
+			<span class="kw">if</span> <span class="ident">unlocking_balance</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">value</span> {
+				<span class="kw">break</span>
+			}
+		}
+
+		<span class="self">self</span>
+	}
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">AccountId</span>, <span class="ident">Balance</span><span class="op">&gt;</span> <span class="ident">StakingLedger</span><span class="op">&lt;</span><span class="ident">AccountId</span>, <span class="ident">Balance</span><span class="op">&gt;</span> <span class="kw">where</span>
@@ -2619,6 +2689,8 @@
 		<span class="ident">InsufficientValue</span>,
 		<span class="doccomment">/// Can not schedule more unlock chunks.</span>
 		<span class="ident">NoMoreChunks</span>,
+		<span class="doccomment">/// Can not rebond without unlocking chunks.</span>
+		<span class="ident">NoUnlockChunk</span>,
 	}
 }
 
@@ -2772,6 +2844,26 @@
 				<span class="ident">ledger</span>.<span class="ident">unlocking</span>.<span class="ident">push</span>(<span class="ident">UnlockChunk</span> { <span class="ident">value</span>, <span class="ident">era</span> });
 				<span class="self">Self</span>::<span class="ident">update_ledger</span>(<span class="kw-2">&amp;</span><span class="ident">controller</span>, <span class="kw-2">&amp;</span><span class="ident">ledger</span>);
 			}
+		}
+
+		<span class="doccomment">/// Rebond a portion of the stash scheduled to be unlocked.</span>
+		<span class="doccomment">///</span>
+		<span class="doccomment">/// # &lt;weight&gt;</span>
+		<span class="doccomment">/// - Time complexity: O(1). Bounded by `MAX_UNLOCKING_CHUNKS`.</span>
+		<span class="doccomment">/// - Storage changes: Can&#39;t increase storage, only decrease it.</span>
+		<span class="doccomment">/// # &lt;/weight&gt;</span>
+		<span class="attribute">#[<span class="ident">weight</span> <span class="op">=</span> <span class="ident">SimpleDispatchInfo</span>::<span class="ident">FixedNormal</span>(<span class="number">500_000</span>)]</span>
+		<span class="kw">fn</span> <span class="ident">rebond</span>(<span class="ident">origin</span>, <span class="attribute">#[<span class="ident">compact</span>]</span> <span class="ident">value</span>: <span class="ident">BalanceOf</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) {
+			<span class="kw">let</span> <span class="ident">controller</span> <span class="op">=</span> <span class="ident">ensure_signed</span>(<span class="ident">origin</span>)<span class="question-mark">?</span>;
+			<span class="kw">let</span> <span class="ident">ledger</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">ledger</span>(<span class="kw-2">&amp;</span><span class="ident">controller</span>).<span class="ident">ok_or</span>(<span class="ident">Error</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>::<span class="ident">NotController</span>)<span class="question-mark">?</span>;
+			<span class="macro">ensure</span><span class="macro">!</span>(
+				<span class="ident">ledger</span>.<span class="ident">unlocking</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="number">0</span>,
+				<span class="ident">Error</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>::<span class="ident">NoUnlockChunk</span>,
+			);
+
+			<span class="kw">let</span> <span class="ident">ledger</span> <span class="op">=</span> <span class="ident">ledger</span>.<span class="ident">rebond</span>(<span class="ident">value</span>);
+
+			<span class="self">Self</span>::<span class="ident">update_ledger</span>(<span class="kw-2">&amp;</span><span class="ident">controller</span>, <span class="kw-2">&amp;</span><span class="ident">ledger</span>);
 		}
 
 		<span class="doccomment">/// Remove any unlocked chunks from the `unlocking` queue from our management.</span>
