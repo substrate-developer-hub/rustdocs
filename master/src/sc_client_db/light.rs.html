@@ -1171,6 +1171,17 @@
 <span id="1160">1160</span>
 <span id="1161">1161</span>
 <span id="1162">1162</span>
+<span id="1163">1163</span>
+<span id="1164">1164</span>
+<span id="1165">1165</span>
+<span id="1166">1166</span>
+<span id="1167">1167</span>
+<span id="1168">1168</span>
+<span id="1169">1169</span>
+<span id="1170">1170</span>
+<span id="1171">1171</span>
+<span id="1172">1172</span>
+<span id="1173">1173</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1539,14 +1550,22 @@
 		<span class="ident">cht_type</span>: <span class="ident">u8</span>,
 		<span class="ident">cht_size</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 		<span class="ident">block</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>
-	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Hash</span><span class="op">&gt;</span> {
-		<span class="kw">let</span> <span class="ident">no_cht_for_block</span> <span class="op">=</span> <span class="op">|</span><span class="op">|</span> <span class="ident">ClientError</span>::<span class="ident">Backend</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;CHT for block {} not exists&quot;</span>, <span class="ident">block</span>));
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Hash</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+		<span class="kw">let</span> <span class="ident">no_cht_for_block</span> <span class="op">=</span> <span class="op">|</span><span class="op">|</span> <span class="ident">ClientError</span>::<span class="ident">Backend</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Missing CHT for block {}&quot;</span>, <span class="ident">block</span>));
 
+		<span class="kw">let</span> <span class="ident">meta</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">meta</span>.<span class="ident">read</span>();
+		<span class="kw">let</span> <span class="ident">max_cht_number</span> <span class="op">=</span> <span class="ident">cht</span>::<span class="ident">max_cht_number</span>(<span class="ident">cht_size</span>, <span class="ident">meta</span>.<span class="ident">finalized_number</span>);
 		<span class="kw">let</span> <span class="ident">cht_number</span> <span class="op">=</span> <span class="ident">cht</span>::<span class="ident">block_to_cht_number</span>(<span class="ident">cht_size</span>, <span class="ident">block</span>).<span class="ident">ok_or_else</span>(<span class="ident">no_cht_for_block</span>)<span class="question-mark">?</span>;
+		<span class="kw">match</span> <span class="ident">max_cht_number</span> {
+			<span class="prelude-val">Some</span>(<span class="ident">max_cht_number</span>) <span class="kw">if</span> <span class="ident">cht_number</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">max_cht_number</span> <span class="op">=</span><span class="op">&gt;</span> (),
+			<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>),
+		}
+
 		<span class="kw">let</span> <span class="ident">cht_start</span> <span class="op">=</span> <span class="ident">cht</span>::<span class="ident">start_number</span>(<span class="ident">cht_size</span>, <span class="ident">cht_number</span>);
 		<span class="self">self</span>.<span class="ident">db</span>.<span class="ident">get</span>(<span class="ident">columns</span>::<span class="ident">CHT</span>, <span class="kw-2">&amp;</span><span class="ident">cht_key</span>(<span class="ident">cht_type</span>, <span class="ident">cht_start</span>)<span class="question-mark">?</span>).<span class="ident">map_err</span>(<span class="ident">db_err</span>)<span class="question-mark">?</span>
 			.<span class="ident">ok_or_else</span>(<span class="ident">no_cht_for_block</span>)
 			.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">hash</span><span class="op">|</span> <span class="ident">Block</span>::<span class="ident">Hash</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">hash</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">no_cht_for_block</span>()))
+			.<span class="ident">map</span>(<span class="prelude-val">Some</span>)
 	}
 }
 
@@ -1679,7 +1698,7 @@
 		<span class="kw-2">&amp;</span><span class="self">self</span>,
 		<span class="ident">cht_size</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 		<span class="ident">block</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
-	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Hash</span><span class="op">&gt;</span> {
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Hash</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 		<span class="self">self</span>.<span class="ident">read_cht_root</span>(<span class="ident">HEADER_CHT_PREFIX</span>, <span class="ident">cht_size</span>, <span class="ident">block</span>)
 	}
 
@@ -1687,7 +1706,7 @@
 		<span class="kw-2">&amp;</span><span class="self">self</span>,
 		<span class="ident">cht_size</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 		<span class="ident">block</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
-	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Hash</span><span class="op">&gt;</span> {
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Hash</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 		<span class="self">self</span>.<span class="ident">read_cht_root</span>(<span class="ident">CHANGES_TRIE_CHT_PREFIX</span>, <span class="ident">cht_size</span>, <span class="ident">block</span>)
 	}
 
@@ -1937,20 +1956,20 @@
 		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">db</span>.<span class="ident">db</span>.<span class="ident">iter</span>(<span class="ident">columns</span>::<span class="ident">KEY_LOOKUP</span>).<span class="ident">count</span>(), (<span class="number">2</span> <span class="op">*</span> (<span class="number">1</span> <span class="op">+</span> <span class="ident">cht_size</span> <span class="op">+</span> <span class="number">1</span>)) <span class="kw">as</span> <span class="ident">usize</span>);
 		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">db</span>.<span class="ident">db</span>.<span class="ident">iter</span>(<span class="ident">columns</span>::<span class="ident">CHT</span>).<span class="ident">count</span>(), <span class="number">1</span>);
 		<span class="macro">assert</span><span class="macro">!</span>((<span class="number">0</span>..<span class="ident">cht_size</span> <span class="kw">as</span> <span class="kw">_</span>).<span class="ident">all</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">db</span>.<span class="ident">header</span>(<span class="ident">BlockId</span>::<span class="ident">Number</span>(<span class="number">1</span> <span class="op">+</span> <span class="ident">i</span>)).<span class="ident">unwrap</span>().<span class="ident">is_none</span>()));
-		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">db</span>.<span class="ident">header_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht_size</span> <span class="op">/</span> <span class="number">2</span>).<span class="ident">is_ok</span>());
-		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">db</span>.<span class="ident">header_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht_size</span> <span class="op">+</span> <span class="ident">cht_size</span> <span class="op">/</span> <span class="number">2</span>).<span class="ident">is_err</span>());
+		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">db</span>.<span class="ident">header_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht_size</span> <span class="op">/</span> <span class="number">2</span>).<span class="ident">unwrap</span>().<span class="ident">is_some</span>());
+		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">db</span>.<span class="ident">header_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht_size</span> <span class="op">+</span> <span class="ident">cht_size</span> <span class="op">/</span> <span class="number">2</span>).<span class="ident">unwrap</span>().<span class="ident">is_none</span>());
 		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">db</span>.<span class="ident">changes_trie_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht_size</span> <span class="op">/</span> <span class="number">2</span>).<span class="ident">is_err</span>());
-		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">db</span>.<span class="ident">changes_trie_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht_size</span> <span class="op">+</span> <span class="ident">cht_size</span> <span class="op">/</span> <span class="number">2</span>).<span class="ident">is_err</span>());
+		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">db</span>.<span class="ident">changes_trie_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht_size</span> <span class="op">+</span> <span class="ident">cht_size</span> <span class="op">/</span> <span class="number">2</span>).<span class="ident">unwrap</span>().<span class="ident">is_none</span>());
 
 		<span class="comment">// when headers are created with changes tries roots</span>
 		<span class="kw">let</span> <span class="ident">db</span> <span class="op">=</span> <span class="ident">insert_headers</span>(<span class="ident">header_with_changes_trie</span>);
 		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">db</span>.<span class="ident">db</span>.<span class="ident">iter</span>(<span class="ident">columns</span>::<span class="ident">HEADER</span>).<span class="ident">count</span>(), (<span class="number">1</span> <span class="op">+</span> <span class="ident">cht_size</span> <span class="op">+</span> <span class="number">1</span>) <span class="kw">as</span> <span class="ident">usize</span>);
 		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">db</span>.<span class="ident">db</span>.<span class="ident">iter</span>(<span class="ident">columns</span>::<span class="ident">CHT</span>).<span class="ident">count</span>(), <span class="number">2</span>);
 		<span class="macro">assert</span><span class="macro">!</span>((<span class="number">0</span>..<span class="ident">cht_size</span> <span class="kw">as</span> <span class="kw">_</span>).<span class="ident">all</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">db</span>.<span class="ident">header</span>(<span class="ident">BlockId</span>::<span class="ident">Number</span>(<span class="number">1</span> <span class="op">+</span> <span class="ident">i</span>)).<span class="ident">unwrap</span>().<span class="ident">is_none</span>()));
-		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">db</span>.<span class="ident">header_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht_size</span> <span class="op">/</span> <span class="number">2</span>).<span class="ident">is_ok</span>());
-		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">db</span>.<span class="ident">header_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht_size</span> <span class="op">+</span> <span class="ident">cht_size</span> <span class="op">/</span> <span class="number">2</span>).<span class="ident">is_err</span>());
-		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">db</span>.<span class="ident">changes_trie_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht_size</span> <span class="op">/</span> <span class="number">2</span>).<span class="ident">is_ok</span>());
-		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">db</span>.<span class="ident">changes_trie_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht_size</span> <span class="op">+</span> <span class="ident">cht_size</span> <span class="op">/</span> <span class="number">2</span>).<span class="ident">is_err</span>());
+		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">db</span>.<span class="ident">header_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht_size</span> <span class="op">/</span> <span class="number">2</span>).<span class="ident">unwrap</span>().<span class="ident">is_some</span>());
+		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">db</span>.<span class="ident">header_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht_size</span> <span class="op">+</span> <span class="ident">cht_size</span> <span class="op">/</span> <span class="number">2</span>).<span class="ident">unwrap</span>().<span class="ident">is_none</span>());
+		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">db</span>.<span class="ident">changes_trie_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht_size</span> <span class="op">/</span> <span class="number">2</span>).<span class="ident">unwrap</span>().<span class="ident">is_some</span>());
+		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">db</span>.<span class="ident">changes_trie_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht_size</span> <span class="op">+</span> <span class="ident">cht_size</span> <span class="op">/</span> <span class="number">2</span>).<span class="ident">unwrap</span>().<span class="ident">is_none</span>());
 	}
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
@@ -1961,7 +1980,7 @@
 	<span class="attribute">#[<span class="ident">test</span>]</span>
 	<span class="kw">fn</span> <span class="ident">get_cht_fails_for_non_existant_cht</span>() {
 		<span class="kw">let</span> <span class="ident">cht_size</span>: <span class="ident">u64</span> <span class="op">=</span> <span class="ident">cht</span>::<span class="ident">size</span>();
-		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">LightStorage</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>::<span class="ident">new_test</span>().<span class="ident">header_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht_size</span> <span class="op">/</span> <span class="number">2</span>).<span class="ident">is_err</span>());
+		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">LightStorage</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>::<span class="ident">new_test</span>().<span class="ident">header_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht_size</span> <span class="op">/</span> <span class="number">2</span>).<span class="ident">unwrap</span>().<span class="ident">is_none</span>());
 	}
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
@@ -1977,15 +1996,18 @@
 			<span class="ident">db</span>.<span class="ident">finalize_header</span>(<span class="ident">BlockId</span>::<span class="ident">Hash</span>(<span class="ident">prev_hash</span>)).<span class="ident">unwrap</span>();
 		}
 
-		<span class="kw">let</span> <span class="ident">cht_root_1</span> <span class="op">=</span> <span class="ident">db</span>.<span class="ident">header_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht</span>::<span class="ident">start_number</span>(<span class="ident">cht_size</span>, <span class="number">0</span>)).<span class="ident">unwrap</span>();
-		<span class="kw">let</span> <span class="ident">cht_root_2</span> <span class="op">=</span> <span class="ident">db</span>.<span class="ident">header_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht</span>::<span class="ident">start_number</span>(<span class="ident">cht_size</span>, <span class="number">0</span>) <span class="op">+</span> <span class="ident">cht_size</span> <span class="op">/</span> <span class="number">2</span>).<span class="ident">unwrap</span>();
-		<span class="kw">let</span> <span class="ident">cht_root_3</span> <span class="op">=</span> <span class="ident">db</span>.<span class="ident">header_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht</span>::<span class="ident">end_number</span>(<span class="ident">cht_size</span>, <span class="number">0</span>)).<span class="ident">unwrap</span>();
+		<span class="kw">let</span> <span class="ident">cht_root_1</span> <span class="op">=</span> <span class="ident">db</span>.<span class="ident">header_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht</span>::<span class="ident">start_number</span>(<span class="ident">cht_size</span>, <span class="number">0</span>)).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>();
+		<span class="kw">let</span> <span class="ident">cht_root_2</span> <span class="op">=</span> <span class="ident">db</span>.<span class="ident">header_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht</span>::<span class="ident">start_number</span>(<span class="ident">cht_size</span>, <span class="number">0</span>) <span class="op">+</span> <span class="ident">cht_size</span> <span class="op">/</span> <span class="number">2</span>).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>();
+		<span class="kw">let</span> <span class="ident">cht_root_3</span> <span class="op">=</span> <span class="ident">db</span>.<span class="ident">header_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht</span>::<span class="ident">end_number</span>(<span class="ident">cht_size</span>, <span class="number">0</span>)).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>();
 		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">cht_root_1</span>, <span class="ident">cht_root_2</span>);
 		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">cht_root_2</span>, <span class="ident">cht_root_3</span>);
 
-		<span class="kw">let</span> <span class="ident">cht_root_1</span> <span class="op">=</span> <span class="ident">db</span>.<span class="ident">changes_trie_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht</span>::<span class="ident">start_number</span>(<span class="ident">cht_size</span>, <span class="number">0</span>)).<span class="ident">unwrap</span>();
-		<span class="kw">let</span> <span class="ident">cht_root_2</span> <span class="op">=</span> <span class="ident">db</span>.<span class="ident">changes_trie_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht</span>::<span class="ident">start_number</span>(<span class="ident">cht_size</span>, <span class="number">0</span>) <span class="op">+</span> <span class="ident">cht_size</span> <span class="op">/</span> <span class="number">2</span>).<span class="ident">unwrap</span>();
-		<span class="kw">let</span> <span class="ident">cht_root_3</span> <span class="op">=</span> <span class="ident">db</span>.<span class="ident">changes_trie_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht</span>::<span class="ident">end_number</span>(<span class="ident">cht_size</span>, <span class="number">0</span>)).<span class="ident">unwrap</span>();
+		<span class="kw">let</span> <span class="ident">cht_root_1</span> <span class="op">=</span> <span class="ident">db</span>.<span class="ident">changes_trie_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht</span>::<span class="ident">start_number</span>(<span class="ident">cht_size</span>, <span class="number">0</span>)).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>();
+		<span class="kw">let</span> <span class="ident">cht_root_2</span> <span class="op">=</span> <span class="ident">db</span>.<span class="ident">changes_trie_cht_root</span>(
+			<span class="ident">cht_size</span>,
+			<span class="ident">cht</span>::<span class="ident">start_number</span>(<span class="ident">cht_size</span>, <span class="number">0</span>) <span class="op">+</span> <span class="ident">cht_size</span> <span class="op">/</span> <span class="number">2</span>,
+		).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>();
+		<span class="kw">let</span> <span class="ident">cht_root_3</span> <span class="op">=</span> <span class="ident">db</span>.<span class="ident">changes_trie_cht_root</span>(<span class="ident">cht_size</span>, <span class="ident">cht</span>::<span class="ident">end_number</span>(<span class="ident">cht_size</span>, <span class="number">0</span>)).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>();
 		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">cht_root_1</span>, <span class="ident">cht_root_2</span>);
 		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">cht_root_2</span>, <span class="ident">cht_root_3</span>);
 	}
