@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["FreeingBumpHeapAllocator","An implementation of freeing bump allocator."]]});

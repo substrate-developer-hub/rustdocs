@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["allocator","This module implements a freeing-bump allocator."],["error","Rust executor possible errors."],["sandbox","This module implements sandboxing support in the runtime."],["wasm_runtime","Definitions for a wasm runtime."]]});
+initSidebarItems({"mod":[["error","Rust executor possible errors."],["sandbox","This module implements sandboxing support in the runtime."],["wasm_runtime","Definitions for a wasm runtime."]]});

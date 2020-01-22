@@ -423,6 +423,7 @@ ALIASES["slog_scope"] = {};
 ALIASES["smallvec"] = {};
 ALIASES["snow"] = {};
 ALIASES["soketto"] = {};
+ALIASES["sp_allocator"] = {};
 ALIASES["sp_api"] = {};
 ALIASES["sp_api_proc_macro"] = {};
 ALIASES["sp_application_crypto"] = {};
