@@ -417,6 +417,28 @@
 <span id="406">406</span>
 <span id="407">407</span>
 <span id="408">408</span>
+<span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -434,7 +456,7 @@
 <span class="comment">// You should have received a copy of the GNU General Public License</span>
 <span class="comment">// along with Substrate.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
 
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">mem</span>, <span class="ident">pin</span>::<span class="ident">Pin</span>, <span class="ident">time</span>::<span class="ident">Duration</span>};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">mem</span>, <span class="ident">pin</span>::<span class="ident">Pin</span>, <span class="ident">time</span>::<span class="ident">Duration</span>, <span class="ident">marker</span>::<span class="ident">PhantomData</span>};
 <span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">channel</span>::<span class="ident">mpsc</span>, <span class="ident">task</span>::<span class="ident">Context</span>, <span class="ident">task</span>::<span class="ident">Poll</span>};
 <span class="kw">use</span> <span class="ident">futures_timer</span>::<span class="ident">Delay</span>;
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::{<span class="ident">Justification</span>, <span class="ident">traits</span>::{<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">Header</span> <span class="kw">as</span> <span class="ident">HeaderT</span>, <span class="ident">NumberFor</span>}};
@@ -449,7 +471,7 @@
 
 <span class="doccomment">/// Interface to a basic block import queue that is importing blocks sequentially in a separate</span>
 <span class="doccomment">/// task, with pluggable verification.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BasicQueue</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BasicQueue</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">Transaction</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Channel to send messages to the background task.</span>
 	<span class="ident">sender</span>: <span class="ident">mpsc</span>::<span class="ident">UnboundedSender</span><span class="op">&lt;</span><span class="ident">ToWorkerMsg</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// Results coming from the worker task.</span>
@@ -460,16 +482,17 @@
 	<span class="ident">manual_poll</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Pin</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// A thread pool where the background worker is being run.</span>
 	<span class="ident">pool</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">ThreadPool</span><span class="op">&gt;</span>,
+	<span class="ident">_phantom</span>: <span class="ident">PhantomData</span><span class="op">&lt;</span><span class="ident">Transaction</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> <span class="ident">BasicQueue</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">Transaction</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">BasicQueue</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Transaction</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Instantiate a new basic queue, with given verifier.</span>
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// This creates a background task, and calls `on_start` on the justification importer and</span>
 	<span class="doccomment">/// finality proof importer.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span><span class="op">&lt;</span><span class="ident">V</span>: <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Verifier</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>(
 		<span class="ident">verifier</span>: <span class="ident">V</span>,
-		<span class="ident">block_import</span>: <span class="ident">BoxBlockImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+		<span class="ident">block_import</span>: <span class="ident">BoxBlockImport</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Transaction</span><span class="op">&gt;</span>,
 		<span class="ident">justification_import</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">BoxJustificationImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 		<span class="ident">finality_proof_import</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">BoxFinalityProofImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
@@ -501,11 +524,12 @@
 			<span class="ident">result_port</span>,
 			<span class="ident">manual_poll</span>,
 			<span class="ident">pool</span>,
+			<span class="ident">_phantom</span>: <span class="ident">PhantomData</span>,
 		}
 	}
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> <span class="ident">ImportQueue</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">BasicQueue</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">Transaction</span>: <span class="ident">Send</span><span class="op">&gt;</span> <span class="ident">ImportQueue</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">BasicQueue</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Transaction</span><span class="op">&gt;</span> {
 	<span class="kw">fn</span> <span class="ident">import_blocks</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">origin</span>: <span class="ident">BlockOrigin</span>, <span class="ident">blocks</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">IncomingBlock</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>) {
 		<span class="kw">if</span> <span class="ident">blocks</span>.<span class="ident">is_empty</span>() {
 			<span class="kw">return</span>;
@@ -522,12 +546,24 @@
 		<span class="ident">number</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 		<span class="ident">justification</span>: <span class="ident">Justification</span>
 	) {
-		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">unbounded_send</span>(<span class="ident">ToWorkerMsg</span>::<span class="ident">ImportJustification</span>(<span class="ident">who</span>.<span class="ident">clone</span>(), <span class="ident">hash</span>, <span class="ident">number</span>, <span class="ident">justification</span>));
+		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">sender</span>
+			.<span class="ident">unbounded_send</span>(
+				<span class="ident">ToWorkerMsg</span>::<span class="ident">ImportJustification</span>(<span class="ident">who</span>.<span class="ident">clone</span>(), <span class="ident">hash</span>, <span class="ident">number</span>, <span class="ident">justification</span>)
+			);
 	}
 
-	<span class="kw">fn</span> <span class="ident">import_finality_proof</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">who</span>: <span class="ident">Origin</span>, <span class="ident">hash</span>: <span class="ident">B</span>::<span class="ident">Hash</span>, <span class="ident">number</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">finality_proof</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) {
+	<span class="kw">fn</span> <span class="ident">import_finality_proof</span>(
+		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+		<span class="ident">who</span>: <span class="ident">Origin</span>,
+		<span class="ident">hash</span>: <span class="ident">B</span>::<span class="ident">Hash</span>,
+		<span class="ident">number</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+		<span class="ident">finality_proof</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
+	) {
 		<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Scheduling finality proof of {}/{} for import&quot;</span>, <span class="ident">number</span>, <span class="ident">hash</span>);
-		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">unbounded_send</span>(<span class="ident">ToWorkerMsg</span>::<span class="ident">ImportFinalityProof</span>(<span class="ident">who</span>, <span class="ident">hash</span>, <span class="ident">number</span>, <span class="ident">finality_proof</span>));
+		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">sender</span>
+			.<span class="ident">unbounded_send</span>(
+				<span class="ident">ToWorkerMsg</span>::<span class="ident">ImportFinalityProof</span>(<span class="ident">who</span>, <span class="ident">hash</span>, <span class="ident">number</span>, <span class="ident">finality_proof</span>)
+			);
 	}
 
 	<span class="kw">fn</span> <span class="ident">poll_actions</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>, <span class="ident">link</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">Link</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>) {
@@ -552,18 +588,19 @@
 	<span class="ident">ImportFinalityProof</span>(<span class="ident">Origin</span>, <span class="ident">B</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>),
 }
 
-<span class="kw">struct</span> <span class="ident">BlockImportWorker</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> {
+<span class="kw">struct</span> <span class="ident">BlockImportWorker</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">Transaction</span><span class="op">&gt;</span> {
 	<span class="ident">result_sender</span>: <span class="ident">BufferedLinkSender</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 	<span class="ident">justification_import</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">BoxJustificationImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">finality_proof_import</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">BoxFinalityProofImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">delay_between_blocks</span>: <span class="ident">Duration</span>,
+	<span class="ident">_phantom</span>: <span class="ident">PhantomData</span><span class="op">&lt;</span><span class="ident">Transaction</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> <span class="ident">BlockImportWorker</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">Transaction</span>: <span class="ident">Send</span><span class="op">&gt;</span> <span class="ident">BlockImportWorker</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Transaction</span><span class="op">&gt;</span> {
 	<span class="kw">fn</span> <span class="ident">new</span><span class="op">&lt;</span><span class="ident">V</span>: <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Verifier</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>(
 		<span class="ident">result_sender</span>: <span class="ident">BufferedLinkSender</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 		<span class="ident">verifier</span>: <span class="ident">V</span>,
-		<span class="ident">block_import</span>: <span class="ident">BoxBlockImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+		<span class="ident">block_import</span>: <span class="ident">BoxBlockImport</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Transaction</span><span class="op">&gt;</span>,
 		<span class="ident">justification_import</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">BoxJustificationImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 		<span class="ident">finality_proof_import</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">BoxFinalityProofImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> (<span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span>, <span class="ident">mpsc</span>::<span class="ident">UnboundedSender</span><span class="op">&lt;</span><span class="ident">ToWorkerMsg</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>) {
@@ -574,6 +611,7 @@
 			<span class="ident">justification_import</span>,
 			<span class="ident">finality_proof_import</span>,
 			<span class="ident">delay_between_blocks</span>: <span class="ident">Duration</span>::<span class="ident">new</span>(<span class="number">0</span>, <span class="number">0</span>),
+			<span class="ident">_phantom</span>: <span class="ident">PhantomData</span>,
 		};
 
 		<span class="comment">// Let&#39;s initialize `justification_import` and `finality_proof_import`.</span>
@@ -657,11 +695,11 @@
 	<span class="doccomment">/// yielded back in the output once the import is finished.</span>
 	<span class="kw">fn</span> <span class="ident">import_a_batch_of_blocks</span><span class="op">&lt;</span><span class="ident">V</span>: <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Verifier</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>(
 		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-		<span class="ident">block_import</span>: <span class="ident">BoxBlockImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+		<span class="ident">block_import</span>: <span class="ident">BoxBlockImport</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Transaction</span><span class="op">&gt;</span>,
 		<span class="ident">verifier</span>: <span class="ident">V</span>,
 		<span class="ident">origin</span>: <span class="ident">BlockOrigin</span>,
 		<span class="ident">blocks</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">IncomingBlock</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>
-	) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> (<span class="ident">BoxBlockImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">V</span>)<span class="op">&gt;</span> {
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> (<span class="ident">BoxBlockImport</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Transaction</span><span class="op">&gt;</span>, <span class="ident">V</span>)<span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result_sender</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">result_sender</span>.<span class="ident">clone</span>();
 
 		<span class="ident">import_many_blocks</span>(<span class="ident">block_import</span>, <span class="ident">origin</span>, <span class="ident">blocks</span>, <span class="ident">verifier</span>, <span class="self">self</span>.<span class="ident">delay_between_blocks</span>)
@@ -729,16 +767,22 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// The returned `Future` yields at every imported block, which makes the execution more</span>
 <span class="doccomment">/// fine-grained and making it possible to interrupt the process.</span>
-<span class="kw">fn</span> <span class="ident">import_many_blocks</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">V</span>: <span class="ident">Verifier</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>(
-	<span class="ident">import_handle</span>: <span class="ident">BoxBlockImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+<span class="kw">fn</span> <span class="ident">import_many_blocks</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">V</span>: <span class="ident">Verifier</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">Transaction</span><span class="op">&gt;</span>(
+	<span class="ident">import_handle</span>: <span class="ident">BoxBlockImport</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Transaction</span><span class="op">&gt;</span>,
 	<span class="ident">blocks_origin</span>: <span class="ident">BlockOrigin</span>,
 	<span class="ident">blocks</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">IncomingBlock</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">verifier</span>: <span class="ident">V</span>,
 	<span class="ident">delay_between_blocks</span>: <span class="ident">Duration</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> (<span class="ident">usize</span>, <span class="ident">usize</span>, <span class="ident">Vec</span><span class="op">&lt;</span>(
-	<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">BlockImportResult</span><span class="op">&lt;</span><span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">BlockImportError</span><span class="op">&gt;</span>,
-	<span class="ident">B</span>::<span class="ident">Hash</span>,
-)<span class="op">&gt;</span>, <span class="ident">BoxBlockImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">V</span>)<span class="op">&gt;</span> {
+) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span>
+	<span class="ident">Output</span> <span class="op">=</span> (
+		<span class="ident">usize</span>,
+		<span class="ident">usize</span>,
+		<span class="ident">Vec</span><span class="op">&lt;</span>(<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">BlockImportResult</span><span class="op">&lt;</span><span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">BlockImportError</span><span class="op">&gt;</span>, <span class="ident">B</span>::<span class="ident">Hash</span>,)<span class="op">&gt;</span>,
+		<span class="ident">BoxBlockImport</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Transaction</span><span class="op">&gt;</span>,
+		<span class="ident">V</span>
+	)
+<span class="op">&gt;</span>
+{
 	<span class="kw">let</span> <span class="ident">count</span> <span class="op">=</span> <span class="ident">blocks</span>.<span class="ident">len</span>();
 
 	<span class="kw">let</span> <span class="ident">blocks_range</span> <span class="op">=</span> <span class="kw">match</span> (

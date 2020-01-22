@@ -192,6 +192,28 @@
 <span id="181">181</span>
 <span id="182">182</span>
 <span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
+<span id="197">197</span>
+<span id="198">198</span>
+<span id="199">199</span>
+<span id="200">200</span>
+<span id="201">201</span>
+<span id="202">202</span>
+<span id="203">203</span>
+<span id="204">204</span>
+<span id="205">205</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -257,6 +279,18 @@
 	}
 }
 
+<span class="doccomment">/// Generate the starting set of ExternalitiesExtensions based upon the given capabilities</span>
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">ExtensionsFactory</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> {
+	<span class="doccomment">/// Make `Extensions` for given Capapbilities</span>
+	<span class="kw">fn</span> <span class="ident">extensions_for</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">capabilities</span>: <span class="ident">offchain</span>::<span class="ident">Capabilities</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Extensions</span>;
+}
+
+<span class="kw">impl</span> <span class="ident">ExtensionsFactory</span> <span class="kw">for</span> () {
+	<span class="kw">fn</span> <span class="ident">extensions_for</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_capabilities</span>: <span class="ident">offchain</span>::<span class="ident">Capabilities</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Extensions</span> {
+		<span class="ident">Extensions</span>::<span class="ident">new</span>()
+	}
+}
+
 <span class="doccomment">/// A producer of execution extensions for offchain calls.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// This crate aggregates extensions available for the offchain calls</span>
@@ -265,7 +299,10 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ExecutionExtensions</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">traits</span>::<span class="ident">Block</span><span class="op">&gt;</span> {
 	<span class="ident">strategies</span>: <span class="ident">ExecutionStrategies</span>,
 	<span class="ident">keystore</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">BareCryptoStorePtr</span><span class="op">&gt;</span>,
+	<span class="comment">// FIXME: these two are only RwLock because of https://github.com/paritytech/substrate/issues/4587</span>
+	<span class="comment">//        remove when fixed.</span>
 	<span class="ident">transaction_pool</span>: <span class="ident">RwLock</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Weak</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">sp_transaction_pool</span>::<span class="ident">OffchainSubmitTransaction</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">extensions_factory</span>: <span class="ident">RwLock</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">ExtensionsFactory</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">traits</span>::<span class="ident">Block</span><span class="op">&gt;</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">ExecutionExtensions</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> {
@@ -274,6 +311,7 @@
 			<span class="ident">strategies</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
 			<span class="ident">keystore</span>: <span class="prelude-val">None</span>,
 			<span class="ident">transaction_pool</span>: <span class="ident">RwLock</span>::<span class="ident">new</span>(<span class="prelude-val">None</span>),
+			<span class="ident">extensions_factory</span>: <span class="ident">RwLock</span>::<span class="ident">new</span>(<span class="ident">Box</span>::<span class="ident">new</span>(())),
 		}
 	}
 }
@@ -285,12 +323,18 @@
 		<span class="ident">keystore</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">BareCryptoStorePtr</span><span class="op">&gt;</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
 		<span class="kw">let</span> <span class="ident">transaction_pool</span> <span class="op">=</span> <span class="ident">RwLock</span>::<span class="ident">new</span>(<span class="prelude-val">None</span>);
-		<span class="self">Self</span> { <span class="ident">strategies</span>, <span class="ident">keystore</span>, <span class="ident">transaction_pool</span> }
+		<span class="kw">let</span> <span class="ident">extensions_factory</span> <span class="op">=</span> <span class="ident">Box</span>::<span class="ident">new</span>(());
+		<span class="self">Self</span> { <span class="ident">strategies</span>, <span class="ident">keystore</span>, <span class="ident">extensions_factory</span>: <span class="ident">RwLock</span>::<span class="ident">new</span>(<span class="ident">extensions_factory</span>), <span class="ident">transaction_pool</span> }
 	}
 
 	<span class="doccomment">/// Get a reference to the execution strategies.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">strategies</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">ExecutionStrategies</span> {
 		<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">strategies</span>
+	}
+
+	<span class="doccomment">/// Set the new extensions_factory</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_extensions_factory</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">maker</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">ExtensionsFactory</span><span class="op">&gt;</span>) {
+		<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">extensions_factory</span>.<span class="ident">write</span>() <span class="op">=</span> <span class="ident">maker</span>;
 	}
 
 	<span class="doccomment">/// Register transaction pool extension.</span>
@@ -330,7 +374,7 @@
 
 		<span class="kw">let</span> <span class="ident">capabilities</span> <span class="op">=</span> <span class="ident">context</span>.<span class="ident">capabilities</span>();
 
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">extensions</span> <span class="op">=</span> <span class="ident">Extensions</span>::<span class="ident">new</span>();
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">extensions</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">extensions_factory</span>.<span class="ident">read</span>().<span class="ident">extensions_for</span>(<span class="ident">capabilities</span>);
 
 		<span class="kw">if</span> <span class="ident">capabilities</span>.<span class="ident">has</span>(<span class="ident">offchain</span>::<span class="ident">Capability</span>::<span class="ident">Keystore</span>) {
 			<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">keystore</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">keystore</span>.<span class="ident">as_ref</span>() {

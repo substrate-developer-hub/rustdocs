@@ -370,6 +370,36 @@
 <span id="359">359</span>
 <span id="360">360</span>
 <span id="361">361</span>
+<span id="362">362</span>
+<span id="363">363</span>
+<span id="364">364</span>
+<span id="365">365</span>
+<span id="366">366</span>
+<span id="367">367</span>
+<span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
+<span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -395,7 +425,7 @@
 <span class="kw">use</span> <span class="ident">codec</span>::{<span class="ident">Decode</span>, <span class="ident">Encode</span>};
 <span class="kw">use</span> <span class="ident">sp_core</span>::{<span class="ident">NativeOrEncoded</span>, <span class="ident">traits</span>::{<span class="ident">CodeExecutor</span>, <span class="ident">Externalities</span>}};
 <span class="kw">use</span> <span class="ident">log</span>::<span class="ident">trace</span>;
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">result</span>, <span class="ident">cell</span>::<span class="ident">RefCell</span>, <span class="ident">panic</span>::{<span class="ident">UnwindSafe</span>, <span class="ident">AssertUnwindSafe</span>}};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">result</span>, <span class="ident">cell</span>::<span class="ident">RefCell</span>, <span class="ident">panic</span>::{<span class="ident">UnwindSafe</span>, <span class="ident">AssertUnwindSafe</span>}, <span class="ident">sync</span>::<span class="ident">Arc</span>};
 <span class="kw">use</span> <span class="ident">sp_wasm_interface</span>::{<span class="ident">HostFunctions</span>, <span class="ident">Function</span>};
 <span class="kw">use</span> <span class="ident">sc_executor_common</span>::<span class="ident">wasm_runtime</span>::<span class="ident">WasmRuntime</span>;
 
@@ -406,22 +436,29 @@
 <span class="doccomment">/// Default num of pages for the heap</span>
 <span class="kw">const</span> <span class="ident">DEFAULT_HEAP_PAGES</span>: <span class="ident">u64</span> <span class="op">=</span> <span class="number">1024</span>;
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">safe_call</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">U</span><span class="op">&gt;</span>(<span class="ident">f</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>
-	<span class="kw">where</span> <span class="ident">F</span>: <span class="ident">UnwindSafe</span> <span class="op">+</span> <span class="ident">FnOnce</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">U</span>
-{
-	<span class="comment">// Substrate uses custom panic hook that terminates process on panic. Disable</span>
-	<span class="comment">// termination for the native call.</span>
-	<span class="kw">let</span> <span class="ident">_guard</span> <span class="op">=</span> <span class="ident">sp_panic_handler</span>::<span class="ident">AbortGuard</span>::<span class="ident">force_unwind</span>();
-	<span class="ident">std</span>::<span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="ident">f</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Runtime</span>)
-}
-
-<span class="doccomment">/// Set up the externalities and safe calling environment to execute calls to a native runtime.</span>
+<span class="doccomment">/// Set up the externalities and safe calling environment to execute runtime calls.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// If the inner closure panics, it will be caught and return an error.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_native_environment</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">U</span><span class="op">&gt;</span>(<span class="ident">ext</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">Externalities</span>, <span class="ident">f</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_externalities_safe</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">U</span><span class="op">&gt;</span>(<span class="ident">ext</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">Externalities</span>, <span class="ident">f</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>
 	<span class="kw">where</span> <span class="ident">F</span>: <span class="ident">UnwindSafe</span> <span class="op">+</span> <span class="ident">FnOnce</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">U</span>
 {
-	<span class="ident">sp_externalities</span>::<span class="ident">set_and_run_with_externalities</span>(<span class="ident">ext</span>, <span class="kw">move</span> <span class="op">|</span><span class="op">|</span> <span class="ident">safe_call</span>(<span class="ident">f</span>))
+	<span class="ident">sp_externalities</span>::<span class="ident">set_and_run_with_externalities</span>(
+		<span class="ident">ext</span>,
+		<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
+			<span class="comment">// Substrate uses custom panic hook that terminates process on panic. Disable</span>
+			<span class="comment">// termination for the native call.</span>
+			<span class="kw">let</span> <span class="ident">_guard</span> <span class="op">=</span> <span class="ident">sp_panic_handler</span>::<span class="ident">AbortGuard</span>::<span class="ident">force_unwind</span>();
+			<span class="ident">std</span>::<span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="ident">f</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
+				<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="ident">e</span>.<span class="ident">downcast_ref</span>::<span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>() {
+					<span class="ident">Error</span>::<span class="ident">RuntimePanicked</span>(<span class="ident">err</span>.<span class="ident">clone</span>())
+				} <span class="kw">else</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="ident">e</span>.<span class="ident">downcast_ref</span>::<span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span>() {
+					<span class="ident">Error</span>::<span class="ident">RuntimePanicked</span>(<span class="ident">err</span>.<span class="ident">to_string</span>())
+				} <span class="kw">else</span> {
+					<span class="ident">Error</span>::<span class="ident">RuntimePanicked</span>(<span class="string">&quot;Unknown panic&quot;</span>.<span class="ident">into</span>())
+				}
+			})
+		},
+	)
 }
 
 <span class="doccomment">/// Delegate for dispatching a CodeExecutor call.</span>
@@ -453,7 +490,7 @@
 	<span class="doccomment">/// The number of 64KB pages to allocate for Wasm execution.</span>
 	<span class="ident">default_heap_pages</span>: <span class="ident">u64</span>,
 	<span class="doccomment">/// The host functions registered with this instance.</span>
-	<span class="ident">host_functions</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="kw">dyn</span> <span class="ident">Function</span><span class="op">&gt;</span>,
+	<span class="ident">host_functions</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="kw">dyn</span> <span class="ident">Function</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">NativeExecutionDispatch</span><span class="op">&gt;</span> <span class="ident">NativeExecutor</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span> {
@@ -480,7 +517,7 @@
 			<span class="ident">fallback_method</span>,
 			<span class="ident">native_version</span>: <span class="ident">D</span>::<span class="ident">native_version</span>(),
 			<span class="ident">default_heap_pages</span>: <span class="ident">default_heap_pages</span>.<span class="ident">unwrap_or</span>(<span class="ident">DEFAULT_HEAP_PAGES</span>),
-			<span class="ident">host_functions</span>,
+			<span class="ident">host_functions</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">host_functions</span>),
 		}
 	}
 
@@ -512,7 +549,7 @@
 				<span class="ident">ext</span>,
 				<span class="self">self</span>.<span class="ident">fallback_method</span>,
 				<span class="self">self</span>.<span class="ident">default_heap_pages</span>,
-				<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">host_functions</span>,
+				<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">host_functions</span>,
 			)<span class="question-mark">?</span>;
 
 			<span class="kw">let</span> <span class="ident">runtime</span> <span class="op">=</span> <span class="ident">AssertUnwindSafe</span>(<span class="ident">runtime</span>);
@@ -554,7 +591,7 @@
 	}
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">NativeExecutionDispatch</span><span class="op">&gt;</span> <span class="ident">CodeExecutor</span> <span class="kw">for</span> <span class="ident">NativeExecutor</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">NativeExecutionDispatch</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">CodeExecutor</span> <span class="kw">for</span> <span class="ident">NativeExecutor</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span> {
 	<span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span>;
 
 	<span class="kw">fn</span> <span class="ident">call</span>
@@ -585,13 +622,15 @@
 						<span class="ident">onchain_version</span>,
 					);
 
-					<span class="ident">safe_call</span>(
-						<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> <span class="ident">runtime</span>.<span class="ident">call</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">ext</span>, <span class="ident">method</span>, <span class="ident">data</span>).<span class="ident">map</span>(<span class="ident">NativeOrEncoded</span>::<span class="ident">Encoded</span>)
+					<span class="ident">with_externalities_safe</span>(
+						<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">ext</span>,
+						<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> <span class="ident">runtime</span>.<span class="ident">call</span>(<span class="ident">method</span>, <span class="ident">data</span>).<span class="ident">map</span>(<span class="ident">NativeOrEncoded</span>::<span class="ident">Encoded</span>)
 					)
 				}
 				(<span class="bool-val">false</span>, <span class="kw">_</span>, <span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
-					<span class="ident">safe_call</span>(
-						<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> <span class="ident">runtime</span>.<span class="ident">call</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">ext</span>, <span class="ident">method</span>, <span class="ident">data</span>).<span class="ident">map</span>(<span class="ident">NativeOrEncoded</span>::<span class="ident">Encoded</span>)
+					<span class="ident">with_externalities_safe</span>(
+						<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">ext</span>,
+						<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> <span class="ident">runtime</span>.<span class="ident">call</span>(<span class="ident">method</span>, <span class="ident">data</span>).<span class="ident">map</span>(<span class="ident">NativeOrEncoded</span>::<span class="ident">Encoded</span>)
 					)
 				},
 				(<span class="bool-val">true</span>, <span class="bool-val">true</span>, <span class="prelude-val">Some</span>(<span class="ident">call</span>)) <span class="op">=</span><span class="op">&gt;</span> {
@@ -603,7 +642,7 @@
 					);
 
 					<span class="ident">used_native</span> <span class="op">=</span> <span class="bool-val">true</span>;
-					<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">with_native_environment</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">ext</span>, <span class="kw">move</span> <span class="op">|</span><span class="op">|</span> (<span class="ident">call</span>)())
+					<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">with_externalities_safe</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">ext</span>, <span class="kw">move</span> <span class="op">|</span><span class="op">|</span> (<span class="ident">call</span>)())
 						.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">r</span><span class="op">|</span> <span class="ident">r</span>
 							.<span class="ident">map</span>(<span class="ident">NativeOrEncoded</span>::<span class="ident">Native</span>)
 							.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">ApiError</span>(<span class="ident">s</span>.<span class="ident">to_string</span>()))
@@ -625,6 +664,27 @@
 			}
 		});
 		(<span class="ident">result</span>, <span class="ident">used_native</span>)
+	}
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">NativeExecutionDispatch</span><span class="op">&gt;</span> <span class="ident">sp_core</span>::<span class="ident">traits</span>::<span class="ident">CallInWasm</span> <span class="kw">for</span> <span class="ident">NativeExecutor</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">call_in_wasm</span>(
+		<span class="kw-2">&amp;</span><span class="self">self</span>,
+		<span class="ident">wasm_blob</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
+		<span class="ident">method</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
+		<span class="ident">call_data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
+		<span class="ident">ext</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">Externalities</span>,
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span> {
+		<span class="kw">crate</span>::<span class="ident">call_in_wasm_with_host_functions</span>(
+			<span class="ident">method</span>,
+			<span class="ident">call_data</span>,
+			<span class="self">self</span>.<span class="ident">fallback_method</span>,
+			<span class="ident">ext</span>,
+			<span class="ident">wasm_blob</span>,
+			<span class="self">self</span>.<span class="ident">default_heap_pages</span>,
+			(<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">host_functions</span>).<span class="ident">clone</span>(),
+			<span class="bool-val">false</span>,
+		).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">to_string</span>())
 	}
 }
 
@@ -691,7 +751,7 @@
 				<span class="ident">method</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
 				<span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]
 			) <span class="op">-</span><span class="op">&gt;</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-				<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">with_native_environment</span>(<span class="ident">ext</span>, <span class="kw">move</span> <span class="op">|</span><span class="op">|</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">dispatcher</span>(<span class="ident">method</span>, <span class="ident">data</span>))<span class="question-mark">?</span>
+				<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">with_externalities_safe</span>(<span class="ident">ext</span>, <span class="kw">move</span> <span class="op">|</span><span class="op">|</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">dispatcher</span>(<span class="ident">method</span>, <span class="ident">data</span>))<span class="question-mark">?</span>
 					.<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">error</span>::<span class="ident">Error</span>::<span class="ident">MethodNotFound</span>(<span class="ident">method</span>.<span class="ident">to_owned</span>()))
 			}
 

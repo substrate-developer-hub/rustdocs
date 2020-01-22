@@ -1,1 +1,1 @@
-initSidebarItems({"trait":[["ClientExt","Extension trait for a test client."]]});
+initSidebarItems({"trait":[["ClientBlockImportExt","Extension trait for a test client around block importing."],["ClientExt","Extension trait for a test client."]]});

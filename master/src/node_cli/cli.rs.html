@@ -217,6 +217,7 @@
 <span id="206">206</span>
 <span id="207">207</span>
 <span id="208">208</span>
+<span id="209">209</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -235,7 +236,6 @@
 <span class="comment">// along with Substrate.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">sc_cli</span>::<span class="ident">VersionInfo</span>;
-<span class="kw">use</span> <span class="ident">tokio</span>::<span class="ident">prelude</span>::<span class="ident">Future</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::<span class="ident">runtime</span>::{<span class="ident">Builder</span> <span class="kw">as</span> <span class="ident">RuntimeBuilder</span>, <span class="ident">Runtime</span>};
 <span class="kw">use</span> <span class="ident">sc_cli</span>::{<span class="ident">IntoExit</span>, <span class="ident">NoCustom</span>, <span class="ident">SharedParams</span>, <span class="ident">ImportParams</span>, <span class="ident">error</span>};
 <span class="kw">use</span> <span class="ident">sc_service</span>::{<span class="ident">AbstractService</span>, <span class="ident">Roles</span> <span class="kw">as</span> <span class="ident">ServiceRoles</span>, <span class="ident">Configuration</span>};
@@ -245,6 +245,7 @@
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">service</span>, <span class="ident">ChainSpec</span>, <span class="ident">load_spec</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">factory_impl</span>::<span class="ident">FactoryState</span>;
 <span class="kw">use</span> <span class="ident">node_transaction_factory</span>::<span class="ident">RuntimeAdapter</span>;
+<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">channel</span>::<span class="ident">oneshot</span>, <span class="ident">future</span>::{<span class="ident">select</span>, <span class="ident">Either</span>}};
 
 <span class="doccomment">/// Custom subcommands.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">StructOpt</span>)]</span>
@@ -318,15 +319,23 @@
 
 	<span class="kw">match</span> <span class="ident">parse_and_prepare</span>::<span class="op">&lt;</span><span class="ident">CustomSubcommands</span>, <span class="ident">NoCustom</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="ident">version</span>, <span class="string">&quot;substrate-node&quot;</span>, <span class="ident">args</span>) {
 		<span class="ident">ParseAndPrepare</span>::<span class="ident">Run</span>(<span class="ident">cmd</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">cmd</span>.<span class="ident">run</span>(<span class="ident">load_spec</span>, <span class="ident">exit</span>,
-		<span class="op">|</span><span class="ident">exit</span>, <span class="ident">_cli_args</span>, <span class="ident">_custom_args</span>, <span class="ident">config</span>: <span class="ident">Config</span><span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span><span class="op">|</span> {
+		<span class="op">|</span><span class="ident">exit</span>, <span class="ident">_cli_args</span>, <span class="ident">_custom_args</span>, <span class="kw-2">mut</span> <span class="ident">config</span>: <span class="ident">Config</span><span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span><span class="op">|</span> {
 			<span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">version</span>.<span class="ident">name</span>);
 			<span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;  version {}&quot;</span>, <span class="ident">config</span>.<span class="ident">full_version</span>());
 			<span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;  by Parity Technologies, 2017-2019&quot;</span>);
 			<span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;Chain specification: {}&quot;</span>, <span class="ident">config</span>.<span class="ident">chain_spec</span>.<span class="ident">name</span>());
 			<span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;Node name: {}&quot;</span>, <span class="ident">config</span>.<span class="ident">name</span>);
 			<span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;Roles: {}&quot;</span>, <span class="ident">display_role</span>(<span class="kw-2">&amp;</span><span class="ident">config</span>));
-			<span class="kw">let</span> <span class="ident">runtime</span> <span class="op">=</span> <span class="ident">RuntimeBuilder</span>::<span class="ident">new</span>().<span class="ident">name_prefix</span>(<span class="string">&quot;main-tokio-&quot;</span>).<span class="ident">build</span>()
+			<span class="kw">let</span> <span class="ident">runtime</span> <span class="op">=</span> <span class="ident">RuntimeBuilder</span>::<span class="ident">new</span>()
+				.<span class="ident">thread_name</span>(<span class="string">&quot;main-tokio-&quot;</span>)
+				.<span class="ident">threaded_scheduler</span>()
+				.<span class="ident">enable_all</span>()
+				.<span class="ident">build</span>()
 				.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">e</span>))<span class="question-mark">?</span>;
+			<span class="ident">config</span>.<span class="ident">tasks_executor</span> <span class="op">=</span> {
+				<span class="kw">let</span> <span class="ident">runtime_handle</span> <span class="op">=</span> <span class="ident">runtime</span>.<span class="ident">handle</span>().<span class="ident">clone</span>();
+				<span class="prelude-val">Some</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">fut</span><span class="op">|</span> { <span class="ident">runtime_handle</span>.<span class="ident">spawn</span>(<span class="ident">fut</span>); }))
+			};
 			<span class="kw">match</span> <span class="ident">config</span>.<span class="ident">roles</span> {
 				<span class="ident">ServiceRoles</span>::<span class="ident">LIGHT</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">run_until_exit</span>(
 					<span class="ident">runtime</span>,
@@ -355,9 +364,14 @@
 				<span class="ident">load_spec</span>,
 				<span class="kw-2">&amp;</span><span class="ident">cli_args</span>.<span class="ident">shared_params</span>,
 				<span class="kw-2">&amp;</span><span class="ident">version</span>,
+				<span class="prelude-val">None</span>,
 			)<span class="question-mark">?</span>;
-
-			<span class="ident">sc_cli</span>::<span class="ident">fill_import_params</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">config</span>, <span class="kw-2">&amp;</span><span class="ident">cli_args</span>.<span class="ident">import_params</span>, <span class="ident">ServiceRoles</span>::<span class="ident">FULL</span>)<span class="question-mark">?</span>;
+			<span class="ident">sc_cli</span>::<span class="ident">fill_import_params</span>(
+				<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">config</span>,
+				<span class="kw-2">&amp;</span><span class="ident">cli_args</span>.<span class="ident">import_params</span>,
+				<span class="ident">ServiceRoles</span>::<span class="ident">FULL</span>,
+				<span class="ident">cli_args</span>.<span class="ident">shared_params</span>.<span class="ident">dev</span>,
+			)<span class="question-mark">?</span>;
 
 			<span class="kw">match</span> <span class="ident">ChainSpec</span>::<span class="ident">from</span>(<span class="ident">config</span>.<span class="ident">chain_spec</span>.<span class="ident">id</span>()) {
 				<span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">c</span>) <span class="kw">if</span> <span class="ident">c</span> <span class="op">=</span><span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">ChainSpec</span>::<span class="ident">Development</span> <span class="op">|</span><span class="op">|</span> <span class="ident">c</span> <span class="op">=</span><span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">ChainSpec</span>::<span class="ident">LocalTestnet</span> <span class="op">=</span><span class="op">&gt;</span> {},
@@ -392,39 +406,27 @@
 	<span class="ident">T</span>: <span class="ident">AbstractService</span>,
 	<span class="ident">E</span>: <span class="ident">IntoExit</span>,
 {
-	<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">FutureExt</span>, <span class="ident">TryFutureExt</span>, <span class="ident">channel</span>::<span class="ident">oneshot</span>, <span class="ident">future</span>::<span class="ident">select</span>, <span class="ident">compat</span>::<span class="ident">Future01CompatExt</span>};
-
 	<span class="kw">let</span> (<span class="ident">exit_send</span>, <span class="ident">exit</span>) <span class="op">=</span> <span class="ident">oneshot</span>::<span class="ident">channel</span>();
 
 	<span class="kw">let</span> <span class="ident">informant</span> <span class="op">=</span> <span class="ident">sc_cli</span>::<span class="ident">informant</span>::<span class="ident">build</span>(<span class="kw-2">&amp;</span><span class="ident">service</span>);
 
-	<span class="kw">let</span> <span class="ident">future</span> <span class="op">=</span> <span class="ident">select</span>(<span class="ident">informant</span>, <span class="ident">exit</span>)
-		.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()))
-		.<span class="ident">compat</span>();
-
-	<span class="ident">runtime</span>.<span class="ident">executor</span>().<span class="ident">spawn</span>(<span class="ident">future</span>);
+	<span class="kw">let</span> <span class="ident">handle</span> <span class="op">=</span> <span class="ident">runtime</span>.<span class="ident">spawn</span>(<span class="ident">select</span>(<span class="ident">exit</span>, <span class="ident">informant</span>));
 
 	<span class="comment">// we eagerly drop the service so that the internal exit future is fired,</span>
 	<span class="comment">// but we need to keep holding a reference to the global telemetry guard</span>
 	<span class="kw">let</span> <span class="ident">_telemetry</span> <span class="op">=</span> <span class="ident">service</span>.<span class="ident">telemetry</span>();
 
-	<span class="kw">let</span> <span class="ident">service_res</span> <span class="op">=</span> {
-		<span class="kw">let</span> <span class="ident">exit</span> <span class="op">=</span> <span class="ident">e</span>.<span class="ident">into_exit</span>();
-		<span class="kw">let</span> <span class="ident">service</span> <span class="op">=</span> <span class="ident">service</span>
-			.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> <span class="ident">error</span>::<span class="ident">Error</span>::<span class="ident">Service</span>(<span class="ident">err</span>))
-			.<span class="ident">compat</span>();
-		<span class="kw">let</span> <span class="ident">select</span> <span class="op">=</span> <span class="ident">select</span>(<span class="ident">service</span>, <span class="ident">exit</span>)
-			.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()))
-			.<span class="ident">compat</span>();
-		<span class="ident">runtime</span>.<span class="ident">block_on</span>(<span class="ident">select</span>)
-	};
+	<span class="kw">let</span> <span class="ident">exit</span> <span class="op">=</span> <span class="ident">e</span>.<span class="ident">into_exit</span>();
+	<span class="kw">let</span> <span class="ident">service_res</span> <span class="op">=</span> <span class="ident">runtime</span>.<span class="ident">block_on</span>(<span class="ident">select</span>(<span class="ident">service</span>, <span class="ident">exit</span>));
 
 	<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">exit_send</span>.<span class="ident">send</span>(());
 
-	<span class="comment">// TODO [andre]: timeout this future #1318</span>
-	<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">runtime</span>.<span class="ident">shutdown_on_idle</span>().<span class="ident">wait</span>();
+	<span class="ident">runtime</span>.<span class="ident">block_on</span>(<span class="ident">handle</span>);
 
-	<span class="ident">service_res</span>
+	<span class="kw">match</span> <span class="ident">service_res</span> {
+		<span class="ident">Either</span>::<span class="ident">Left</span>((<span class="ident">res</span>, <span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">res</span>.<span class="ident">map_err</span>(<span class="ident">error</span>::<span class="ident">Error</span>::<span class="ident">Service</span>),
+		<span class="ident">Either</span>::<span class="ident">Right</span>((<span class="kw">_</span>, <span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(())
+	}
 }
 </pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../";window.currentCrate = "node_cli";</script><script src="../../aliases.js"></script><script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script><script defer src="../../search-index.js"></script></body></html>

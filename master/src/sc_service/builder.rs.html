@@ -1171,6 +1171,8 @@
 <span id="1160">1160</span>
 <span id="1161">1161</span>
 <span id="1162">1162</span>
+<span id="1163">1163</span>
+<span id="1164">1164</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1196,33 +1198,30 @@
 	<span class="self">self</span>,
 	<span class="ident">BlockchainEvents</span>,
 	<span class="ident">backend</span>::<span class="ident">RemoteBackend</span>, <span class="ident">light</span>::<span class="ident">RemoteBlockchain</span>,
+	<span class="ident">execution_extensions</span>::<span class="ident">ExtensionsFactory</span>,
 };
 <span class="kw">use</span> <span class="ident">sc_client</span>::<span class="ident">Client</span>;
 <span class="kw">use</span> <span class="ident">sc_chain_spec</span>::{<span class="ident">RuntimeGenesis</span>, <span class="ident">Extension</span>};
 <span class="kw">use</span> <span class="ident">sp_consensus</span>::<span class="ident">import_queue</span>::<span class="ident">ImportQueue</span>;
-<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">sync</span>::<span class="ident">mpsc</span>};
-<span class="kw">use</span> <span class="ident">futures03</span>::{
-	<span class="ident">compat</span>::<span class="ident">Compat</span>,
-	<span class="ident">FutureExt</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">TryFutureExt</span> <span class="kw">as</span> <span class="kw">_</span>,
-	<span class="ident">StreamExt</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">TryStreamExt</span> <span class="kw">as</span> <span class="kw">_</span>,
-	<span class="ident">future</span>::{<span class="ident">select</span>, <span class="ident">Either</span>}
+<span class="kw">use</span> <span class="ident">futures</span>::{
+	<span class="ident">Future</span>, <span class="ident">FutureExt</span>, <span class="ident">StreamExt</span>,
+	<span class="ident">channel</span>::<span class="ident">mpsc</span>,
+	<span class="ident">future</span>::{<span class="ident">select</span>, <span class="ident">ready</span>}
 };
 <span class="kw">use</span> <span class="ident">sc_keystore</span>::{<span class="ident">Store</span> <span class="kw">as</span> <span class="ident">Keystore</span>};
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">info</span>, <span class="ident">warn</span>, <span class="ident">error</span>};
 <span class="kw">use</span> <span class="ident">sc_network</span>::{<span class="ident">FinalityProofProvider</span>, <span class="ident">OnDemand</span>, <span class="ident">NetworkService</span>, <span class="ident">NetworkStateInfo</span>};
 <span class="kw">use</span> <span class="ident">sc_network</span>::{<span class="ident">config</span>::<span class="ident">BoxFinalityProofRequestBuilder</span>, <span class="ident">specialization</span>::<span class="ident">NetworkSpecialization</span>};
 <span class="kw">use</span> <span class="ident">parking_lot</span>::{<span class="ident">Mutex</span>, <span class="ident">RwLock</span>};
-<span class="kw">use</span> <span class="ident">sp_core</span>::{<span class="ident">Blake2Hasher</span>, <span class="ident">H256</span>, <span class="ident">Hasher</span>};
-<span class="kw">use</span> <span class="ident">sc_rpc</span>;
-<span class="kw">use</span> <span class="ident">sp_api</span>::<span class="ident">ConstructRuntimeApi</span>;
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">generic</span>::<span class="ident">BlockId</span>;
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">traits</span>::{
-	<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">ProvideRuntimeApi</span>, <span class="ident">NumberFor</span>, <span class="ident">SaturatedConversion</span>,
+	<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">NumberFor</span>, <span class="ident">SaturatedConversion</span>, <span class="ident">HasherFor</span>,
 };
+<span class="kw">use</span> <span class="ident">sp_api</span>::<span class="ident">ProvideRuntimeApi</span>;
 <span class="kw">use</span> <span class="ident">sc_executor</span>::{<span class="ident">NativeExecutor</span>, <span class="ident">NativeExecutionDispatch</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{
 	<span class="ident">io</span>::{<span class="ident">Read</span>, <span class="ident">Write</span>, <span class="ident">Seek</span>},
-	<span class="ident">marker</span>::<span class="ident">PhantomData</span>, <span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">time</span>::<span class="ident">SystemTime</span>
+	<span class="ident">marker</span>::<span class="ident">PhantomData</span>, <span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">time</span>::<span class="ident">SystemTime</span>, <span class="ident">pin</span>::<span class="ident">Pin</span>
 };
 <span class="kw">use</span> <span class="ident">sysinfo</span>::{<span class="ident">get_current_pid</span>, <span class="ident">ProcessExt</span>, <span class="ident">System</span>, <span class="ident">SystemExt</span>};
 <span class="kw">use</span> <span class="ident">sc_telemetry</span>::{<span class="ident">telemetry</span>, <span class="ident">SUBSTRATE_INFO</span>};
@@ -1295,19 +1294,19 @@
 <span class="doccomment">/// Light client backend type.</span>
 <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">TLightBackend</span><span class="op">&lt;</span><span class="ident">TBl</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">sc_client</span>::<span class="ident">light</span>::<span class="ident">backend</span>::<span class="ident">Backend</span><span class="op">&lt;</span>
 	<span class="ident">sc_client_db</span>::<span class="ident">light</span>::<span class="ident">LightStorage</span><span class="op">&lt;</span><span class="ident">TBl</span><span class="op">&gt;</span>,
-	<span class="ident">Blake2Hasher</span>,
+	<span class="ident">HasherFor</span><span class="op">&lt;</span><span class="ident">TBl</span><span class="op">&gt;</span>,
 <span class="op">&gt;</span>;
 
 <span class="doccomment">/// Light call executor type.</span>
 <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">TLightCallExecutor</span><span class="op">&lt;</span><span class="ident">TBl</span>, <span class="ident">TExecDisp</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">sc_client</span>::<span class="ident">light</span>::<span class="ident">call_executor</span>::<span class="ident">GenesisCallExecutor</span><span class="op">&lt;</span>
 	<span class="ident">sc_client</span>::<span class="ident">light</span>::<span class="ident">backend</span>::<span class="ident">Backend</span><span class="op">&lt;</span>
 		<span class="ident">sc_client_db</span>::<span class="ident">light</span>::<span class="ident">LightStorage</span><span class="op">&lt;</span><span class="ident">TBl</span><span class="op">&gt;</span>,
-		<span class="ident">Blake2Hasher</span>
+		<span class="ident">HasherFor</span><span class="op">&lt;</span><span class="ident">TBl</span><span class="op">&gt;</span>
 	<span class="op">&gt;</span>,
 	<span class="ident">sc_client</span>::<span class="ident">LocalCallExecutor</span><span class="op">&lt;</span>
 		<span class="ident">sc_client</span>::<span class="ident">light</span>::<span class="ident">backend</span>::<span class="ident">Backend</span><span class="op">&lt;</span>
 			<span class="ident">sc_client_db</span>::<span class="ident">light</span>::<span class="ident">LightStorage</span><span class="op">&lt;</span><span class="ident">TBl</span><span class="op">&gt;</span>,
-			<span class="ident">Blake2Hasher</span>
+			<span class="ident">HasherFor</span><span class="op">&lt;</span><span class="ident">TBl</span><span class="op">&gt;</span>
 		<span class="op">&gt;</span>,
 		<span class="ident">NativeExecutor</span><span class="op">&lt;</span><span class="ident">TExecDisp</span><span class="op">&gt;</span>
 	<span class="op">&gt;</span>,
@@ -1323,8 +1322,8 @@
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_full_client</span><span class="op">&lt;</span><span class="ident">TBl</span>, <span class="ident">TRtApi</span>, <span class="ident">TExecDisp</span>, <span class="ident">TCfg</span>, <span class="ident">TGen</span>, <span class="ident">TCSExt</span><span class="op">&gt;</span>(
 	<span class="ident">config</span>: <span class="kw-2">&amp;</span><span class="ident">Configuration</span><span class="op">&lt;</span><span class="ident">TCfg</span>, <span class="ident">TGen</span>, <span class="ident">TCSExt</span><span class="op">&gt;</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">TFullClient</span><span class="op">&lt;</span><span class="ident">TBl</span>, <span class="ident">TRtApi</span>, <span class="ident">TExecDisp</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">&gt;</span> <span class="kw">where</span>
-	<span class="ident">TBl</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>,
-	<span class="ident">TExecDisp</span>: <span class="ident">NativeExecutionDispatch</span>,
+	<span class="ident">TBl</span>: <span class="ident">BlockT</span>,
+	<span class="ident">TExecDisp</span>: <span class="ident">NativeExecutionDispatch</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">TGen</span>: <span class="ident">sp_runtime</span>::<span class="ident">BuildStorage</span> <span class="op">+</span> <span class="ident">serde</span>::<span class="ident">Serialize</span> <span class="op">+</span> <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span> <span class="ident">serde</span>::<span class="ident">Deserialize</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span>,
 	<span class="ident">TCSExt</span>: <span class="ident">Extension</span>,
 {
@@ -1334,17 +1333,18 @@
 <span class="kw">fn</span> <span class="ident">new_full_parts</span><span class="op">&lt;</span><span class="ident">TBl</span>, <span class="ident">TRtApi</span>, <span class="ident">TExecDisp</span>, <span class="ident">TCfg</span>, <span class="ident">TGen</span>, <span class="ident">TCSExt</span><span class="op">&gt;</span>(
 	<span class="ident">config</span>: <span class="kw-2">&amp;</span><span class="ident">Configuration</span><span class="op">&lt;</span><span class="ident">TCfg</span>, <span class="ident">TGen</span>, <span class="ident">TCSExt</span><span class="op">&gt;</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">TFullParts</span><span class="op">&lt;</span><span class="ident">TBl</span>, <span class="ident">TRtApi</span>, <span class="ident">TExecDisp</span><span class="op">&gt;</span>,	<span class="ident">Error</span><span class="op">&gt;</span> <span class="kw">where</span>
-	<span class="ident">TBl</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>,
-	<span class="ident">TExecDisp</span>: <span class="ident">NativeExecutionDispatch</span>,
+	<span class="ident">TBl</span>: <span class="ident">BlockT</span>,
+	<span class="ident">TExecDisp</span>: <span class="ident">NativeExecutionDispatch</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">TGen</span>: <span class="ident">sp_runtime</span>::<span class="ident">BuildStorage</span> <span class="op">+</span> <span class="ident">serde</span>::<span class="ident">Serialize</span> <span class="op">+</span> <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span> <span class="ident">serde</span>::<span class="ident">Deserialize</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span>,
 	<span class="ident">TCSExt</span>: <span class="ident">Extension</span>,
 {
 	<span class="kw">let</span> <span class="ident">keystore</span> <span class="op">=</span> <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="ident">config</span>.<span class="ident">keystore</span> {
 		<span class="ident">KeystoreConfig</span>::<span class="ident">Path</span> { <span class="ident">path</span>, <span class="ident">password</span> } <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Keystore</span>::<span class="ident">open</span>(
-			<span class="ident">path</span>.<span class="ident">clone</span>().<span class="ident">ok_or</span>(<span class="string">&quot;No basepath configured&quot;</span>)<span class="question-mark">?</span>,
+			<span class="ident">path</span>.<span class="ident">clone</span>(),
 			<span class="ident">password</span>.<span class="ident">clone</span>()
 		)<span class="question-mark">?</span>,
-		<span class="ident">KeystoreConfig</span>::<span class="ident">InMemory</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Keystore</span>::<span class="ident">new_in_memory</span>()
+		<span class="ident">KeystoreConfig</span>::<span class="ident">InMemory</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Keystore</span>::<span class="ident">new_in_memory</span>(),
+		<span class="ident">KeystoreConfig</span>::<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="string">&quot;No keystore config provided!&quot;</span>.<span class="ident">into</span>()),
 	};
 
 	<span class="kw">let</span> <span class="ident">executor</span> <span class="op">=</span> <span class="ident">NativeExecutor</span>::<span class="op">&lt;</span><span class="ident">TExecDisp</span><span class="op">&gt;</span>::<span class="ident">new</span>(
@@ -1402,7 +1402,7 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">TCfg</span>, <span class="ident">TGen</span>, <span class="ident">TCSExt</span><span class="op">&gt;</span> <span class="ident">ServiceBuilder</span><span class="op">&lt;</span>(), (), <span class="ident">TCfg</span>, <span class="ident">TGen</span>, <span class="ident">TCSExt</span>, (), (), (), (), (), (), (), (), (), ()<span class="op">&gt;</span>
 <span class="kw">where</span> <span class="ident">TGen</span>: <span class="ident">RuntimeGenesis</span>, <span class="ident">TCSExt</span>: <span class="ident">Extension</span> {
 	<span class="doccomment">/// Start the service builder with a configuration.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_full</span><span class="op">&lt;</span><span class="ident">TBl</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">TRtApi</span>, <span class="ident">TExecDisp</span>: <span class="ident">NativeExecutionDispatch</span><span class="op">&gt;</span>(
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_full</span><span class="op">&lt;</span><span class="ident">TBl</span>: <span class="ident">BlockT</span>, <span class="ident">TRtApi</span>, <span class="ident">TExecDisp</span>: <span class="ident">NativeExecutionDispatch</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>(
 		<span class="ident">config</span>: <span class="ident">Configuration</span><span class="op">&lt;</span><span class="ident">TCfg</span>, <span class="ident">TGen</span>, <span class="ident">TCSExt</span><span class="op">&gt;</span>
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ServiceBuilder</span><span class="op">&lt;</span>
 		<span class="ident">TBl</span>,
@@ -1444,7 +1444,7 @@
 	}
 
 	<span class="doccomment">/// Start the service builder with a configuration.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_light</span><span class="op">&lt;</span><span class="ident">TBl</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">TRtApi</span>, <span class="ident">TExecDisp</span>: <span class="ident">NativeExecutionDispatch</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>(
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_light</span><span class="op">&lt;</span><span class="ident">TBl</span>: <span class="ident">BlockT</span>, <span class="ident">TRtApi</span>, <span class="ident">TExecDisp</span>: <span class="ident">NativeExecutionDispatch</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>(
 		<span class="ident">config</span>: <span class="ident">Configuration</span><span class="op">&lt;</span><span class="ident">TCfg</span>, <span class="ident">TGen</span>, <span class="ident">TCSExt</span><span class="op">&gt;</span>
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ServiceBuilder</span><span class="op">&lt;</span>
 		<span class="ident">TBl</span>,
@@ -1465,10 +1465,11 @@
 	<span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">keystore</span> <span class="op">=</span> <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="ident">config</span>.<span class="ident">keystore</span> {
 			<span class="ident">KeystoreConfig</span>::<span class="ident">Path</span> { <span class="ident">path</span>, <span class="ident">password</span> } <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Keystore</span>::<span class="ident">open</span>(
-				<span class="ident">path</span>.<span class="ident">clone</span>().<span class="ident">ok_or</span>(<span class="string">&quot;No basepath configured&quot;</span>)<span class="question-mark">?</span>,
+				<span class="ident">path</span>.<span class="ident">clone</span>(),
 				<span class="ident">password</span>.<span class="ident">clone</span>()
 			)<span class="question-mark">?</span>,
-			<span class="ident">KeystoreConfig</span>::<span class="ident">InMemory</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Keystore</span>::<span class="ident">new_in_memory</span>()
+			<span class="ident">KeystoreConfig</span>::<span class="ident">InMemory</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Keystore</span>::<span class="ident">new_in_memory</span>(),
+			<span class="ident">KeystoreConfig</span>::<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="string">&quot;No keystore config provided!&quot;</span>.<span class="ident">into</span>()),
 		};
 
 		<span class="kw">let</span> <span class="ident">executor</span> <span class="op">=</span> <span class="ident">NativeExecutor</span>::<span class="op">&lt;</span><span class="ident">TExecDisp</span><span class="op">&gt;</span>::<span class="ident">new</span>(
@@ -1495,7 +1496,12 @@
 			<span class="ident">sc_client_db</span>::<span class="ident">light</span>::<span class="ident">LightStorage</span>::<span class="ident">new</span>(<span class="ident">db_settings</span>)<span class="question-mark">?</span>
 		};
 		<span class="kw">let</span> <span class="ident">light_blockchain</span> <span class="op">=</span> <span class="ident">sc_client</span>::<span class="ident">light</span>::<span class="ident">new_light_blockchain</span>(<span class="ident">db_storage</span>);
-		<span class="kw">let</span> <span class="ident">fetch_checker</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">sc_client</span>::<span class="ident">light</span>::<span class="ident">new_fetch_checker</span>(<span class="ident">light_blockchain</span>.<span class="ident">clone</span>(), <span class="ident">executor</span>.<span class="ident">clone</span>()));
+		<span class="kw">let</span> <span class="ident">fetch_checker</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(
+			<span class="ident">sc_client</span>::<span class="ident">light</span>::<span class="ident">new_fetch_checker</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">TBl</span>, <span class="kw">_</span><span class="op">&gt;</span>(
+				<span class="ident">light_blockchain</span>.<span class="ident">clone</span>(),
+				<span class="ident">executor</span>.<span class="ident">clone</span>(),
+			),
+		);
 		<span class="kw">let</span> <span class="ident">fetcher</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">sc_network</span>::<span class="ident">OnDemand</span>::<span class="ident">new</span>(<span class="ident">fetch_checker</span>));
 		<span class="kw">let</span> <span class="ident">backend</span> <span class="op">=</span> <span class="ident">sc_client</span>::<span class="ident">light</span>::<span class="ident">new_light_backend</span>(<span class="ident">light_blockchain</span>);
 		<span class="kw">let</span> <span class="ident">remote_blockchain</span> <span class="op">=</span> <span class="ident">backend</span>.<span class="ident">remote_blockchain</span>();
@@ -1850,7 +1856,7 @@
 		<span class="self">self</span>,
 		<span class="ident">input</span>: <span class="kw">impl</span> <span class="ident">Read</span> <span class="op">+</span> <span class="ident">Seek</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 		<span class="ident">force</span>: <span class="ident">bool</span>,
-	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span>;
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Pin</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
 	<span class="doccomment">/// Performs the blocks export.</span>
 	<span class="kw">fn</span> <span class="ident">export_blocks</span>(
@@ -1859,7 +1865,7 @@
 		<span class="ident">from</span>: <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Block</span><span class="op">&gt;</span>,
 		<span class="ident">to</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">NumberFor</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 		<span class="ident">json</span>: <span class="ident">bool</span>
-	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Pin</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
 	<span class="doccomment">/// Performs a revert of `blocks` blocks.</span>
 	<span class="kw">fn</span> <span class="ident">revert_chain</span>(
@@ -1871,7 +1877,7 @@
 	<span class="kw">fn</span> <span class="ident">check_block</span>(
 		<span class="self">self</span>,
 		<span class="ident">block</span>: <span class="ident">BlockId</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Block</span><span class="op">&gt;</span>
-	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span>;
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Pin</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">TBl</span>, <span class="ident">TRtApi</span>, <span class="ident">TCfg</span>, <span class="ident">TGen</span>, <span class="ident">TCSExt</span>, <span class="ident">TBackend</span>, <span class="ident">TExec</span>, <span class="ident">TSc</span>, <span class="ident">TImpQu</span>, <span class="ident">TNetP</span>, <span class="ident">TExPool</span>, <span class="ident">TRpc</span><span class="op">&gt;</span>
@@ -1892,20 +1898,21 @@
 	<span class="ident">TRpc</span>,
 	<span class="ident">TBackend</span>,
 <span class="op">&gt;</span> <span class="kw">where</span>
-	<span class="ident">Client</span><span class="op">&lt;</span><span class="ident">TBackend</span>, <span class="ident">TExec</span>, <span class="ident">TBl</span>, <span class="ident">TRtApi</span><span class="op">&gt;</span>: <span class="ident">ProvideRuntimeApi</span>,
-	<span class="op">&lt;</span><span class="ident">Client</span><span class="op">&lt;</span><span class="ident">TBackend</span>, <span class="ident">TExec</span>, <span class="ident">TBl</span>, <span class="ident">TRtApi</span><span class="op">&gt;</span> <span class="kw">as</span> <span class="ident">ProvideRuntimeApi</span><span class="op">&gt;</span>::<span class="ident">Api</span>:
+	<span class="ident">Client</span><span class="op">&lt;</span><span class="ident">TBackend</span>, <span class="ident">TExec</span>, <span class="ident">TBl</span>, <span class="ident">TRtApi</span><span class="op">&gt;</span>: <span class="ident">ProvideRuntimeApi</span><span class="op">&lt;</span><span class="ident">TBl</span><span class="op">&gt;</span>,
+	<span class="op">&lt;</span><span class="ident">Client</span><span class="op">&lt;</span><span class="ident">TBackend</span>, <span class="ident">TExec</span>, <span class="ident">TBl</span>, <span class="ident">TRtApi</span><span class="op">&gt;</span> <span class="kw">as</span> <span class="ident">ProvideRuntimeApi</span><span class="op">&lt;</span><span class="ident">TBl</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">Api</span>:
 		<span class="ident">sp_api</span>::<span class="ident">Metadata</span><span class="op">&lt;</span><span class="ident">TBl</span><span class="op">&gt;</span> <span class="op">+</span>
 		<span class="ident">sc_offchain</span>::<span class="ident">OffchainWorkerApi</span><span class="op">&lt;</span><span class="ident">TBl</span><span class="op">&gt;</span> <span class="op">+</span>
 		<span class="ident">sp_transaction_pool</span>::<span class="ident">runtime_api</span>::<span class="ident">TaggedTransactionQueue</span><span class="op">&lt;</span><span class="ident">TBl</span><span class="op">&gt;</span> <span class="op">+</span>
 		<span class="ident">sp_session</span>::<span class="ident">SessionKeys</span><span class="op">&lt;</span><span class="ident">TBl</span><span class="op">&gt;</span> <span class="op">+</span>
-		<span class="ident">sp_api</span>::<span class="ident">ApiExt</span><span class="op">&lt;</span><span class="ident">TBl</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">sp_blockchain</span>::<span class="ident">Error</span><span class="op">&gt;</span>,
-	<span class="ident">TBl</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">Blake2Hasher</span> <span class="kw">as</span> <span class="ident">Hasher</span><span class="op">&gt;</span>::<span class="ident">Out</span><span class="op">&gt;</span>,
-	<span class="ident">TRtApi</span>: <span class="ident">ConstructRuntimeApi</span><span class="op">&lt;</span><span class="ident">TBl</span>, <span class="ident">Client</span><span class="op">&lt;</span><span class="ident">TBackend</span>, <span class="ident">TExec</span>, <span class="ident">TBl</span>, <span class="ident">TRtApi</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
+		<span class="ident">sp_api</span>::<span class="ident">ApiErrorExt</span><span class="op">&lt;</span><span class="ident">Error</span> <span class="op">=</span> <span class="ident">sp_blockchain</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="op">+</span>
+		<span class="ident">sp_api</span>::<span class="ident">ApiExt</span><span class="op">&lt;</span><span class="ident">TBl</span>, <span class="ident">StateBackend</span> <span class="op">=</span> <span class="ident">TBackend</span>::<span class="ident">State</span><span class="op">&gt;</span>,
+	<span class="ident">TBl</span>: <span class="ident">BlockT</span>,
+	<span class="ident">TRtApi</span>: <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
 	<span class="ident">TCfg</span>: <span class="ident">Default</span>,
 	<span class="ident">TGen</span>: <span class="ident">RuntimeGenesis</span>,
 	<span class="ident">TCSExt</span>: <span class="ident">Extension</span>,
-	<span class="ident">TBackend</span>: <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">sc_client_api</span>::<span class="ident">backend</span>::<span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">TBl</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span>,
-	<span class="ident">TExec</span>: <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">sc_client</span>::<span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">TBl</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="ident">Clone</span>,
+	<span class="ident">TBackend</span>: <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">sc_client_api</span>::<span class="ident">backend</span>::<span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">TBl</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span>,
+	<span class="ident">TExec</span>: <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">sc_client</span>::<span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">TBl</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="ident">Clone</span>,
 	<span class="ident">TSc</span>: <span class="ident">Clone</span>,
 	<span class="ident">TImpQu</span>: <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">ImportQueue</span><span class="op">&lt;</span><span class="ident">TBl</span><span class="op">&gt;</span>,
 	<span class="ident">TNetP</span>: <span class="ident">NetworkSpecialization</span><span class="op">&lt;</span><span class="ident">TBl</span><span class="op">&gt;</span>,
@@ -1914,6 +1921,13 @@
 		<span class="op">+</span> <span class="ident">TransactionPoolMaintainer</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">=</span><span class="ident">TBl</span>, <span class="ident">Hash</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">TBl</span> <span class="kw">as</span> <span class="ident">BlockT</span><span class="op">&gt;</span>::<span class="ident">Hash</span><span class="op">&gt;</span>,
 	<span class="ident">TRpc</span>: <span class="ident">sc_rpc</span>::<span class="ident">RpcExtension</span><span class="op">&lt;</span><span class="ident">sc_rpc</span>::<span class="ident">Metadata</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Clone</span>,
 {
+
+	<span class="doccomment">/// Set an ExecutionExtensionsFactory</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_execution_extensions_factory</span>(<span class="self">self</span>, <span class="ident">execution_extensions_factory</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">ExtensionsFactory</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
+		<span class="self">self</span>.<span class="ident">client</span>.<span class="ident">execution_extensions</span>().<span class="ident">set_extensions_factory</span>(<span class="ident">execution_extensions_factory</span>);
+		<span class="prelude-val">Ok</span>(<span class="self">self</span>)
+	}
+
 	<span class="doccomment">/// Builds the service.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">build</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Service</span><span class="op">&lt;</span>
 		<span class="ident">TBl</span>,
@@ -1955,7 +1969,7 @@
 
 		<span class="comment">// List of asynchronous tasks to spawn. We collect them, then spawn them all at once.</span>
 		<span class="kw">let</span> (<span class="ident">to_spawn_tx</span>, <span class="ident">to_spawn_rx</span>) <span class="op">=</span>
-			<span class="ident">mpsc</span>::<span class="ident">unbounded</span>::<span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span><span class="op">&gt;</span>();
+			<span class="ident">mpsc</span>::<span class="ident">unbounded</span>::<span class="op">&lt;</span><span class="ident">Pin</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>();
 
 		<span class="comment">// A side-channel for essential tasks to communicate shutdown.</span>
 		<span class="kw">let</span> (<span class="ident">essential_failed_tx</span>, <span class="ident">essential_failed_rx</span>) <span class="op">=</span> <span class="ident">mpsc</span>::<span class="ident">unbounded</span>();
@@ -2024,7 +2038,7 @@
 				<span class="prelude-val">Some</span>(<span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">sc_offchain</span>::<span class="ident">OffchainWorkers</span>::<span class="ident">new</span>(<span class="ident">client</span>.<span class="ident">clone</span>(), <span class="ident">db</span>)))
 			},
 			(<span class="bool-val">true</span>, <span class="prelude-val">None</span>) <span class="op">=</span><span class="op">&gt;</span> {
-				<span class="ident">log</span>::<span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;Offchain workers disabled, due to lack of offchain storage support in backend.&quot;</span>);
+				<span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;Offchain workers disabled, due to lack of offchain storage support in backend.&quot;</span>);
 				<span class="prelude-val">None</span>
 			},
 			<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">None</span>,
@@ -2039,7 +2053,6 @@
 			<span class="kw">let</span> <span class="ident">is_validator</span> <span class="op">=</span> <span class="ident">config</span>.<span class="ident">roles</span>.<span class="ident">is_authority</span>();
 
 			<span class="kw">let</span> <span class="ident">events</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">import_notification_stream</span>()
-				.<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, ()<span class="op">&gt;</span>(<span class="ident">v</span>)).<span class="ident">compat</span>()
 				.<span class="ident">for_each</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">notification</span><span class="op">|</span> {
 					<span class="kw">let</span> <span class="ident">txpool</span> <span class="op">=</span> <span class="ident">txpool</span>.<span class="ident">upgrade</span>();
 
@@ -2047,8 +2060,8 @@
 						<span class="kw">let</span> <span class="ident">future</span> <span class="op">=</span> <span class="ident">txpool</span>.<span class="ident">maintain</span>(
 							<span class="kw-2">&amp;</span><span class="ident">BlockId</span>::<span class="ident">hash</span>(<span class="ident">notification</span>.<span class="ident">hash</span>),
 							<span class="kw-2">&amp;</span><span class="ident">notification</span>.<span class="ident">retracted</span>,
-						).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(())).<span class="ident">compat</span>();
-						<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">to_spawn_tx_</span>.<span class="ident">unbounded_send</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">future</span>));
+						);
+						<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">to_spawn_tx_</span>.<span class="ident">unbounded_send</span>(<span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">future</span>));
 					}
 
 					<span class="kw">let</span> <span class="ident">offchain</span> <span class="op">=</span> <span class="ident">offchain</span>.<span class="ident">as_ref</span>().<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">o</span><span class="op">|</span> <span class="ident">o</span>.<span class="ident">upgrade</span>());
@@ -2057,15 +2070,13 @@
 							<span class="kw-2">&amp;</span><span class="ident">notification</span>.<span class="ident">header</span>,
 							<span class="ident">network_state_info</span>.<span class="ident">clone</span>(),
 							<span class="ident">is_validator</span>
-						).<span class="ident">map</span>(<span class="op">|</span>()<span class="op">|</span> <span class="prelude-val">Ok</span>(()));
-						<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">to_spawn_tx_</span>.<span class="ident">unbounded_send</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">Compat</span>::<span class="ident">new</span>(<span class="ident">future</span>)));
+						);
+						<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">to_spawn_tx_</span>.<span class="ident">unbounded_send</span>(<span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">future</span>));
 					}
 
-					<span class="prelude-val">Ok</span>(())
-				})
-				.<span class="ident">select</span>(<span class="ident">exit</span>.<span class="ident">clone</span>().<span class="ident">map</span>(<span class="prelude-val">Ok</span>).<span class="ident">compat</span>())
-				.<span class="ident">then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()));
-			<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">to_spawn_tx</span>.<span class="ident">unbounded_send</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">events</span>));
+					<span class="ident">ready</span>(())
+				});
+			<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">to_spawn_tx</span>.<span class="ident">unbounded_send</span>(<span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">select</span>(<span class="ident">events</span>, <span class="ident">exit</span>.<span class="ident">clone</span>()).<span class="ident">map</span>(<span class="ident">drop</span>)));
 		}
 
 		{
@@ -2073,7 +2084,6 @@
 			<span class="kw">let</span> <span class="ident">network</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">downgrade</span>(<span class="kw-2">&amp;</span><span class="ident">network</span>);
 			<span class="kw">let</span> <span class="ident">transaction_pool_</span> <span class="op">=</span> <span class="ident">transaction_pool</span>.<span class="ident">clone</span>();
 			<span class="kw">let</span> <span class="ident">events</span> <span class="op">=</span> <span class="ident">transaction_pool</span>.<span class="ident">import_notification_stream</span>()
-				.<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, ()<span class="op">&gt;</span>(<span class="ident">v</span>)).<span class="ident">compat</span>()
 				.<span class="ident">for_each</span>(<span class="kw">move</span> <span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
 					<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">network</span>) <span class="op">=</span> <span class="ident">network</span>.<span class="ident">upgrade</span>() {
 						<span class="ident">network</span>.<span class="ident">trigger_repropagate</span>();
@@ -2083,12 +2093,10 @@
 						<span class="string">&quot;ready&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">status</span>.<span class="ident">ready</span>,
 						<span class="string">&quot;future&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">status</span>.<span class="ident">future</span>
 					);
-					<span class="prelude-val">Ok</span>(())
-				})
-				.<span class="ident">select</span>(<span class="ident">exit</span>.<span class="ident">clone</span>().<span class="ident">map</span>(<span class="prelude-val">Ok</span>).<span class="ident">compat</span>())
-				.<span class="ident">then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()));
+					<span class="ident">ready</span>(())
+				});
 
-			<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">to_spawn_tx</span>.<span class="ident">unbounded_send</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">events</span>));
+			<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">to_spawn_tx</span>.<span class="ident">unbounded_send</span>(<span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">select</span>(<span class="ident">events</span>, <span class="ident">exit</span>.<span class="ident">clone</span>()).<span class="ident">map</span>(<span class="ident">drop</span>)));
 		}
 
 		<span class="comment">// Periodically notify the telemetry.</span>
@@ -2150,9 +2158,9 @@
 				<span class="string">&quot;disk_write_per_sec&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">info</span>.<span class="ident">usage</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">usage</span><span class="op">|</span> <span class="ident">usage</span>.<span class="ident">io</span>.<span class="ident">bytes_written</span>).<span class="ident">unwrap_or</span>(<span class="number">0</span>),
 			);
 
-			<span class="prelude-val">Ok</span>(())
-		}).<span class="ident">select</span>(<span class="ident">exit</span>.<span class="ident">clone</span>().<span class="ident">map</span>(<span class="prelude-val">Ok</span>).<span class="ident">compat</span>()).<span class="ident">then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()));
-		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">to_spawn_tx</span>.<span class="ident">unbounded_send</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">tel_task</span>));
+			<span class="ident">ready</span>(())
+		});
+		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">to_spawn_tx</span>.<span class="ident">unbounded_send</span>(<span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">select</span>(<span class="ident">tel_task</span>, <span class="ident">exit</span>.<span class="ident">clone</span>()).<span class="ident">map</span>(<span class="ident">drop</span>)));
 
 		<span class="comment">// Periodically send the network state to the telemetry.</span>
 		<span class="kw">let</span> (<span class="ident">netstat_tx</span>, <span class="ident">netstat_rx</span>) <span class="op">=</span> <span class="ident">mpsc</span>::<span class="ident">unbounded</span>::<span class="op">&lt;</span>(<span class="ident">NetworkStatus</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span>, <span class="ident">NetworkState</span>)<span class="op">&gt;</span>();
@@ -2163,12 +2171,12 @@
 				<span class="string">&quot;system.network_state&quot;</span>;
 				<span class="string">&quot;state&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">network_state</span>,
 			);
-			<span class="prelude-val">Ok</span>(())
-		}).<span class="ident">select</span>(<span class="ident">exit</span>.<span class="ident">clone</span>().<span class="ident">map</span>(<span class="prelude-val">Ok</span>).<span class="ident">compat</span>()).<span class="ident">then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()));
-		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">to_spawn_tx</span>.<span class="ident">unbounded_send</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">tel_task_2</span>));
+			<span class="ident">ready</span>(())
+		});
+		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">to_spawn_tx</span>.<span class="ident">unbounded_send</span>(<span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">select</span>(<span class="ident">tel_task_2</span>, <span class="ident">exit</span>.<span class="ident">clone</span>()).<span class="ident">map</span>(<span class="ident">drop</span>)));
 
 		<span class="comment">// RPC</span>
-		<span class="kw">let</span> (<span class="ident">system_rpc_tx</span>, <span class="ident">system_rpc_rx</span>) <span class="op">=</span> <span class="ident">futures03</span>::<span class="ident">channel</span>::<span class="ident">mpsc</span>::<span class="ident">unbounded</span>();
+		<span class="kw">let</span> (<span class="ident">system_rpc_tx</span>, <span class="ident">system_rpc_rx</span>) <span class="op">=</span> <span class="ident">mpsc</span>::<span class="ident">unbounded</span>();
 		<span class="kw">let</span> <span class="ident">gen_handler</span> <span class="op">=</span> <span class="op">|</span><span class="op">|</span> {
 			<span class="kw">use</span> <span class="ident">sc_rpc</span>::{<span class="ident">chain</span>, <span class="ident">state</span>, <span class="ident">author</span>, <span class="ident">system</span>};
 
@@ -2228,17 +2236,14 @@
 		<span class="kw">let</span> <span class="ident">rpc</span> <span class="op">=</span> <span class="ident">start_rpc_servers</span>(<span class="kw-2">&amp;</span><span class="ident">config</span>, <span class="ident">gen_handler</span>)<span class="question-mark">?</span>;
 
 
-		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">to_spawn_tx</span>.<span class="ident">unbounded_send</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">build_network_future</span>(
+		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">to_spawn_tx</span>.<span class="ident">unbounded_send</span>(<span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">select</span>(<span class="ident">build_network_future</span>(
 			<span class="ident">config</span>.<span class="ident">roles</span>,
 			<span class="ident">network_mut</span>,
 			<span class="ident">client</span>.<span class="ident">clone</span>(),
 			<span class="ident">network_status_sinks</span>.<span class="ident">clone</span>(),
 			<span class="ident">system_rpc_rx</span>,
 			<span class="ident">has_bootnodes</span>,
-		)
-			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
-			.<span class="ident">select</span>(<span class="ident">exit</span>.<span class="ident">clone</span>().<span class="ident">map</span>(<span class="prelude-val">Ok</span>).<span class="ident">compat</span>())
-			.<span class="ident">then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()))));
+		), <span class="ident">exit</span>.<span class="ident">clone</span>()).<span class="ident">map</span>(<span class="ident">drop</span>)));
 
 		<span class="kw">let</span> <span class="ident">telemetry_connection_sinks</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">mpsc</span>::<span class="ident">UnboundedSender</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Default</span>::<span class="ident">default</span>();
 
@@ -2259,8 +2264,6 @@
 				.<span class="ident">map</span>(<span class="op">|</span><span class="ident">dur</span><span class="op">|</span> <span class="ident">dur</span>.<span class="ident">as_millis</span>())
 				.<span class="ident">unwrap_or</span>(<span class="number">0</span>);
 			<span class="kw">let</span> <span class="ident">future</span> <span class="op">=</span> <span class="ident">telemetry</span>.<span class="ident">clone</span>()
-				.<span class="ident">map</span>(<span class="op">|</span><span class="ident">ev</span><span class="op">|</span> <span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, ()<span class="op">&gt;</span>(<span class="ident">ev</span>))
-				.<span class="ident">compat</span>()
 				.<span class="ident">for_each</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">event</span><span class="op">|</span> {
 					<span class="comment">// Safe-guard in case we add more events in the future.</span>
 					<span class="kw">let</span> <span class="ident">sc_telemetry</span>::<span class="ident">TelemetryEvent</span>::<span class="ident">Connected</span> <span class="op">=</span> <span class="ident">event</span>;
@@ -2279,11 +2282,11 @@
 					<span class="ident">telemetry_connection_sinks_</span>.<span class="ident">lock</span>().<span class="ident">retain</span>(<span class="op">|</span><span class="ident">sink</span><span class="op">|</span> {
 						<span class="ident">sink</span>.<span class="ident">unbounded_send</span>(()).<span class="ident">is_ok</span>()
 					});
-					<span class="prelude-val">Ok</span>(())
+					<span class="ident">ready</span>(())
 				});
-			<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">to_spawn_tx</span>.<span class="ident">unbounded_send</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">future</span>
-				.<span class="ident">select</span>(<span class="ident">exit</span>.<span class="ident">clone</span>().<span class="ident">map</span>(<span class="prelude-val">Ok</span>).<span class="ident">compat</span>())
-				.<span class="ident">then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()))));
+			<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">to_spawn_tx</span>.<span class="ident">unbounded_send</span>(<span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">select</span>(
+				<span class="ident">future</span>, <span class="ident">exit</span>.<span class="ident">clone</span>()
+			).<span class="ident">map</span>(<span class="ident">drop</span>)));
 			<span class="ident">telemetry</span>
 		});
 
@@ -2292,13 +2295,10 @@
 			<span class="kw">let</span> <span class="ident">future</span> <span class="op">=</span> <span class="ident">select</span>(
 				<span class="ident">grafana_data_source</span>::<span class="ident">run_server</span>(<span class="ident">port</span>).<span class="ident">boxed</span>(),
 				<span class="ident">exit</span>.<span class="ident">clone</span>()
-			).<span class="ident">map</span>(<span class="op">|</span><span class="ident">either</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">either</span> {
-				<span class="ident">Either</span>::<span class="ident">Left</span>((<span class="ident">result</span>, <span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()),
-				<span class="ident">Either</span>::<span class="ident">Right</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(())
-			}).<span class="ident">compat</span>();
+			).<span class="ident">map</span>(<span class="ident">drop</span>);
 
-			<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">to_spawn_tx</span>.<span class="ident">unbounded_send</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">future</span>));
-    }
+			<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">to_spawn_tx</span>.<span class="ident">unbounded_send</span>(<span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">future</span>));
+    	}
 
 		<span class="comment">// Instrumentation</span>
 		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">tracing_targets</span>) <span class="op">=</span> <span class="ident">config</span>.<span class="ident">tracing_targets</span>.<span class="ident">as_ref</span>() {
@@ -2323,7 +2323,11 @@
 			<span class="ident">essential_failed_rx</span>,
 			<span class="ident">to_spawn_tx</span>,
 			<span class="ident">to_spawn_rx</span>,
-			<span class="ident">to_poll</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
+			<span class="ident">tasks_executor</span>: <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">exec</span>) <span class="op">=</span> <span class="ident">config</span>.<span class="ident">tasks_executor</span> {
+				<span class="ident">exec</span>
+			} <span class="kw">else</span> {
+				<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">TasksExecutorRequired</span>);
+			},
 			<span class="ident">rpc_handlers</span>,
 			<span class="ident">_rpc</span>: <span class="ident">rpc</span>,
 			<span class="ident">_telemetry</span>: <span class="ident">telemetry</span>,

@@ -643,6 +643,10 @@
 <span id="632">632</span>
 <span id="633">633</span>
 <span id="634">634</span>
+<span id="635">635</span>
+<span id="636">636</span>
+<span id="637">637</span>
+<span id="638">638</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -685,7 +689,6 @@
 <span class="kw">use</span> <span class="ident">node_executor</span>::<span class="ident">NativeExecutor</span>;
 <span class="kw">use</span> <span class="ident">sc_network</span>::<span class="ident">NetworkService</span>;
 <span class="kw">use</span> <span class="ident">sc_offchain</span>::<span class="ident">OffchainWorkers</span>;
-<span class="kw">use</span> <span class="ident">sp_core</span>::<span class="ident">Blake2Hasher</span>;
 
 <span class="macro">construct_simple_protocol</span><span class="macro">!</span> {
 	<span class="doccomment">/// Demo protocol attachment for substrate.</span>
@@ -759,11 +762,9 @@
 <span class="doccomment">/// concrete types instead.</span>
 <span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">new_full</span> {
 	(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">config</span>:<span class="ident">expr</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">with_startup_data</span>: <span class="ident">expr</span>) <span class="op">=</span><span class="op">&gt;</span> {{
-		<span class="kw">use</span> <span class="ident">futures01</span>::<span class="ident">Stream</span>;
 		<span class="kw">use</span> <span class="ident">futures</span>::{
-			<span class="ident">compat</span>::<span class="ident">Stream01CompatExt</span>,
-			<span class="ident">stream</span>::<span class="ident">StreamExt</span>,
-			<span class="ident">future</span>::{<span class="ident">FutureExt</span>, <span class="ident">TryFutureExt</span>},
+			<span class="ident">prelude</span>::<span class="kw-2">*</span>,
+			<span class="ident">compat</span>::<span class="ident">Future01CompatExt</span>
 		};
 		<span class="kw">use</span> <span class="ident">sc_network</span>::<span class="ident">Event</span>;
 
@@ -800,7 +801,7 @@
 		(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">with_startup_data</span>)(<span class="kw-2">&amp;</span><span class="ident">block_import</span>, <span class="kw-2">&amp;</span><span class="ident">babe_link</span>);
 
 		<span class="kw">if</span> <span class="ident">participates_in_consensus</span> {
-			<span class="kw">let</span> <span class="ident">proposer</span> <span class="op">=</span> <span class="ident">sc_basic_authority</span>::<span class="ident">ProposerFactory</span> {
+			<span class="kw">let</span> <span class="ident">proposer</span> <span class="op">=</span> <span class="ident">sc_basic_authorship</span>::<span class="ident">ProposerFactory</span> {
 				<span class="ident">client</span>: <span class="ident">service</span>.<span class="ident">client</span>(),
 				<span class="ident">transaction_pool</span>: <span class="ident">service</span>.<span class="ident">transaction_pool</span>(),
 			};
@@ -840,9 +841,8 @@
 				<span class="ident">service</span>.<span class="ident">keystore</span>(),
 				<span class="ident">dht_event_stream</span>,
 			);
-			<span class="kw">let</span> <span class="ident">future01_authority_discovery</span> <span class="op">=</span> <span class="ident">authority_discovery</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="ident">x</span>)).<span class="ident">compat</span>();
 
-			<span class="ident">service</span>.<span class="ident">spawn_task</span>(<span class="ident">future01_authority_discovery</span>);
+			<span class="ident">service</span>.<span class="ident">spawn_task</span>(<span class="ident">authority_discovery</span>);
 		}
 
 		<span class="comment">// if the node isn&#39;t actively participating in consensus then it doesn&#39;t</span>
@@ -872,7 +872,7 @@
 					<span class="ident">service</span>.<span class="ident">network</span>(),
 					<span class="ident">service</span>.<span class="ident">on_exit</span>(),
 					<span class="ident">service</span>.<span class="ident">spawn_task_handle</span>(),
-				)<span class="question-mark">?</span>);
+				)<span class="question-mark">?</span>.<span class="ident">compat</span>().<span class="ident">map</span>(<span class="ident">drop</span>));
 			},
 			(<span class="bool-val">true</span>, <span class="bool-val">false</span>) <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="comment">// start the full GRANDPA voter</span>
@@ -888,7 +888,9 @@
 				};
 				<span class="comment">// the GRANDPA voter task is considered infallible, i.e.</span>
 				<span class="comment">// if it fails we take down the service with it.</span>
-				<span class="ident">service</span>.<span class="ident">spawn_essential_task</span>(<span class="ident">grandpa</span>::<span class="ident">run_grandpa_voter</span>(<span class="ident">grandpa_config</span>)<span class="question-mark">?</span>);
+				<span class="ident">service</span>.<span class="ident">spawn_essential_task</span>(
+					<span class="ident">grandpa</span>::<span class="ident">run_grandpa_voter</span>(<span class="ident">grandpa_config</span>)<span class="question-mark">?</span>.<span class="ident">compat</span>().<span class="ident">map</span>(<span class="ident">drop</span>)
+				);
 			},
 			(<span class="kw">_</span>, <span class="bool-val">true</span>) <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="ident">grandpa</span>::<span class="ident">setup_disabled_grandpa</span>(
@@ -946,7 +948,7 @@
 		<span class="ident">ConcreteTransactionPool</span>,
 		<span class="ident">OffchainWorkers</span><span class="op">&lt;</span>
 			<span class="ident">ConcreteClient</span>,
-			<span class="op">&lt;</span><span class="ident">ConcreteBackend</span> <span class="kw">as</span> <span class="ident">sc_client_api</span>::<span class="ident">backend</span>::<span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">OffchainStorage</span>,
+			<span class="op">&lt;</span><span class="ident">ConcreteBackend</span> <span class="kw">as</span> <span class="ident">sc_client_api</span>::<span class="ident">backend</span>::<span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">OffchainStorage</span>,
 			<span class="ident">ConcreteBlock</span>,
 		<span class="op">&gt;</span>
 	<span class="op">&gt;</span>,
@@ -1033,6 +1035,7 @@
 	<span class="kw">use</span> <span class="ident">sc_consensus_babe</span>::<span class="ident">CompatibleDigestItem</span>;
 	<span class="kw">use</span> <span class="ident">sp_consensus</span>::{
 		<span class="ident">Environment</span>, <span class="ident">Proposer</span>, <span class="ident">BlockImportParams</span>, <span class="ident">BlockOrigin</span>, <span class="ident">ForkChoiceStrategy</span>, <span class="ident">BlockImport</span>,
+		<span class="ident">RecordProof</span>,
 	};
 	<span class="kw">use</span> <span class="ident">node_primitives</span>::{<span class="ident">Block</span>, <span class="ident">DigestItem</span>, <span class="ident">Signature</span>};
 	<span class="kw">use</span> <span class="ident">node_runtime</span>::{<span class="ident">BalancesCall</span>, <span class="ident">Call</span>, <span class="ident">UncheckedExtrinsic</span>, <span class="ident">Address</span>};
@@ -1085,6 +1088,7 @@
 				<span class="ident">internal_justification</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
 				<span class="ident">finalized</span>: <span class="bool-val">false</span>,
 				<span class="ident">body</span>: <span class="prelude-val">Some</span>(<span class="ident">block</span>.<span class="ident">extrinsics</span>),
+				<span class="ident">storage_changes</span>: <span class="prelude-val">None</span>,
 				<span class="ident">header</span>: <span class="ident">block</span>.<span class="ident">header</span>,
 				<span class="ident">auxiliary</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
 			}
@@ -1155,7 +1159,7 @@
 
 				<span class="kw">let</span> <span class="ident">parent_id</span> <span class="op">=</span> <span class="ident">BlockId</span>::<span class="ident">number</span>(<span class="ident">service</span>.<span class="ident">client</span>().<span class="ident">chain_info</span>().<span class="ident">best_number</span>);
 				<span class="kw">let</span> <span class="ident">parent_header</span> <span class="op">=</span> <span class="ident">service</span>.<span class="ident">client</span>().<span class="ident">header</span>(<span class="kw-2">&amp;</span><span class="ident">parent_id</span>).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>();
-				<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">proposer_factory</span> <span class="op">=</span> <span class="ident">sc_basic_authority</span>::<span class="ident">ProposerFactory</span> {
+				<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">proposer_factory</span> <span class="op">=</span> <span class="ident">sc_basic_authorship</span>::<span class="ident">ProposerFactory</span> {
 					<span class="ident">client</span>: <span class="ident">service</span>.<span class="ident">client</span>(),
 					<span class="ident">transaction_pool</span>: <span class="ident">service</span>.<span class="ident">transaction_pool</span>(),
 				};
@@ -1181,12 +1185,15 @@
 
 				<span class="ident">digest</span>.<span class="ident">push</span>(<span class="op">&lt;</span><span class="ident">DigestItem</span> <span class="kw">as</span> <span class="ident">CompatibleDigestItem</span><span class="op">&gt;</span>::<span class="ident">babe_pre_digest</span>(<span class="ident">babe_pre_digest</span>));
 
-				<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">proposer</span> <span class="op">=</span> <span class="ident">proposer_factory</span>.<span class="ident">init</span>(<span class="kw-2">&amp;</span><span class="ident">parent_header</span>).<span class="ident">unwrap</span>();
-				<span class="kw">let</span> <span class="ident">new_block</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on</span>(<span class="ident">proposer</span>.<span class="ident">propose</span>(
-					<span class="ident">inherent_data</span>,
-					<span class="ident">digest</span>,
-					<span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">1</span>),
-				)).<span class="ident">expect</span>(<span class="string">&quot;Error making test block&quot;</span>);
+				<span class="kw">let</span> <span class="ident">new_block</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on</span>(<span class="kw">async</span> <span class="kw">move</span> {
+					<span class="kw">let</span> <span class="ident">proposer</span> <span class="op">=</span> <span class="ident">proposer_factory</span>.<span class="ident">init</span>(<span class="kw-2">&amp;</span><span class="ident">parent_header</span>).<span class="kw">await</span>;
+					<span class="ident">proposer</span>.<span class="ident">unwrap</span>().<span class="ident">propose</span>(
+						<span class="ident">inherent_data</span>,
+						<span class="ident">digest</span>,
+						<span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">1</span>),
+						<span class="ident">RecordProof</span>::<span class="ident">Yes</span>,
+					).<span class="kw">await</span>
+				}).<span class="ident">expect</span>(<span class="string">&quot;Error making test block&quot;</span>).<span class="ident">block</span>;
 
 				<span class="kw">let</span> (<span class="ident">new_header</span>, <span class="ident">new_body</span>) <span class="op">=</span> <span class="ident">new_block</span>.<span class="ident">deconstruct</span>();
 				<span class="kw">let</span> <span class="ident">pre_hash</span> <span class="op">=</span> <span class="ident">new_header</span>.<span class="ident">hash</span>();
@@ -1205,6 +1212,7 @@
 					<span class="ident">justification</span>: <span class="prelude-val">None</span>,
 					<span class="ident">post_digests</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">item</span>],
 					<span class="ident">body</span>: <span class="prelude-val">Some</span>(<span class="ident">new_body</span>),
+					<span class="ident">storage_changes</span>: <span class="prelude-val">None</span>,
 					<span class="ident">finalized</span>: <span class="bool-val">false</span>,
 					<span class="ident">auxiliary</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
 					<span class="ident">fork_choice</span>: <span class="ident">ForkChoiceStrategy</span>::<span class="ident">LongestChain</span>,

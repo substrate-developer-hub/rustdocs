@@ -800,6 +800,28 @@
 <span id="789">789</span>
 <span id="790">790</span>
 <span id="791">791</span>
+<span id="792">792</span>
+<span id="793">793</span>
+<span id="794">794</span>
+<span id="795">795</span>
+<span id="796">796</span>
+<span id="797">797</span>
+<span id="798">798</span>
+<span id="799">799</span>
+<span id="800">800</span>
+<span id="801">801</span>
+<span id="802">802</span>
+<span id="803">803</span>
+<span id="804">804</span>
+<span id="805">805</span>
+<span id="806">806</span>
+<span id="807">807</span>
+<span id="808">808</span>
+<span id="809">809</span>
+<span id="810">810</span>
+<span id="811">811</span>
+<span id="812">812</span>
+<span id="813">813</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -825,15 +847,15 @@
 
 <span class="kw">use</span> <span class="ident">hash_db</span>::{<span class="ident">HashDB</span>, <span class="ident">Hasher</span>, <span class="ident">EMPTY_PREFIX</span>};
 <span class="kw">use</span> <span class="ident">codec</span>::{<span class="ident">Decode</span>, <span class="ident">Encode</span>};
-<span class="kw">use</span> <span class="ident">sp_core</span>::{<span class="ident">convert_hash</span>, <span class="ident">traits</span>::<span class="ident">CodeExecutor</span>, <span class="ident">H256</span>};
+<span class="kw">use</span> <span class="ident">sp_core</span>::{<span class="ident">convert_hash</span>, <span class="ident">traits</span>::<span class="ident">CodeExecutor</span>};
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">traits</span>::{
 	<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">Header</span> <span class="kw">as</span> <span class="ident">HeaderT</span>, <span class="ident">Hash</span>, <span class="ident">HashFor</span>, <span class="ident">NumberFor</span>,
-	<span class="ident">SimpleArithmetic</span>, <span class="ident">CheckedConversion</span>, <span class="ident">Zero</span>,
+	<span class="ident">SimpleArithmetic</span>, <span class="ident">CheckedConversion</span>,
 };
 <span class="kw">use</span> <span class="ident">sp_state_machine</span>::{
 	<span class="ident">ChangesTrieRootsStorage</span>, <span class="ident">ChangesTrieAnchorBlockId</span>, <span class="ident">ChangesTrieConfigurationRange</span>,
-	<span class="ident">TrieBackend</span>, <span class="ident">read_proof_check</span>, <span class="ident">key_changes_proof_check</span>, <span class="ident">create_proof_check_backend_storage</span>,
-	<span class="ident">read_child_proof_check</span>,
+	<span class="ident">InMemoryChangesTrieStorage</span>, <span class="ident">TrieBackend</span>, <span class="ident">read_proof_check</span>, <span class="ident">key_changes_proof_check_with_db</span>,
+	<span class="ident">create_proof_check_backend_storage</span>, <span class="ident">read_child_proof_check</span>,
 };
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">sp_state_machine</span>::<span class="ident">StorageProof</span>;
 <span class="kw">use</span> <span class="ident">sp_blockchain</span>::{<span class="ident">Error</span> <span class="kw">as</span> <span class="ident">ClientError</span>, <span class="prelude-ty">Result</span> <span class="kw">as</span> <span class="ident">ClientResult</span>};
@@ -916,30 +938,34 @@
 			)<span class="question-mark">?</span>;
 		}
 
-		<span class="comment">// FIXME: remove this in https://github.com/paritytech/substrate/pull/3201</span>
-		<span class="kw">let</span> <span class="ident">changes_trie_config_range</span> <span class="op">=</span> <span class="ident">ChangesTrieConfigurationRange</span> {
-			<span class="ident">config</span>: <span class="kw-2">&amp;</span><span class="ident">request</span>.<span class="ident">changes_trie_config</span>,
-			<span class="ident">zero</span>: <span class="ident">Zero</span>::<span class="ident">zero</span>(),
-			<span class="ident">end</span>: <span class="prelude-val">None</span>,
-		};
-
 		<span class="comment">// and now check the key changes proof + get the changes</span>
-		<span class="ident">key_changes_proof_check</span>::<span class="op">&lt;</span><span class="ident">H</span>, <span class="kw">_</span><span class="op">&gt;</span>(
-			<span class="ident">changes_trie_config_range</span>,
-			<span class="kw-2">&amp;</span><span class="ident">RootsStorage</span> {
-				<span class="ident">roots</span>: (<span class="ident">request</span>.<span class="ident">tries_roots</span>.<span class="number">0</span>, <span class="kw-2">&amp;</span><span class="ident">request</span>.<span class="ident">tries_roots</span>.<span class="number">2</span>),
-				<span class="ident">prev_roots</span>: <span class="ident">remote_roots</span>,
-			},
-			<span class="ident">remote_proof</span>,
-			<span class="ident">request</span>.<span class="ident">first_block</span>.<span class="number">0</span>,
-			<span class="kw-2">&amp;</span><span class="ident">ChangesTrieAnchorBlockId</span> {
-				<span class="ident">hash</span>: <span class="ident">convert_hash</span>(<span class="kw-2">&amp;</span><span class="ident">request</span>.<span class="ident">last_block</span>.<span class="number">1</span>),
-				<span class="ident">number</span>: <span class="ident">request</span>.<span class="ident">last_block</span>.<span class="number">0</span>,
-			},
-			<span class="ident">remote_max_block</span>,
-			<span class="ident">request</span>.<span class="ident">storage_key</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="ident">Vec</span>::<span class="ident">as_slice</span>),
-			<span class="kw-2">&amp;</span><span class="ident">request</span>.<span class="ident">key</span>)
-		.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> <span class="ident">ClientError</span>::<span class="ident">ChangesTrieAccessFailed</span>(<span class="ident">err</span>))
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+		<span class="kw">let</span> <span class="ident">proof_storage</span> <span class="op">=</span> <span class="ident">InMemoryChangesTrieStorage</span>::<span class="ident">with_proof</span>(<span class="ident">remote_proof</span>);
+		<span class="kw">for</span> <span class="ident">config_range</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">request</span>.<span class="ident">changes_trie_configs</span> {
+			<span class="kw">let</span> <span class="ident">result_range</span> <span class="op">=</span> <span class="ident">key_changes_proof_check_with_db</span>::<span class="op">&lt;</span><span class="ident">H</span>, <span class="kw">_</span><span class="op">&gt;</span>(
+				<span class="ident">ChangesTrieConfigurationRange</span> {
+					<span class="ident">config</span>: <span class="ident">config_range</span>.<span class="ident">config</span>.<span class="ident">as_ref</span>().<span class="ident">ok_or</span>(<span class="ident">ClientError</span>::<span class="ident">ChangesTriesNotSupported</span>)<span class="question-mark">?</span>,
+					<span class="ident">zero</span>: <span class="ident">config_range</span>.<span class="ident">zero</span>.<span class="number">0</span>,
+					<span class="ident">end</span>: <span class="ident">config_range</span>.<span class="ident">end</span>.<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">n</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">n</span>),
+				},
+				<span class="kw-2">&amp;</span><span class="ident">RootsStorage</span> {
+					<span class="ident">roots</span>: (<span class="ident">request</span>.<span class="ident">tries_roots</span>.<span class="number">0</span>, <span class="kw-2">&amp;</span><span class="ident">request</span>.<span class="ident">tries_roots</span>.<span class="number">2</span>),
+					<span class="ident">prev_roots</span>: <span class="kw-2">&amp;</span><span class="ident">remote_roots</span>,
+				},
+				<span class="kw-2">&amp;</span><span class="ident">proof_storage</span>,
+				<span class="ident">request</span>.<span class="ident">first_block</span>.<span class="number">0</span>,
+				<span class="kw-2">&amp;</span><span class="ident">ChangesTrieAnchorBlockId</span> {
+					<span class="ident">hash</span>: <span class="ident">convert_hash</span>(<span class="kw-2">&amp;</span><span class="ident">request</span>.<span class="ident">last_block</span>.<span class="number">1</span>),
+					<span class="ident">number</span>: <span class="ident">request</span>.<span class="ident">last_block</span>.<span class="number">0</span>,
+				},
+				<span class="ident">remote_max_block</span>,
+				<span class="ident">request</span>.<span class="ident">storage_key</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="ident">Vec</span>::<span class="ident">as_slice</span>),
+				<span class="kw-2">&amp;</span><span class="ident">request</span>.<span class="ident">key</span>)
+			.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> <span class="ident">ClientError</span>::<span class="ident">ChangesTrieAccessFailed</span>(<span class="ident">err</span>))<span class="question-mark">?</span>;
+			<span class="ident">result</span>.<span class="ident">extend</span>(<span class="ident">result_range</span>);
+		}
+
+		<span class="prelude-val">Ok</span>(<span class="ident">result</span>)
 	}
 
 	<span class="doccomment">/// Check CHT-based proof for changes tries roots.</span>
@@ -1000,8 +1026,9 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">H</span>, <span class="ident">S</span><span class="op">&gt;</span> <span class="ident">FetchChecker</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">LightDataChecker</span><span class="op">&lt;</span><span class="ident">E</span>, <span class="ident">H</span>, <span class="ident">Block</span>, <span class="ident">S</span><span class="op">&gt;</span>
 	<span class="kw">where</span>
 		<span class="ident">Block</span>: <span class="ident">BlockT</span>,
-		<span class="ident">E</span>: <span class="ident">CodeExecutor</span>,
-		<span class="ident">H</span>: <span class="ident">Hasher</span><span class="op">&lt;</span><span class="ident">Out</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>,
+		<span class="ident">E</span>: <span class="ident">CodeExecutor</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+		<span class="ident">H</span>: <span class="ident">Hasher</span>,
+		<span class="ident">H</span>::<span class="ident">Out</span>: <span class="ident">Ord</span> <span class="op">+</span> <span class="ident">codec</span>::<span class="ident">Codec</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 		<span class="ident">S</span>: <span class="ident">BlockchainStorage</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 {
 	<span class="kw">fn</span> <span class="ident">check_header_proof</span>(
@@ -1017,8 +1044,8 @@
 			<span class="ident">request</span>.<span class="ident">cht_root</span>,
 			<span class="ident">request</span>.<span class="ident">block</span>,
 			<span class="ident">remote_header_hash</span>,
-			<span class="ident">remote_proof</span>)
-			.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">remote_header</span>)
+			<span class="ident">remote_proof</span>,
+		).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">remote_header</span>)
 	}
 
 	<span class="kw">fn</span> <span class="ident">check_read_proof</span>(
@@ -1086,7 +1113,7 @@
 <span class="doccomment">/// A view of BTreeMap&lt;Number, Hash&gt; as a changes trie roots storage.</span>
 <span class="kw">struct</span> <span class="ident">RootsStorage</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">Number</span>: <span class="ident">SimpleArithmetic</span>, <span class="ident">Hash</span>: <span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
 	<span class="ident">roots</span>: (<span class="ident">Number</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> [<span class="ident">Hash</span>]),
-	<span class="ident">prev_roots</span>: <span class="ident">BTreeMap</span><span class="op">&lt;</span><span class="ident">Number</span>, <span class="ident">Hash</span><span class="op">&gt;</span>,
+	<span class="ident">prev_roots</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">BTreeMap</span><span class="op">&lt;</span><span class="ident">Number</span>, <span class="ident">Hash</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">H</span>, <span class="ident">Number</span>, <span class="ident">Hash</span><span class="op">&gt;</span> <span class="ident">ChangesTrieRootsStorage</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">Number</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">RootsStorage</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">Number</span>, <span class="ident">Hash</span><span class="op">&gt;</span>
@@ -1134,7 +1161,7 @@
 	<span class="kw">use</span> <span class="ident">sp_blockchain</span>::<span class="ident">Error</span> <span class="kw">as</span> <span class="ident">ClientError</span>;
 	<span class="kw">use</span> <span class="ident">sc_client_api</span>::<span class="ident">backend</span>::<span class="ident">NewBlockState</span>;
 	<span class="kw">use</span> <span class="ident">substrate_test_runtime_client</span>::{
-		<span class="self">self</span>, <span class="ident">ClientExt</span>, <span class="ident">blockchain</span>::<span class="ident">HeaderBackend</span>, <span class="ident">AccountKeyring</span>,
+		<span class="ident">blockchain</span>::<span class="ident">HeaderBackend</span>, <span class="ident">AccountKeyring</span>, <span class="ident">ClientBlockImportExt</span>,
 		<span class="ident">runtime</span>::{<span class="self">self</span>, <span class="ident">Hash</span>, <span class="ident">Block</span>, <span class="ident">Header</span>, <span class="ident">Extrinsic</span>}
 	};
 	<span class="kw">use</span> <span class="ident">sp_consensus</span>::<span class="ident">BlockOrigin</span>;
@@ -1142,7 +1169,7 @@
 	<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">in_mem</span>::{<span class="ident">Blockchain</span> <span class="kw">as</span> <span class="ident">InMemoryBlockchain</span>};
 	<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">light</span>::<span class="ident">fetcher</span>::{<span class="ident">FetchChecker</span>, <span class="ident">LightDataChecker</span>, <span class="ident">RemoteHeaderRequest</span>};
 	<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">light</span>::<span class="ident">blockchain</span>::<span class="ident">tests</span>::{<span class="ident">DummyStorage</span>, <span class="ident">DummyBlockchain</span>};
-	<span class="kw">use</span> <span class="ident">sp_core</span>::{<span class="ident">blake2_256</span>, <span class="ident">Blake2Hasher</span>, <span class="ident">H256</span>};
+	<span class="kw">use</span> <span class="ident">sp_core</span>::{<span class="ident">blake2_256</span>, <span class="ident">Blake2Hasher</span>, <span class="ident">ChangesTrieConfiguration</span>, <span class="ident">H256</span>};
 	<span class="kw">use</span> <span class="ident">sp_core</span>::<span class="ident">storage</span>::{<span class="ident">well_known_keys</span>, <span class="ident">StorageKey</span>, <span class="ident">ChildInfo</span>};
 	<span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">generic</span>::<span class="ident">BlockId</span>;
 	<span class="kw">use</span> <span class="ident">sp_state_machine</span>::<span class="ident">Backend</span>;
@@ -1245,13 +1272,15 @@
 
 	<span class="kw">fn</span> <span class="ident">prepare_for_header_proof_check</span>(<span class="ident">insert_cht</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">TestChecker</span>, <span class="ident">Hash</span>, <span class="ident">Header</span>, <span class="ident">StorageProof</span>) {
 		<span class="comment">// prepare remote client</span>
-		<span class="kw">let</span> <span class="ident">remote_client</span> <span class="op">=</span> <span class="ident">substrate_test_runtime_client</span>::<span class="ident">new</span>();
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">remote_client</span> <span class="op">=</span> <span class="ident">substrate_test_runtime_client</span>::<span class="ident">new</span>();
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">local_headers_hashes</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
 		<span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="number">4</span> {
-			<span class="kw">let</span> <span class="ident">builder</span> <span class="op">=</span> <span class="ident">remote_client</span>.<span class="ident">new_block</span>(<span class="ident">Default</span>::<span class="ident">default</span>()).<span class="ident">unwrap</span>();
-			<span class="ident">remote_client</span>.<span class="ident">import</span>(<span class="ident">BlockOrigin</span>::<span class="ident">Own</span>, <span class="ident">builder</span>.<span class="ident">bake</span>().<span class="ident">unwrap</span>()).<span class="ident">unwrap</span>();
-			<span class="ident">local_headers_hashes</span>.<span class="ident">push</span>(<span class="ident">remote_client</span>.<span class="ident">block_hash</span>(<span class="ident">i</span> <span class="op">+</span> <span class="number">1</span>)
-				.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">ClientError</span>::<span class="ident">Backend</span>(<span class="string">&quot;TestError&quot;</span>.<span class="ident">into</span>())));
+			<span class="kw">let</span> <span class="ident">block</span> <span class="op">=</span> <span class="ident">remote_client</span>.<span class="ident">new_block</span>(<span class="ident">Default</span>::<span class="ident">default</span>()).<span class="ident">unwrap</span>().<span class="ident">build</span>().<span class="ident">unwrap</span>().<span class="ident">block</span>;
+			<span class="ident">remote_client</span>.<span class="ident">import</span>(<span class="ident">BlockOrigin</span>::<span class="ident">Own</span>, <span class="ident">block</span>).<span class="ident">unwrap</span>();
+			<span class="ident">local_headers_hashes</span>.<span class="ident">push</span>(
+				<span class="ident">remote_client</span>.<span class="ident">block_hash</span>(<span class="ident">i</span> <span class="op">+</span> <span class="number">1</span>)
+					.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">ClientError</span>::<span class="ident">Backend</span>(<span class="string">&quot;TestError&quot;</span>.<span class="ident">into</span>()))
+			);
 		}
 
 		<span class="comment">// &#39;fetch&#39; header proof from remote node</span>
@@ -1369,8 +1398,13 @@
 
 			<span class="comment">// check proof on local client</span>
 			<span class="kw">let</span> <span class="ident">local_roots_range</span> <span class="op">=</span> <span class="ident">local_roots</span>.<span class="ident">clone</span>()[(<span class="ident">begin</span> <span class="op">-</span> <span class="number">1</span>) <span class="kw">as</span> <span class="ident">usize</span>..].<span class="ident">to_vec</span>();
+			<span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">ChangesTrieConfiguration</span>::<span class="ident">new</span>(<span class="number">4</span>, <span class="number">2</span>);
 			<span class="kw">let</span> <span class="ident">request</span> <span class="op">=</span> <span class="ident">RemoteChangesRequest</span>::<span class="op">&lt;</span><span class="ident">Header</span><span class="op">&gt;</span> {
-				<span class="ident">changes_trie_config</span>: <span class="ident">runtime</span>::<span class="ident">changes_trie_config</span>(),
+				<span class="ident">changes_trie_configs</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">sp_core</span>::<span class="ident">ChangesTrieConfigurationRange</span> {
+					<span class="ident">zero</span>: (<span class="number">0</span>, <span class="ident">Default</span>::<span class="ident">default</span>()),
+					<span class="ident">end</span>: <span class="prelude-val">None</span>,
+					<span class="ident">config</span>: <span class="prelude-val">Some</span>(<span class="ident">config</span>),
+				}],
 				<span class="ident">first_block</span>: (<span class="ident">begin</span>, <span class="ident">begin_hash</span>),
 				<span class="ident">last_block</span>: (<span class="ident">end</span>, <span class="ident">end_hash</span>),
 				<span class="ident">max_block</span>: (<span class="ident">max</span>, <span class="ident">max_hash</span>),
@@ -1424,8 +1458,13 @@
 		);
 
 		<span class="comment">// check proof on local client</span>
+		<span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">ChangesTrieConfiguration</span>::<span class="ident">new</span>(<span class="number">4</span>, <span class="number">2</span>);
 		<span class="kw">let</span> <span class="ident">request</span> <span class="op">=</span> <span class="ident">RemoteChangesRequest</span>::<span class="op">&lt;</span><span class="ident">Header</span><span class="op">&gt;</span> {
-			<span class="ident">changes_trie_config</span>: <span class="ident">runtime</span>::<span class="ident">changes_trie_config</span>(),
+			<span class="ident">changes_trie_configs</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">sp_core</span>::<span class="ident">ChangesTrieConfigurationRange</span> {
+				<span class="ident">zero</span>: (<span class="number">0</span>, <span class="ident">Default</span>::<span class="ident">default</span>()),
+				<span class="ident">end</span>: <span class="prelude-val">None</span>,
+				<span class="ident">config</span>: <span class="prelude-val">Some</span>(<span class="ident">config</span>),
+			}],
 			<span class="ident">first_block</span>: (<span class="number">1</span>, <span class="ident">b1</span>),
 			<span class="ident">last_block</span>: (<span class="number">4</span>, <span class="ident">b4</span>),
 			<span class="ident">max_block</span>: (<span class="number">4</span>, <span class="ident">b4</span>),
@@ -1465,8 +1504,13 @@
 			<span class="ident">begin_hash</span>, <span class="ident">end_hash</span>, <span class="ident">begin_hash</span>, <span class="ident">max_hash</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span><span class="ident">key</span>).<span class="ident">unwrap</span>();
 
 		<span class="kw">let</span> <span class="ident">local_roots_range</span> <span class="op">=</span> <span class="ident">local_roots</span>.<span class="ident">clone</span>()[(<span class="ident">begin</span> <span class="op">-</span> <span class="number">1</span>) <span class="kw">as</span> <span class="ident">usize</span>..].<span class="ident">to_vec</span>();
+		<span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">ChangesTrieConfiguration</span>::<span class="ident">new</span>(<span class="number">4</span>, <span class="number">2</span>);
 		<span class="kw">let</span> <span class="ident">request</span> <span class="op">=</span> <span class="ident">RemoteChangesRequest</span>::<span class="op">&lt;</span><span class="ident">Header</span><span class="op">&gt;</span> {
-			<span class="ident">changes_trie_config</span>: <span class="ident">runtime</span>::<span class="ident">changes_trie_config</span>(),
+			<span class="ident">changes_trie_configs</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">sp_core</span>::<span class="ident">ChangesTrieConfigurationRange</span> {
+				<span class="ident">zero</span>: (<span class="number">0</span>, <span class="ident">Default</span>::<span class="ident">default</span>()),
+				<span class="ident">end</span>: <span class="prelude-val">None</span>,
+				<span class="ident">config</span>: <span class="prelude-val">Some</span>(<span class="ident">config</span>),
+			}],
 			<span class="ident">first_block</span>: (<span class="ident">begin</span>, <span class="ident">begin_hash</span>),
 			<span class="ident">last_block</span>: (<span class="ident">end</span>, <span class="ident">end_hash</span>),
 			<span class="ident">max_block</span>: (<span class="ident">max</span>, <span class="ident">max_hash</span>),

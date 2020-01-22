@@ -872,6 +872,15 @@
 <span id="861">861</span>
 <span id="862">862</span>
 <span id="863">863</span>
+<span id="864">864</span>
+<span id="865">865</span>
+<span id="866">866</span>
+<span id="867">867</span>
+<span id="868">868</span>
+<span id="869">869</span>
+<span id="870">870</span>
+<span id="871">871</span>
+<span id="872">872</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -908,10 +917,10 @@
 <span class="kw">use</span> <span class="ident">sp_consensus</span>::<span class="ident">import_queue</span>::{<span class="ident">ImportQueue</span>, <span class="ident">Link</span>};
 <span class="kw">use</span> <span class="ident">sp_consensus</span>::<span class="ident">import_queue</span>::{<span class="ident">BlockImportResult</span>, <span class="ident">BlockImportError</span>};
 <span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">channel</span>::<span class="ident">mpsc</span>};
-<span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">warn</span>, <span class="ident">error</span>, <span class="ident">info</span>};
+<span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">warn</span>, <span class="ident">error</span>, <span class="ident">info</span>, <span class="ident">trace</span>};
 <span class="kw">use</span> <span class="ident">libp2p</span>::{<span class="ident">PeerId</span>, <span class="ident">Multiaddr</span>, <span class="ident">kad</span>::<span class="ident">record</span>};
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">core</span>::{<span class="ident">transport</span>::<span class="ident">boxed</span>::<span class="ident">Boxed</span>, <span class="ident">muxing</span>::<span class="ident">StreamMuxerBox</span>};
-<span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">swarm</span>::<span class="ident">NetworkBehaviour</span>;
+<span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">swarm</span>::{<span class="ident">NetworkBehaviour</span>, <span class="ident">SwarmEvent</span>};
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">Mutex</span>;
 <span class="kw">use</span> <span class="ident">sc_peerset</span>::<span class="ident">PeersetHandle</span>;
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::{<span class="ident">traits</span>::{<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">NumberFor</span>}, <span class="ident">ConsensusEngineId</span>};
@@ -1649,23 +1658,32 @@
 
 		<span class="kw">loop</span> {
 			<span class="comment">// Process the next action coming from the network.</span>
-			<span class="kw">let</span> <span class="ident">poll_value</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">network_service</span>.<span class="ident">poll_next_unpin</span>(<span class="ident">cx</span>);
+			<span class="kw">let</span> <span class="ident">next_event</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">network_service</span>.<span class="ident">next_event</span>();
+			<span class="ident">futures</span>::<span class="macro">pin_mut</span><span class="macro">!</span>(<span class="ident">next_event</span>);
+			<span class="kw">let</span> <span class="ident">poll_value</span> <span class="op">=</span> <span class="ident">next_event</span>.<span class="ident">poll_unpin</span>(<span class="ident">cx</span>);
 
 			<span class="kw">match</span> <span class="ident">poll_value</span> {
 				<span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">break</span>,
-				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">BehaviourOut</span>::<span class="ident">BlockImport</span>(<span class="ident">origin</span>, <span class="ident">blocks</span>))) <span class="op">=</span><span class="op">&gt;</span>
+				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">SwarmEvent</span>::<span class="ident">Behaviour</span>(<span class="ident">BehaviourOut</span>::<span class="ident">BlockImport</span>(<span class="ident">origin</span>, <span class="ident">blocks</span>))) <span class="op">=</span><span class="op">&gt;</span>
 					<span class="ident">this</span>.<span class="ident">import_queue</span>.<span class="ident">import_blocks</span>(<span class="ident">origin</span>, <span class="ident">blocks</span>),
-				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">BehaviourOut</span>::<span class="ident">JustificationImport</span>(<span class="ident">origin</span>, <span class="ident">hash</span>, <span class="ident">nb</span>, <span class="ident">justification</span>))) <span class="op">=</span><span class="op">&gt;</span>
+				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">SwarmEvent</span>::<span class="ident">Behaviour</span>(<span class="ident">BehaviourOut</span>::<span class="ident">JustificationImport</span>(<span class="ident">origin</span>, <span class="ident">hash</span>, <span class="ident">nb</span>, <span class="ident">justification</span>))) <span class="op">=</span><span class="op">&gt;</span>
 					<span class="ident">this</span>.<span class="ident">import_queue</span>.<span class="ident">import_justification</span>(<span class="ident">origin</span>, <span class="ident">hash</span>, <span class="ident">nb</span>, <span class="ident">justification</span>),
-				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">BehaviourOut</span>::<span class="ident">FinalityProofImport</span>(<span class="ident">origin</span>, <span class="ident">hash</span>, <span class="ident">nb</span>, <span class="ident">proof</span>))) <span class="op">=</span><span class="op">&gt;</span>
+				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">SwarmEvent</span>::<span class="ident">Behaviour</span>(<span class="ident">BehaviourOut</span>::<span class="ident">FinalityProofImport</span>(<span class="ident">origin</span>, <span class="ident">hash</span>, <span class="ident">nb</span>, <span class="ident">proof</span>))) <span class="op">=</span><span class="op">&gt;</span>
 					<span class="ident">this</span>.<span class="ident">import_queue</span>.<span class="ident">import_finality_proof</span>(<span class="ident">origin</span>, <span class="ident">hash</span>, <span class="ident">nb</span>, <span class="ident">proof</span>),
-				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">BehaviourOut</span>::<span class="ident">Event</span>(<span class="ident">ev</span>))) <span class="op">=</span><span class="op">&gt;</span> {
-					<span class="ident">this</span>.<span class="ident">event_streams</span>.<span class="ident">retain</span>(<span class="op">|</span><span class="ident">sender</span><span class="op">|</span> <span class="ident">sender</span>.<span class="ident">unbounded_send</span>(<span class="ident">ev</span>.<span class="ident">clone</span>()).<span class="ident">is_ok</span>());
-				},
-				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>) <span class="op">=</span><span class="op">&gt;</span> {
-					<span class="macro">error</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Network events stream has returned None&quot;</span>);
-					<span class="kw">break</span>;
-				},
+				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">SwarmEvent</span>::<span class="ident">Behaviour</span>(<span class="ident">BehaviourOut</span>::<span class="ident">Event</span>(<span class="ident">ev</span>))) <span class="op">=</span><span class="op">&gt;</span>
+					<span class="ident">this</span>.<span class="ident">event_streams</span>.<span class="ident">retain</span>(<span class="op">|</span><span class="ident">sender</span><span class="op">|</span> <span class="ident">sender</span>.<span class="ident">unbounded_send</span>(<span class="ident">ev</span>.<span class="ident">clone</span>()).<span class="ident">is_ok</span>()),
+				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">SwarmEvent</span>::<span class="ident">Connected</span>(<span class="ident">peer_id</span>)) <span class="op">=</span><span class="op">&gt;</span>
+					<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;Libp2p =&gt; Connected({:?})&quot;</span>, <span class="ident">peer_id</span>),
+				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">SwarmEvent</span>::<span class="ident">Disconnected</span>(<span class="ident">peer_id</span>)) <span class="op">=</span><span class="op">&gt;</span>
+					<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;Libp2p =&gt; Disconnected({:?})&quot;</span>, <span class="ident">peer_id</span>),
+				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">SwarmEvent</span>::<span class="ident">NewListenAddr</span>(<span class="ident">addr</span>)) <span class="op">=</span><span class="op">&gt;</span>
+					<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;Libp2p =&gt; NewListenAddr({})&quot;</span>, <span class="ident">addr</span>),
+				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">SwarmEvent</span>::<span class="ident">ExpiredListenAddr</span>(<span class="ident">addr</span>)) <span class="op">=</span><span class="op">&gt;</span>
+					<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;Libp2p =&gt; ExpiredListenAddr({})&quot;</span>, <span class="ident">addr</span>),
+				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">SwarmEvent</span>::<span class="ident">UnreachableAddr</span> { <span class="ident">peer_id</span>, <span class="ident">address</span>, <span class="ident">error</span> }) <span class="op">=</span><span class="op">&gt;</span>
+					<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;Libp2p =&gt; Failed to reach {:?} through {:?}: {}&quot;</span>, <span class="ident">peer_id</span>, <span class="ident">address</span>, <span class="ident">error</span>),
+				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">SwarmEvent</span>::<span class="ident">StartConnect</span>(<span class="ident">peer_id</span>)) <span class="op">=</span><span class="op">&gt;</span>
+					<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;Libp2p =&gt; StartConnect({:?})&quot;</span>, <span class="ident">peer_id</span>),
 			};
 		}
 

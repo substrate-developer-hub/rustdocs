@@ -175,11 +175,11 @@
 <span class="comment">// You should have received a copy of the GNU General Public License</span>
 <span class="comment">// along with Substrate.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
 
-<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
-<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">sync</span>::<span class="ident">mpsc</span>;
-<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">stream</span>::<span class="ident">futures_unordered</span>::<span class="ident">FuturesUnordered</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::{<span class="ident">Duration</span>, <span class="ident">Instant</span>};
-<span class="kw">use</span> <span class="ident">tokio_timer</span>::<span class="ident">Delay</span>;
+<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">Stream</span>, <span class="ident">stream</span>::<span class="ident">futures_unordered</span>::<span class="ident">FuturesUnordered</span>, <span class="ident">channel</span>::<span class="ident">mpsc</span>};
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">pin</span>::<span class="ident">Pin</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">task</span>::{<span class="ident">Poll</span>, <span class="ident">Context</span>};
+<span class="kw">use</span> <span class="ident">futures_timer</span>::<span class="ident">Delay</span>;
 
 <span class="doccomment">/// Holds a list of `UnboundedSender`s, each associated with a certain time period. Every time the</span>
 <span class="doccomment">/// period elapses, we push an element on the sender.</span>
@@ -190,7 +190,7 @@
 }
 
 <span class="kw">struct</span> <span class="ident">YieldAfter</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-	<span class="ident">delay</span>: <span class="ident">tokio_timer</span>::<span class="ident">Delay</span>,
+	<span class="ident">delay</span>: <span class="ident">Delay</span>,
 	<span class="ident">interval</span>: <span class="ident">Duration</span>,
 	<span class="ident">sender</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">mpsc</span>::<span class="ident">UnboundedSender</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
@@ -208,7 +208,7 @@
 	<span class="doccomment">/// The `interval` is the time period between two pushes on the sender.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">push</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">interval</span>: <span class="ident">Duration</span>, <span class="ident">sender</span>: <span class="ident">mpsc</span>::<span class="ident">UnboundedSender</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) {
 		<span class="self">self</span>.<span class="ident">entries</span>.<span class="ident">push</span>(<span class="ident">YieldAfter</span> {
-			<span class="ident">delay</span>: <span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">Instant</span>::<span class="ident">now</span>() <span class="op">+</span> <span class="ident">interval</span>),
+			<span class="ident">delay</span>: <span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">interval</span>),
 			<span class="ident">interval</span>,
 			<span class="ident">sender</span>: <span class="prelude-val">Some</span>(<span class="ident">sender</span>),
 		})
@@ -218,16 +218,16 @@
 	<span class="doccomment">/// pushes what it returns to the sender.</span>
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// This function doesn&#39;t return anything, but it should be treated as if it implicitly</span>
-	<span class="doccomment">/// returns `Ok(Async::NotReady)`. In particular, it should be called again when the task</span>
+	<span class="doccomment">/// returns `Poll::Pending`. In particular, it should be called again when the task</span>
 	<span class="doccomment">/// is waken up.</span>
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// # Panic</span>
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// Panics if not called within the context of a task.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">status_grab</span>: <span class="kw">impl</span> <span class="ident">FnMut</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">T</span>) {
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>, <span class="kw-2">mut</span> <span class="ident">status_grab</span>: <span class="kw">impl</span> <span class="ident">FnMut</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">T</span>) {
 		<span class="kw">loop</span> {
-			<span class="kw">match</span> <span class="self">self</span>.<span class="ident">entries</span>.<span class="ident">poll</span>() {
-				<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>((<span class="ident">sender</span>, <span class="ident">interval</span>)))) <span class="op">=</span><span class="op">&gt;</span> {
+			<span class="kw">match</span> <span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">entries</span>).<span class="ident">poll_next</span>(<span class="ident">cx</span>) {
+				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>((<span class="ident">sender</span>, <span class="ident">interval</span>))) <span class="op">=</span><span class="op">&gt;</span> {
 					<span class="kw">let</span> <span class="ident">status</span> <span class="op">=</span> <span class="ident">status_grab</span>();
 					<span class="kw">if</span> <span class="ident">sender</span>.<span class="ident">unbounded_send</span>(<span class="ident">status</span>).<span class="ident">is_ok</span>() {
 						<span class="self">self</span>.<span class="ident">entries</span>.<span class="ident">push</span>(<span class="ident">YieldAfter</span> {
@@ -235,33 +235,32 @@
 							<span class="comment">// waken up and the moment it is polled, the period is actually not</span>
 							<span class="comment">// `interval` but `interval + &lt;delay&gt;`. We ignore this problem in</span>
 							<span class="comment">// practice.</span>
-							<span class="ident">delay</span>: <span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">Instant</span>::<span class="ident">now</span>() <span class="op">+</span> <span class="ident">interval</span>),
+							<span class="ident">delay</span>: <span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">interval</span>),
 							<span class="ident">interval</span>,
 							<span class="ident">sender</span>: <span class="prelude-val">Some</span>(<span class="ident">sender</span>),
 						});
 					}
 				}
-				<span class="prelude-val">Err</span>(()) <span class="op">|</span>
-				<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>)) <span class="op">|</span>
-				<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">break</span>,
+				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>) <span class="op">|</span>
+				<span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">break</span>,
 			}
 		}
 	}
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Future</span> <span class="kw">for</span> <span class="ident">YieldAfter</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-	<span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> (<span class="ident">mpsc</span>::<span class="ident">UnboundedSender</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">Duration</span>);
-	<span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> ();
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">futures</span>::<span class="ident">Future</span> <span class="kw">for</span> <span class="ident">YieldAfter</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+	<span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> (<span class="ident">mpsc</span>::<span class="ident">UnboundedSender</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">Duration</span>);
 
-	<span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Item</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
-		<span class="kw">match</span> <span class="self">self</span>.<span class="ident">delay</span>.<span class="ident">poll</span>() {
-			<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>),
-			<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(())) <span class="op">=</span><span class="op">&gt;</span> {
-				<span class="kw">let</span> <span class="ident">sender</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">take</span>()
+	<span class="kw">fn</span> <span class="ident">poll</span>(<span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Output</span><span class="op">&gt;</span> {
+		<span class="kw">let</span> <span class="ident">this</span> <span class="op">=</span> <span class="ident">Pin</span>::<span class="ident">into_inner</span>(<span class="self">self</span>);
+
+		<span class="kw">match</span> <span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">this</span>.<span class="ident">delay</span>).<span class="ident">poll</span>(<span class="ident">cx</span>) {
+			<span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Poll</span>::<span class="ident">Pending</span>,
+			<span class="ident">Poll</span>::<span class="ident">Ready</span>(()) <span class="op">=</span><span class="op">&gt;</span> {
+				<span class="kw">let</span> <span class="ident">sender</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">sender</span>.<span class="ident">take</span>()
 					.<span class="ident">expect</span>(<span class="string">&quot;sender is always Some unless the future is finished; qed&quot;</span>);
-				<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>((<span class="ident">sender</span>, <span class="self">self</span>.<span class="ident">interval</span>)))
-			},
-			<span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(()),
+				<span class="ident">Poll</span>::<span class="ident">Ready</span>((<span class="ident">sender</span>, <span class="ident">this</span>.<span class="ident">interval</span>))
+			}
 		}
 	}
 }
@@ -270,8 +269,9 @@
 <span class="kw">mod</span> <span class="ident">tests</span> {
 	<span class="kw">use</span> <span class="kw">super</span>::<span class="ident">StatusSinks</span>;
 	<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
-	<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">sync</span>::<span class="ident">mpsc</span>;
+	<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">channel</span>::<span class="ident">mpsc</span>;
 	<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>;
+	<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">task</span>::<span class="ident">Poll</span>;
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
 	<span class="kw">fn</span> <span class="ident">works</span>() {
@@ -286,18 +286,18 @@
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">runtime</span> <span class="op">=</span> <span class="ident">tokio</span>::<span class="ident">runtime</span>::<span class="ident">Runtime</span>::<span class="ident">new</span>().<span class="ident">unwrap</span>();
 
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">val_order</span> <span class="op">=</span> <span class="number">5</span>;
-		<span class="ident">runtime</span>.<span class="ident">spawn</span>(<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">poll_fn</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
-			<span class="ident">status_sinks</span>.<span class="ident">poll</span>(<span class="op">|</span><span class="op">|</span> { <span class="ident">val_order</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>; <span class="ident">val_order</span> });
-			<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>)
+		<span class="ident">runtime</span>.<span class="ident">spawn</span>(<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">poll_fn</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">cx</span><span class="op">|</span> {
+			<span class="ident">status_sinks</span>.<span class="ident">poll</span>(<span class="ident">cx</span>, <span class="op">|</span><span class="op">|</span> { <span class="ident">val_order</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>; <span class="ident">val_order</span> });
+			<span class="ident">Poll</span>::<span class="op">&lt;</span>()<span class="op">&gt;</span>::<span class="ident">Pending</span>
 		}));
 
 		<span class="kw">let</span> <span class="ident">done</span> <span class="op">=</span> <span class="ident">rx</span>
 			.<span class="ident">into_future</span>()
-			.<span class="ident">and_then</span>(<span class="op">|</span>(<span class="ident">item</span>, <span class="ident">rest</span>)<span class="op">|</span> {
+			.<span class="ident">then</span>(<span class="op">|</span>(<span class="ident">item</span>, <span class="ident">rest</span>)<span class="op">|</span> {
 				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">item</span>, <span class="prelude-val">Some</span>(<span class="number">6</span>));
 				<span class="ident">rest</span>.<span class="ident">into_future</span>()
 			})
-			.<span class="ident">and_then</span>(<span class="op">|</span>(<span class="ident">item</span>, <span class="ident">rest</span>)<span class="op">|</span> {
+			.<span class="ident">then</span>(<span class="op">|</span>(<span class="ident">item</span>, <span class="ident">rest</span>)<span class="op">|</span> {
 				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">item</span>, <span class="prelude-val">Some</span>(<span class="number">7</span>));
 				<span class="ident">rest</span>.<span class="ident">into_future</span>()
 			})
@@ -305,7 +305,7 @@
 				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">item</span>, <span class="prelude-val">Some</span>(<span class="number">8</span>));
 			});
 
-		<span class="ident">runtime</span>.<span class="ident">block_on</span>(<span class="ident">done</span>).<span class="ident">unwrap</span>();
+		<span class="ident">runtime</span>.<span class="ident">block_on</span>(<span class="ident">done</span>);
 	}
 }
 </pre></div>

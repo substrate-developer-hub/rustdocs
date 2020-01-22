@@ -568,6 +568,15 @@
 <span id="557">557</span>
 <span id="558">558</span>
 <span id="559">559</span>
+<span id="560">560</span>
+<span id="561">561</span>
+<span id="562">562</span>
+<span id="563">563</span>
+<span id="564">564</span>
+<span id="565">565</span>
+<span id="566">566</span>
+<span id="567">567</span>
+<span id="568">568</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -608,19 +617,19 @@
 <span class="kw">use</span> <span class="ident">sp_block_builder</span>::<span class="ident">BlockBuilder</span> <span class="kw">as</span> <span class="ident">BlockBuilderApi</span>;
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::{<span class="ident">Justification</span>, <span class="ident">RuntimeString</span>};
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">generic</span>::{<span class="ident">BlockId</span>, <span class="ident">Digest</span>, <span class="ident">DigestItem</span>};
-<span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">traits</span>::{<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">Header</span> <span class="kw">as</span> <span class="ident">HeaderT</span>, <span class="ident">ProvideRuntimeApi</span>};
-<span class="kw">use</span> <span class="ident">sp_timestamp</span>::{<span class="ident">TimestampInherentData</span>, <span class="ident">InherentError</span> <span class="kw">as</span> <span class="ident">TIError</span>};
+<span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">traits</span>::{<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">Header</span> <span class="kw">as</span> <span class="ident">HeaderT</span>};
+<span class="kw">use</span> <span class="ident">sp_api</span>::<span class="ident">ProvideRuntimeApi</span>;
 <span class="kw">use</span> <span class="ident">sp_consensus_pow</span>::{<span class="ident">Seal</span>, <span class="ident">TotalDifficulty</span>, <span class="ident">POW_ENGINE_ID</span>};
-<span class="kw">use</span> <span class="ident">sp_core</span>::<span class="ident">H256</span>;
 <span class="kw">use</span> <span class="ident">sp_inherents</span>::{<span class="ident">InherentDataProviders</span>, <span class="ident">InherentData</span>};
 <span class="kw">use</span> <span class="ident">sp_consensus</span>::{
 	<span class="ident">BlockImportParams</span>, <span class="ident">BlockOrigin</span>, <span class="ident">ForkChoiceStrategy</span>, <span class="ident">SyncOracle</span>, <span class="ident">Environment</span>, <span class="ident">Proposer</span>,
-	<span class="ident">SelectChain</span>, <span class="ident">Error</span> <span class="kw">as</span> <span class="ident">ConsensusError</span>, <span class="ident">CanAuthorWith</span>,
+	<span class="ident">SelectChain</span>, <span class="ident">Error</span> <span class="kw">as</span> <span class="ident">ConsensusError</span>, <span class="ident">CanAuthorWith</span>, <span class="ident">RecordProof</span>,
 };
 <span class="kw">use</span> <span class="ident">sp_consensus</span>::<span class="ident">import_queue</span>::{<span class="ident">BoxBlockImport</span>, <span class="ident">BasicQueue</span>, <span class="ident">Verifier</span>};
 <span class="kw">use</span> <span class="ident">codec</span>::{<span class="ident">Encode</span>, <span class="ident">Decode</span>};
 <span class="kw">use</span> <span class="ident">sc_client_api</span>;
 <span class="kw">use</span> <span class="ident">log</span>::<span class="kw-2">*</span>;
+<span class="kw">use</span> <span class="ident">sp_timestamp</span>::{<span class="ident">InherentError</span> <span class="kw">as</span> <span class="ident">TIError</span>, <span class="ident">TimestampInherentData</span>};
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">derive_more</span>::<span class="ident">Display</span>, <span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">Error</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> {
@@ -664,9 +673,8 @@
 <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">POW_AUX_PREFIX</span>: [<span class="ident">u8</span>; <span class="number">4</span>] <span class="op">=</span> <span class="kw-2">*</span><span class="string">b&quot;PoW:&quot;</span>;
 
 <span class="doccomment">/// Get the auxiliary storage key used by engine to store total difficulty.</span>
-<span class="kw">fn</span> <span class="ident">aux_key</span>(<span class="ident">hash</span>: <span class="kw-2">&amp;</span><span class="ident">H256</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> {
-	<span class="ident">POW_AUX_PREFIX</span>.<span class="ident">iter</span>().<span class="ident">chain</span>(<span class="kw-2">&amp;</span><span class="ident">hash</span>[..])
-		.<span class="ident">cloned</span>().<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>()
+<span class="kw">fn</span> <span class="ident">aux_key</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">AsRef</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span><span class="op">&gt;</span>(<span class="ident">hash</span>: <span class="kw-2">&amp;</span><span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> {
+	<span class="ident">POW_AUX_PREFIX</span>.<span class="ident">iter</span>().<span class="ident">chain</span>(<span class="ident">hash</span>.<span class="ident">as_ref</span>()).<span class="ident">copied</span>().<span class="ident">collect</span>()
 }
 
 <span class="doccomment">/// Auxiliary storage data for PoW.</span>
@@ -682,12 +690,11 @@
 	<span class="ident">Difficulty</span>: <span class="ident">Decode</span> <span class="op">+</span> <span class="ident">Default</span>,
 {
 	<span class="doccomment">/// Read the auxiliary from client.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">read</span><span class="op">&lt;</span><span class="ident">C</span>: <span class="ident">AuxStore</span>, <span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span>(<span class="ident">client</span>: <span class="kw-2">&amp;</span><span class="ident">C</span>, <span class="ident">hash</span>: <span class="kw-2">&amp;</span><span class="ident">H256</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">Error</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-		<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">aux_key</span>(<span class="ident">hash</span>);
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">read</span><span class="op">&lt;</span><span class="ident">C</span>: <span class="ident">AuxStore</span>, <span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span>(<span class="ident">client</span>: <span class="kw-2">&amp;</span><span class="ident">C</span>, <span class="ident">hash</span>: <span class="kw-2">&amp;</span><span class="ident">B</span>::<span class="ident">Hash</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">Error</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+		<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">aux_key</span>(<span class="kw-2">&amp;</span><span class="ident">hash</span>);
 
 		<span class="kw">match</span> <span class="ident">client</span>.<span class="ident">get_aux</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>).<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">Client</span>)<span class="question-mark">?</span> {
-			<span class="prelude-val">Some</span>(<span class="ident">bytes</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="self">Self</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="ident">bytes</span>[..])
-				.<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">Codec</span>),
+			<span class="prelude-val">Some</span>(<span class="ident">bytes</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="self">Self</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="ident">bytes</span>[..]).<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">Codec</span>),
 			<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="self">Self</span>::<span class="ident">default</span>()),
 		}
 	}
@@ -704,7 +711,7 @@
 	<span class="kw">fn</span> <span class="ident">verify</span>(
 		<span class="kw-2">&amp;</span><span class="self">self</span>,
 		<span class="ident">parent</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
-		<span class="ident">pre_hash</span>: <span class="kw-2">&amp;</span><span class="ident">H256</span>,
+		<span class="ident">pre_hash</span>: <span class="kw-2">&amp;</span><span class="ident">B</span>::<span class="ident">Hash</span>,
 		<span class="ident">seal</span>: <span class="kw-2">&amp;</span><span class="ident">Seal</span>,
 		<span class="ident">difficulty</span>: <span class="self">Self</span>::<span class="ident">Difficulty</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span>, <span class="ident">Error</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>;
@@ -712,14 +719,14 @@
 	<span class="kw">fn</span> <span class="ident">mine</span>(
 		<span class="kw-2">&amp;</span><span class="self">self</span>,
 		<span class="ident">parent</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
-		<span class="ident">pre_hash</span>: <span class="kw-2">&amp;</span><span class="ident">H256</span>,
+		<span class="ident">pre_hash</span>: <span class="kw-2">&amp;</span><span class="ident">B</span>::<span class="ident">Hash</span>,
 		<span class="ident">difficulty</span>: <span class="self">Self</span>::<span class="ident">Difficulty</span>,
 		<span class="ident">round</span>: <span class="ident">u32</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Seal</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 }
 
 <span class="doccomment">/// A verifier for PoW blocks.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">PowVerifier</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">C</span>, <span class="ident">S</span>, <span class="ident">Algorithm</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">PowVerifier</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">C</span>, <span class="ident">S</span>, <span class="ident">Algorithm</span><span class="op">&gt;</span> {
 	<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span>,
 	<span class="ident">algorithm</span>: <span class="ident">Algorithm</span>,
 	<span class="ident">inherent_data_providers</span>: <span class="ident">sp_inherents</span>::<span class="ident">InherentDataProviders</span>,
@@ -727,7 +734,7 @@
 	<span class="ident">check_inherents_after</span>: <span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">B</span> <span class="kw">as</span> <span class="ident">BlockT</span><span class="op">&gt;</span>::<span class="ident">Header</span> <span class="kw">as</span> <span class="ident">HeaderT</span><span class="op">&gt;</span>::<span class="ident">Number</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">C</span>, <span class="ident">S</span>, <span class="ident">Algorithm</span><span class="op">&gt;</span> <span class="ident">PowVerifier</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">C</span>, <span class="ident">S</span>, <span class="ident">Algorithm</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">C</span>, <span class="ident">S</span>, <span class="ident">Algorithm</span><span class="op">&gt;</span> <span class="ident">PowVerifier</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">C</span>, <span class="ident">S</span>, <span class="ident">Algorithm</span><span class="op">&gt;</span> {
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
 		<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span>,
 		<span class="ident">algorithm</span>: <span class="ident">Algorithm</span>,
@@ -742,7 +749,7 @@
 		<span class="kw-2">&amp;</span><span class="self">self</span>,
 		<span class="kw-2">mut</span> <span class="ident">header</span>: <span class="ident">B</span>::<span class="ident">Header</span>,
 		<span class="ident">parent_block_id</span>: <span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
-	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">B</span>::<span class="ident">Header</span>, <span class="ident">Algorithm</span>::<span class="ident">Difficulty</span>, <span class="ident">DigestItem</span><span class="op">&lt;</span><span class="ident">H256</span><span class="op">&gt;</span>), <span class="ident">Error</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="kw">where</span>
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">B</span>::<span class="ident">Header</span>, <span class="ident">Algorithm</span>::<span class="ident">Difficulty</span>, <span class="ident">DigestItem</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Hash</span><span class="op">&gt;</span>), <span class="ident">Error</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="kw">where</span>
 		<span class="ident">Algorithm</span>: <span class="ident">PowAlgorithm</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 	{
 		<span class="kw">let</span> <span class="ident">hash</span> <span class="op">=</span> <span class="ident">header</span>.<span class="ident">hash</span>();
@@ -780,7 +787,7 @@
 		<span class="ident">inherent_data</span>: <span class="ident">InherentData</span>,
 		<span class="ident">timestamp_now</span>: <span class="ident">u64</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="kw">where</span>
-		<span class="ident">C</span>: <span class="ident">ProvideRuntimeApi</span>, <span class="ident">C</span>::<span class="ident">Api</span>: <span class="ident">BlockBuilderApi</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">sp_blockchain</span>::<span class="ident">Error</span><span class="op">&gt;</span>
+		<span class="ident">C</span>: <span class="ident">ProvideRuntimeApi</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">C</span>::<span class="ident">Api</span>: <span class="ident">BlockBuilderApi</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">sp_blockchain</span>::<span class="ident">Error</span><span class="op">&gt;</span>
 	{
 		<span class="kw">const</span> <span class="ident">MAX_TIMESTAMP_DRIFT_SECS</span>: <span class="ident">u64</span> <span class="op">=</span> <span class="number">60</span>;
 
@@ -816,8 +823,8 @@
 	}
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">C</span>, <span class="ident">S</span>, <span class="ident">Algorithm</span><span class="op">&gt;</span> <span class="ident">Verifier</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">PowVerifier</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">C</span>, <span class="ident">S</span>, <span class="ident">Algorithm</span><span class="op">&gt;</span> <span class="kw">where</span>
-	<span class="ident">C</span>: <span class="ident">ProvideRuntimeApi</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="ident">HeaderBackend</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">AuxStore</span> <span class="op">+</span> <span class="ident">ProvideCache</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">BlockOf</span>,
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">C</span>, <span class="ident">S</span>, <span class="ident">Algorithm</span><span class="op">&gt;</span> <span class="ident">Verifier</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">PowVerifier</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">C</span>, <span class="ident">S</span>, <span class="ident">Algorithm</span><span class="op">&gt;</span> <span class="kw">where</span>
+	<span class="ident">C</span>: <span class="ident">ProvideRuntimeApi</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="ident">HeaderBackend</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">AuxStore</span> <span class="op">+</span> <span class="ident">ProvideCache</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">BlockOf</span>,
 	<span class="ident">C</span>::<span class="ident">Api</span>: <span class="ident">BlockBuilderApi</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">sp_blockchain</span>::<span class="ident">Error</span><span class="op">&gt;</span>,
 	<span class="ident">S</span>: <span class="ident">SelectChain</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 	<span class="ident">Algorithm</span>: <span class="ident">PowAlgorithm</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
@@ -828,7 +835,7 @@
 		<span class="ident">header</span>: <span class="ident">B</span>::<span class="ident">Header</span>,
 		<span class="ident">justification</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Justification</span><span class="op">&gt;</span>,
 		<span class="kw-2">mut</span> <span class="ident">body</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Extrinsic</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">BlockImportParams</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">CacheKeyId</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>)<span class="op">&gt;</span><span class="op">&gt;</span>), <span class="ident">String</span><span class="op">&gt;</span> {
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">BlockImportParams</span><span class="op">&lt;</span><span class="ident">B</span>, ()<span class="op">&gt;</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">CacheKeyId</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>)<span class="op">&gt;</span><span class="op">&gt;</span>), <span class="ident">String</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">inherent_data</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">inherent_data_providers</span>
 			.<span class="ident">create_inherent_data</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">into_string</span>())<span class="question-mark">?</span>;
 		<span class="kw">let</span> <span class="ident">timestamp_now</span> <span class="op">=</span> <span class="ident">inherent_data</span>.<span class="ident">timestamp_inherent_data</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">into_string</span>())<span class="question-mark">?</span>;
@@ -861,19 +868,22 @@
 				<span class="ident">timestamp_now</span>
 			)<span class="question-mark">?</span>;
 
-			<span class="kw">let</span> (<span class="kw">_</span>, <span class="ident">inner_body</span>) <span class="op">=</span> <span class="ident">block</span>.<span class="ident">deconstruct</span>();
-			<span class="ident">body</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">inner_body</span>);
+			<span class="ident">body</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">block</span>.<span class="ident">deconstruct</span>().<span class="number">1</span>);
 		}
+
 		<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">aux_key</span>(<span class="kw-2">&amp;</span><span class="ident">hash</span>);
 		<span class="kw">let</span> <span class="ident">import_block</span> <span class="op">=</span> <span class="ident">BlockImportParams</span> {
 			<span class="ident">origin</span>,
 			<span class="ident">header</span>: <span class="ident">checked_header</span>,
 			<span class="ident">post_digests</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">seal</span>],
 			<span class="ident">body</span>,
+			<span class="ident">storage_changes</span>: <span class="prelude-val">None</span>,
 			<span class="ident">finalized</span>: <span class="bool-val">false</span>,
 			<span class="ident">justification</span>,
 			<span class="ident">auxiliary</span>: <span class="macro">vec</span><span class="macro">!</span>[(<span class="ident">key</span>, <span class="prelude-val">Some</span>(<span class="ident">aux</span>.<span class="ident">encode</span>()))],
-			<span class="ident">fork_choice</span>: <span class="ident">ForkChoiceStrategy</span>::<span class="ident">Custom</span>(<span class="ident">aux</span>.<span class="ident">total_difficulty</span> <span class="op">&gt;</span> <span class="ident">best_aux</span>.<span class="ident">total_difficulty</span>),
+			<span class="ident">fork_choice</span>: <span class="ident">ForkChoiceStrategy</span>::<span class="ident">Custom</span>(
+				<span class="ident">aux</span>.<span class="ident">total_difficulty</span> <span class="op">&gt;</span> <span class="ident">best_aux</span>.<span class="ident">total_difficulty</span>
+			),
 			<span class="ident">allow_missing_state</span>: <span class="bool-val">false</span>,
 			<span class="ident">import_existing</span>: <span class="bool-val">false</span>,
 		};
@@ -897,19 +907,22 @@
 }
 
 <span class="doccomment">/// The PoW import queue type.</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">PowImportQueue</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">BasicQueue</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>;
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">PowImportQueue</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Transaction</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">BasicQueue</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Transaction</span><span class="op">&gt;</span>;
 
 <span class="doccomment">/// Import queue for PoW engine.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">import_queue</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">C</span>, <span class="ident">S</span>, <span class="ident">Algorithm</span><span class="op">&gt;</span>(
-	<span class="ident">block_import</span>: <span class="ident">BoxBlockImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+	<span class="ident">block_import</span>: <span class="ident">BoxBlockImport</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">sp_api</span>::<span class="ident">TransactionFor</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span>,
 	<span class="ident">algorithm</span>: <span class="ident">Algorithm</span>,
 	<span class="ident">check_inherents_after</span>: <span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">B</span> <span class="kw">as</span> <span class="ident">BlockT</span><span class="op">&gt;</span>::<span class="ident">Header</span> <span class="kw">as</span> <span class="ident">HeaderT</span><span class="op">&gt;</span>::<span class="ident">Number</span>,
 	<span class="ident">select_chain</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>,
 	<span class="ident">inherent_data_providers</span>: <span class="ident">InherentDataProviders</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">PowImportQueue</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">sp_consensus</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="kw">where</span>
-	<span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>,
-	<span class="ident">C</span>: <span class="ident">ProvideRuntimeApi</span> <span class="op">+</span> <span class="ident">HeaderBackend</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">BlockOf</span> <span class="op">+</span> <span class="ident">ProvideCache</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">AuxStore</span>,
+) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>
+	<span class="ident">PowImportQueue</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">sp_api</span>::<span class="ident">TransactionFor</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">sp_consensus</span>::<span class="ident">Error</span>
+<span class="op">&gt;</span> <span class="kw">where</span>
+	<span class="ident">B</span>: <span class="ident">BlockT</span>,
+	<span class="ident">C</span>: <span class="ident">ProvideRuntimeApi</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">HeaderBackend</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">BlockOf</span> <span class="op">+</span> <span class="ident">ProvideCache</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">AuxStore</span>,
 	<span class="ident">C</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="ident">AuxStore</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">C</span>::<span class="ident">Api</span>: <span class="ident">BlockBuilderApi</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">sp_blockchain</span>::<span class="ident">Error</span><span class="op">&gt;</span>,
 	<span class="ident">Algorithm</span>: <span class="ident">PowAlgorithm</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
@@ -943,8 +956,8 @@
 <span class="doccomment">/// information, or just be a graffiti. `round` is for number of rounds the</span>
 <span class="doccomment">/// CPU miner runs each time. This parameter should be tweaked so that each</span>
 <span class="doccomment">/// mining round is within sub-second time.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">start_mine</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">C</span>, <span class="ident">Algorithm</span>, <span class="ident">E</span>, <span class="ident">SO</span>, <span class="ident">S</span>, <span class="ident">CAW</span><span class="op">&gt;</span>(
-	<span class="kw-2">mut</span> <span class="ident">block_import</span>: <span class="ident">BoxBlockImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">start_mine</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">C</span>, <span class="ident">Algorithm</span>, <span class="ident">E</span>, <span class="ident">SO</span>, <span class="ident">S</span>, <span class="ident">CAW</span><span class="op">&gt;</span>(
+	<span class="kw-2">mut</span> <span class="ident">block_import</span>: <span class="ident">BoxBlockImport</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">sp_api</span>::<span class="ident">TransactionFor</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span>,
 	<span class="ident">algorithm</span>: <span class="ident">Algorithm</span>,
 	<span class="kw-2">mut</span> <span class="ident">env</span>: <span class="ident">E</span>,
@@ -956,10 +969,11 @@
 	<span class="ident">inherent_data_providers</span>: <span class="ident">sp_inherents</span>::<span class="ident">InherentDataProviders</span>,
 	<span class="ident">can_author_with</span>: <span class="ident">CAW</span>,
 ) <span class="kw">where</span>
-	<span class="ident">C</span>: <span class="ident">HeaderBackend</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">AuxStore</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+	<span class="ident">C</span>: <span class="ident">HeaderBackend</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">AuxStore</span> <span class="op">+</span> <span class="ident">ProvideRuntimeApi</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">Algorithm</span>: <span class="ident">PowAlgorithm</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">E</span>: <span class="ident">Environment</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">E</span>::<span class="ident">Error</span>: <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Debug</span>,
+	<span class="ident">E</span>::<span class="ident">Proposer</span>: <span class="ident">Proposer</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Transaction</span> <span class="op">=</span> <span class="ident">sp_api</span>::<span class="ident">TransactionFor</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">SO</span>: <span class="ident">SyncOracle</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">S</span>: <span class="ident">SelectChain</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">CAW</span>: <span class="ident">CanAuthorWith</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
@@ -994,8 +1008,8 @@
 	});
 }
 
-<span class="kw">fn</span> <span class="ident">mine_loop</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&lt;</span><span class="ident">Hash</span><span class="op">=</span><span class="ident">H256</span><span class="op">&gt;</span>, <span class="ident">C</span>, <span class="ident">Algorithm</span>, <span class="ident">E</span>, <span class="ident">SO</span>, <span class="ident">S</span>, <span class="ident">CAW</span><span class="op">&gt;</span>(
-	<span class="ident">block_import</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">BoxBlockImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+<span class="kw">fn</span> <span class="ident">mine_loop</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">C</span>, <span class="ident">Algorithm</span>, <span class="ident">E</span>, <span class="ident">SO</span>, <span class="ident">S</span>, <span class="ident">CAW</span><span class="op">&gt;</span>(
+	<span class="ident">block_import</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">BoxBlockImport</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">sp_api</span>::<span class="ident">TransactionFor</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">client</span>: <span class="kw-2">&amp;</span><span class="ident">C</span>,
 	<span class="ident">algorithm</span>: <span class="kw-2">&amp;</span><span class="ident">Algorithm</span>,
 	<span class="ident">env</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">E</span>,
@@ -1007,12 +1021,14 @@
 	<span class="ident">inherent_data_providers</span>: <span class="kw-2">&amp;</span><span class="ident">sp_inherents</span>::<span class="ident">InherentDataProviders</span>,
 	<span class="ident">can_author_with</span>: <span class="kw-2">&amp;</span><span class="ident">CAW</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="kw">where</span>
-	<span class="ident">C</span>: <span class="ident">HeaderBackend</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">AuxStore</span>,
+	<span class="ident">C</span>: <span class="ident">HeaderBackend</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">AuxStore</span> <span class="op">+</span> <span class="ident">ProvideRuntimeApi</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 	<span class="ident">Algorithm</span>: <span class="ident">PowAlgorithm</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 	<span class="ident">E</span>: <span class="ident">Environment</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+	<span class="ident">E</span>::<span class="ident">Proposer</span>: <span class="ident">Proposer</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Transaction</span> <span class="op">=</span> <span class="ident">sp_api</span>::<span class="ident">TransactionFor</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">E</span>::<span class="ident">Error</span>: <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Debug</span>,
 	<span class="ident">SO</span>: <span class="ident">SyncOracle</span>,
 	<span class="ident">S</span>: <span class="ident">SelectChain</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+	<span class="ident">sp_api</span>::<span class="ident">TransactionFor</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">B</span><span class="op">&gt;</span>: <span class="lifetime">&#39;static</span>,
 	<span class="ident">CAW</span>: <span class="ident">CanAuthorWith</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 {
 	<span class="lifetime">&#39;outer</span>: <span class="kw">loop</span> {
@@ -1050,7 +1066,7 @@
 		}
 
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">aux</span> <span class="op">=</span> <span class="ident">PowAux</span>::<span class="ident">read</span>(<span class="ident">client</span>, <span class="kw-2">&amp;</span><span class="ident">best_hash</span>)<span class="question-mark">?</span>;
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">proposer</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">init</span>(<span class="kw-2">&amp;</span><span class="ident">best_header</span>)
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">proposer</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on</span>(<span class="ident">env</span>.<span class="ident">init</span>(<span class="kw-2">&amp;</span><span class="ident">best_header</span>))
 			.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Environment</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">e</span>)))<span class="question-mark">?</span>;
 
 		<span class="kw">let</span> <span class="ident">inherent_data</span> <span class="op">=</span> <span class="ident">inherent_data_providers</span>
@@ -1059,13 +1075,14 @@
 		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">preruntime</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">preruntime</span> {
 			<span class="ident">inherent_digest</span>.<span class="ident">push</span>(<span class="ident">DigestItem</span>::<span class="ident">PreRuntime</span>(<span class="ident">POW_ENGINE_ID</span>, <span class="ident">preruntime</span>.<span class="ident">to_vec</span>()));
 		}
-		<span class="kw">let</span> <span class="ident">block</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on</span>(<span class="ident">proposer</span>.<span class="ident">propose</span>(
+		<span class="kw">let</span> <span class="ident">proposal</span> <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on</span>(<span class="ident">proposer</span>.<span class="ident">propose</span>(
 			<span class="ident">inherent_data</span>,
 			<span class="ident">inherent_digest</span>,
 			<span class="ident">build_time</span>.<span class="ident">clone</span>(),
+			<span class="ident">RecordProof</span>::<span class="ident">No</span>,
 		)).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">BlockProposingError</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">e</span>)))<span class="question-mark">?</span>;
 
-		<span class="kw">let</span> (<span class="ident">header</span>, <span class="ident">body</span>) <span class="op">=</span> <span class="ident">block</span>.<span class="ident">deconstruct</span>();
+		<span class="kw">let</span> (<span class="ident">header</span>, <span class="ident">body</span>) <span class="op">=</span> <span class="ident">proposal</span>.<span class="ident">block</span>.<span class="ident">deconstruct</span>();
 		<span class="kw">let</span> (<span class="ident">difficulty</span>, <span class="ident">seal</span>) <span class="op">=</span> {
 			<span class="kw">let</span> <span class="ident">difficulty</span> <span class="op">=</span> <span class="ident">algorithm</span>.<span class="ident">difficulty</span>(
 				<span class="kw-2">&amp;</span><span class="ident">BlockId</span>::<span class="ident">Hash</span>(<span class="ident">best_hash</span>),
@@ -1117,6 +1134,7 @@
 			<span class="ident">justification</span>: <span class="prelude-val">None</span>,
 			<span class="ident">post_digests</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">DigestItem</span>::<span class="ident">Seal</span>(<span class="ident">POW_ENGINE_ID</span>, <span class="ident">seal</span>)],
 			<span class="ident">body</span>: <span class="prelude-val">Some</span>(<span class="ident">body</span>),
+			<span class="ident">storage_changes</span>: <span class="prelude-val">Some</span>(<span class="ident">proposal</span>.<span class="ident">storage_changes</span>),
 			<span class="ident">finalized</span>: <span class="bool-val">false</span>,
 			<span class="ident">auxiliary</span>: <span class="macro">vec</span><span class="macro">!</span>[(<span class="ident">key</span>, <span class="prelude-val">Some</span>(<span class="ident">aux</span>.<span class="ident">encode</span>()))],
 			<span class="ident">fork_choice</span>: <span class="ident">ForkChoiceStrategy</span>::<span class="ident">Custom</span>(<span class="bool-val">true</span>),

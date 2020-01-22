@@ -297,6 +297,40 @@
 <span id="286">286</span>
 <span id="287">287</span>
 <span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -316,8 +350,10 @@
 
 <span class="doccomment">//! Block import helpers.</span>
 
-<span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">traits</span>::{<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">DigestItemFor</span>, <span class="ident">Header</span> <span class="kw">as</span> <span class="ident">HeaderT</span>, <span class="ident">NumberFor</span>};
-<span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">Justification</span>;
+<span class="kw">use</span> <span class="ident">sp_runtime</span>::{
+	<span class="ident">Justification</span>,
+	<span class="ident">traits</span>::{<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">DigestItemFor</span>, <span class="ident">Header</span> <span class="kw">as</span> <span class="ident">HeaderT</span>, <span class="ident">NumberFor</span>, <span class="ident">HasherFor</span>},
+};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">borrow</span>::<span class="ident">Cow</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
@@ -410,7 +446,7 @@
 }
 
 <span class="doccomment">/// Data required to import a Block.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BlockImportParams</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BlockImportParams</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">BlockT</span>, <span class="ident">Transaction</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Origin of the Block</span>
 	<span class="kw">pub</span> <span class="ident">origin</span>: <span class="ident">BlockOrigin</span>,
 	<span class="doccomment">/// The header, without consensus post-digests applied. This should be in the same</span>
@@ -430,8 +466,13 @@
 	<span class="doccomment">/// Digest items that have been added after the runtime for external</span>
 	<span class="doccomment">/// work, like a consensus signature.</span>
 	<span class="kw">pub</span> <span class="ident">post_digests</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">DigestItemFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-	<span class="doccomment">/// Block&#39;s body</span>
+	<span class="doccomment">/// The body of the block.</span>
 	<span class="kw">pub</span> <span class="ident">body</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Extrinsic</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="doccomment">/// The changes to the storage to create the state for the block. If this is `Some(_)`,</span>
+	<span class="doccomment">/// the block import will not need to re-execute the block for importing it.</span>
+	<span class="kw">pub</span> <span class="ident">storage_changes</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span>
+		<span class="ident">sp_state_machine</span>::<span class="ident">StorageChanges</span><span class="op">&lt;</span><span class="ident">Transaction</span>, <span class="ident">HasherFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>
+	<span class="op">&gt;</span>,
 	<span class="doccomment">/// Is this block finalized already?</span>
 	<span class="doccomment">/// `true` implies instant finality.</span>
 	<span class="kw">pub</span> <span class="ident">finalized</span>: <span class="ident">bool</span>,
@@ -448,7 +489,7 @@
 	<span class="kw">pub</span> <span class="ident">import_existing</span>: <span class="ident">bool</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> <span class="ident">BlockImportParams</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">BlockT</span>, <span class="ident">Transaction</span><span class="op">&gt;</span> <span class="ident">BlockImportParams</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Transaction</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Deconstruct the justified header into parts.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">into_inner</span>(<span class="self">self</span>)
 		<span class="op">-</span><span class="op">&gt;</span> (
@@ -456,7 +497,8 @@
 			<span class="op">&lt;</span><span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span><span class="op">&gt;</span>::<span class="ident">Header</span>,
 			<span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Justification</span><span class="op">&gt;</span>,
 			<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">DigestItemFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-			<span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span><span class="op">&gt;</span>::<span class="ident">Extrinsic</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+			<span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Extrinsic</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+			<span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">sp_state_machine</span>::<span class="ident">StorageChanges</span><span class="op">&lt;</span><span class="ident">Transaction</span>, <span class="ident">HasherFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 			<span class="ident">bool</span>,
 			<span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
 		) {
@@ -466,6 +508,7 @@
 			<span class="self">self</span>.<span class="ident">justification</span>,
 			<span class="self">self</span>.<span class="ident">post_digests</span>,
 			<span class="self">self</span>.<span class="ident">body</span>,
+			<span class="self">self</span>.<span class="ident">storage_changes</span>,
 			<span class="self">self</span>.<span class="ident">finalized</span>,
 			<span class="self">self</span>.<span class="ident">auxiliary</span>,
 		)
@@ -486,11 +529,34 @@
 			})
 		}
 	}
+
+	<span class="doccomment">/// Auxiliary function for &quot;converting&quot; the transaction type.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// Actually this just sets `storage_changes` to `None` and makes rustc think that `Self` now</span>
+	<span class="doccomment">/// uses a different transaction type.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">convert_transaction</span><span class="op">&lt;</span><span class="ident">Transaction2</span><span class="op">&gt;</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">BlockImportParams</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Transaction2</span><span class="op">&gt;</span> {
+		<span class="ident">BlockImportParams</span> {
+			<span class="ident">origin</span>: <span class="self">self</span>.<span class="ident">origin</span>,
+			<span class="ident">header</span>: <span class="self">self</span>.<span class="ident">header</span>,
+			<span class="ident">justification</span>: <span class="self">self</span>.<span class="ident">justification</span>,
+			<span class="ident">post_digests</span>: <span class="self">self</span>.<span class="ident">post_digests</span>,
+			<span class="ident">body</span>: <span class="self">self</span>.<span class="ident">body</span>,
+			<span class="ident">storage_changes</span>: <span class="prelude-val">None</span>,
+			<span class="ident">finalized</span>: <span class="self">self</span>.<span class="ident">finalized</span>,
+			<span class="ident">auxiliary</span>: <span class="self">self</span>.<span class="ident">auxiliary</span>,
+			<span class="ident">allow_missing_state</span>: <span class="self">self</span>.<span class="ident">allow_missing_state</span>,
+			<span class="ident">fork_choice</span>: <span class="self">self</span>.<span class="ident">fork_choice</span>,
+			<span class="ident">import_existing</span>: <span class="self">self</span>.<span class="ident">import_existing</span>,
+		}
+	}
 }
 
 <span class="doccomment">/// Block import trait.</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">BlockImport</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> {
-	<span class="kw">type</span> <span class="ident">Error</span>: ::<span class="ident">std</span>::<span class="ident">error</span>::<span class="ident">Error</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>;
+	<span class="doccomment">/// The error type.</span>
+	<span class="kw">type</span> <span class="ident">Error</span>: <span class="ident">std</span>::<span class="ident">error</span>::<span class="ident">Error</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>;
+	<span class="doccomment">/// The transaction type used by the backend.</span>
+	<span class="kw">type</span> <span class="ident">Transaction</span>;
 
 	<span class="doccomment">/// Check block preconditions.</span>
 	<span class="kw">fn</span> <span class="ident">check_block</span>(
@@ -503,13 +569,14 @@
 	<span class="doccomment">/// Cached data can be accessed through the blockchain cache.</span>
 	<span class="kw">fn</span> <span class="ident">import_block</span>(
 		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-		<span class="ident">block</span>: <span class="ident">BlockImportParams</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+		<span class="ident">block</span>: <span class="ident">BlockImportParams</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="self">Self</span>::<span class="ident">Transaction</span><span class="op">&gt;</span>,
 		<span class="ident">cache</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">CacheKeyId</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ImportResult</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> <span class="ident">BlockImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="kw">crate</span>::<span class="ident">import_queue</span>::<span class="ident">BoxBlockImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">Transaction</span><span class="op">&gt;</span> <span class="ident">BlockImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="kw">crate</span>::<span class="ident">import_queue</span>::<span class="ident">BoxBlockImport</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Transaction</span><span class="op">&gt;</span> {
 	<span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="kw">crate</span>::<span class="ident">error</span>::<span class="ident">Error</span>;
+	<span class="kw">type</span> <span class="ident">Transaction</span> <span class="op">=</span> <span class="ident">Transaction</span>;
 
 	<span class="doccomment">/// Check block preconditions.</span>
 	<span class="kw">fn</span> <span class="ident">check_block</span>(
@@ -524,17 +591,18 @@
 	<span class="doccomment">/// Cached data can be accessed through the blockchain cache.</span>
 	<span class="kw">fn</span> <span class="ident">import_block</span>(
 		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-		<span class="ident">block</span>: <span class="ident">BlockImportParams</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+		<span class="ident">block</span>: <span class="ident">BlockImportParams</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Transaction</span><span class="op">&gt;</span>,
 		<span class="ident">cache</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">CacheKeyId</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ImportResult</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
 		(<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>).<span class="ident">import_block</span>(<span class="ident">block</span>, <span class="ident">cache</span>)
 	}
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">T</span>, <span class="ident">E</span>: <span class="ident">std</span>::<span class="ident">error</span>::<span class="ident">Error</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">BlockImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>
-<span class="kw">where</span> <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;r</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;r</span> <span class="ident">T</span>: <span class="ident">BlockImport</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">E</span><span class="op">&gt;</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">T</span>, <span class="ident">E</span>: <span class="ident">std</span>::<span class="ident">error</span>::<span class="ident">Error</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>, <span class="ident">Transaction</span><span class="op">&gt;</span> <span class="ident">BlockImport</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>
+	<span class="kw">where</span> <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;r</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;r</span> <span class="ident">T</span>: <span class="ident">BlockImport</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">E</span>, <span class="ident">Transaction</span> <span class="op">=</span> <span class="ident">Transaction</span><span class="op">&gt;</span>
 {
 	<span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">E</span>;
+	<span class="kw">type</span> <span class="ident">Transaction</span> <span class="op">=</span> <span class="ident">Transaction</span>;
 
 	<span class="kw">fn</span> <span class="ident">check_block</span>(
 		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
@@ -545,7 +613,7 @@
 
 	<span class="kw">fn</span> <span class="ident">import_block</span>(
 		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-		<span class="ident">block</span>: <span class="ident">BlockImportParams</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+		<span class="ident">block</span>: <span class="ident">BlockImportParams</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Transaction</span><span class="op">&gt;</span>,
 		<span class="ident">cache</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">CacheKeyId</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ImportResult</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
 		(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>).<span class="ident">import_block</span>(<span class="ident">block</span>, <span class="ident">cache</span>)
@@ -554,7 +622,7 @@
 
 <span class="doccomment">/// Justification import trait</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">JustificationImport</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> {
-	<span class="kw">type</span> <span class="ident">Error</span>: ::<span class="ident">std</span>::<span class="ident">error</span>::<span class="ident">Error</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>;
+	<span class="kw">type</span> <span class="ident">Error</span>: <span class="ident">std</span>::<span class="ident">error</span>::<span class="ident">Error</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>;
 
 	<span class="doccomment">/// Called by the import queue when it is started. Returns a list of justifications to request</span>
 	<span class="doccomment">/// from the network.</span>
