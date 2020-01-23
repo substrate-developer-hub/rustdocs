@@ -145,10 +145,4 @@ implementors["websocket_base"] = [{"text":"impl <a class=\"trait\" href=\"https:
 implementors["ws"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/std/error/trait.Error.html\" title=\"trait std::error::Error\">Error</a> for <a class=\"struct\" href=\"ws/struct.Error.html\" title=\"struct ws::Error\">Error</a>","synthetic":false,"types":["ws::result::Error"]}];
 implementors["xdg"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/std/error/trait.Error.html\" title=\"trait std::error::Error\">Error</a> for <a class=\"struct\" href=\"xdg/struct.BaseDirectoriesError.html\" title=\"struct xdg::BaseDirectoriesError\">BaseDirectoriesError</a>","synthetic":false,"types":["xdg::BaseDirectoriesError"]}];
 implementors["yamux"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/std/error/trait.Error.html\" title=\"trait std::error::Error\">Error</a> for <a class=\"enum\" href=\"yamux/enum.ConnectionError.html\" title=\"enum yamux::ConnectionError\">ConnectionError</a>","synthetic":false,"types":["yamux::error::ConnectionError"]},{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/std/error/trait.Error.html\" title=\"trait std::error::Error\">Error</a> for <a class=\"enum\" href=\"yamux/enum.HeaderDecodeError.html\" title=\"enum yamux::HeaderDecodeError\">HeaderDecodeError</a>","synthetic":false,"types":["yamux::frame::header::HeaderDecodeError"]},{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/std/error/trait.Error.html\" title=\"trait std::error::Error\">Error</a> for <a class=\"enum\" href=\"yamux/enum.FrameDecodeError.html\" title=\"enum yamux::FrameDecodeError\">FrameDecodeError</a>","synthetic":false,"types":["yamux::frame::io::FrameDecodeError"]}];
-
-            if (window.register_implementors) {
-                window.register_implementors(implementors);
-            } else {
-                window.pending_implementors = implementors;
-            }
-        })()
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

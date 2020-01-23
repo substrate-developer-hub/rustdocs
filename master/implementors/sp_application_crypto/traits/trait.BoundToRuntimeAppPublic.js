@@ -4,10 +4,4 @@ implementors["pallet_authority_discovery"] = [{"text":"impl&lt;T:&nbsp;<a class=
 implementors["pallet_babe"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=\"pallet_babe/trait.Trait.html\" title=\"trait pallet_babe::Trait\">Trait</a>&gt; <a class=\"trait\" href=\"sp_application_crypto/traits/trait.BoundToRuntimeAppPublic.html\" title=\"trait sp_application_crypto::traits::BoundToRuntimeAppPublic\">BoundToRuntimeAppPublic</a> for <a class=\"struct\" href=\"pallet_babe/struct.Module.html\" title=\"struct pallet_babe::Module\">Module</a>&lt;T&gt;","synthetic":false,"types":["pallet_babe::Module"]}];
 implementors["pallet_grandpa"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=\"pallet_grandpa/trait.Trait.html\" title=\"trait pallet_grandpa::Trait\">Trait</a>&gt; <a class=\"trait\" href=\"sp_application_crypto/traits/trait.BoundToRuntimeAppPublic.html\" title=\"trait sp_application_crypto::traits::BoundToRuntimeAppPublic\">BoundToRuntimeAppPublic</a> for <a class=\"struct\" href=\"pallet_grandpa/struct.Module.html\" title=\"struct pallet_grandpa::Module\">Module</a>&lt;T&gt;","synthetic":false,"types":["pallet_grandpa::Module"]}];
 implementors["pallet_im_online"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=\"pallet_im_online/trait.Trait.html\" title=\"trait pallet_im_online::Trait\">Trait</a>&gt; <a class=\"trait\" href=\"sp_application_crypto/traits/trait.BoundToRuntimeAppPublic.html\" title=\"trait sp_application_crypto::traits::BoundToRuntimeAppPublic\">BoundToRuntimeAppPublic</a> for <a class=\"struct\" href=\"pallet_im_online/struct.Module.html\" title=\"struct pallet_im_online::Module\">Module</a>&lt;T&gt;","synthetic":false,"types":["pallet_im_online::Module"]}];
-
-            if (window.register_implementors) {
-                window.register_implementors(implementors);
-            } else {
-                window.pending_implementors = implementors;
-            }
-        })()
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

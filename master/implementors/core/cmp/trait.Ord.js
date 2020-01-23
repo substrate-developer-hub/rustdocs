@@ -82,10 +82,4 @@ implementors["wasmparser"] = [{"text":"impl <a class=\"trait\" href=\"https://do
 implementors["wasmtime_environ"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html\" title=\"trait core::cmp::Ord\">Ord</a> for <a class=\"enum\" href=\"wasmtime_environ/enum.Export.html\" title=\"enum wasmtime_environ::Export\">Export</a>","synthetic":false,"types":["wasmtime_environ::module::Export"]}];
 implementors["websocket_base"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html\" title=\"trait core::cmp::Ord\">Ord</a> for <a class=\"struct\" href=\"websocket_base/ws/util/header/struct.DataFrameFlags.html\" title=\"struct websocket_base::ws::util::header::DataFrameFlags\">DataFrameFlags</a>","synthetic":false,"types":["websocket_base::ws::util::header::DataFrameFlags"]}];
 implementors["yamux"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html\" title=\"trait core::cmp::Ord\">Ord</a> for <a class=\"struct\" href=\"yamux/struct.StreamId.html\" title=\"struct yamux::StreamId\">StreamId</a>","synthetic":false,"types":["yamux::frame::header::StreamId"]},{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html\" title=\"trait core::cmp::Ord\">Ord</a> for <a class=\"struct\" href=\"yamux/struct.Packet.html\" title=\"struct yamux::Packet\">Packet</a>","synthetic":false,"types":["yamux::connection::stream::Packet"]}];
-
-            if (window.register_implementors) {
-                window.register_implementors(implementors);
-            } else {
-                window.pending_implementors = implementors;
-            }
-        })()
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

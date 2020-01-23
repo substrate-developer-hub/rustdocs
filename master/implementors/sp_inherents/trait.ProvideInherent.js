@@ -4,10 +4,4 @@ implementors["pallet_authorship"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\"
 implementors["pallet_babe"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=\"pallet_babe/trait.Trait.html\" title=\"trait pallet_babe::Trait\">Trait</a>&gt; <a class=\"trait\" href=\"sp_inherents/trait.ProvideInherent.html\" title=\"trait sp_inherents::ProvideInherent\">ProvideInherent</a> for <a class=\"struct\" href=\"pallet_babe/struct.Module.html\" title=\"struct pallet_babe::Module\">Module</a>&lt;T&gt;","synthetic":false,"types":["pallet_babe::Module"]}];
 implementors["pallet_finality_tracker"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=\"pallet_finality_tracker/trait.Trait.html\" title=\"trait pallet_finality_tracker::Trait\">Trait</a>&gt; <a class=\"trait\" href=\"sp_inherents/trait.ProvideInherent.html\" title=\"trait sp_inherents::ProvideInherent\">ProvideInherent</a> for <a class=\"struct\" href=\"pallet_finality_tracker/struct.Module.html\" title=\"struct pallet_finality_tracker::Module\">Module</a>&lt;T&gt;","synthetic":false,"types":["pallet_finality_tracker::Module"]}];
 implementors["pallet_timestamp"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=\"pallet_timestamp/trait.Trait.html\" title=\"trait pallet_timestamp::Trait\">Trait</a>&gt; <a class=\"trait\" href=\"sp_inherents/trait.ProvideInherent.html\" title=\"trait sp_inherents::ProvideInherent\">ProvideInherent</a> for <a class=\"struct\" href=\"pallet_timestamp/struct.Module.html\" title=\"struct pallet_timestamp::Module\">Module</a>&lt;T&gt;","synthetic":false,"types":["pallet_timestamp::Module"]}];
-
-            if (window.register_implementors) {
-                window.register_implementors(implementors);
-            } else {
-                window.pending_implementors = implementors;
-            }
-        })()
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

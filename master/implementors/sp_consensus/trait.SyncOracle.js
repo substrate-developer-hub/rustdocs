@@ -1,10 +1,4 @@
 (function() {var implementors = {};
 implementors["sc_network"] = [{"text":"impl&lt;B:&nbsp;<a class=\"trait\" href=\"sp_runtime/traits/trait.Block.html\" title=\"trait sp_runtime::traits::Block\">BlockT</a> + 'static, S:&nbsp;<a class=\"trait\" href=\"sc_network/specialization/trait.NetworkSpecialization.html\" title=\"trait sc_network::specialization::NetworkSpecialization\">NetworkSpecialization</a>&lt;B&gt;, H:&nbsp;<a class=\"trait\" href=\"sc_network/trait.ExHashT.html\" title=\"trait sc_network::ExHashT\">ExHashT</a>&gt; <a class=\"trait\" href=\"sp_consensus/trait.SyncOracle.html\" title=\"trait sp_consensus::SyncOracle\">SyncOracle</a> for <a class=\"struct\" href=\"sc_network/struct.NetworkService.html\" title=\"struct sc_network::NetworkService\">NetworkService</a>&lt;B, S, H&gt;","synthetic":false,"types":["sc_network::service::NetworkService"]},{"text":"impl&lt;'a, B:&nbsp;<a class=\"trait\" href=\"sp_runtime/traits/trait.Block.html\" title=\"trait sp_runtime::traits::Block\">BlockT</a> + 'static, S:&nbsp;<a class=\"trait\" href=\"sc_network/specialization/trait.NetworkSpecialization.html\" title=\"trait sc_network::specialization::NetworkSpecialization\">NetworkSpecialization</a>&lt;B&gt;, H:&nbsp;<a class=\"trait\" href=\"sc_network/trait.ExHashT.html\" title=\"trait sc_network::ExHashT\">ExHashT</a>&gt; <a class=\"trait\" href=\"sp_consensus/trait.SyncOracle.html\" title=\"trait sp_consensus::SyncOracle\">SyncOracle</a> for &amp;'a <a class=\"struct\" href=\"sc_network/struct.NetworkService.html\" title=\"struct sc_network::NetworkService\">NetworkService</a>&lt;B, S, H&gt;","synthetic":false,"types":["sc_network::service::NetworkService"]}];
 implementors["sp_consensus"] = [];
-
-            if (window.register_implementors) {
-                window.register_implementors(implementors);
-            } else {
-                window.pending_implementors = implementors;
-            }
-        })()
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

@@ -1,9 +1,3 @@
 (function() {var implementors = {};
 implementors["websocket"] = [{"text":"impl <a class=\"trait\" href=\"websocket/ws/receiver/trait.Receiver.html\" title=\"trait websocket::ws::receiver::Receiver\">Receiver</a> for <a class=\"struct\" href=\"websocket/receiver/struct.Receiver.html\" title=\"struct websocket::receiver::Receiver\">Receiver</a>","synthetic":false,"types":["websocket::receiver::Receiver"]}];
-
-            if (window.register_implementors) {
-                window.register_implementors(implementors);
-            } else {
-                window.pending_implementors = implementors;
-            }
-        })()
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

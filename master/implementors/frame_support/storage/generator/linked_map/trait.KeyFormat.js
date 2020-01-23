@@ -2,10 +2,4 @@
 implementors["pallet_democracy"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=\"pallet_democracy/trait.Trait.html\" title=\"trait pallet_democracy::Trait\">Trait</a>&gt; KeyFormat for <a class=\"struct\" href=\"pallet_democracy/struct.Delegations.html\" title=\"struct pallet_democracy::Delegations\">Delegations</a>&lt;T&gt;","synthetic":false,"types":["pallet_democracy::Delegations"]}];
 implementors["pallet_elections_phragmen"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=\"pallet_elections_phragmen/trait.Trait.html\" title=\"trait pallet_elections_phragmen::Trait\">Trait</a>&gt; KeyFormat for <a class=\"struct\" href=\"pallet_elections_phragmen/struct.VotesOf.html\" title=\"struct pallet_elections_phragmen::VotesOf\">VotesOf</a>&lt;T&gt;","synthetic":false,"types":["pallet_elections_phragmen::VotesOf"]}];
 implementors["pallet_staking"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=\"pallet_staking/trait.Trait.html\" title=\"trait pallet_staking::Trait\">Trait</a>&gt; KeyFormat for <a class=\"struct\" href=\"pallet_staking/struct.Validators.html\" title=\"struct pallet_staking::Validators\">Validators</a>&lt;T&gt;","synthetic":false,"types":["pallet_staking::Validators"]}];
-
-            if (window.register_implementors) {
-                window.register_implementors(implementors);
-            } else {
-                window.pending_implementors = implementors;
-            }
-        })()
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

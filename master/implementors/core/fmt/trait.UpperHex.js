@@ -12,10 +12,4 @@ implementors["primitive_types"] = [{"text":"impl <a class=\"trait\" href=\"https
 implementors["region"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/fmt/trait.UpperHex.html\" title=\"trait core::fmt::UpperHex\">UpperHex</a> for <a class=\"struct\" href=\"region/struct.Protection.html\" title=\"struct region::Protection\">Protection</a>","synthetic":false,"types":["region::protect::Protection"]}];
 implementors["sc_network"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/fmt/trait.UpperHex.html\" title=\"trait core::fmt::UpperHex\">UpperHex</a> for <a class=\"struct\" href=\"sc_network/message/struct.BlockAttributes.html\" title=\"struct sc_network::message::BlockAttributes\">BlockAttributes</a>","synthetic":false,"types":["sc_network::protocol::message::BlockAttributes"]},{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/fmt/trait.UpperHex.html\" title=\"trait core::fmt::UpperHex\">UpperHex</a> for <a class=\"struct\" href=\"sc_network/config/struct.Roles.html\" title=\"struct sc_network::config::Roles\">Roles</a>","synthetic":false,"types":["sc_network::config::Roles"]}];
 implementors["websocket_base"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/fmt/trait.UpperHex.html\" title=\"trait core::fmt::UpperHex\">UpperHex</a> for <a class=\"struct\" href=\"websocket_base/ws/util/header/struct.DataFrameFlags.html\" title=\"struct websocket_base::ws::util::header::DataFrameFlags\">DataFrameFlags</a>","synthetic":false,"types":["websocket_base::ws::util::header::DataFrameFlags"]}];
-
-            if (window.register_implementors) {
-                window.register_implementors(implementors);
-            } else {
-                window.pending_implementors = implementors;
-            }
-        })()
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

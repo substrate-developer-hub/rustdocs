@@ -2,10 +2,4 @@
 implementors["sc_consensus_slots"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=\"sp_consensus/trait.SlotData.html\" title=\"trait sp_consensus::SlotData\">SlotData</a> + <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a>&gt; <a class=\"trait\" href=\"sp_consensus/trait.SlotData.html\" title=\"trait sp_consensus::SlotData\">SlotData</a> for <a class=\"struct\" href=\"sc_consensus_slots/struct.SlotDuration.html\" title=\"struct sc_consensus_slots::SlotDuration\">SlotDuration</a>&lt;T&gt;","synthetic":false,"types":["sc_consensus_slots::SlotDuration"]}];
 implementors["sp_consensus"] = [];
 implementors["sp_consensus_babe"] = [{"text":"impl <a class=\"trait\" href=\"sp_consensus/trait.SlotData.html\" title=\"trait sp_consensus::SlotData\">SlotData</a> for <a class=\"struct\" href=\"sp_consensus_babe/struct.BabeConfiguration.html\" title=\"struct sp_consensus_babe::BabeConfiguration\">BabeConfiguration</a>","synthetic":false,"types":["sp_consensus_babe::BabeConfiguration"]}];
-
-            if (window.register_implementors) {
-                window.register_implementors(implementors);
-            } else {
-                window.pending_implementors = implementors;
-            }
-        })()
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

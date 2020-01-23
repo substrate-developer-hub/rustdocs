@@ -13,10 +13,4 @@ implementors["sp_offchain"] = [{"text":"impl&lt;Block:&nbsp;<a class=\"trait\" h
 implementors["sp_session"] = [{"text":"impl&lt;Block:&nbsp;<a class=\"trait\" href=\"sp_runtime/traits/trait.Block.html\" title=\"trait sp_runtime::traits::Block\">BlockT</a>, __Sr_Api_Error__&gt; <a class=\"trait\" href=\"sp_api/trait.RuntimeApiInfo.html\" title=\"trait sp_api::RuntimeApiInfo\">RuntimeApiInfo</a> for dyn <a class=\"trait\" href=\"sp_session/trait.SessionKeys.html\" title=\"trait sp_session::SessionKeys\">SessionKeys</a>&lt;Block, Error = __Sr_Api_Error__&gt;","synthetic":false,"types":["sp_session::SessionKeys"]}];
 implementors["sp_transaction_pool"] = [{"text":"impl&lt;Block:&nbsp;<a class=\"trait\" href=\"sp_runtime/traits/trait.Block.html\" title=\"trait sp_runtime::traits::Block\">BlockT</a>, __Sr_Api_Error__&gt; <a class=\"trait\" href=\"sp_api/trait.RuntimeApiInfo.html\" title=\"trait sp_api::RuntimeApiInfo\">RuntimeApiInfo</a> for dyn <a class=\"trait\" href=\"sp_transaction_pool/runtime_api/trait.TaggedTransactionQueue.html\" title=\"trait sp_transaction_pool::runtime_api::TaggedTransactionQueue\">TaggedTransactionQueue</a>&lt;Block, Error = __Sr_Api_Error__&gt;","synthetic":false,"types":["sp_transaction_pool::runtime_api::TaggedTransactionQueue"]}];
 implementors["substrate_test_runtime"] = [{"text":"impl&lt;Block:&nbsp;<a class=\"trait\" href=\"sp_runtime/traits/trait.Block.html\" title=\"trait sp_runtime::traits::Block\">BlockT</a>, __Sr_Api_Error__&gt; <a class=\"trait\" href=\"sp_api/trait.RuntimeApiInfo.html\" title=\"trait sp_api::RuntimeApiInfo\">RuntimeApiInfo</a> for dyn <a class=\"trait\" href=\"substrate_test_runtime/trait.TestAPI.html\" title=\"trait substrate_test_runtime::TestAPI\">TestAPI</a>&lt;Block, Error = __Sr_Api_Error__&gt;","synthetic":false,"types":["substrate_test_runtime::TestAPI"]}];
-
-            if (window.register_implementors) {
-                window.register_implementors(implementors);
-            } else {
-                window.pending_implementors = implementors;
-            }
-        })()
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

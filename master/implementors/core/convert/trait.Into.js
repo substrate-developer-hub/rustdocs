@@ -43,10 +43,4 @@ implementors["unicode_bidi"] = [{"text":"impl <a class=\"trait\" href=\"https://
 implementors["wasmi"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/convert/trait.Into.html\" title=\"trait core::convert::Into\">Into</a>&lt;<a class=\"struct\" href=\"https://doc.rust-lang.org/nightly/alloc/string/struct.String.html\" title=\"struct alloc::string::String\">String</a>&gt; for <a class=\"enum\" href=\"wasmi/enum.Error.html\" title=\"enum wasmi::Error\">Error</a>","synthetic":false,"types":["wasmi::Error"]}];
 implementors["wasmtime_jit"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/convert/trait.Into.html\" title=\"trait core::convert::Into\">Into</a>&lt;<a class=\"struct\" href=\"wasmparser/validator/struct.ValidatingParserConfig.html\" title=\"struct wasmparser::validator::ValidatingParserConfig\">ValidatingParserConfig</a>&gt; for <a class=\"struct\" href=\"wasmtime_jit/struct.Features.html\" title=\"struct wasmtime_jit::Features\">Features</a>","synthetic":false,"types":["wasmtime_jit::context::Features"]}];
 implementors["ws"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/convert/trait.Into.html\" title=\"trait core::convert::Into\">Into</a>&lt;<a class=\"primitive\" href=\"https://doc.rust-lang.org/nightly/std/primitive.u8.html\">u8</a>&gt; for <a class=\"enum\" href=\"ws/enum.OpCode.html\" title=\"enum ws::OpCode\">OpCode</a>","synthetic":false,"types":["ws::protocol::OpCode"]},{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/convert/trait.Into.html\" title=\"trait core::convert::Into\">Into</a>&lt;<a class=\"primitive\" href=\"https://doc.rust-lang.org/nightly/std/primitive.u16.html\">u16</a>&gt; for <a class=\"enum\" href=\"ws/enum.CloseCode.html\" title=\"enum ws::CloseCode\">CloseCode</a>","synthetic":false,"types":["ws::protocol::CloseCode"]}];
-
-            if (window.register_implementors) {
-                window.register_implementors(implementors);
-            } else {
-                window.pending_implementors = implementors;
-            }
-        })()
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

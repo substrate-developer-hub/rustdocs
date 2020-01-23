@@ -1,9 +1,3 @@
 (function() {var implementors = {};
 implementors["sc_client"] = [{"text":"impl&lt;S, Block:&nbsp;<a class=\"trait\" href=\"sp_runtime/traits/trait.Block.html\" title=\"trait sp_runtime::traits::Block\">BlockT</a>&gt; <a class=\"trait\" href=\"sc_client/light/blockchain/trait.RemoteBlockchain.html\" title=\"trait sc_client::light::blockchain::RemoteBlockchain\">RemoteBlockchain</a>&lt;Block&gt; for <a class=\"struct\" href=\"sc_client/light/blockchain/struct.Blockchain.html\" title=\"struct sc_client::light::blockchain::Blockchain\">Blockchain</a>&lt;S&gt; <span class=\"where fmt-newline\">where<br>&nbsp;&nbsp;&nbsp;&nbsp;S: <a class=\"trait\" href=\"sc_client/light/fetcher/trait.BlockchainStorage.html\" title=\"trait sc_client::light::fetcher::BlockchainStorage\">Storage</a>&lt;Block&gt;,&nbsp;</span>","synthetic":false,"types":["sc_client::light::blockchain::Blockchain"]}];
-
-            if (window.register_implementors) {
-                window.register_implementors(implementors);
-            } else {
-                window.pending_implementors = implementors;
-            }
-        })()
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

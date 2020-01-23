@@ -38,10 +38,4 @@ implementors["pallet_transaction_payment"] = [{"text":"impl&lt;T:&nbsp;<a class=
 implementors["pallet_treasury"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=\"pallet_treasury/trait.Trait.html\" title=\"trait pallet_treasury::Trait\">Trait</a>&gt; <a class=\"trait\" href=\"frame_support/weights/trait.GetDispatchInfo.html\" title=\"trait frame_support::weights::GetDispatchInfo\">GetDispatchInfo</a> for <a class=\"enum\" href=\"pallet_treasury/enum.Call.html\" title=\"enum pallet_treasury::Call\">Call</a>&lt;T&gt;","synthetic":false,"types":["pallet_treasury::Call"]}];
 implementors["pallet_utility"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=\"pallet_utility/trait.Trait.html\" title=\"trait pallet_utility::Trait\">Trait</a>&gt; <a class=\"trait\" href=\"frame_support/weights/trait.GetDispatchInfo.html\" title=\"trait frame_support::weights::GetDispatchInfo\">GetDispatchInfo</a> for <a class=\"enum\" href=\"pallet_utility/enum.Call.html\" title=\"enum pallet_utility::Call\">Call</a>&lt;T&gt;","synthetic":false,"types":["pallet_utility::Call"]}];
 implementors["substrate_test_runtime"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=\"frame_system/trait.Trait.html\" title=\"trait frame_system::Trait\">Trait</a>&gt; <a class=\"trait\" href=\"frame_support/weights/trait.GetDispatchInfo.html\" title=\"trait frame_support::weights::GetDispatchInfo\">GetDispatchInfo</a> for <a class=\"enum\" href=\"substrate_test_runtime/system/enum.Call.html\" title=\"enum substrate_test_runtime::system::Call\">Call</a>&lt;T&gt;","synthetic":false,"types":["substrate_test_runtime::system::Call"]}];
-
-            if (window.register_implementors) {
-                window.register_implementors(implementors);
-            } else {
-                window.pending_implementors = implementors;
-            }
-        })()
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

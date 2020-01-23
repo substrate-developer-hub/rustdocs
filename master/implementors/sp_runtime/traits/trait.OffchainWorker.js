@@ -36,10 +36,4 @@ implementors["pallet_treasury"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" h
 implementors["pallet_utility"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=\"pallet_utility/trait.Trait.html\" title=\"trait pallet_utility::Trait\">Trait</a>&gt; <a class=\"trait\" href=\"sp_runtime/traits/trait.OffchainWorker.html\" title=\"trait sp_runtime::traits::OffchainWorker\">OffchainWorker</a>&lt;&lt;T as <a class=\"trait\" href=\"frame_system/trait.Trait.html\" title=\"trait frame_system::Trait\">Trait</a>&gt;::<a class=\"type\" href=\"frame_system/trait.Trait.html#associatedtype.BlockNumber\" title=\"type frame_system::Trait::BlockNumber\">BlockNumber</a>&gt; for <a class=\"struct\" href=\"pallet_utility/struct.Module.html\" title=\"struct pallet_utility::Module\">Module</a>&lt;T&gt;","synthetic":false,"types":["pallet_utility::Module"]}];
 implementors["sp_runtime"] = [];
 implementors["substrate_test_runtime"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=\"frame_system/trait.Trait.html\" title=\"trait frame_system::Trait\">Trait</a>&gt; <a class=\"trait\" href=\"sp_runtime/traits/trait.OffchainWorker.html\" title=\"trait sp_runtime::traits::OffchainWorker\">OffchainWorker</a>&lt;&lt;T as <a class=\"trait\" href=\"frame_system/trait.Trait.html\" title=\"trait frame_system::Trait\">Trait</a>&gt;::<a class=\"type\" href=\"frame_system/trait.Trait.html#associatedtype.BlockNumber\" title=\"type frame_system::Trait::BlockNumber\">BlockNumber</a>&gt; for <a class=\"struct\" href=\"substrate_test_runtime/system/struct.Module.html\" title=\"struct substrate_test_runtime::system::Module\">Module</a>&lt;T&gt;","synthetic":false,"types":["substrate_test_runtime::system::Module"]}];
-
-            if (window.register_implementors) {
-                window.register_implementors(implementors);
-            } else {
-                window.pending_implementors = implementors;
-            }
-        })()
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

@@ -24,10 +24,4 @@ implementors["pallet_sudo"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=
 implementors["pallet_timestamp"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=\"pallet_timestamp/trait.Trait.html\" title=\"trait pallet_timestamp::Trait\">Trait</a>, __GeneratedInstance:&nbsp;__GeneratedInstantiable&gt; <a class=\"trait\" href=\"sp_runtime/trait.BuildModuleGenesisStorage.html\" title=\"trait sp_runtime::BuildModuleGenesisStorage\">BuildModuleGenesisStorage</a>&lt;T, __GeneratedInstance&gt; for <a class=\"struct\" href=\"pallet_timestamp/struct.GenesisConfig.html\" title=\"struct pallet_timestamp::GenesisConfig\">GenesisConfig</a>","synthetic":false,"types":["pallet_timestamp::GenesisConfig"]}];
 implementors["pallet_treasury"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=\"pallet_treasury/trait.Trait.html\" title=\"trait pallet_treasury::Trait\">Trait</a>, __GeneratedInstance:&nbsp;__GeneratedInstantiable&gt; <a class=\"trait\" href=\"sp_runtime/trait.BuildModuleGenesisStorage.html\" title=\"trait sp_runtime::BuildModuleGenesisStorage\">BuildModuleGenesisStorage</a>&lt;T, __GeneratedInstance&gt; for <a class=\"struct\" href=\"pallet_treasury/struct.GenesisConfig.html\" title=\"struct pallet_treasury::GenesisConfig\">GenesisConfig</a>","synthetic":false,"types":["pallet_treasury::GenesisConfig"]}];
 implementors["substrate_test_runtime"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=\"frame_system/trait.Trait.html\" title=\"trait frame_system::Trait\">Trait</a>, __GeneratedInstance:&nbsp;__GeneratedInstantiable&gt; <a class=\"trait\" href=\"sp_runtime/trait.BuildModuleGenesisStorage.html\" title=\"trait sp_runtime::BuildModuleGenesisStorage\">BuildModuleGenesisStorage</a>&lt;T, __GeneratedInstance&gt; for <a class=\"struct\" href=\"substrate_test_runtime/system/struct.GenesisConfig.html\" title=\"struct substrate_test_runtime::system::GenesisConfig\">GenesisConfig</a>","synthetic":false,"types":["substrate_test_runtime::system::GenesisConfig"]}];
-
-            if (window.register_implementors) {
-                window.register_implementors(implementors);
-            } else {
-                window.pending_implementors = implementors;
-            }
-        })()
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
