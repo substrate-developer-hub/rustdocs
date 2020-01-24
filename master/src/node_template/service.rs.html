@@ -252,7 +252,6 @@
 <span id="241">241</span>
 <span id="242">242</span>
 <span id="243">243</span>
-<span id="244">244</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Service and ServiceFactory implementation. Specialized wrapper over substrate service.</span>
 
@@ -299,9 +298,7 @@
 			.<span class="ident">with_transaction_pool</span>(<span class="op">|</span><span class="ident">config</span>, <span class="ident">client</span>, <span class="ident">_fetcher</span><span class="op">|</span> {
 				<span class="kw">let</span> <span class="ident">pool_api</span> <span class="op">=</span> <span class="ident">sc_transaction_pool</span>::<span class="ident">FullChainApi</span>::<span class="ident">new</span>(<span class="ident">client</span>.<span class="ident">clone</span>());
 				<span class="kw">let</span> <span class="ident">pool</span> <span class="op">=</span> <span class="ident">sc_transaction_pool</span>::<span class="ident">BasicPool</span>::<span class="ident">new</span>(<span class="ident">config</span>, <span class="ident">pool_api</span>);
-				<span class="kw">let</span> <span class="ident">maintainer</span> <span class="op">=</span> <span class="ident">sc_transaction_pool</span>::<span class="ident">FullBasicPoolMaintainer</span>::<span class="ident">new</span>(<span class="ident">pool</span>.<span class="ident">pool</span>().<span class="ident">clone</span>(), <span class="ident">client</span>);
-				<span class="kw">let</span> <span class="ident">maintainable_pool</span> <span class="op">=</span> <span class="ident">sp_transaction_pool</span>::<span class="ident">MaintainableTransactionPool</span>::<span class="ident">new</span>(<span class="ident">pool</span>, <span class="ident">maintainer</span>);
-				<span class="prelude-val">Ok</span>(<span class="ident">maintainable_pool</span>)
+				<span class="prelude-val">Ok</span>(<span class="ident">pool</span>)
 			})<span class="question-mark">?</span>
 			.<span class="ident">with_import_queue</span>(<span class="op">|</span><span class="ident">_config</span>, <span class="ident">client</span>, <span class="kw-2">mut</span> <span class="ident">select_chain</span>, <span class="ident">transaction_pool</span><span class="op">|</span> {
 				<span class="kw">let</span> <span class="ident">select_chain</span> <span class="op">=</span> <span class="ident">select_chain</span>.<span class="ident">take</span>()
@@ -419,7 +416,7 @@
 				<span class="ident">service</span>.<span class="ident">network</span>(),
 				<span class="ident">service</span>.<span class="ident">on_exit</span>(),
 				<span class="ident">service</span>.<span class="ident">spawn_task_handle</span>(),
-			)<span class="question-mark">?</span>.<span class="ident">compat</span>().<span class="ident">map</span>(<span class="ident">drop</span>));
+			)<span class="question-mark">?</span>);
 		},
 		(<span class="bool-val">true</span>, <span class="bool-val">false</span>) <span class="op">=</span><span class="op">&gt;</span> {
 			<span class="comment">// start the full GRANDPA voter</span>
@@ -436,7 +433,7 @@
 
 			<span class="comment">// the GRANDPA voter task is considered infallible, i.e.</span>
 			<span class="comment">// if it fails we take down the service with it.</span>
-			<span class="ident">service</span>.<span class="ident">spawn_essential_task</span>(<span class="ident">grandpa</span>::<span class="ident">run_grandpa_voter</span>(<span class="ident">voter_config</span>)<span class="question-mark">?</span>.<span class="ident">compat</span>().<span class="ident">map</span>(<span class="ident">drop</span>));
+			<span class="ident">service</span>.<span class="ident">spawn_essential_task</span>(<span class="ident">grandpa</span>::<span class="ident">run_grandpa_voter</span>(<span class="ident">voter_config</span>)<span class="question-mark">?</span>);
 		},
 		(<span class="kw">_</span>, <span class="bool-val">true</span>) <span class="op">=</span><span class="op">&gt;</span> {
 			<span class="ident">grandpa</span>::<span class="ident">setup_disabled_grandpa</span>(
@@ -463,11 +460,12 @@
 		.<span class="ident">with_transaction_pool</span>(<span class="op">|</span><span class="ident">config</span>, <span class="ident">client</span>, <span class="ident">fetcher</span><span class="op">|</span> {
 			<span class="kw">let</span> <span class="ident">fetcher</span> <span class="op">=</span> <span class="ident">fetcher</span>
 				.<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="string">&quot;Trying to start light transaction pool without active fetcher&quot;</span>)<span class="question-mark">?</span>;
+
 			<span class="kw">let</span> <span class="ident">pool_api</span> <span class="op">=</span> <span class="ident">sc_transaction_pool</span>::<span class="ident">LightChainApi</span>::<span class="ident">new</span>(<span class="ident">client</span>.<span class="ident">clone</span>(), <span class="ident">fetcher</span>.<span class="ident">clone</span>());
-			<span class="kw">let</span> <span class="ident">pool</span> <span class="op">=</span> <span class="ident">sc_transaction_pool</span>::<span class="ident">BasicPool</span>::<span class="ident">new</span>(<span class="ident">config</span>, <span class="ident">pool_api</span>);
-			<span class="kw">let</span> <span class="ident">maintainer</span> <span class="op">=</span> <span class="ident">sc_transaction_pool</span>::<span class="ident">LightBasicPoolMaintainer</span>::<span class="ident">with_defaults</span>(<span class="ident">pool</span>.<span class="ident">pool</span>().<span class="ident">clone</span>(), <span class="ident">client</span>, <span class="ident">fetcher</span>);
-			<span class="kw">let</span> <span class="ident">maintainable_pool</span> <span class="op">=</span> <span class="ident">sp_transaction_pool</span>::<span class="ident">MaintainableTransactionPool</span>::<span class="ident">new</span>(<span class="ident">pool</span>, <span class="ident">maintainer</span>);
-			<span class="prelude-val">Ok</span>(<span class="ident">maintainable_pool</span>)
+			<span class="kw">let</span> <span class="ident">pool</span> <span class="op">=</span> <span class="ident">sc_transaction_pool</span>::<span class="ident">BasicPool</span>::<span class="ident">with_revalidation_type</span>(
+				<span class="ident">config</span>, <span class="ident">pool_api</span>, <span class="ident">sc_transaction_pool</span>::<span class="ident">RevalidationType</span>::<span class="ident">Light</span>,
+			);
+			<span class="prelude-val">Ok</span>(<span class="ident">pool</span>)
 		})<span class="question-mark">?</span>
 		.<span class="ident">with_import_queue_and_fprb</span>(<span class="op">|</span><span class="ident">_config</span>, <span class="ident">client</span>, <span class="ident">backend</span>, <span class="ident">fetcher</span>, <span class="ident">_select_chain</span>, <span class="ident">_tx_pool</span><span class="op">|</span> {
 			<span class="kw">let</span> <span class="ident">fetch_checker</span> <span class="op">=</span> <span class="ident">fetcher</span>

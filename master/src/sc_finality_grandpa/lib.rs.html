@@ -964,27 +964,6 @@
 <span id="953">953</span>
 <span id="954">954</span>
 <span id="955">955</span>
-<span id="956">956</span>
-<span id="957">957</span>
-<span id="958">958</span>
-<span id="959">959</span>
-<span id="960">960</span>
-<span id="961">961</span>
-<span id="962">962</span>
-<span id="963">963</span>
-<span id="964">964</span>
-<span id="965">965</span>
-<span id="966">966</span>
-<span id="967">967</span>
-<span id="968">968</span>
-<span id="969">969</span>
-<span id="970">970</span>
-<span id="971">971</span>
-<span id="972">972</span>
-<span id="973">973</span>
-<span id="974">974</span>
-<span id="975">975</span>
-<span id="976">976</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1041,9 +1020,9 @@
 <span class="doccomment">//! included in the newly-finalized chain.</span>
 
 <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
-<span class="kw">use</span> <span class="ident">futures03</span>::{<span class="ident">StreamExt</span>, <span class="ident">future</span>::<span class="ident">ready</span>};
-<span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">debug</span>, <span class="ident">error</span>, <span class="ident">info</span>};
-<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">sync</span>::<span class="ident">mpsc</span>;
+<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">StreamExt</span>;
+<span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">debug</span>, <span class="ident">info</span>};
+<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">channel</span>::<span class="ident">mpsc</span>;
 <span class="kw">use</span> <span class="ident">sc_client_api</span>::{<span class="ident">BlockchainEvents</span>, <span class="ident">CallExecutor</span>, <span class="ident">backend</span>::{<span class="ident">AuxStore</span>, <span class="ident">Backend</span>}, <span class="ident">ExecutionStrategy</span>};
 <span class="kw">use</span> <span class="ident">sp_blockchain</span>::{<span class="ident">HeaderBackend</span>, <span class="ident">Error</span> <span class="kw">as</span> <span class="ident">ClientError</span>};
 <span class="kw">use</span> <span class="ident">sc_client</span>::<span class="ident">Client</span>;
@@ -1054,7 +1033,7 @@
 <span class="kw">use</span> <span class="ident">sp_inherents</span>::<span class="ident">InherentDataProviders</span>;
 <span class="kw">use</span> <span class="ident">sp_consensus</span>::<span class="ident">SelectChain</span>;
 <span class="kw">use</span> <span class="ident">sp_core</span>::<span class="ident">Pair</span>;
-<span class="kw">use</span> <span class="ident">sc_telemetry</span>::{<span class="ident">telemetry</span>, <span class="ident">CONSENSUS_INFO</span>, <span class="ident">CONSENSUS_DEBUG</span>, <span class="ident">CONSENSUS_WARN</span>};
+<span class="kw">use</span> <span class="ident">sc_telemetry</span>::{<span class="ident">telemetry</span>, <span class="ident">CONSENSUS_INFO</span>, <span class="ident">CONSENSUS_DEBUG</span>};
 <span class="kw">use</span> <span class="ident">serde_json</span>;
 
 <span class="kw">use</span> <span class="ident">sp_finality_tracker</span>;
@@ -1065,6 +1044,8 @@
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">fmt</span>, <span class="ident">io</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">pin</span>::<span class="ident">Pin</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">task</span>::{<span class="ident">Poll</span>, <span class="ident">Context</span>};
 
 <span class="kw">mod</span> <span class="ident">authorities</span>;
 <span class="kw">mod</span> <span class="ident">aux_schema</span>;
@@ -1444,13 +1425,12 @@
 	<span class="ident">keystore</span>: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">KeyStorePtr</span><span class="op">&gt;</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> (
 	<span class="kw">impl</span> <span class="ident">Stream</span><span class="op">&lt;</span>
-		<span class="ident">Item</span> <span class="op">=</span> <span class="ident">CommunicationInH</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Block</span>::<span class="ident">Hash</span><span class="op">&gt;</span>,
-		<span class="ident">Error</span> <span class="op">=</span> <span class="ident">CommandOrError</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+		<span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">CommunicationInH</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Block</span>::<span class="ident">Hash</span><span class="op">&gt;</span>, <span class="ident">CommandOrError</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="op">&gt;</span>,
 	<span class="kw">impl</span> <span class="ident">Sink</span><span class="op">&lt;</span>
-		<span class="ident">SinkItem</span> <span class="op">=</span> <span class="ident">CommunicationOutH</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Block</span>::<span class="ident">Hash</span><span class="op">&gt;</span>,
-		<span class="ident">SinkError</span> <span class="op">=</span> <span class="ident">CommandOrError</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-	<span class="op">&gt;</span>,
+		<span class="ident">CommunicationOutH</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Block</span>::<span class="ident">Hash</span><span class="op">&gt;</span>,
+		<span class="ident">Error</span> <span class="op">=</span> <span class="ident">CommandOrError</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Unpin</span>,
 ) <span class="kw">where</span>
 	<span class="ident">B</span>: <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 	<span class="ident">E</span>: <span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
@@ -1524,7 +1504,7 @@
 	<span class="doccomment">/// Handle to a future that will resolve on exit.</span>
 	<span class="kw">pub</span> <span class="ident">on_exit</span>: <span class="ident">X</span>,
 	<span class="doccomment">/// If supplied, can be used to hook on telemetry connection established events.</span>
-	<span class="kw">pub</span> <span class="ident">telemetry_on_connect</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">futures03</span>::<span class="ident">channel</span>::<span class="ident">mpsc</span>::<span class="ident">UnboundedReceiver</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="kw">pub</span> <span class="ident">telemetry_on_connect</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">futures</span>::<span class="ident">channel</span>::<span class="ident">mpsc</span>::<span class="ident">UnboundedReceiver</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// A voting rule used to potentially restrict target votes.</span>
 	<span class="kw">pub</span> <span class="ident">voting_rule</span>: <span class="ident">VR</span>,
 	<span class="doccomment">/// How to spawn background tasks.</span>
@@ -1535,7 +1515,7 @@
 <span class="doccomment">/// block import worker that has already been instantiated with `block_import`.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">run_grandpa_voter</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span>, <span class="ident">VR</span>, <span class="ident">X</span>, <span class="ident">Sp</span><span class="op">&gt;</span>(
 	<span class="ident">grandpa_params</span>: <span class="ident">GrandpaParams</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span>, <span class="ident">VR</span>, <span class="ident">X</span>, <span class="ident">Sp</span><span class="op">&gt;</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">sp_blockchain</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span>(),<span class="ident">Error</span><span class="op">=</span>()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="kw">where</span>
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">sp_blockchain</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="kw">where</span>
 	<span class="ident">Block</span>::<span class="ident">Hash</span>: <span class="ident">Ord</span>,
 	<span class="ident">B</span>: <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">E</span>: <span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
@@ -1545,9 +1525,9 @@
 	<span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>: <span class="ident">BlockNumberOps</span>,
 	<span class="ident">DigestFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>: <span class="ident">Encode</span>,
 	<span class="ident">RA</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-	<span class="ident">X</span>: <span class="ident">futures03</span>::<span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span><span class="op">=</span>()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+	<span class="ident">X</span>: <span class="ident">futures</span>::<span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span><span class="op">=</span>()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span>: <span class="ident">AuxStore</span>,
-	<span class="ident">Sp</span>: <span class="ident">futures03</span>::<span class="ident">task</span>::<span class="ident">Spawn</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+	<span class="ident">Sp</span>: <span class="ident">futures</span>::<span class="ident">task</span>::<span class="ident">Spawn</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 {
 	<span class="kw">let</span> <span class="ident">GrandpaParams</span> {
 		<span class="ident">config</span>,
@@ -1596,13 +1576,11 @@
 							.<span class="ident">expect</span>(<span class="string">&quot;authorities is always at least an empty vector; elements are always of type string&quot;</span>)
 					}
 				);
-				<span class="ident">ready</span>(())
-			})
-			.<span class="ident">unit_error</span>()
-			.<span class="ident">compat</span>();
-		<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">Either</span>::<span class="ident">A</span>(<span class="ident">events</span>)
+				<span class="ident">future</span>::<span class="ident">ready</span>(())
+			});
+		<span class="ident">future</span>::<span class="ident">Either</span>::<span class="ident">Left</span>(<span class="ident">events</span>)
 	} <span class="kw">else</span> {
-		<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">Either</span>::<span class="ident">B</span>(<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">empty</span>())
+		<span class="ident">future</span>::<span class="ident">Either</span>::<span class="ident">Right</span>(<span class="ident">future</span>::<span class="ident">pending</span>())
 	};
 
 	<span class="kw">let</span> <span class="ident">voter_work</span> <span class="op">=</span> <span class="ident">VoterWork</span>::<span class="ident">new</span>(
@@ -1616,28 +1594,22 @@
 	);
 
 	<span class="kw">let</span> <span class="ident">voter_work</span> <span class="op">=</span> <span class="ident">voter_work</span>
-		.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
-		.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
-			<span class="macro">error</span><span class="macro">!</span>(<span class="string">&quot;GRANDPA Voter failed: {:?}&quot;</span>, <span class="ident">e</span>);
-			<span class="macro">telemetry</span><span class="macro">!</span>(<span class="ident">CONSENSUS_WARN</span>; <span class="string">&quot;afg.voter_failed&quot;</span>; <span class="string">&quot;e&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="question-mark">?</span><span class="ident">e</span>);
-		});
+		.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ());
 
 	<span class="comment">// Make sure that `telemetry_task` doesn&#39;t accidentally finish and kill grandpa.</span>
 	<span class="kw">let</span> <span class="ident">telemetry_task</span> <span class="op">=</span> <span class="ident">telemetry_task</span>
-		.<span class="ident">then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">empty</span>::<span class="op">&lt;</span>(), ()<span class="op">&gt;</span>());
+		.<span class="ident">then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">future</span>::<span class="ident">pending</span>::<span class="op">&lt;</span>()<span class="op">&gt;</span>());
 
-	<span class="kw">use</span> <span class="ident">futures03</span>::{<span class="ident">FutureExt</span>, <span class="ident">TryFutureExt</span>};
-
-	<span class="prelude-val">Ok</span>(<span class="ident">voter_work</span>.<span class="ident">select</span>(<span class="ident">on_exit</span>.<span class="ident">map</span>(<span class="prelude-val">Ok</span>).<span class="ident">compat</span>()).<span class="ident">select2</span>(<span class="ident">telemetry_task</span>).<span class="ident">then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(())))
+	<span class="prelude-val">Ok</span>(<span class="ident">future</span>::<span class="ident">select</span>(<span class="ident">future</span>::<span class="ident">select</span>(<span class="ident">voter_work</span>, <span class="ident">on_exit</span>), <span class="ident">telemetry_task</span>).<span class="ident">map</span>(<span class="ident">drop</span>))
 }
 
 <span class="doccomment">/// Future that powers the voter.</span>
 <span class="attribute">#[<span class="ident">must_use</span>]</span>
 <span class="kw">struct</span> <span class="ident">VoterWork</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span>, <span class="ident">N</span>: <span class="ident">NetworkT</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>, <span class="ident">RA</span>, <span class="ident">SC</span>, <span class="ident">VR</span><span class="op">&gt;</span> {
-	<span class="ident">voter</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (), <span class="ident">Error</span> <span class="op">=</span> <span class="ident">CommandOrError</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span>,
+	<span class="ident">voter</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">CommandOrError</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">env</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Environment</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span>, <span class="ident">VR</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">voter_commands_rx</span>: <span class="ident">mpsc</span>::<span class="ident">UnboundedReceiver</span><span class="op">&lt;</span><span class="ident">VoterCommand</span><span class="op">&lt;</span><span class="ident">Block</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-	<span class="ident">network</span>: <span class="ident">futures03</span>::<span class="ident">compat</span>::<span class="ident">Compat</span><span class="op">&lt;</span><span class="ident">NetworkBridge</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">N</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">network</span>: <span class="ident">NetworkBridge</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">N</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span>, <span class="ident">VR</span><span class="op">&gt;</span> <span class="ident">VoterWork</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span>, <span class="ident">VR</span><span class="op">&gt;</span>
@@ -1679,10 +1651,10 @@
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">work</span> <span class="op">=</span> <span class="ident">VoterWork</span> {
 			<span class="comment">// `voter` is set to a temporary value and replaced below when</span>
 			<span class="comment">// calling `rebuild_voter`.</span>
-			<span class="ident">voter</span>: <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">futures</span>::<span class="ident">empty</span>()) <span class="kw">as</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span>,
+			<span class="ident">voter</span>: <span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">future</span>::<span class="ident">pending</span>()),
 			<span class="ident">env</span>,
 			<span class="ident">voter_commands_rx</span>,
-			<span class="ident">network</span>: <span class="ident">futures03</span>::<span class="ident">future</span>::<span class="ident">TryFutureExt</span>::<span class="ident">compat</span>(<span class="ident">network</span>),
+			<span class="ident">network</span>,
 		};
 		<span class="ident">work</span>.<span class="ident">rebuild_voter</span>();
 		<span class="ident">work</span>
@@ -1745,10 +1717,10 @@
 					<span class="ident">last_finalized</span>,
 				);
 
-				<span class="self">self</span>.<span class="ident">voter</span> <span class="op">=</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">voter</span>);
+				<span class="self">self</span>.<span class="ident">voter</span> <span class="op">=</span> <span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">voter</span>);
 			},
 			<span class="ident">VoterSetState</span>::<span class="ident">Paused</span> { .. } <span class="op">=</span><span class="op">&gt;</span>
-				<span class="self">self</span>.<span class="ident">voter</span> <span class="op">=</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">futures</span>::<span class="ident">empty</span>()),
+				<span class="self">self</span>.<span class="ident">voter</span> <span class="op">=</span> <span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">future</span>::<span class="ident">pending</span>()),
 		};
 	}
 
@@ -1829,61 +1801,47 @@
 	<span class="ident">VR</span>: <span class="ident">VotingRule</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span>: <span class="ident">AuxStore</span>,
 {
-	<span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> ();
-	<span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span>;
+	<span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span>;
 
-	<span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Item</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
-		<span class="kw">match</span> <span class="self">self</span>.<span class="ident">voter</span>.<span class="ident">poll</span>() {
-			<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> {}
-			<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(())) <span class="op">=</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Output</span><span class="op">&gt;</span> {
+		<span class="kw">match</span> <span class="ident">Future</span>::<span class="ident">poll</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">voter</span>), <span class="ident">cx</span>) {
+			<span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> {}
+			<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Ok</span>(())) <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="comment">// voters don&#39;t conclude naturally</span>
-				<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">Safety</span>(<span class="string">&quot;GRANDPA voter has concluded.&quot;</span>.<span class="ident">into</span>()))
+				<span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">Safety</span>(<span class="string">&quot;GRANDPA voter has concluded.&quot;</span>.<span class="ident">into</span>())))
 			}
-			<span class="prelude-val">Err</span>(<span class="ident">CommandOrError</span>::<span class="ident">Error</span>(<span class="ident">e</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+			<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">CommandOrError</span>::<span class="ident">Error</span>(<span class="ident">e</span>))) <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="comment">// return inner observer error</span>
-				<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>)
+				<span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">e</span>))
 			}
-			<span class="prelude-val">Err</span>(<span class="ident">CommandOrError</span>::<span class="ident">VoterCommand</span>(<span class="ident">command</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+			<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">CommandOrError</span>::<span class="ident">VoterCommand</span>(<span class="ident">command</span>))) <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="comment">// some command issued internally</span>
 				<span class="self">self</span>.<span class="ident">handle_voter_command</span>(<span class="ident">command</span>)<span class="question-mark">?</span>;
-				<span class="ident">futures</span>::<span class="ident">task</span>::<span class="ident">current</span>().<span class="ident">notify</span>();
+				<span class="ident">cx</span>.<span class="ident">waker</span>().<span class="ident">wake_by_ref</span>();
 			}
 		}
 
-		<span class="kw">match</span> <span class="self">self</span>.<span class="ident">voter_commands_rx</span>.<span class="ident">poll</span>() {
-			<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> {}
-			<span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
-				<span class="comment">// the `voter_commands_rx` stream should not fail.</span>
-				<span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(()))
-			}
-			<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+		<span class="kw">match</span> <span class="ident">Stream</span>::<span class="ident">poll_next</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">voter_commands_rx</span>), <span class="ident">cx</span>) {
+			<span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> {}
+			<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>) <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="comment">// the `voter_commands_rx` stream should never conclude since it&#39;s never closed.</span>
-				<span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(()))
+				<span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Ok</span>(()))
 			}
-			<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">command</span>))) <span class="op">=</span><span class="op">&gt;</span> {
+			<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">command</span>)) <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="comment">// some command issued externally</span>
 				<span class="self">self</span>.<span class="ident">handle_voter_command</span>(<span class="ident">command</span>)<span class="question-mark">?</span>;
-				<span class="ident">futures</span>::<span class="ident">task</span>::<span class="ident">current</span>().<span class="ident">notify</span>();
+				<span class="ident">cx</span>.<span class="ident">waker</span>().<span class="ident">wake_by_ref</span>();
 			}
 		}
 
-		<span class="kw">match</span> <span class="self">self</span>.<span class="ident">network</span>.<span class="ident">poll</span>() {
-			<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> {},
-			<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(())) <span class="op">=</span><span class="op">&gt;</span> {
-				<span class="comment">// the network bridge future should never conclude.</span>
-				<span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(()))
-			}
-			<span class="ident">e</span> @ <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">e</span>,
-		};
-
-		<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>)
+		<span class="ident">Future</span>::<span class="ident">poll</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">network</span>), <span class="ident">cx</span>)
 	}
 }
 
 <span class="attribute">#[<span class="ident">deprecated</span>(<span class="ident">since</span> <span class="op">=</span> <span class="string">&quot;1.1.0&quot;</span>, <span class="ident">note</span> <span class="op">=</span> <span class="string">&quot;Please switch to run_grandpa_voter.&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">run_grandpa</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span>, <span class="ident">VR</span>, <span class="ident">X</span>, <span class="ident">Sp</span><span class="op">&gt;</span>(
 	<span class="ident">grandpa_params</span>: <span class="ident">GrandpaParams</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">N</span>, <span class="ident">RA</span>, <span class="ident">SC</span>, <span class="ident">VR</span>, <span class="ident">X</span>, <span class="ident">Sp</span><span class="op">&gt;</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">sp_blockchain</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span>(),<span class="ident">Error</span><span class="op">=</span>()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="kw">where</span>
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">sp_blockchain</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span><span class="op">=</span>()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="kw">where</span>
 	<span class="ident">Block</span>::<span class="ident">Hash</span>: <span class="ident">Ord</span>,
 	<span class="ident">B</span>: <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">E</span>: <span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
@@ -1893,9 +1851,9 @@
 	<span class="ident">DigestFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>: <span class="ident">Encode</span>,
 	<span class="ident">RA</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">VR</span>: <span class="ident">VotingRule</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-	<span class="ident">X</span>: <span class="ident">futures03</span>::<span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span><span class="op">=</span>()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+	<span class="ident">X</span>: <span class="ident">futures</span>::<span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span><span class="op">=</span>()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span>: <span class="ident">AuxStore</span>,
-	<span class="ident">Sp</span>: <span class="ident">futures03</span>::<span class="ident">task</span>::<span class="ident">Spawn</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+	<span class="ident">Sp</span>: <span class="ident">futures</span>::<span class="ident">task</span>::<span class="ident">Spawn</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 {
 	<span class="ident">run_grandpa_voter</span>(<span class="ident">grandpa_params</span>)
 }

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/finality-grandpa-0.10.3/src/voter/mod.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mod.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/finality-grandpa-0.11.0/src/voter/mod.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mod.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -1394,13 +1394,6 @@
 <span id="1383">1383</span>
 <span id="1384">1384</span>
 <span id="1385">1385</span>
-<span id="1386">1386</span>
-<span id="1387">1387</span>
-<span id="1388">1388</span>
-<span id="1389">1389</span>
-<span id="1390">1390</span>
-<span id="1391">1391</span>
-<span id="1392">1392</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2019 Parity Technologies (UK) Ltd</span>
 <span class="comment">//</span>
@@ -1429,13 +1422,15 @@
 <span class="doccomment">//!  votes will not be pushed to the sink. The protocol state machine still</span>
 <span class="doccomment">//!  transitions state as if the votes had been pushed out.</span>
 
-<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
-<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">sync</span>::<span class="ident">mpsc</span>::{<span class="self">self</span>, <span class="ident">UnboundedReceiver</span>};
+<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">ready</span>};
+<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">channel</span>::<span class="ident">mpsc</span>::{<span class="self">self</span>, <span class="ident">UnboundedReceiver</span>};
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">log</span>::<span class="ident">trace</span>;
 
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">VecDeque</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">pin</span>::<span class="ident">Pin</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>};
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">round</span>::<span class="ident">State</span> <span class="kw">as</span> <span class="ident">RoundState</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -1454,11 +1449,11 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// This encapsulates the database and networking layers of the chain.</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Environment</span><span class="op">&lt;</span><span class="ident">H</span>: <span class="ident">Eq</span>, <span class="ident">N</span>: <span class="ident">BlockNumberOps</span><span class="op">&gt;</span>: <span class="ident">Chain</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span> {
-	<span class="kw">type</span> <span class="ident">Timer</span>: <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span>(),<span class="ident">Error</span><span class="op">=</span><span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
+	<span class="kw">type</span> <span class="ident">Timer</span>: <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span><span class="op">=</span><span class="prelude-ty">Result</span><span class="op">&lt;</span>(),<span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Unpin</span>;
 	<span class="kw">type</span> <span class="ident">Id</span>: <span class="ident">Ord</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Eq</span> <span class="op">+</span> ::<span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Debug</span>;
 	<span class="kw">type</span> <span class="ident">Signature</span>: <span class="ident">Eq</span> <span class="op">+</span> <span class="ident">Clone</span>;
-	<span class="kw">type</span> <span class="ident">In</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span><span class="ident">SignedMessage</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="self">Self</span>::<span class="ident">Signature</span>, <span class="self">Self</span>::<span class="ident">Id</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">=</span><span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
-	<span class="kw">type</span> <span class="ident">Out</span>: <span class="ident">Sink</span><span class="op">&lt;</span><span class="ident">SinkItem</span><span class="op">=</span><span class="ident">Message</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">SinkError</span><span class="op">=</span><span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
+	<span class="kw">type</span> <span class="ident">In</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SignedMessage</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="self">Self</span>::<span class="ident">Signature</span>, <span class="self">Self</span>::<span class="ident">Id</span><span class="op">&gt;</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Unpin</span>;
+	<span class="kw">type</span> <span class="ident">Out</span>: <span class="ident">Sink</span><span class="op">&lt;</span><span class="ident">Message</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">=</span><span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Unpin</span>;
 	<span class="kw">type</span> <span class="ident">Error</span>: <span class="ident">From</span><span class="op">&lt;</span><span class="kw">crate</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="op">+</span> ::<span class="ident">std</span>::<span class="ident">error</span>::<span class="ident">Error</span>;
 
 	<span class="doccomment">/// Produce data necessary to start a round of voting. This may also be called</span>
@@ -1682,7 +1677,7 @@
 	<span class="ident">Work</span>(<span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">FnMut</span>(<span class="ident">O</span>) <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span>),
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">any</span>(<span class="ident">test</span>, <span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;test-helpers&quot;</span>))]</span>
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">O</span><span class="op">&gt;</span> <span class="ident">Clone</span> <span class="kw">for</span> <span class="ident">Callback</span><span class="op">&lt;</span><span class="ident">O</span><span class="op">&gt;</span> {
 	<span class="kw">fn</span> <span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
 		<span class="ident">Callback</span>::<span class="ident">Blank</span>
@@ -1700,13 +1695,15 @@
 }
 
 <span class="doccomment">/// Communication between nodes that is not round-localized.</span>
-<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">test</span>, <span class="ident">derive</span>(<span class="ident">Clone</span>))]</span>
+<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">any</span>(<span class="ident">test</span>, <span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;test-helpers&quot;</span>), <span class="ident">derive</span>(<span class="ident">Clone</span>))]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">CommunicationIn</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">S</span>, <span class="ident">Id</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// A commit message.</span>
 	<span class="ident">Commit</span>(<span class="ident">u64</span>, <span class="ident">CompactCommit</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">S</span>, <span class="ident">Id</span><span class="op">&gt;</span>, <span class="ident">Callback</span><span class="op">&lt;</span><span class="ident">CommitProcessingOutcome</span><span class="op">&gt;</span>),
 	<span class="doccomment">/// A catch up message.</span>
 	<span class="ident">CatchUp</span>(<span class="ident">CatchUp</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">S</span>, <span class="ident">Id</span><span class="op">&gt;</span>, <span class="ident">Callback</span><span class="op">&lt;</span><span class="ident">CatchUpProcessingOutcome</span><span class="op">&gt;</span>),
 }
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">S</span>, <span class="ident">Id</span><span class="op">&gt;</span> <span class="ident">Unpin</span> <span class="kw">for</span> <span class="ident">CommunicationIn</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">S</span>, <span class="ident">Id</span><span class="op">&gt;</span> {}
 
 <span class="doccomment">/// Data necessary to participate in a round.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">RoundData</span><span class="op">&lt;</span><span class="ident">Id</span>, <span class="ident">Timer</span>, <span class="ident">Input</span>, <span class="ident">Output</span><span class="op">&gt;</span> {
@@ -1723,13 +1720,13 @@
 	<span class="kw">pub</span> <span class="ident">outgoing</span>: <span class="ident">Output</span>,
 }
 
-<span class="kw">struct</span> <span class="ident">Buffered</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">Sink</span><span class="op">&gt;</span> {
+<span class="kw">struct</span> <span class="ident">Buffered</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">I</span><span class="op">&gt;</span> {
 	<span class="ident">inner</span>: <span class="ident">S</span>,
-	<span class="ident">buffer</span>: <span class="ident">VecDeque</span><span class="op">&lt;</span><span class="ident">S</span>::<span class="ident">SinkItem</span><span class="op">&gt;</span>,
+	<span class="ident">buffer</span>: <span class="ident">VecDeque</span><span class="op">&lt;</span><span class="ident">I</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">Sink</span><span class="op">&gt;</span> <span class="ident">Buffered</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> {
-	<span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">inner</span>: <span class="ident">S</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Buffered</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">Sink</span><span class="op">&lt;</span><span class="ident">I</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Unpin</span>, <span class="ident">I</span><span class="op">&gt;</span> <span class="ident">Buffered</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">I</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">inner</span>: <span class="ident">S</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Buffered</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">I</span><span class="op">&gt;</span> {
 		<span class="ident">Buffered</span> {
 			<span class="ident">buffer</span>: <span class="ident">VecDeque</span>::<span class="ident">new</span>(),
 			<span class="ident">inner</span>
@@ -1738,40 +1735,33 @@
 
 	<span class="comment">// push an item into the buffered sink.</span>
 	<span class="comment">// the sink _must_ be driven to completion with `poll` afterwards.</span>
-	<span class="kw">fn</span> <span class="ident">push</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">item</span>: <span class="ident">S</span>::<span class="ident">SinkItem</span>) {
+	<span class="kw">fn</span> <span class="ident">push</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">item</span>: <span class="ident">I</span>) {
 		<span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">push_back</span>(<span class="ident">item</span>);
 	}
 
 	<span class="comment">// returns ready when the sink and the buffer are completely flushed.</span>
-	<span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span>(), <span class="ident">S</span>::<span class="ident">SinkError</span><span class="op">&gt;</span> {
-		<span class="kw">let</span> <span class="ident">polled</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">schedule_all</span>()<span class="question-mark">?</span>;
+	<span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">S</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+		<span class="kw">let</span> <span class="ident">polled</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">schedule_all</span>(<span class="ident">cx</span>)<span class="question-mark">?</span>;
 
 		<span class="kw">match</span> <span class="ident">polled</span> {
-			<span class="ident">Async</span>::<span class="ident">Ready</span>(()) <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">poll_complete</span>(),
-			<span class="ident">Async</span>::<span class="ident">NotReady</span> <span class="op">=</span><span class="op">&gt;</span> {
-				<span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">poll_complete</span>()<span class="question-mark">?</span>;
-				<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>)
+			<span class="ident">Poll</span>::<span class="ident">Ready</span>(()) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Sink</span>::<span class="ident">poll_flush</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">inner</span>), <span class="ident">cx</span>),
+			<span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> {
+				<span class="macro">ready</span><span class="macro">!</span>(<span class="ident">Sink</span>::<span class="ident">poll_flush</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">inner</span>), <span class="ident">cx</span>))<span class="question-mark">?</span>;
+				<span class="ident">Poll</span>::<span class="ident">Pending</span>
 			}
 		}
 	}
 
-	<span class="kw">fn</span> <span class="ident">schedule_all</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span>(), <span class="ident">S</span>::<span class="ident">SinkError</span><span class="op">&gt;</span> {
-		<span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">front</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">pop_front</span>() {
-			<span class="kw">match</span> <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">start_send</span>(<span class="ident">front</span>) {
-				<span class="prelude-val">Ok</span>(<span class="ident">AsyncSink</span>::<span class="ident">Ready</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">continue</span>,
-				<span class="prelude-val">Ok</span>(<span class="ident">AsyncSink</span>::<span class="ident">NotReady</span>(<span class="ident">front</span>)) <span class="op">=</span><span class="op">&gt;</span> {
-					<span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">push_front</span>(<span class="ident">front</span>);
-					<span class="kw">break</span>;
-				}
-				<span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>),
-			}
+	<span class="kw">fn</span> <span class="ident">schedule_all</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">S</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+		<span class="kw">while</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">is_empty</span>() {
+			<span class="macro">ready</span><span class="macro">!</span>(<span class="ident">Sink</span>::<span class="ident">poll_ready</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">inner</span>), <span class="ident">cx</span>))<span class="question-mark">?</span>;
+
+			<span class="kw">let</span> <span class="ident">item</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">pop_front</span>()
+				.<span class="ident">expect</span>(<span class="string">&quot;we checked self.buffer.is_empty() just above; qed&quot;</span>);
+			<span class="ident">Sink</span>::<span class="ident">start_send</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">inner</span>), <span class="ident">item</span>)<span class="question-mark">?</span>;
 		}
 
-		<span class="kw">if</span> <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">is_empty</span>() {
-			<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(()))
-		} <span class="kw">else</span> {
-			<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>)
-		}
+		<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Ok</span>(()))
 	}
 }
 
@@ -1847,8 +1837,8 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Voter</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">E</span>: <span class="ident">Environment</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">GlobalIn</span>, <span class="ident">GlobalOut</span><span class="op">&gt;</span> <span class="kw">where</span>
 	<span class="ident">H</span>: <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Eq</span> <span class="op">+</span> <span class="ident">Ord</span> <span class="op">+</span> ::<span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Debug</span>,
 	<span class="ident">N</span>: <span class="ident">Copy</span> <span class="op">+</span> <span class="ident">BlockNumberOps</span> <span class="op">+</span> ::<span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Debug</span>,
-	<span class="ident">GlobalIn</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span><span class="ident">CommunicationIn</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">E</span>::<span class="ident">Signature</span>, <span class="ident">E</span>::<span class="ident">Id</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">=</span><span class="ident">E</span>::<span class="ident">Error</span><span class="op">&gt;</span>,
-	<span class="ident">GlobalOut</span>: <span class="ident">Sink</span><span class="op">&lt;</span><span class="ident">SinkItem</span><span class="op">=</span><span class="ident">CommunicationOut</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">E</span>::<span class="ident">Signature</span>, <span class="ident">E</span>::<span class="ident">Id</span><span class="op">&gt;</span>, <span class="ident">SinkError</span><span class="op">=</span><span class="ident">E</span>::<span class="ident">Error</span><span class="op">&gt;</span>,
+	<span class="ident">GlobalIn</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">CommunicationIn</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">E</span>::<span class="ident">Signature</span>, <span class="ident">E</span>::<span class="ident">Id</span><span class="op">&gt;</span>, <span class="ident">E</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Unpin</span>,
+	<span class="ident">GlobalOut</span>: <span class="ident">Sink</span><span class="op">&lt;</span><span class="ident">CommunicationOut</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">E</span>::<span class="ident">Signature</span>, <span class="ident">E</span>::<span class="ident">Id</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">=</span><span class="ident">E</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Unpin</span>,
 {
 	<span class="ident">env</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span>,
 	<span class="ident">voters</span>: <span class="ident">VoterSet</span><span class="op">&lt;</span><span class="ident">E</span>::<span class="ident">Id</span><span class="op">&gt;</span>,
@@ -1857,7 +1847,7 @@
 	<span class="ident">finalized_notifications</span>: <span class="ident">UnboundedReceiver</span><span class="op">&lt;</span><span class="ident">FinalizedNotification</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">last_finalized_number</span>: <span class="ident">N</span>,
 	<span class="ident">global_in</span>: <span class="ident">GlobalIn</span>,
-	<span class="ident">global_out</span>: <span class="ident">Buffered</span><span class="op">&lt;</span><span class="ident">GlobalOut</span><span class="op">&gt;</span>,
+	<span class="ident">global_out</span>: <span class="ident">Buffered</span><span class="op">&lt;</span><span class="ident">GlobalOut</span>, <span class="ident">CommunicationOut</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">E</span>::<span class="ident">Signature</span>, <span class="ident">E</span>::<span class="ident">Id</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="comment">// the commit protocol might finalize further than the current round (if we&#39;re</span>
 	<span class="comment">// behind), we keep track of last finalized in round so we don&#39;t violate any</span>
 	<span class="comment">// assumptions from round-to-round.</span>
@@ -1867,8 +1857,8 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">E</span>: <span class="ident">Environment</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">GlobalIn</span>, <span class="ident">GlobalOut</span><span class="op">&gt;</span> <span class="ident">Voter</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">E</span>, <span class="ident">GlobalIn</span>, <span class="ident">GlobalOut</span><span class="op">&gt;</span> <span class="kw">where</span>
 	<span class="ident">H</span>: <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Eq</span> <span class="op">+</span> <span class="ident">Ord</span> <span class="op">+</span> ::<span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Debug</span>,
 	<span class="ident">N</span>: <span class="ident">Copy</span> <span class="op">+</span> <span class="ident">BlockNumberOps</span> <span class="op">+</span> ::<span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Debug</span>,
-	<span class="ident">GlobalIn</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span><span class="ident">CommunicationIn</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">E</span>::<span class="ident">Signature</span>, <span class="ident">E</span>::<span class="ident">Id</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">=</span><span class="ident">E</span>::<span class="ident">Error</span><span class="op">&gt;</span>,
-	<span class="ident">GlobalOut</span>: <span class="ident">Sink</span><span class="op">&lt;</span><span class="ident">SinkItem</span><span class="op">=</span><span class="ident">CommunicationOut</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">E</span>::<span class="ident">Signature</span>, <span class="ident">E</span>::<span class="ident">Id</span><span class="op">&gt;</span>, <span class="ident">SinkError</span><span class="op">=</span><span class="ident">E</span>::<span class="ident">Error</span><span class="op">&gt;</span>,
+	<span class="ident">GlobalIn</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">CommunicationIn</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">E</span>::<span class="ident">Signature</span>, <span class="ident">E</span>::<span class="ident">Id</span><span class="op">&gt;</span>, <span class="ident">E</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Unpin</span>,
+	<span class="ident">GlobalOut</span>: <span class="ident">Sink</span><span class="op">&lt;</span><span class="ident">CommunicationOut</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">E</span>::<span class="ident">Signature</span>, <span class="ident">E</span>::<span class="ident">Id</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">=</span><span class="ident">E</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Unpin</span>,
 {
 	<span class="doccomment">/// Create new `Voter` tracker with given round number and base block.</span>
 	<span class="doccomment">///</span>
@@ -1944,15 +1934,14 @@
 		}
 	}
 
-	<span class="kw">fn</span> <span class="ident">prune_background_rounds</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">E</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">prune_background_rounds</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">E</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
 		<span class="comment">// Do work on all background rounds, broadcasting any commits generated.</span>
-		<span class="kw">while</span> <span class="kw">let</span> <span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>((<span class="ident">number</span>, <span class="ident">commit</span>))) <span class="op">=</span> <span class="self">self</span>.<span class="ident">past_rounds</span>.<span class="ident">poll</span>()<span class="question-mark">?</span> {
+		<span class="kw">while</span> <span class="kw">let</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">item</span>)) <span class="op">=</span> <span class="ident">Stream</span>::<span class="ident">poll_next</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">past_rounds</span>), <span class="ident">cx</span>) {
+			<span class="kw">let</span> (<span class="ident">number</span>, <span class="ident">commit</span>) <span class="op">=</span> <span class="ident">item</span><span class="question-mark">?</span>;
 			<span class="self">self</span>.<span class="ident">global_out</span>.<span class="ident">push</span>(<span class="ident">CommunicationOut</span>::<span class="ident">Commit</span>(<span class="ident">number</span>, <span class="ident">commit</span>));
 		}
 
-		<span class="kw">while</span> <span class="kw">let</span> <span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">res</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">finalized_notifications</span>.<span class="ident">poll</span>()
-			.<span class="ident">expect</span>(<span class="string">&quot;unbounded receivers do not have spurious errors; qed&quot;</span>)
-		{
+		<span class="kw">while</span> <span class="kw">let</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">res</span>) <span class="op">=</span> <span class="ident">Stream</span>::<span class="ident">poll_next</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">finalized_notifications</span>), <span class="ident">cx</span>) {
 			<span class="kw">let</span> (<span class="ident">f_hash</span>, <span class="ident">f_num</span>, <span class="ident">round</span>, <span class="ident">commit</span>) <span class="op">=</span>
 				<span class="ident">res</span>.<span class="ident">expect</span>(<span class="string">&quot;one sender always kept alive in self.best_round; qed&quot;</span>);
 
@@ -1979,9 +1968,9 @@
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// Otherwise, we will simply handle the commit and issue a finalization command</span>
 	<span class="doccomment">/// to the environment.</span>
-	<span class="kw">fn</span> <span class="ident">process_incoming</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">E</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
-		<span class="kw">while</span> <span class="kw">let</span> <span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">item</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="ident">global_in</span>.<span class="ident">poll</span>()<span class="question-mark">?</span> {
-			<span class="kw">match</span> <span class="ident">item</span> {
+	<span class="kw">fn</span> <span class="ident">process_incoming</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">E</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+		<span class="kw">while</span> <span class="kw">let</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">item</span>)) <span class="op">=</span> <span class="ident">Stream</span>::<span class="ident">poll_next</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">global_in</span>), <span class="ident">cx</span>) {
+			<span class="kw">match</span> <span class="ident">item</span><span class="question-mark">?</span> {
 				<span class="ident">CommunicationIn</span>::<span class="ident">Commit</span>(<span class="ident">round_number</span>, <span class="ident">commit</span>, <span class="kw-2">mut</span> <span class="ident">process_commit_outcome</span>) <span class="op">=</span><span class="op">&gt;</span> {
 					<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;afg&quot;</span>, <span class="string">&quot;Got commit for round_number {:?}: target_number: {:?}, target_hash: {:?}&quot;</span>,
 						<span class="ident">round_number</span>,
@@ -2086,13 +2075,13 @@
 	}
 
 	<span class="comment">// process the logic of the best round.</span>
-	<span class="kw">fn</span> <span class="ident">process_best_round</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span>(), <span class="ident">E</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">process_best_round</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">E</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 		<span class="comment">// If the current `best_round` is completable and we&#39;ve already precommitted,</span>
 		<span class="comment">// we start a new round at `best_round + 1`.</span>
 		<span class="kw">let</span> <span class="ident">should_start_next</span> <span class="op">=</span> {
-			<span class="kw">let</span> <span class="ident">completable</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>.<span class="ident">best_round</span>.<span class="ident">poll</span>()<span class="question-mark">?</span> {
-				<span class="ident">Async</span>::<span class="ident">Ready</span>(()) <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">true</span>,
-				<span class="ident">Async</span>::<span class="ident">NotReady</span> <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">false</span>,
+			<span class="kw">let</span> <span class="ident">completable</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>.<span class="ident">best_round</span>.<span class="ident">poll</span>(<span class="ident">cx</span>)<span class="question-mark">?</span> {
+				<span class="ident">Poll</span>::<span class="ident">Ready</span>(()) <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">true</span>,
+				<span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">false</span>,
 			};
 
 			<span class="kw">let</span> <span class="ident">precommitted</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>.<span class="ident">best_round</span>.<span class="ident">state</span>() {
@@ -2103,7 +2092,7 @@
 			<span class="ident">completable</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">precommitted</span>
 		};
 
-		<span class="kw">if</span> <span class="op">!</span><span class="ident">should_start_next</span> { <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) }
+		<span class="kw">if</span> <span class="op">!</span><span class="ident">should_start_next</span> { <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Pending</span> }
 
 		<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;afg&quot;</span>, <span class="string">&quot;Best round at {} has become completable. Starting new best round at {}&quot;</span>,
 			<span class="self">self</span>.<span class="ident">best_round</span>.<span class="ident">round_number</span>(),
@@ -2113,7 +2102,7 @@
 		<span class="self">self</span>.<span class="ident">completed_best_round</span>()<span class="question-mark">?</span>;
 
 		<span class="comment">// round has been updated. so we need to re-poll.</span>
-		<span class="self">self</span>.<span class="ident">poll</span>()
+		<span class="self">self</span>.<span class="ident">poll_unpin</span>(<span class="ident">cx</span>)
 	}
 
 	<span class="kw">fn</span> <span class="ident">completed_best_round</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">E</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
@@ -2153,19 +2142,26 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">E</span>: <span class="ident">Environment</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">GlobalIn</span>, <span class="ident">GlobalOut</span><span class="op">&gt;</span> <span class="ident">Future</span> <span class="kw">for</span> <span class="ident">Voter</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">E</span>, <span class="ident">GlobalIn</span>, <span class="ident">GlobalOut</span><span class="op">&gt;</span> <span class="kw">where</span>
 	<span class="ident">H</span>: <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Eq</span> <span class="op">+</span> <span class="ident">Ord</span> <span class="op">+</span> ::<span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Debug</span>,
 	<span class="ident">N</span>: <span class="ident">Copy</span> <span class="op">+</span> <span class="ident">BlockNumberOps</span> <span class="op">+</span> ::<span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Debug</span>,
-	<span class="ident">GlobalIn</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span><span class="ident">CommunicationIn</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">E</span>::<span class="ident">Signature</span>, <span class="ident">E</span>::<span class="ident">Id</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">=</span><span class="ident">E</span>::<span class="ident">Error</span><span class="op">&gt;</span>,
-	<span class="ident">GlobalOut</span>: <span class="ident">Sink</span><span class="op">&lt;</span><span class="ident">SinkItem</span><span class="op">=</span><span class="ident">CommunicationOut</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">E</span>::<span class="ident">Signature</span>, <span class="ident">E</span>::<span class="ident">Id</span><span class="op">&gt;</span>, <span class="ident">SinkError</span><span class="op">=</span><span class="ident">E</span>::<span class="ident">Error</span><span class="op">&gt;</span>,
+	<span class="ident">GlobalIn</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">CommunicationIn</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">E</span>::<span class="ident">Signature</span>, <span class="ident">E</span>::<span class="ident">Id</span><span class="op">&gt;</span>, <span class="ident">E</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Unpin</span>,
+	<span class="ident">GlobalOut</span>: <span class="ident">Sink</span><span class="op">&lt;</span><span class="ident">CommunicationOut</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">E</span>::<span class="ident">Signature</span>, <span class="ident">E</span>::<span class="ident">Id</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">=</span><span class="ident">E</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Unpin</span>,
 {
-	<span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> ();
-	<span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">E</span>::<span class="ident">Error</span>;
+	<span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">E</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
 
-	<span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span>(), <span class="ident">E</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
-		<span class="self">self</span>.<span class="ident">process_incoming</span>()<span class="question-mark">?</span>;
-		<span class="self">self</span>.<span class="ident">prune_background_rounds</span>()<span class="question-mark">?</span>;
-		<span class="self">self</span>.<span class="ident">global_out</span>.<span class="ident">poll</span>()<span class="question-mark">?</span>;
+	<span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">E</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+		<span class="self">self</span>.<span class="ident">process_incoming</span>(<span class="ident">cx</span>)<span class="question-mark">?</span>;
+		<span class="self">self</span>.<span class="ident">prune_background_rounds</span>(<span class="ident">cx</span>)<span class="question-mark">?</span>;
+		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">global_out</span>.<span class="ident">poll</span>(<span class="ident">cx</span>)<span class="question-mark">?</span>;
 
-		<span class="self">self</span>.<span class="ident">process_best_round</span>()
+		<span class="self">self</span>.<span class="ident">process_best_round</span>(<span class="ident">cx</span>)
 	}
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">E</span>: <span class="ident">Environment</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">GlobalIn</span>, <span class="ident">GlobalOut</span><span class="op">&gt;</span> <span class="ident">Unpin</span> <span class="kw">for</span> <span class="ident">Voter</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">E</span>, <span class="ident">GlobalIn</span>, <span class="ident">GlobalOut</span><span class="op">&gt;</span> <span class="kw">where</span>
+	<span class="ident">H</span>: <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Eq</span> <span class="op">+</span> <span class="ident">Ord</span> <span class="op">+</span> ::<span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Debug</span>,
+	<span class="ident">N</span>: <span class="ident">Copy</span> <span class="op">+</span> <span class="ident">BlockNumberOps</span> <span class="op">+</span> ::<span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Debug</span>,
+	<span class="ident">GlobalIn</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">CommunicationIn</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">E</span>::<span class="ident">Signature</span>, <span class="ident">E</span>::<span class="ident">Id</span><span class="op">&gt;</span>, <span class="ident">E</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Unpin</span>,
+	<span class="ident">GlobalOut</span>: <span class="ident">Sink</span><span class="op">&lt;</span><span class="ident">CommunicationOut</span><span class="op">&lt;</span><span class="ident">H</span>, <span class="ident">N</span>, <span class="ident">E</span>::<span class="ident">Signature</span>, <span class="ident">E</span>::<span class="ident">Id</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">=</span><span class="ident">E</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Unpin</span>,
+{
 }
 
 <span class="doccomment">/// Validate the given catch up and return a completed round with all prevotes</span>
@@ -2300,9 +2296,11 @@
 		<span class="ident">chain</span>::<span class="ident">GENESIS_HASH</span>,
 		<span class="ident">environment</span>::{<span class="ident">Environment</span>, <span class="ident">Id</span>, <span class="ident">Signature</span>},
 	};
+	<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">LocalPool</span>;
+	<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">task</span>::<span class="ident">SpawnExt</span>;
+	<span class="kw">use</span> <span class="ident">futures_timer</span>::<span class="ident">Delay</span>;
+	<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">iter</span>;
 	<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>;
-	<span class="kw">use</span> <span class="ident">tokio</span>::<span class="ident">prelude</span>::<span class="ident">FutureExt</span>;
-	<span class="kw">use</span> <span class="ident">tokio</span>::<span class="ident">runtime</span>::<span class="ident">current_thread</span>;
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
 	<span class="kw">fn</span> <span class="ident">talking_to_myself</span>() {
@@ -2310,12 +2308,51 @@
 		<span class="kw">let</span> <span class="ident">voters</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">iter</span>::<span class="ident">once</span>((<span class="ident">local_id</span>, <span class="number">100</span>)).<span class="ident">collect</span>();
 
 		<span class="kw">let</span> (<span class="ident">network</span>, <span class="ident">routing_task</span>) <span class="op">=</span> <span class="ident">testing</span>::<span class="ident">environment</span>::<span class="ident">make_network</span>();
-		<span class="kw">let</span> (<span class="ident">signal</span>, <span class="ident">exit</span>) <span class="op">=</span> ::<span class="ident">exit_future</span>::<span class="ident">signal</span>();
 
 		<span class="kw">let</span> <span class="ident">global_comms</span> <span class="op">=</span> <span class="ident">network</span>.<span class="ident">make_global_comms</span>();
 		<span class="kw">let</span> <span class="ident">env</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Environment</span>::<span class="ident">new</span>(<span class="ident">network</span>, <span class="ident">local_id</span>));
-		<span class="ident">current_thread</span>::<span class="ident">block_on_all</span>(::<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">lazy</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
+
+		<span class="comment">// initialize chain</span>
+		<span class="kw">let</span> <span class="ident">last_finalized</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">with_chain</span>(<span class="op">|</span><span class="ident">chain</span><span class="op">|</span> {
+			<span class="ident">chain</span>.<span class="ident">push_blocks</span>(<span class="ident">GENESIS_HASH</span>, <span class="kw-2">&amp;</span>[<span class="string">&quot;A&quot;</span>, <span class="string">&quot;B&quot;</span>, <span class="string">&quot;C&quot;</span>, <span class="string">&quot;D&quot;</span>, <span class="string">&quot;E&quot;</span>]);
+			<span class="ident">chain</span>.<span class="ident">last_finalized</span>()
+		});
+
+		<span class="comment">// run voter in background. scheduling it to shut down at the end.</span>
+		<span class="kw">let</span> <span class="ident">finalized</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">finalized_stream</span>();
+		<span class="kw">let</span> <span class="ident">voter</span> <span class="op">=</span> <span class="ident">Voter</span>::<span class="ident">new</span>(
+			<span class="ident">env</span>.<span class="ident">clone</span>(),
+			<span class="ident">voters</span>,
+			<span class="ident">global_comms</span>,
+			<span class="number">0</span>,
+			<span class="ident">Vec</span>::<span class="ident">new</span>(),
+			<span class="ident">last_finalized</span>,
+			<span class="ident">last_finalized</span>,
+		);
+
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pool</span> <span class="op">=</span> <span class="ident">LocalPool</span>::<span class="ident">new</span>();
+		<span class="ident">pool</span>.<span class="ident">spawner</span>().<span class="ident">spawn</span>(<span class="ident">voter</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="ident">v</span>.<span class="ident">expect</span>(<span class="string">&quot;Error voting&quot;</span>))).<span class="ident">unwrap</span>();
+		<span class="ident">pool</span>.<span class="ident">spawner</span>().<span class="ident">spawn</span>(<span class="ident">routing_task</span>).<span class="ident">unwrap</span>();
+
+		<span class="comment">// wait for the best block to finalize.</span>
+		<span class="ident">pool</span>.<span class="ident">run_until</span>(<span class="ident">finalized</span>
+			.<span class="ident">take_while</span>(<span class="op">|</span><span class="kw-2">&amp;</span>(<span class="kw">_</span>, <span class="ident">n</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">future</span>::<span class="ident">ready</span>(<span class="ident">n</span> <span class="op">&lt;</span> <span class="number">6</span>))
+			.<span class="ident">for_each</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">future</span>::<span class="ident">ready</span>(())))
+	}
+
+	<span class="attribute">#[<span class="ident">test</span>]</span>
+	<span class="kw">fn</span> <span class="ident">finalizing_at_fault_threshold</span>() {
+		<span class="comment">// 10 voters</span>
+		<span class="kw">let</span> <span class="ident">voters</span>: <span class="ident">VoterSet</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> (<span class="number">0</span>..<span class="number">10</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> (<span class="ident">Id</span>(<span class="ident">i</span>), <span class="number">1</span>)).<span class="ident">collect</span>();
+
+		<span class="kw">let</span> (<span class="ident">network</span>, <span class="ident">routing_task</span>) <span class="op">=</span> <span class="ident">testing</span>::<span class="ident">environment</span>::<span class="ident">make_network</span>();
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pool</span> <span class="op">=</span> <span class="ident">LocalPool</span>::<span class="ident">new</span>();
+
+		<span class="comment">// 3 voters offline.</span>
+		<span class="kw">let</span> <span class="ident">finalized_streams</span> <span class="op">=</span> (<span class="number">0</span>..<span class="number">7</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
+			<span class="kw">let</span> <span class="ident">local_id</span> <span class="op">=</span> <span class="ident">Id</span>(<span class="ident">i</span>);
 			<span class="comment">// initialize chain</span>
+			<span class="kw">let</span> <span class="ident">env</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Environment</span>::<span class="ident">new</span>(<span class="ident">network</span>.<span class="ident">clone</span>(), <span class="ident">local_id</span>));
 			<span class="kw">let</span> <span class="ident">last_finalized</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">with_chain</span>(<span class="op">|</span><span class="ident">chain</span><span class="op">|</span> {
 				<span class="ident">chain</span>.<span class="ident">push_blocks</span>(<span class="ident">GENESIS_HASH</span>, <span class="kw-2">&amp;</span>[<span class="string">&quot;A&quot;</span>, <span class="string">&quot;B&quot;</span>, <span class="string">&quot;C&quot;</span>, <span class="string">&quot;D&quot;</span>, <span class="string">&quot;E&quot;</span>]);
 				<span class="ident">chain</span>.<span class="ident">last_finalized</span>()
@@ -2325,69 +2362,25 @@
 			<span class="kw">let</span> <span class="ident">finalized</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">finalized_stream</span>();
 			<span class="kw">let</span> <span class="ident">voter</span> <span class="op">=</span> <span class="ident">Voter</span>::<span class="ident">new</span>(
 				<span class="ident">env</span>.<span class="ident">clone</span>(),
-				<span class="ident">voters</span>,
-				<span class="ident">global_comms</span>,
+				<span class="ident">voters</span>.<span class="ident">clone</span>(),
+				<span class="ident">network</span>.<span class="ident">make_global_comms</span>(),
 				<span class="number">0</span>,
 				<span class="ident">Vec</span>::<span class="ident">new</span>(),
 				<span class="ident">last_finalized</span>,
 				<span class="ident">last_finalized</span>,
 			);
-			<span class="ident">tokio</span>::<span class="ident">spawn</span>(<span class="ident">exit</span>.<span class="ident">clone</span>()
-				.<span class="ident">until</span>(<span class="ident">voter</span>.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Error voting&quot;</span>))).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()));
 
-			<span class="ident">tokio</span>::<span class="ident">spawn</span>(<span class="ident">exit</span>.<span class="ident">until</span>(<span class="ident">routing_task</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()));
+			<span class="ident">pool</span>.<span class="ident">spawner</span>().<span class="ident">spawn</span>(<span class="ident">voter</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="ident">v</span>.<span class="ident">expect</span>(<span class="string">&quot;Error voting&quot;</span>))).<span class="ident">unwrap</span>();
 
-			<span class="comment">// wait for the best block to finalize.</span>
+			<span class="comment">// wait for the best block to be finalized by all honest voters</span>
 			<span class="ident">finalized</span>
-				.<span class="ident">take_while</span>(<span class="op">|</span><span class="kw-2">&amp;</span>(<span class="kw">_</span>, <span class="ident">n</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="ident">n</span> <span class="op">&lt;</span> <span class="number">6</span>))
-				.<span class="ident">for_each</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()))
-				.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">signal</span>.<span class="ident">fire</span>())
-		})).<span class="ident">unwrap</span>();
-	}
+				.<span class="ident">take_while</span>(<span class="op">|</span><span class="kw-2">&amp;</span>(<span class="kw">_</span>, <span class="ident">n</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">future</span>::<span class="ident">ready</span>(<span class="ident">n</span> <span class="op">&lt;</span> <span class="number">6</span>))
+				.<span class="ident">for_each</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">future</span>::<span class="ident">ready</span>(()))
+		}).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
 
-	<span class="attribute">#[<span class="ident">test</span>]</span>
-	<span class="kw">fn</span> <span class="ident">finalizing_at_fault_threshold</span>() {
-		<span class="comment">// 10 voters</span>
-		<span class="kw">let</span> <span class="ident">voters</span>: <span class="ident">VoterSet</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> (<span class="number">0</span>..<span class="number">10</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> (<span class="ident">Id</span>(<span class="ident">i</span>), <span class="number">1</span>)).<span class="ident">collect</span>();
+		<span class="ident">pool</span>.<span class="ident">spawner</span>().<span class="ident">spawn</span>(<span class="ident">routing_task</span>.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())).<span class="ident">unwrap</span>();
 
-		<span class="kw">let</span> (<span class="ident">network</span>, <span class="ident">routing_task</span>) <span class="op">=</span> <span class="ident">testing</span>::<span class="ident">environment</span>::<span class="ident">make_network</span>();
-		<span class="kw">let</span> (<span class="ident">signal</span>, <span class="ident">exit</span>) <span class="op">=</span> ::<span class="ident">exit_future</span>::<span class="ident">signal</span>();
-
-		<span class="ident">current_thread</span>::<span class="ident">block_on_all</span>(::<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">lazy</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
-			<span class="ident">tokio</span>::<span class="ident">spawn</span>(<span class="ident">exit</span>.<span class="ident">clone</span>().<span class="ident">until</span>(<span class="ident">routing_task</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()));
-
-			<span class="comment">// 3 voters offline.</span>
-			<span class="kw">let</span> <span class="ident">finalized_streams</span> <span class="op">=</span> (<span class="number">0</span>..<span class="number">7</span>).<span class="ident">map</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
-				<span class="kw">let</span> <span class="ident">local_id</span> <span class="op">=</span> <span class="ident">Id</span>(<span class="ident">i</span>);
-				<span class="comment">// initialize chain</span>
-				<span class="kw">let</span> <span class="ident">env</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Environment</span>::<span class="ident">new</span>(<span class="ident">network</span>.<span class="ident">clone</span>(), <span class="ident">local_id</span>));
-				<span class="kw">let</span> <span class="ident">last_finalized</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">with_chain</span>(<span class="op">|</span><span class="ident">chain</span><span class="op">|</span> {
-					<span class="ident">chain</span>.<span class="ident">push_blocks</span>(<span class="ident">GENESIS_HASH</span>, <span class="kw-2">&amp;</span>[<span class="string">&quot;A&quot;</span>, <span class="string">&quot;B&quot;</span>, <span class="string">&quot;C&quot;</span>, <span class="string">&quot;D&quot;</span>, <span class="string">&quot;E&quot;</span>]);
-					<span class="ident">chain</span>.<span class="ident">last_finalized</span>()
-				});
-
-				<span class="comment">// run voter in background. scheduling it to shut down at the end.</span>
-				<span class="kw">let</span> <span class="ident">finalized</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">finalized_stream</span>();
-				<span class="kw">let</span> <span class="ident">voter</span> <span class="op">=</span> <span class="ident">Voter</span>::<span class="ident">new</span>(
-					<span class="ident">env</span>.<span class="ident">clone</span>(),
-					<span class="ident">voters</span>.<span class="ident">clone</span>(),
-					<span class="ident">network</span>.<span class="ident">make_global_comms</span>(),
-					<span class="number">0</span>,
-					<span class="ident">Vec</span>::<span class="ident">new</span>(),
-					<span class="ident">last_finalized</span>,
-					<span class="ident">last_finalized</span>,
-				);
-				<span class="ident">tokio</span>::<span class="ident">spawn</span>(<span class="ident">exit</span>.<span class="ident">clone</span>()
-					.<span class="ident">until</span>(<span class="ident">voter</span>.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Error voting&quot;</span>))).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()));
-
-				<span class="comment">// wait for the best block to be finalized by all honest voters</span>
-				<span class="ident">finalized</span>
-					.<span class="ident">take_while</span>(<span class="op">|</span><span class="kw-2">&amp;</span>(<span class="kw">_</span>, <span class="ident">n</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="ident">n</span> <span class="op">&lt;</span> <span class="number">6</span>))
-					.<span class="ident">for_each</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()))
-			});
-
-			::<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">join_all</span>(<span class="ident">finalized_streams</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">signal</span>.<span class="ident">fire</span>())
-		})).<span class="ident">unwrap</span>();
+		<span class="ident">pool</span>.<span class="ident">run_until</span>(<span class="ident">future</span>::<span class="ident">join_all</span>(<span class="ident">finalized_streams</span>.<span class="ident">into_iter</span>()));
 	}
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
@@ -2398,36 +2391,32 @@
 		<span class="kw">let</span> (<span class="ident">network</span>, <span class="ident">routing_task</span>) <span class="op">=</span> <span class="ident">testing</span>::<span class="ident">environment</span>::<span class="ident">make_network</span>();
 		<span class="kw">let</span> (<span class="ident">commits</span>, <span class="kw">_</span>) <span class="op">=</span> <span class="ident">network</span>.<span class="ident">make_global_comms</span>();
 
-		<span class="kw">let</span> (<span class="ident">signal</span>, <span class="ident">exit</span>) <span class="op">=</span> ::<span class="ident">exit_future</span>::<span class="ident">signal</span>();
-
 		<span class="kw">let</span> <span class="ident">global_comms</span> <span class="op">=</span> <span class="ident">network</span>.<span class="ident">make_global_comms</span>();
 		<span class="kw">let</span> <span class="ident">env</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Environment</span>::<span class="ident">new</span>(<span class="ident">network</span>, <span class="ident">local_id</span>));
-		<span class="ident">current_thread</span>::<span class="ident">block_on_all</span>(::<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">lazy</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
-			<span class="comment">// initialize chain</span>
-			<span class="kw">let</span> <span class="ident">last_finalized</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">with_chain</span>(<span class="op">|</span><span class="ident">chain</span><span class="op">|</span> {
-				<span class="ident">chain</span>.<span class="ident">push_blocks</span>(<span class="ident">GENESIS_HASH</span>, <span class="kw-2">&amp;</span>[<span class="string">&quot;A&quot;</span>, <span class="string">&quot;B&quot;</span>, <span class="string">&quot;C&quot;</span>, <span class="string">&quot;D&quot;</span>, <span class="string">&quot;E&quot;</span>]);
-				<span class="ident">chain</span>.<span class="ident">last_finalized</span>()
-			});
 
+		<span class="comment">// initialize chain</span>
+		<span class="kw">let</span> <span class="ident">last_finalized</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">with_chain</span>(<span class="op">|</span><span class="ident">chain</span><span class="op">|</span> {
+			<span class="ident">chain</span>.<span class="ident">push_blocks</span>(<span class="ident">GENESIS_HASH</span>, <span class="kw-2">&amp;</span>[<span class="string">&quot;A&quot;</span>, <span class="string">&quot;B&quot;</span>, <span class="string">&quot;C&quot;</span>, <span class="string">&quot;D&quot;</span>, <span class="string">&quot;E&quot;</span>]);
+			<span class="ident">chain</span>.<span class="ident">last_finalized</span>()
+		});
 
-			<span class="comment">// run voter in background. scheduling it to shut down at the end.</span>
-			<span class="kw">let</span> <span class="ident">voter</span> <span class="op">=</span> <span class="ident">Voter</span>::<span class="ident">new</span>(
-				<span class="ident">env</span>.<span class="ident">clone</span>(),
-				<span class="ident">voters</span>.<span class="ident">clone</span>(),
-				<span class="ident">global_comms</span>,
-				<span class="number">0</span>,
-				<span class="ident">Vec</span>::<span class="ident">new</span>(),
-				<span class="ident">last_finalized</span>,
-				<span class="ident">last_finalized</span>,
-			);
-			<span class="ident">tokio</span>::<span class="ident">spawn</span>(<span class="ident">exit</span>.<span class="ident">clone</span>()
-				.<span class="ident">until</span>(<span class="ident">voter</span>.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Error voting&quot;</span>))).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()));
+		<span class="comment">// run voter in background. scheduling it to shut down at the end.</span>
+		<span class="kw">let</span> <span class="ident">voter</span> <span class="op">=</span> <span class="ident">Voter</span>::<span class="ident">new</span>(
+			<span class="ident">env</span>.<span class="ident">clone</span>(),
+			<span class="ident">voters</span>.<span class="ident">clone</span>(),
+			<span class="ident">global_comms</span>,
+			<span class="number">0</span>,
+			<span class="ident">Vec</span>::<span class="ident">new</span>(),
+			<span class="ident">last_finalized</span>,
+			<span class="ident">last_finalized</span>,
+		);
 
-			<span class="ident">tokio</span>::<span class="ident">spawn</span>(<span class="ident">exit</span>.<span class="ident">until</span>(<span class="ident">routing_task</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()));
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pool</span> <span class="op">=</span> <span class="ident">LocalPool</span>::<span class="ident">new</span>();
+		<span class="ident">pool</span>.<span class="ident">spawner</span>().<span class="ident">spawn</span>(<span class="ident">voter</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="ident">v</span>.<span class="ident">expect</span>(<span class="string">&quot;Error voting&quot;</span>))).<span class="ident">unwrap</span>();
+		<span class="ident">pool</span>.<span class="ident">spawner</span>().<span class="ident">spawn</span>(<span class="ident">routing_task</span>).<span class="ident">unwrap</span>();
 
-			<span class="comment">// wait for the node to broadcast a commit message</span>
-			<span class="ident">commits</span>.<span class="ident">take</span>(<span class="number">1</span>).<span class="ident">for_each</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(())).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">signal</span>.<span class="ident">fire</span>())
-		})).<span class="ident">unwrap</span>();
+		<span class="comment">// wait for the node to broadcast a commit message</span>
+		<span class="ident">pool</span>.<span class="ident">run_until</span>(<span class="ident">commits</span>.<span class="ident">take</span>(<span class="number">1</span>).<span class="ident">for_each</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">future</span>::<span class="ident">ready</span>(())))
 	}
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
@@ -2463,67 +2452,70 @@
 			}],
 		});
 
-		<span class="kw">let</span> (<span class="ident">signal</span>, <span class="ident">exit</span>) <span class="op">=</span> ::<span class="ident">exit_future</span>::<span class="ident">signal</span>();
-
 		<span class="kw">let</span> <span class="ident">global_comms</span> <span class="op">=</span> <span class="ident">network</span>.<span class="ident">make_global_comms</span>();
 		<span class="kw">let</span> <span class="ident">env</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Environment</span>::<span class="ident">new</span>(<span class="ident">network</span>, <span class="ident">local_id</span>));
-		<span class="ident">current_thread</span>::<span class="ident">block_on_all</span>(::<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">lazy</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
-			<span class="comment">// initialize chain</span>
-			<span class="kw">let</span> <span class="ident">last_finalized</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">with_chain</span>(<span class="op">|</span><span class="ident">chain</span><span class="op">|</span> {
-				<span class="ident">chain</span>.<span class="ident">push_blocks</span>(<span class="ident">GENESIS_HASH</span>, <span class="kw-2">&amp;</span>[<span class="string">&quot;A&quot;</span>, <span class="string">&quot;B&quot;</span>, <span class="string">&quot;C&quot;</span>, <span class="string">&quot;D&quot;</span>, <span class="string">&quot;E&quot;</span>]);
-				<span class="ident">chain</span>.<span class="ident">last_finalized</span>()
-			});
 
-			<span class="comment">// run voter in background. scheduling it to shut down at the end.</span>
-			<span class="kw">let</span> <span class="ident">voter</span> <span class="op">=</span> <span class="ident">Voter</span>::<span class="ident">new</span>(
-				<span class="ident">env</span>.<span class="ident">clone</span>(),
-				<span class="ident">voters</span>.<span class="ident">clone</span>(),
-				<span class="ident">global_comms</span>,
-				<span class="number">0</span>,
-				<span class="ident">Vec</span>::<span class="ident">new</span>(),
-				<span class="ident">last_finalized</span>,
-				<span class="ident">last_finalized</span>,
-			);
-			<span class="ident">tokio</span>::<span class="ident">spawn</span>(<span class="ident">exit</span>.<span class="ident">clone</span>()
-				.<span class="ident">until</span>(<span class="ident">voter</span>.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Error voting: {:?}&quot;</span>, <span class="ident">e</span>))).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()));
+		<span class="comment">// initialize chain</span>
+		<span class="kw">let</span> <span class="ident">last_finalized</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">with_chain</span>(<span class="op">|</span><span class="ident">chain</span><span class="op">|</span> {
+			<span class="ident">chain</span>.<span class="ident">push_blocks</span>(<span class="ident">GENESIS_HASH</span>, <span class="kw-2">&amp;</span>[<span class="string">&quot;A&quot;</span>, <span class="string">&quot;B&quot;</span>, <span class="string">&quot;C&quot;</span>, <span class="string">&quot;D&quot;</span>, <span class="string">&quot;E&quot;</span>]);
+			<span class="ident">chain</span>.<span class="ident">last_finalized</span>()
+		});
 
-			<span class="ident">tokio</span>::<span class="ident">spawn</span>(<span class="ident">exit</span>.<span class="ident">clone</span>().<span class="ident">until</span>(<span class="ident">routing_task</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()));
+		<span class="comment">// run voter in background. scheduling it to shut down at the end.</span>
+		<span class="kw">let</span> <span class="ident">voter</span> <span class="op">=</span> <span class="ident">Voter</span>::<span class="ident">new</span>(
+			<span class="ident">env</span>.<span class="ident">clone</span>(),
+			<span class="ident">voters</span>.<span class="ident">clone</span>(),
+			<span class="ident">global_comms</span>,
+			<span class="number">0</span>,
+			<span class="ident">Vec</span>::<span class="ident">new</span>(),
+			<span class="ident">last_finalized</span>,
+			<span class="ident">last_finalized</span>,
+		);
 
-			<span class="ident">tokio</span>::<span class="ident">spawn</span>(<span class="ident">exit</span>.<span class="ident">until</span>(::<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">lazy</span>(<span class="op">|</span><span class="op">|</span> {
-				<span class="ident">round_stream</span>.<span class="ident">into_future</span>().<span class="ident">map_err</span>(<span class="op">|</span>(<span class="ident">e</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">e</span>)
-					.<span class="ident">and_then</span>(<span class="op">|</span>(<span class="ident">value</span>, <span class="ident">stream</span>)<span class="op">|</span> { <span class="comment">// wait for a prevote</span>
-						<span class="macro">assert</span><span class="macro">!</span>(<span class="kw">match</span> <span class="ident">value</span> {
-							<span class="prelude-val">Some</span>(<span class="ident">SignedMessage</span> { <span class="ident">message</span>: <span class="ident">Message</span>::<span class="ident">Prevote</span>(<span class="kw">_</span>), <span class="ident">id</span>: <span class="ident">Id</span>(<span class="number">5</span>), .. }) <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">true</span>,
-							<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">false</span>,
-						});
-						<span class="kw">let</span> <span class="ident">votes</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">prevote</span>, <span class="ident">precommit</span>].<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="prelude-ty">Result</span>::<span class="prelude-val">Ok</span>);
-						<span class="ident">round_sink</span>.<span class="ident">send_all</span>(<span class="ident">futures</span>::<span class="ident">stream</span>::<span class="ident">iter_result</span>(<span class="ident">votes</span>)).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">stream</span>) <span class="comment">// send our prevote</span>
-					})
-					.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">stream</span><span class="op">|</span> {
-						<span class="ident">stream</span>.<span class="ident">take_while</span>(<span class="op">|</span><span class="ident">value</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">value</span> { <span class="comment">// wait for a precommit</span>
-							<span class="ident">SignedMessage</span> { <span class="ident">message</span>: <span class="ident">Message</span>::<span class="ident">Precommit</span>(<span class="kw">_</span>), <span class="ident">id</span>: <span class="ident">Id</span>(<span class="number">5</span>), .. } <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>),
-							<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>),
-						}).<span class="ident">for_each</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()))
-					})
-					.<span class="ident">and_then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
-						<span class="comment">// send our commit</span>
-						<span class="ident">commits_sink</span>.<span class="ident">send</span>(<span class="ident">CommunicationOut</span>::<span class="ident">Commit</span>(<span class="ident">commit</span>.<span class="number">0</span>, <span class="ident">commit</span>.<span class="number">1</span>))
-					})
-					.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
-			})).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()));
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pool</span> <span class="op">=</span> <span class="ident">LocalPool</span>::<span class="ident">new</span>();
+		<span class="ident">pool</span>.<span class="ident">spawner</span>().<span class="ident">spawn</span>(<span class="ident">voter</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="ident">v</span>.<span class="ident">expect</span>(<span class="string">&quot;Error voting: {:?}&quot;</span>))).<span class="ident">unwrap</span>();
+		<span class="ident">pool</span>.<span class="ident">spawner</span>().<span class="ident">spawn</span>(<span class="ident">routing_task</span>.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())).<span class="ident">unwrap</span>();
 
+		<span class="ident">pool</span>.<span class="ident">spawner</span>().<span class="ident">spawn</span>(
+			<span class="ident">round_stream</span>.<span class="ident">into_future</span>()
+				.<span class="ident">then</span>(<span class="op">|</span>(<span class="ident">value</span>, <span class="ident">stream</span>)<span class="op">|</span> { <span class="comment">// wait for a prevote</span>
+					<span class="macro">assert</span><span class="macro">!</span>(<span class="kw">match</span> <span class="ident">value</span> {
+						<span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">SignedMessage</span> { <span class="ident">message</span>: <span class="ident">Message</span>::<span class="ident">Prevote</span>(<span class="kw">_</span>), <span class="ident">id</span>: <span class="ident">Id</span>(<span class="number">5</span>), .. })) <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">true</span>,
+						<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">false</span>,
+					});
+					<span class="kw">let</span> <span class="ident">votes</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">prevote</span>, <span class="ident">precommit</span>].<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="prelude-ty">Result</span>::<span class="prelude-val">Ok</span>);
+					<span class="ident">futures</span>::<span class="ident">stream</span>::<span class="ident">iter</span>(<span class="ident">votes</span>).<span class="ident">forward</span>(<span class="ident">round_sink</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">stream</span>) <span class="comment">// send our prevote</span>
+				})
+				.<span class="ident">then</span>(<span class="op">|</span><span class="ident">stream</span><span class="op">|</span> {
+					<span class="ident">stream</span>.<span class="ident">take_while</span>(<span class="op">|</span><span class="ident">value</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">value</span> { <span class="comment">// wait for a precommit</span>
+						<span class="prelude-val">Ok</span>(<span class="ident">SignedMessage</span> { <span class="ident">message</span>: <span class="ident">Message</span>::<span class="ident">Precommit</span>(<span class="kw">_</span>), <span class="ident">id</span>: <span class="ident">Id</span>(<span class="number">5</span>), .. }) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">future</span>::<span class="ident">ready</span>(<span class="bool-val">false</span>),
+						<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">future</span>::<span class="ident">ready</span>(<span class="bool-val">true</span>),
+					}).<span class="ident">for_each</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">future</span>::<span class="ident">ready</span>(()))
+				})
+				.<span class="ident">then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
+					<span class="comment">// send our commit</span>
+					<span class="ident">stream</span>::<span class="ident">iter</span>(<span class="ident">iter</span>::<span class="ident">once</span>(<span class="prelude-val">Ok</span>(<span class="ident">CommunicationOut</span>::<span class="ident">Commit</span>(<span class="ident">commit</span>.<span class="number">0</span>, <span class="ident">commit</span>.<span class="number">1</span>)))).<span class="ident">forward</span>(<span class="ident">commits_sink</span>)
+				})
+				.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
+		).<span class="ident">unwrap</span>();
+
+		<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">pool</span>.<span class="ident">run_until</span>(
 			<span class="comment">// wait for the first commit (ours)</span>
-			<span class="ident">commits_stream</span>.<span class="ident">into_future</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
-				.<span class="ident">and_then</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">stream</span>)<span class="op">|</span> {
-					<span class="ident">stream</span>.<span class="ident">take</span>(<span class="number">1</span>).<span class="ident">for_each</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(())) <span class="comment">// the second commit should never arrive</span>
-						.<span class="ident">timeout</span>(<span class="ident">Duration</span>::<span class="ident">from_millis</span>(<span class="number">500</span>)).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
-				})
-				.<span class="ident">then</span>(<span class="op">|</span><span class="ident">res</span><span class="op">|</span> {
-					<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">res</span>.<span class="ident">is_err</span>()); <span class="comment">// so the previous future times out</span>
-					<span class="ident">signal</span>.<span class="ident">fire</span>();
-					<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">ok</span>::<span class="op">&lt;</span>(), ()<span class="op">&gt;</span>(())
-				})
-		})).<span class="ident">unwrap</span>();
+			<span class="ident">commits_stream</span>.<span class="ident">into_future</span>()
+				.<span class="ident">then</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">stream</span>)<span class="op">|</span> {
+					<span class="comment">// the second commit should never arrive</span>
+					<span class="kw">let</span> <span class="ident">await_second</span> <span class="op">=</span> <span class="ident">stream</span>.<span class="ident">take</span>(<span class="number">1</span>)
+						.<span class="ident">for_each</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">future</span>::<span class="ident">ready</span>(()));
+					<span class="kw">let</span> <span class="ident">delay</span> <span class="op">=</span> <span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">Duration</span>::<span class="ident">from_millis</span>(<span class="number">500</span>));
+					<span class="ident">future</span>::<span class="ident">select</span>(<span class="ident">await_second</span>, <span class="ident">delay</span>)
+				}));
+
+		<span class="kw">match</span> <span class="ident">res</span> {
+			<span class="ident">future</span>::<span class="ident">Either</span>::<span class="ident">Right</span>(((), <span class="ident">_work</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+				<span class="comment">// the future timed out as expected</span>
+			}
+			<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Unexpected result&quot;</span>)
+		}
 	}
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
@@ -2538,10 +2530,8 @@
 		<span class="kw">let</span> (<span class="ident">network</span>, <span class="ident">routing_task</span>) <span class="op">=</span> <span class="ident">testing</span>::<span class="ident">environment</span>::<span class="ident">make_network</span>();
 		<span class="kw">let</span> (<span class="kw">_</span>, <span class="ident">commits_sink</span>) <span class="op">=</span> <span class="ident">network</span>.<span class="ident">make_global_comms</span>();
 
-		<span class="kw">let</span> (<span class="ident">signal</span>, <span class="ident">exit</span>) <span class="op">=</span> ::<span class="ident">exit_future</span>::<span class="ident">signal</span>();
-
 		<span class="comment">// this is a commit for a previous round</span>
-		<span class="kw">let</span> <span class="ident">commit</span> <span class="op">=</span> (<span class="number">0</span>, <span class="ident">Commit</span> {
+		<span class="kw">let</span> <span class="ident">commit</span> <span class="op">=</span> <span class="ident">Commit</span> {
 			<span class="ident">target_hash</span>: <span class="string">&quot;E&quot;</span>,
 			<span class="ident">target_number</span>: <span class="number">6</span>,
 			<span class="ident">precommits</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">SignedPrecommit</span> {
@@ -2549,41 +2539,45 @@
 				<span class="ident">signature</span>: <span class="ident">Signature</span>(<span class="ident">test_id</span>.<span class="number">0</span>),
 				<span class="ident">id</span>: <span class="ident">test_id</span>
 			}],
-		});
+		};
 
 		<span class="kw">let</span> <span class="ident">global_comms</span> <span class="op">=</span> <span class="ident">network</span>.<span class="ident">make_global_comms</span>();
 		<span class="kw">let</span> <span class="ident">env</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Environment</span>::<span class="ident">new</span>(<span class="ident">network</span>, <span class="ident">local_id</span>));
-		<span class="ident">current_thread</span>::<span class="ident">block_on_all</span>(::<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">lazy</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
-			<span class="comment">// initialize chain</span>
-			<span class="kw">let</span> <span class="ident">last_finalized</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">with_chain</span>(<span class="op">|</span><span class="ident">chain</span><span class="op">|</span> {
-				<span class="ident">chain</span>.<span class="ident">push_blocks</span>(<span class="ident">GENESIS_HASH</span>, <span class="kw-2">&amp;</span>[<span class="string">&quot;A&quot;</span>, <span class="string">&quot;B&quot;</span>, <span class="string">&quot;C&quot;</span>, <span class="string">&quot;D&quot;</span>, <span class="string">&quot;E&quot;</span>]);
-				<span class="ident">chain</span>.<span class="ident">last_finalized</span>()
-			});
 
-			<span class="comment">// run voter in background. scheduling it to shut down at the end.</span>
-			<span class="kw">let</span> <span class="ident">voter</span> <span class="op">=</span> <span class="ident">Voter</span>::<span class="ident">new</span>(
-				<span class="ident">env</span>.<span class="ident">clone</span>(),
-				<span class="ident">voters</span>.<span class="ident">clone</span>(),
-				<span class="ident">global_comms</span>,
-				<span class="number">1</span>,
-				<span class="ident">Vec</span>::<span class="ident">new</span>(),
-				<span class="ident">last_finalized</span>,
-				<span class="ident">last_finalized</span>,
-			);
-			<span class="ident">tokio</span>::<span class="ident">spawn</span>(<span class="ident">exit</span>.<span class="ident">clone</span>()
-				.<span class="ident">until</span>(<span class="ident">voter</span>.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Error voting&quot;</span>))).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()));
+		<span class="comment">// initialize chain</span>
+		<span class="kw">let</span> <span class="ident">last_finalized</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">with_chain</span>(<span class="op">|</span><span class="ident">chain</span><span class="op">|</span> {
+			<span class="ident">chain</span>.<span class="ident">push_blocks</span>(<span class="ident">GENESIS_HASH</span>, <span class="kw-2">&amp;</span>[<span class="string">&quot;A&quot;</span>, <span class="string">&quot;B&quot;</span>, <span class="string">&quot;C&quot;</span>, <span class="string">&quot;D&quot;</span>, <span class="string">&quot;E&quot;</span>]);
+			<span class="ident">chain</span>.<span class="ident">last_finalized</span>()
+		});
 
-			<span class="ident">tokio</span>::<span class="ident">spawn</span>(<span class="ident">exit</span>.<span class="ident">until</span>(<span class="ident">routing_task</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()));
+		<span class="comment">// run voter in background.</span>
+		<span class="kw">let</span> <span class="ident">voter</span> <span class="op">=</span> <span class="ident">Voter</span>::<span class="ident">new</span>(
+			<span class="ident">env</span>.<span class="ident">clone</span>(),
+			<span class="ident">voters</span>.<span class="ident">clone</span>(),
+			<span class="ident">global_comms</span>,
+			<span class="number">1</span>,
+			<span class="ident">Vec</span>::<span class="ident">new</span>(),
+			<span class="ident">last_finalized</span>,
+			<span class="ident">last_finalized</span>,
+		);
 
-			<span class="ident">tokio</span>::<span class="ident">spawn</span>(<span class="ident">commits_sink</span>.<span class="ident">send</span>(<span class="ident">CommunicationOut</span>::<span class="ident">Commit</span>(<span class="ident">commit</span>.<span class="number">0</span>, <span class="ident">commit</span>.<span class="number">1</span>))
-				.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()));
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pool</span> <span class="op">=</span> <span class="ident">LocalPool</span>::<span class="ident">new</span>();
+		<span class="ident">pool</span>.<span class="ident">spawner</span>().<span class="ident">spawn</span>(<span class="ident">voter</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="ident">v</span>.<span class="ident">expect</span>(<span class="string">&quot;Error voting&quot;</span>))).<span class="ident">unwrap</span>();
+		<span class="ident">pool</span>.<span class="ident">spawner</span>().<span class="ident">spawn</span>(<span class="ident">routing_task</span>.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())).<span class="ident">unwrap</span>();
 
-			<span class="comment">// wait for the commit message to be processed which finalized block 6</span>
+		<span class="comment">// Send the commit message.</span>
+		<span class="ident">pool</span>.<span class="ident">spawner</span>().<span class="ident">spawn</span>(
+			<span class="ident">stream</span>::<span class="ident">iter</span>(<span class="ident">iter</span>::<span class="ident">once</span>(<span class="prelude-val">Ok</span>(<span class="ident">CommunicationOut</span>::<span class="ident">Commit</span>(<span class="number">0</span>, <span class="ident">commit</span>.<span class="ident">clone</span>()))))
+				.<span class="ident">forward</span>(<span class="ident">commits_sink</span>)
+				.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())).<span class="ident">unwrap</span>();
+
+		<span class="comment">// Wait for the commit message to be processed.</span>
+		<span class="kw">let</span> <span class="ident">finalized</span> <span class="op">=</span> <span class="ident">pool</span>.<span class="ident">run_until</span>(
 			<span class="ident">env</span>.<span class="ident">finalized_stream</span>()
-				.<span class="ident">take_while</span>(<span class="op">|</span><span class="kw-2">&amp;</span>(<span class="kw">_</span>, <span class="ident">n</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="ident">n</span> <span class="op">&lt;</span> <span class="number">6</span>))
-				.<span class="ident">for_each</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()))
-				.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">signal</span>.<span class="ident">fire</span>())
-		})).<span class="ident">unwrap</span>();
+				.<span class="ident">into_future</span>()
+				.<span class="ident">map</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="ident">msg</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">msg</span>.<span class="ident">unwrap</span>().<span class="number">2</span>));
+
+		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">finalized</span>, <span class="ident">commit</span>);
 	}
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
@@ -2592,67 +2586,66 @@
 		<span class="kw">let</span> <span class="ident">voters</span>: <span class="ident">VoterSet</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> (<span class="number">0</span>..<span class="number">3</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> (<span class="ident">Id</span>(<span class="ident">i</span>), <span class="number">1</span>)).<span class="ident">collect</span>();
 
 		<span class="kw">let</span> (<span class="ident">network</span>, <span class="ident">routing_task</span>) <span class="op">=</span> <span class="ident">testing</span>::<span class="ident">environment</span>::<span class="ident">make_network</span>();
-		<span class="kw">let</span> (<span class="ident">signal</span>, <span class="ident">exit</span>) <span class="op">=</span> ::<span class="ident">exit_future</span>::<span class="ident">signal</span>();
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pool</span> <span class="op">=</span> <span class="ident">LocalPool</span>::<span class="ident">new</span>();
 
-		<span class="ident">current_thread</span>::<span class="ident">block_on_all</span>(::<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">lazy</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
-			<span class="ident">tokio</span>::<span class="ident">spawn</span>(<span class="ident">exit</span>.<span class="ident">clone</span>().<span class="ident">until</span>(<span class="ident">routing_task</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()));
+		<span class="ident">pool</span>.<span class="ident">spawner</span>().<span class="ident">spawn</span>(<span class="ident">routing_task</span>.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())).<span class="ident">unwrap</span>();
 
-			<span class="comment">// initialize unsynced voter at round 0</span>
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">unsynced_voter</span> <span class="op">=</span> {
-				<span class="kw">let</span> <span class="ident">local_id</span> <span class="op">=</span> <span class="ident">Id</span>(<span class="number">4</span>);
+		<span class="comment">// initialize unsynced voter at round 0</span>
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">unsynced_voter</span> <span class="op">=</span> {
+			<span class="kw">let</span> <span class="ident">local_id</span> <span class="op">=</span> <span class="ident">Id</span>(<span class="number">4</span>);
 
-				<span class="kw">let</span> <span class="ident">env</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Environment</span>::<span class="ident">new</span>(<span class="ident">network</span>.<span class="ident">clone</span>(), <span class="ident">local_id</span>));
-				<span class="kw">let</span> <span class="ident">last_finalized</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">with_chain</span>(<span class="op">|</span><span class="ident">chain</span><span class="op">|</span> {
-					<span class="ident">chain</span>.<span class="ident">push_blocks</span>(<span class="ident">GENESIS_HASH</span>, <span class="kw-2">&amp;</span>[<span class="string">&quot;A&quot;</span>, <span class="string">&quot;B&quot;</span>, <span class="string">&quot;C&quot;</span>, <span class="string">&quot;D&quot;</span>, <span class="string">&quot;E&quot;</span>]);
-					<span class="ident">chain</span>.<span class="ident">last_finalized</span>()
-				});
+			<span class="kw">let</span> <span class="ident">env</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Environment</span>::<span class="ident">new</span>(<span class="ident">network</span>.<span class="ident">clone</span>(), <span class="ident">local_id</span>));
+			<span class="kw">let</span> <span class="ident">last_finalized</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">with_chain</span>(<span class="op">|</span><span class="ident">chain</span><span class="op">|</span> {
+				<span class="ident">chain</span>.<span class="ident">push_blocks</span>(<span class="ident">GENESIS_HASH</span>, <span class="kw-2">&amp;</span>[<span class="string">&quot;A&quot;</span>, <span class="string">&quot;B&quot;</span>, <span class="string">&quot;C&quot;</span>, <span class="string">&quot;D&quot;</span>, <span class="string">&quot;E&quot;</span>]);
+				<span class="ident">chain</span>.<span class="ident">last_finalized</span>()
+			});
 
-				<span class="ident">Voter</span>::<span class="ident">new</span>(
-					<span class="ident">env</span>.<span class="ident">clone</span>(),
-					<span class="ident">voters</span>.<span class="ident">clone</span>(),
-					<span class="ident">network</span>.<span class="ident">make_global_comms</span>(),
-					<span class="number">0</span>,
-					<span class="ident">Vec</span>::<span class="ident">new</span>(),
-					<span class="ident">last_finalized</span>,
-					<span class="ident">last_finalized</span>,
-				)
-			};
+			<span class="ident">Voter</span>::<span class="ident">new</span>(
+				<span class="ident">env</span>.<span class="ident">clone</span>(),
+				<span class="ident">voters</span>.<span class="ident">clone</span>(),
+				<span class="ident">network</span>.<span class="ident">make_global_comms</span>(),
+				<span class="number">0</span>,
+				<span class="ident">Vec</span>::<span class="ident">new</span>(),
+				<span class="ident">last_finalized</span>,
+				<span class="ident">last_finalized</span>,
+			)
+		};
 
-			<span class="kw">let</span> <span class="ident">pv</span> <span class="op">=</span> <span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="kw">crate</span>::<span class="ident">SignedPrevote</span> {
-				<span class="ident">prevote</span>: <span class="kw">crate</span>::<span class="ident">Prevote</span> { <span class="ident">target_hash</span>: <span class="string">&quot;C&quot;</span>, <span class="ident">target_number</span>: <span class="number">4</span> },
-				<span class="ident">id</span>: <span class="ident">Id</span>(<span class="ident">id</span>),
-				<span class="ident">signature</span>: <span class="ident">Signature</span>(<span class="number">99</span>),
-			};
+		<span class="kw">let</span> <span class="ident">pv</span> <span class="op">=</span> <span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="kw">crate</span>::<span class="ident">SignedPrevote</span> {
+			<span class="ident">prevote</span>: <span class="kw">crate</span>::<span class="ident">Prevote</span> { <span class="ident">target_hash</span>: <span class="string">&quot;C&quot;</span>, <span class="ident">target_number</span>: <span class="number">4</span> },
+			<span class="ident">id</span>: <span class="ident">Id</span>(<span class="ident">id</span>),
+			<span class="ident">signature</span>: <span class="ident">Signature</span>(<span class="number">99</span>),
+		};
 
-			<span class="kw">let</span> <span class="ident">pc</span> <span class="op">=</span> <span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="kw">crate</span>::<span class="ident">SignedPrecommit</span> {
-				<span class="ident">precommit</span>: <span class="kw">crate</span>::<span class="ident">Precommit</span> { <span class="ident">target_hash</span>: <span class="string">&quot;C&quot;</span>, <span class="ident">target_number</span>: <span class="number">4</span> },
-				<span class="ident">id</span>: <span class="ident">Id</span>(<span class="ident">id</span>),
-				<span class="ident">signature</span>: <span class="ident">Signature</span>(<span class="number">99</span>),
-			};
+		<span class="kw">let</span> <span class="ident">pc</span> <span class="op">=</span> <span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="kw">crate</span>::<span class="ident">SignedPrecommit</span> {
+			<span class="ident">precommit</span>: <span class="kw">crate</span>::<span class="ident">Precommit</span> { <span class="ident">target_hash</span>: <span class="string">&quot;C&quot;</span>, <span class="ident">target_number</span>: <span class="number">4</span> },
+			<span class="ident">id</span>: <span class="ident">Id</span>(<span class="ident">id</span>),
+			<span class="ident">signature</span>: <span class="ident">Signature</span>(<span class="number">99</span>),
+		};
 
-			<span class="comment">// send in a catch-up message for round 5.</span>
-			<span class="ident">network</span>.<span class="ident">send_message</span>(<span class="ident">CommunicationIn</span>::<span class="ident">CatchUp</span>(
-				<span class="ident">CatchUp</span> {
-					<span class="ident">base_number</span>: <span class="number">1</span>,
-					<span class="ident">base_hash</span>: <span class="ident">GENESIS_HASH</span>,
-					<span class="ident">round_number</span>: <span class="number">5</span>,
-					<span class="ident">prevotes</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">pv</span>(<span class="number">0</span>), <span class="ident">pv</span>(<span class="number">1</span>), <span class="ident">pv</span>(<span class="number">2</span>)],
-					<span class="ident">precommits</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">pc</span>(<span class="number">0</span>), <span class="ident">pc</span>(<span class="number">1</span>), <span class="ident">pc</span>(<span class="number">2</span>)],
-				},
-				<span class="ident">Callback</span>::<span class="ident">Blank</span>,
-			));
+		<span class="comment">// send in a catch-up message for round 5.</span>
+		<span class="ident">network</span>.<span class="ident">send_message</span>(<span class="ident">CommunicationIn</span>::<span class="ident">CatchUp</span>(
+			<span class="ident">CatchUp</span> {
+				<span class="ident">base_number</span>: <span class="number">1</span>,
+				<span class="ident">base_hash</span>: <span class="ident">GENESIS_HASH</span>,
+				<span class="ident">round_number</span>: <span class="number">5</span>,
+				<span class="ident">prevotes</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">pv</span>(<span class="number">0</span>), <span class="ident">pv</span>(<span class="number">1</span>), <span class="ident">pv</span>(<span class="number">2</span>)],
+				<span class="ident">precommits</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">pc</span>(<span class="number">0</span>), <span class="ident">pc</span>(<span class="number">1</span>), <span class="ident">pc</span>(<span class="number">2</span>)],
+			},
+			<span class="ident">Callback</span>::<span class="ident">Blank</span>,
+		));
 
-			<span class="comment">// poll until it&#39;s caught up.</span>
-			<span class="comment">// should skip to round 6</span>
-			::<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">poll_fn</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span>(), ()<span class="op">&gt;</span> {
-				<span class="kw">let</span> <span class="ident">poll</span> <span class="op">=</span> <span class="ident">unsynced_voter</span>.<span class="ident">poll</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())<span class="question-mark">?</span>;
-				<span class="kw">if</span> <span class="ident">unsynced_voter</span>.<span class="ident">best_round</span>.<span class="ident">round_number</span>() <span class="op">=</span><span class="op">=</span> <span class="number">6</span> {
-					<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(()))
-				} <span class="kw">else</span> {
-					<span class="prelude-val">Ok</span>(<span class="ident">poll</span>)
-				}
-			}).<span class="ident">map</span>(<span class="kw">move</span> <span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">signal</span>.<span class="ident">fire</span>())
-		})).<span class="ident">unwrap</span>();
+		<span class="comment">// poll until it&#39;s caught up.</span>
+		<span class="comment">// should skip to round 6</span>
+		<span class="ident">pool</span>.<span class="ident">run_until</span>(<span class="ident">future</span>::<span class="ident">poll_fn</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">cx</span><span class="op">|</span> <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+			<span class="kw">let</span> <span class="ident">poll</span> <span class="op">=</span> <span class="ident">unsynced_voter</span>.<span class="ident">poll_unpin</span>(<span class="ident">cx</span>);
+			<span class="kw">if</span> <span class="ident">unsynced_voter</span>.<span class="ident">best_round</span>.<span class="ident">round_number</span>() <span class="op">=</span><span class="op">=</span> <span class="number">6</span> {
+				<span class="ident">Poll</span>::<span class="ident">Ready</span>(())
+			} <span class="kw">else</span> {
+				<span class="ident">futures</span>::<span class="macro">ready</span><span class="macro">!</span>(<span class="ident">poll</span>).<span class="ident">unwrap</span>();
+				<span class="ident">Poll</span>::<span class="ident">Ready</span>(())
+			}
+		}))
 	}
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
@@ -2661,39 +2654,35 @@
 		<span class="kw">let</span> <span class="ident">voters</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">iter</span>::<span class="ident">once</span>((<span class="ident">local_id</span>, <span class="number">100</span>)).<span class="ident">collect</span>();
 
 		<span class="kw">let</span> (<span class="ident">network</span>, <span class="ident">routing_task</span>) <span class="op">=</span> <span class="ident">testing</span>::<span class="ident">environment</span>::<span class="ident">make_network</span>();
-		<span class="kw">let</span> (<span class="ident">signal</span>, <span class="ident">exit</span>) <span class="op">=</span> ::<span class="ident">exit_future</span>::<span class="ident">signal</span>();
 
 		<span class="kw">let</span> <span class="ident">global_comms</span> <span class="op">=</span> <span class="ident">network</span>.<span class="ident">make_global_comms</span>();
 		<span class="kw">let</span> <span class="ident">env</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Environment</span>::<span class="ident">new</span>(<span class="ident">network</span>, <span class="ident">local_id</span>));
-		<span class="ident">current_thread</span>::<span class="ident">block_on_all</span>(::<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">lazy</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
-			<span class="comment">// initialize chain</span>
-			<span class="kw">let</span> <span class="ident">last_finalized</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">with_chain</span>(<span class="op">|</span><span class="ident">chain</span><span class="op">|</span> {
-				<span class="ident">chain</span>.<span class="ident">push_blocks</span>(<span class="ident">GENESIS_HASH</span>, <span class="kw-2">&amp;</span>[<span class="string">&quot;A&quot;</span>, <span class="string">&quot;B&quot;</span>, <span class="string">&quot;C&quot;</span>, <span class="string">&quot;D&quot;</span>, <span class="string">&quot;E&quot;</span>]);
-				<span class="ident">chain</span>.<span class="ident">last_finalized</span>()
-			});
 
-			<span class="comment">// run voter in background. scheduling it to shut down at the end.</span>
-			<span class="kw">let</span> <span class="ident">finalized</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">finalized_stream</span>();
-			<span class="kw">let</span> <span class="ident">voter</span> <span class="op">=</span> <span class="ident">Voter</span>::<span class="ident">new</span>(
-				<span class="ident">env</span>.<span class="ident">clone</span>(),
-				<span class="ident">voters</span>,
-				<span class="ident">global_comms</span>,
-				<span class="number">10</span>,
-				<span class="ident">Vec</span>::<span class="ident">new</span>(),
-				<span class="ident">last_finalized</span>,
-				<span class="ident">last_finalized</span>,
-			);
-			<span class="ident">tokio</span>::<span class="ident">spawn</span>(<span class="ident">exit</span>.<span class="ident">clone</span>()
-				.<span class="ident">until</span>(<span class="ident">voter</span>.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Error voting&quot;</span>))).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()));
+		<span class="comment">// initialize chain</span>
+		<span class="kw">let</span> <span class="ident">last_finalized</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">with_chain</span>(<span class="op">|</span><span class="ident">chain</span><span class="op">|</span> {
+			<span class="ident">chain</span>.<span class="ident">push_blocks</span>(<span class="ident">GENESIS_HASH</span>, <span class="kw-2">&amp;</span>[<span class="string">&quot;A&quot;</span>, <span class="string">&quot;B&quot;</span>, <span class="string">&quot;C&quot;</span>, <span class="string">&quot;D&quot;</span>, <span class="string">&quot;E&quot;</span>]);
+			<span class="ident">chain</span>.<span class="ident">last_finalized</span>()
+		});
 
-			<span class="ident">tokio</span>::<span class="ident">spawn</span>(<span class="ident">exit</span>.<span class="ident">until</span>(<span class="ident">routing_task</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()));
+		<span class="comment">// run voter in background. scheduling it to shut down at the end.</span>
+		<span class="kw">let</span> <span class="ident">voter</span> <span class="op">=</span> <span class="ident">Voter</span>::<span class="ident">new</span>(
+			<span class="ident">env</span>.<span class="ident">clone</span>(),
+			<span class="ident">voters</span>,
+			<span class="ident">global_comms</span>,
+			<span class="number">10</span>,
+			<span class="ident">Vec</span>::<span class="ident">new</span>(),
+			<span class="ident">last_finalized</span>,
+			<span class="ident">last_finalized</span>,
+		);
 
-			<span class="comment">// wait for the best block to finalize.</span>
-			<span class="ident">finalized</span>
-				.<span class="ident">take_while</span>(<span class="op">|</span><span class="kw-2">&amp;</span>(<span class="kw">_</span>, <span class="ident">n</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="ident">n</span> <span class="op">&lt;</span> <span class="number">6</span>))
-				.<span class="ident">for_each</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()))
-				.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">signal</span>.<span class="ident">fire</span>())
-		})).<span class="ident">unwrap</span>();
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pool</span> <span class="op">=</span> <span class="ident">LocalPool</span>::<span class="ident">new</span>();
+		<span class="ident">pool</span>.<span class="ident">spawner</span>().<span class="ident">spawn</span>(<span class="ident">voter</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="ident">v</span>.<span class="ident">expect</span>(<span class="string">&quot;Error voting&quot;</span>))).<span class="ident">unwrap</span>();
+		<span class="ident">pool</span>.<span class="ident">spawner</span>().<span class="ident">spawn</span>(<span class="ident">routing_task</span>.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())).<span class="ident">unwrap</span>();
+
+		<span class="comment">// wait for the best block to finalize.</span>
+		<span class="ident">pool</span>.<span class="ident">run_until</span>(<span class="ident">env</span>.<span class="ident">finalized_stream</span>()
+			.<span class="ident">take_while</span>(<span class="op">|</span><span class="kw-2">&amp;</span>(<span class="kw">_</span>, <span class="ident">n</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">future</span>::<span class="ident">ready</span>(<span class="ident">n</span> <span class="op">&lt;</span> <span class="number">6</span>))
+			.<span class="ident">for_each</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">future</span>::<span class="ident">ready</span>(())))
 	}
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
@@ -2702,97 +2691,94 @@
 		<span class="kw">let</span> <span class="ident">voters</span> <span class="op">=</span> (<span class="number">0</span>..<span class="number">100</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> (<span class="ident">Id</span>(<span class="ident">id</span>), <span class="number">1</span>)).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">VoterSet</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
 
 		<span class="kw">let</span> (<span class="ident">network</span>, <span class="ident">routing_task</span>) <span class="op">=</span> <span class="ident">testing</span>::<span class="ident">environment</span>::<span class="ident">make_network</span>();
-		<span class="kw">let</span> (<span class="ident">signal</span>, <span class="ident">exit</span>) <span class="op">=</span> ::<span class="ident">exit_future</span>::<span class="ident">signal</span>();
 
 		<span class="kw">let</span> <span class="ident">global_comms</span> <span class="op">=</span> <span class="ident">network</span>.<span class="ident">make_global_comms</span>();
 		<span class="kw">let</span> <span class="ident">env</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Environment</span>::<span class="ident">new</span>(<span class="ident">network</span>.<span class="ident">clone</span>(), <span class="ident">local_id</span>));
 		<span class="kw">let</span> <span class="ident">outer_env</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">clone</span>();
-		<span class="ident">current_thread</span>::<span class="ident">block_on_all</span>(::<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">lazy</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
-			<span class="comment">// initialize chain</span>
-			<span class="kw">let</span> <span class="ident">last_finalized</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">with_chain</span>(<span class="op">|</span><span class="ident">chain</span><span class="op">|</span> {
-				<span class="ident">chain</span>.<span class="ident">push_blocks</span>(<span class="ident">GENESIS_HASH</span>, <span class="kw-2">&amp;</span>[<span class="string">&quot;A&quot;</span>, <span class="string">&quot;B&quot;</span>, <span class="string">&quot;C&quot;</span>, <span class="string">&quot;D&quot;</span>, <span class="string">&quot;E&quot;</span>]);
-				<span class="ident">chain</span>.<span class="ident">last_finalized</span>()
+
+		<span class="comment">// initialize chain</span>
+		<span class="kw">let</span> <span class="ident">last_finalized</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">with_chain</span>(<span class="op">|</span><span class="ident">chain</span><span class="op">|</span> {
+			<span class="ident">chain</span>.<span class="ident">push_blocks</span>(<span class="ident">GENESIS_HASH</span>, <span class="kw-2">&amp;</span>[<span class="string">&quot;A&quot;</span>, <span class="string">&quot;B&quot;</span>, <span class="string">&quot;C&quot;</span>, <span class="string">&quot;D&quot;</span>, <span class="string">&quot;E&quot;</span>]);
+			<span class="ident">chain</span>.<span class="ident">last_finalized</span>()
+		});
+
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pool</span> <span class="op">=</span> <span class="ident">LocalPool</span>::<span class="ident">new</span>();
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">last_round_votes</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+
+		<span class="comment">// round 1 state on disk: 67 prevotes for &quot;E&quot;. 66 precommits for &quot;D&quot;. 1 precommit &quot;E&quot;.</span>
+		<span class="comment">// the round is completable, but the estimate (&quot;E&quot;) is not finalized.</span>
+		<span class="kw">for</span> <span class="ident">id</span> <span class="kw">in</span> <span class="number">0</span>..<span class="number">67</span> {
+			<span class="kw">let</span> <span class="ident">prevote</span> <span class="op">=</span> <span class="ident">Message</span>::<span class="ident">Prevote</span>(<span class="ident">Prevote</span> { <span class="ident">target_hash</span>: <span class="string">&quot;E&quot;</span>, <span class="ident">target_number</span>: <span class="number">6</span> });
+			<span class="kw">let</span> <span class="ident">precommit</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">id</span> <span class="op">&lt;</span> <span class="number">66</span> {
+				<span class="ident">Message</span>::<span class="ident">Precommit</span>(<span class="ident">Precommit</span> { <span class="ident">target_hash</span>: <span class="string">&quot;D&quot;</span>, <span class="ident">target_number</span>: <span class="number">5</span> })
+			} <span class="kw">else</span> {
+				<span class="ident">Message</span>::<span class="ident">Precommit</span>(<span class="ident">Precommit</span> { <span class="ident">target_hash</span>: <span class="string">&quot;E&quot;</span>, <span class="ident">target_number</span>: <span class="number">6</span> })
+			};
+
+			<span class="ident">last_round_votes</span>.<span class="ident">push</span>(<span class="ident">SignedMessage</span> {
+				<span class="ident">message</span>: <span class="ident">prevote</span>.<span class="ident">clone</span>(),
+				<span class="ident">signature</span>: <span class="ident">Signature</span>(<span class="ident">id</span>),
+				<span class="ident">id</span>: <span class="ident">Id</span>(<span class="ident">id</span>),
 			});
 
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">last_round_votes</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+			<span class="ident">last_round_votes</span>.<span class="ident">push</span>(<span class="ident">SignedMessage</span> {
+				<span class="ident">message</span>: <span class="ident">precommit</span>.<span class="ident">clone</span>(),
+				<span class="ident">signature</span>: <span class="ident">Signature</span>(<span class="ident">id</span>),
+				<span class="ident">id</span>: <span class="ident">Id</span>(<span class="ident">id</span>),
+			});
 
-			<span class="comment">// round 1 state on disk: 67 prevotes for &quot;E&quot;. 66 precommits for &quot;D&quot;. 1 precommit &quot;E&quot;.</span>
-			<span class="comment">// the round is completable, but the estimate (&quot;E&quot;) is not finalized.</span>
-			{
-				<span class="kw">for</span> <span class="ident">id</span> <span class="kw">in</span> <span class="number">0</span>..<span class="number">67</span> {
-					<span class="kw">let</span> <span class="ident">prevote</span> <span class="op">=</span> <span class="ident">Message</span>::<span class="ident">Prevote</span>(<span class="ident">Prevote</span> { <span class="ident">target_hash</span>: <span class="string">&quot;E&quot;</span>, <span class="ident">target_number</span>: <span class="number">6</span> });
-					<span class="kw">let</span> <span class="ident">precommit</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">id</span> <span class="op">&lt;</span> <span class="number">66</span> {
-						<span class="ident">Message</span>::<span class="ident">Precommit</span>(<span class="ident">Precommit</span> { <span class="ident">target_hash</span>: <span class="string">&quot;D&quot;</span>, <span class="ident">target_number</span>: <span class="number">5</span> })
-					} <span class="kw">else</span> {
-						<span class="ident">Message</span>::<span class="ident">Precommit</span>(<span class="ident">Precommit</span> { <span class="ident">target_hash</span>: <span class="string">&quot;E&quot;</span>, <span class="ident">target_number</span>: <span class="number">6</span> })
-					};
+			<span class="comment">// round 2 has the same votes.</span>
+			<span class="comment">//</span>
+			<span class="comment">// this means we wouldn&#39;t be able to start round 3 until</span>
+			<span class="comment">// the estimate of round-1 moves backwards.</span>
+			<span class="kw">let</span> (<span class="kw">_</span>, <span class="ident">round_sink</span>) <span class="op">=</span> <span class="ident">network</span>.<span class="ident">make_round_comms</span>(<span class="number">2</span>, <span class="ident">Id</span>(<span class="ident">id</span>));
+			<span class="kw">let</span> <span class="ident">msgs</span> <span class="op">=</span> <span class="ident">stream</span>::<span class="ident">iter</span>(<span class="ident">iter</span>::<span class="ident">once</span>(<span class="prelude-val">Ok</span>(<span class="ident">prevote</span>)).<span class="ident">chain</span>(<span class="ident">iter</span>::<span class="ident">once</span>(<span class="prelude-val">Ok</span>(<span class="ident">precommit</span>))));
+			<span class="ident">pool</span>.<span class="ident">spawner</span>().<span class="ident">spawn</span>(<span class="ident">msgs</span>.<span class="ident">forward</span>(<span class="ident">round_sink</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">r</span><span class="op">|</span> <span class="ident">r</span>.<span class="ident">unwrap</span>())).<span class="ident">unwrap</span>();
+		}
 
-					<span class="ident">last_round_votes</span>.<span class="ident">push</span>(<span class="ident">SignedMessage</span> {
-						<span class="ident">message</span>: <span class="ident">prevote</span>.<span class="ident">clone</span>(),
-						<span class="ident">signature</span>: <span class="ident">Signature</span>(<span class="ident">id</span>),
-						<span class="ident">id</span>: <span class="ident">Id</span>(<span class="ident">id</span>),
-					});
+		<span class="comment">// round 1 fresh communication. we send one more precommit for &quot;D&quot; so the estimate</span>
+		<span class="comment">// moves backwards.</span>
+		<span class="kw">let</span> <span class="ident">sender</span> <span class="op">=</span> <span class="ident">Id</span>(<span class="number">67</span>);
+		<span class="kw">let</span> (<span class="kw">_</span>, <span class="ident">round_sink</span>) <span class="op">=</span> <span class="ident">network</span>.<span class="ident">make_round_comms</span>(<span class="number">1</span>, <span class="ident">sender</span>);
+		<span class="kw">let</span> <span class="ident">last_precommit</span> <span class="op">=</span> <span class="ident">Message</span>::<span class="ident">Precommit</span>(<span class="ident">Precommit</span> { <span class="ident">target_hash</span>: <span class="string">&quot;D&quot;</span>, <span class="ident">target_number</span>: <span class="number">3</span> });
+		<span class="ident">pool</span>.<span class="ident">spawner</span>().<span class="ident">spawn</span>(
+			<span class="ident">stream</span>::<span class="ident">iter</span>(<span class="ident">iter</span>::<span class="ident">once</span>(<span class="prelude-val">Ok</span>(<span class="ident">last_precommit</span>)))
+				.<span class="ident">forward</span>(<span class="ident">round_sink</span>)
+				.<span class="ident">map</span>(<span class="op">|</span><span class="ident">r</span><span class="op">|</span> <span class="ident">r</span>.<span class="ident">unwrap</span>())).<span class="ident">unwrap</span>();
 
-					<span class="ident">last_round_votes</span>.<span class="ident">push</span>(<span class="ident">SignedMessage</span> {
-						<span class="ident">message</span>: <span class="ident">precommit</span>.<span class="ident">clone</span>(),
-						<span class="ident">signature</span>: <span class="ident">Signature</span>(<span class="ident">id</span>),
-						<span class="ident">id</span>: <span class="ident">Id</span>(<span class="ident">id</span>),
-					});
+		<span class="comment">// run voter in background. scheduling it to shut down at the end.</span>
+		<span class="kw">let</span> <span class="ident">voter</span> <span class="op">=</span> <span class="ident">Voter</span>::<span class="ident">new</span>(
+			<span class="ident">env</span>.<span class="ident">clone</span>(),
+			<span class="ident">voters</span>,
+			<span class="ident">global_comms</span>,
+			<span class="number">1</span>,
+			<span class="ident">last_round_votes</span>,
+			<span class="ident">last_finalized</span>,
+			<span class="ident">last_finalized</span>,
+		);
 
-					<span class="comment">// round 2 has the same votes.</span>
-					<span class="comment">//</span>
-					<span class="comment">// this means we wouldn&#39;t be able to start round 3 until</span>
-					<span class="comment">// the estimate of round-1 moves backwards.</span>
-					<span class="kw">let</span> (<span class="kw">_</span>, <span class="ident">round_sink</span>) <span class="op">=</span> <span class="ident">network</span>.<span class="ident">make_round_comms</span>(<span class="number">2</span>, <span class="ident">Id</span>(<span class="ident">id</span>));
-					<span class="ident">tokio</span>::<span class="ident">spawn</span>(
-						<span class="ident">round_sink</span>.<span class="ident">send</span>(<span class="ident">prevote</span>).<span class="ident">and_then</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">sink</span><span class="op">|</span> <span class="ident">sink</span>.<span class="ident">send</span>(<span class="ident">precommit</span>))
-							.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
-							.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
-					);
-				}
-			}
+		<span class="ident">pool</span>.<span class="ident">spawner</span>().<span class="ident">spawn</span>(<span class="ident">voter</span>.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Error voting&quot;</span>)).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())).<span class="ident">unwrap</span>();
+		<span class="ident">pool</span>.<span class="ident">spawner</span>().<span class="ident">spawn</span>(<span class="ident">routing_task</span>.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())).<span class="ident">unwrap</span>();
 
-			<span class="comment">// round 1 fresh communication. we send one more precommit for &quot;D&quot; so the estimate</span>
-			<span class="comment">// moves backwards.</span>
-			{
-				<span class="kw">let</span> <span class="ident">sender</span> <span class="op">=</span> <span class="ident">Id</span>(<span class="number">67</span>);
-				<span class="kw">let</span> (<span class="kw">_</span>, <span class="ident">round_sink</span>) <span class="op">=</span> <span class="ident">network</span>.<span class="ident">make_round_comms</span>(<span class="number">1</span>, <span class="ident">sender</span>);
-				<span class="kw">let</span> <span class="ident">last_precommit</span> <span class="op">=</span> <span class="ident">Message</span>::<span class="ident">Precommit</span>(<span class="ident">Precommit</span> { <span class="ident">target_hash</span>: <span class="string">&quot;D&quot;</span>, <span class="ident">target_number</span>: <span class="number">3</span> });
-				<span class="ident">tokio</span>::<span class="ident">spawn</span>(<span class="ident">round_sink</span>.<span class="ident">send</span>(<span class="ident">last_precommit</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()));
-			}
+		<span class="comment">// wait until we see a prevote on round 3 from our local ID,</span>
+		<span class="comment">// indicating that the round 3 has started.</span>
 
-			<span class="comment">// run voter in background. scheduling it to shut down at the end.</span>
-			<span class="kw">let</span> <span class="ident">voter</span> <span class="op">=</span> <span class="ident">Voter</span>::<span class="ident">new</span>(
-				<span class="ident">env</span>.<span class="ident">clone</span>(),
-				<span class="ident">voters</span>,
-				<span class="ident">global_comms</span>,
-				<span class="number">1</span>,
-				<span class="ident">last_round_votes</span>,
-				<span class="ident">last_finalized</span>,
-				<span class="ident">last_finalized</span>,
-			);
-			<span class="ident">tokio</span>::<span class="ident">spawn</span>(<span class="ident">exit</span>.<span class="ident">clone</span>()
-				.<span class="ident">until</span>(<span class="ident">voter</span>.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Error voting&quot;</span>))).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()));
-
-			<span class="ident">tokio</span>::<span class="ident">spawn</span>(<span class="ident">exit</span>.<span class="ident">until</span>(<span class="ident">routing_task</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()));
-
-			<span class="comment">// wait until we see a prevote on round 3 from our local ID,</span>
-			<span class="comment">// indicating that the round 3 has started.</span>
-
-			<span class="kw">let</span> (<span class="ident">round_stream</span>, <span class="kw">_</span>) <span class="op">=</span> <span class="ident">network</span>.<span class="ident">make_round_comms</span>(<span class="number">3</span>, <span class="ident">Id</span>(<span class="number">1000</span>));
-			<span class="ident">round_stream</span>
-				.<span class="ident">skip_while</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="kw">if</span> <span class="kw">let</span> <span class="ident">Message</span>::<span class="ident">Prevote</span>(<span class="kw">_</span>) <span class="op">=</span> <span class="ident">v</span>.<span class="ident">message</span> {
-					<span class="prelude-val">Ok</span>(<span class="ident">v</span>.<span class="ident">id</span> <span class="op">!</span><span class="op">=</span> <span class="ident">local_id</span>)
+		<span class="kw">let</span> (<span class="ident">round_stream</span>, <span class="kw">_</span>) <span class="op">=</span> <span class="ident">network</span>.<span class="ident">make_round_comms</span>(<span class="number">3</span>, <span class="ident">Id</span>(<span class="number">1000</span>));
+		<span class="ident">pool</span>.<span class="ident">run_until</span>(<span class="ident">round_stream</span>
+			.<span class="ident">skip_while</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">v</span><span class="op">|</span> {
+				<span class="kw">let</span> <span class="ident">v</span> <span class="op">=</span> <span class="ident">v</span>.<span class="ident">as_ref</span>().<span class="ident">unwrap</span>();
+				<span class="kw">if</span> <span class="kw">let</span> <span class="ident">Message</span>::<span class="ident">Prevote</span>(<span class="kw">_</span>) <span class="op">=</span> <span class="ident">v</span>.<span class="ident">message</span> {
+					<span class="ident">future</span>::<span class="ident">ready</span>(<span class="ident">v</span>.<span class="ident">id</span> <span class="op">!</span><span class="op">=</span> <span class="ident">local_id</span>)
 				} <span class="kw">else</span> {
-					<span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
-				})
-				.<span class="ident">into_future</span>()
-				.<span class="ident">map</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="ident">x</span>, <span class="ident">_stream</span>)<span class="op">|</span> { <span class="ident">signal</span>.<span class="ident">fire</span>(); <span class="ident">x</span> })
-				.<span class="ident">map_err</span>(<span class="op">|</span>(<span class="ident">err</span>, <span class="ident">_stream</span>)<span class="op">|</span> <span class="ident">err</span>)
-		})).<span class="ident">unwrap</span>();
+					<span class="ident">future</span>::<span class="ident">ready</span>(<span class="bool-val">true</span>)
+				}
+			})
+			.<span class="ident">into_future</span>()
+			.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ()));
 
 		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">outer_env</span>.<span class="ident">last_completed_and_concluded</span>(), (<span class="number">2</span>, <span class="number">1</span>));
 	}
+
 }
 </pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../../";window.currentCrate = "finality_grandpa";</script><script src="../../../aliases.js"></script><script src="../../../main.js"></script><script src="../../../source-script.js"></script><script src="../../../source-files.js"></script><script defer src="../../../search-index.js"></script></body></html>
