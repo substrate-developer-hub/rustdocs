@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["uxt","Generate transfer extrinsic with a given nonce."]],"struct":[["TestApi","Test Api for transaction pool."]]});
