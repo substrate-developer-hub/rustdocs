@@ -681,7 +681,7 @@
 <span class="kw">use</span> <span class="ident">bytes</span>::<span class="ident">BytesMut</span>;
 <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">futures_timer</span>::<span class="ident">Delay</span>;
-<span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">core</span>::{<span class="ident">ConnectedPoint</span>, <span class="ident">PeerId</span>, <span class="ident">Endpoint</span>};
+<span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">core</span>::{<span class="ident">ConnectedPoint</span>, <span class="ident">Negotiated</span>, <span class="ident">PeerId</span>, <span class="ident">Endpoint</span>};
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">core</span>::<span class="ident">upgrade</span>::{<span class="ident">InboundUpgrade</span>, <span class="ident">OutboundUpgrade</span>};
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">swarm</span>::{
 	<span class="ident">ProtocolsHandler</span>, <span class="ident">ProtocolsHandlerEvent</span>,
@@ -822,7 +822,7 @@
 	<span class="doccomment">/// Waiting for the behaviour to tell the handler whether it is enabled or disabled.</span>
 	<span class="ident">Init</span> {
 		<span class="doccomment">/// List of substreams opened by the remote but that haven&#39;t been processed yet.</span>
-		<span class="ident">substreams</span>: <span class="ident">SmallVec</span><span class="op">&lt;</span>[<span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>; <span class="number">6</span>]<span class="op">&gt;</span>,
+		<span class="ident">substreams</span>: <span class="ident">SmallVec</span><span class="op">&lt;</span>[<span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">Negotiated</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span><span class="op">&gt;</span>; <span class="number">6</span>]<span class="op">&gt;</span>,
 		<span class="doccomment">/// Deadline after which the initialization is abnormally long.</span>
 		<span class="ident">init_deadline</span>: <span class="ident">Delay</span>,
 	},
@@ -838,9 +838,9 @@
 	<span class="doccomment">/// If we are in this state, we have sent a `CustomProtocolOpen` message to the outside.</span>
 	<span class="ident">Normal</span> {
 		<span class="doccomment">/// The substreams where bidirectional communications happen.</span>
-		<span class="ident">substreams</span>: <span class="ident">SmallVec</span><span class="op">&lt;</span>[<span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>; <span class="number">4</span>]<span class="op">&gt;</span>,
+		<span class="ident">substreams</span>: <span class="ident">SmallVec</span><span class="op">&lt;</span>[<span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">Negotiated</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span><span class="op">&gt;</span>; <span class="number">4</span>]<span class="op">&gt;</span>,
 		<span class="doccomment">/// Contains substreams which are being shut down.</span>
-		<span class="ident">shutdown</span>: <span class="ident">SmallVec</span><span class="op">&lt;</span>[<span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>; <span class="number">4</span>]<span class="op">&gt;</span>,
+		<span class="ident">shutdown</span>: <span class="ident">SmallVec</span><span class="op">&lt;</span>[<span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">Negotiated</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span><span class="op">&gt;</span>; <span class="number">4</span>]<span class="op">&gt;</span>,
 	},
 
 	<span class="doccomment">/// We are disabled. Contains substreams that are being closed.</span>
@@ -848,7 +848,7 @@
 	<span class="doccomment">/// outside or we have never sent any `CustomProtocolOpen` in the first place.</span>
 	<span class="ident">Disabled</span> {
 		<span class="doccomment">/// List of substreams to shut down.</span>
-		<span class="ident">shutdown</span>: <span class="ident">SmallVec</span><span class="op">&lt;</span>[<span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>; <span class="number">6</span>]<span class="op">&gt;</span>,
+		<span class="ident">shutdown</span>: <span class="ident">SmallVec</span><span class="op">&lt;</span>[<span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">Negotiated</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span><span class="op">&gt;</span>; <span class="number">6</span>]<span class="op">&gt;</span>,
 
 		<span class="doccomment">/// If true, we should reactivate the handler after all the substreams in `shutdown` have</span>
 		<span class="doccomment">/// been closed.</span>
@@ -1129,7 +1129,7 @@
 	<span class="doccomment">/// Called by `inject_fully_negotiated_inbound` and `inject_fully_negotiated_outbound`.</span>
 	<span class="kw">fn</span> <span class="ident">inject_fully_negotiated</span>(
 		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-		<span class="kw-2">mut</span> <span class="ident">substream</span>: <span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>
+		<span class="kw-2">mut</span> <span class="ident">substream</span>: <span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">Negotiated</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span><span class="op">&gt;</span>
 	) {
 		<span class="self">self</span>.<span class="ident">state</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">mem</span>::<span class="ident">replace</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">state</span>, <span class="ident">ProtocolState</span>::<span class="ident">Poisoned</span>) {
 			<span class="ident">ProtocolState</span>::<span class="ident">Poisoned</span> <span class="op">=</span><span class="op">&gt;</span> {
@@ -1201,14 +1201,14 @@
 
 	<span class="kw">fn</span> <span class="ident">inject_fully_negotiated_inbound</span>(
 		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-		<span class="ident">proto</span>: <span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">InboundProtocol</span> <span class="kw">as</span> <span class="ident">InboundUpgrade</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">Output</span>
+		<span class="ident">proto</span>: <span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">InboundProtocol</span> <span class="kw">as</span> <span class="ident">InboundUpgrade</span><span class="op">&lt;</span><span class="ident">Negotiated</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">Output</span>
 	) {
 		<span class="self">self</span>.<span class="ident">inject_fully_negotiated</span>(<span class="ident">proto</span>);
 	}
 
 	<span class="kw">fn</span> <span class="ident">inject_fully_negotiated_outbound</span>(
 		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-		<span class="ident">proto</span>: <span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">OutboundProtocol</span> <span class="kw">as</span> <span class="ident">OutboundUpgrade</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">Output</span>,
+		<span class="ident">proto</span>: <span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">OutboundProtocol</span> <span class="kw">as</span> <span class="ident">OutboundUpgrade</span><span class="op">&lt;</span><span class="ident">Negotiated</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">Output</span>,
 		<span class="kw">_</span>: <span class="self">Self</span>::<span class="ident">OutboundOpenInfo</span>
 	) {
 		<span class="self">self</span>.<span class="ident">inject_fully_negotiated</span>(<span class="ident">proto</span>);
@@ -1284,7 +1284,7 @@
 <span class="doccomment">/// Given a list of substreams, tries to shut them down. The substreams that have been successfully</span>
 <span class="doccomment">/// shut down are removed from the list.</span>
 <span class="kw">fn</span> <span class="ident">shutdown_list</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>
-	(<span class="ident">list</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">SmallVec</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">smallvec</span>::<span class="ident">Array</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	(<span class="ident">list</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">SmallVec</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">smallvec</span>::<span class="ident">Array</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">RegisteredProtocolSubstream</span><span class="op">&lt;</span><span class="ident">Negotiated</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>)
 <span class="kw">where</span> <span class="ident">TSubstream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span> {
 	<span class="lifetime">&#39;outer</span>: <span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> (<span class="number">0</span>..<span class="ident">list</span>.<span class="ident">len</span>()).<span class="ident">rev</span>() {

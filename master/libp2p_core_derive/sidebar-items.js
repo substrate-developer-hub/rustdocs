@@ -1,1 +1,1 @@
-initSidebarItems({"derive":[["NetworkBehaviour","The interface that satisfies Rust."]]});
+initSidebarItems({"derive":[["NetworkBehaviour","Generates a delegating `NetworkBehaviour` implementation for the struct this is used for. See the trait documentation for better description."]]});

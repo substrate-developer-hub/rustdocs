@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-core-0.14.0-alpha.1/src/nodes/tasks/manager.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>manager.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../../light.css" id="themeStyle"><script src="../../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-core-0.15.0/src/nodes/tasks/manager.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>manager.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../../light.css" id="themeStyle"><script src="../../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -472,9 +472,6 @@
 <span id="461">461</span>
 <span id="462">462</span>
 <span id="463">463</span>
-<span id="464">464</span>
-<span id="465">465</span>
-<span id="466">466</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018 Parity Technologies (UK) Ltd.</span>
 <span class="comment">//</span>
@@ -497,7 +494,7 @@
 <span class="comment">// DEALINGS IN THE SOFTWARE.</span>
 
 <span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">PeerId</span>,
+    <span class="ident">Executor</span>, <span class="ident">PeerId</span>,
     <span class="ident">muxing</span>::<span class="ident">StreamMuxer</span>,
     <span class="ident">nodes</span>::{
         <span class="ident">handled_node</span>::{<span class="ident">HandledNode</span>, <span class="ident">IntoNodeHandler</span>, <span class="ident">NodeHandler</span>},
@@ -505,7 +502,7 @@
     }
 };
 <span class="kw">use</span> <span class="ident">fnv</span>::<span class="ident">FnvHashMap</span>;
-<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">channel</span>::<span class="ident">mpsc</span>, <span class="ident">executor</span>::<span class="ident">ThreadPool</span>, <span class="ident">stream</span>::<span class="ident">FuturesUnordered</span>};
+<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">channel</span>::<span class="ident">mpsc</span>, <span class="ident">stream</span>::<span class="ident">FuturesUnordered</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">collections</span>::<span class="ident">hash_map</span>::{<span class="ident">Entry</span>, <span class="ident">OccupiedEntry</span>}, <span class="ident">error</span>, <span class="ident">fmt</span>, <span class="ident">pin</span>::<span class="ident">Pin</span>, <span class="ident">task</span>::<span class="ident">Context</span>, <span class="ident">task</span>::<span class="ident">Poll</span>};
 <span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">TaskId</span>, <span class="ident">task</span>::{<span class="ident">Task</span>, <span class="ident">FromTaskMessage</span>, <span class="ident">ToTaskMessage</span>}, <span class="ident">Error</span>};
 
@@ -541,9 +538,9 @@
     <span class="doccomment">/// Identifier for the next task to spawn.</span>
     <span class="ident">next_task_id</span>: <span class="ident">TaskId</span>,
 
-    <span class="doccomment">/// Threads pool where we spawn the nodes&#39; tasks. If `None`, then we push tasks to the</span>
+    <span class="doccomment">/// Custom executor where we spawn the nodes&#39; tasks. If `None`, then we push tasks to the</span>
     <span class="doccomment">/// `local_spawns` list instead.</span>
-    <span class="ident">threads_pool</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ThreadPool</span><span class="op">&gt;</span>,
+    <span class="ident">executor</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Executor</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// If no executor is available, we move tasks to this set, and futures are polled on the</span>
     <span class="doccomment">/// current thread instead.</span>
@@ -612,17 +609,14 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">I</span>, <span class="ident">O</span>, <span class="ident">H</span>, <span class="ident">E</span>, <span class="ident">HE</span>, <span class="ident">T</span>, <span class="ident">C</span><span class="op">&gt;</span> <span class="ident">Manager</span><span class="op">&lt;</span><span class="ident">I</span>, <span class="ident">O</span>, <span class="ident">H</span>, <span class="ident">E</span>, <span class="ident">HE</span>, <span class="ident">T</span>, <span class="ident">C</span><span class="op">&gt;</span> {
-    <span class="doccomment">/// Creates a new task manager.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="doccomment">/// Creates a new task manager. If `Some` is passed, uses the given executor to spawn tasks.</span>
+    <span class="doccomment">/// Otherwise, background tasks are executed locally when you call `poll`.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">executor</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Executor</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">rx</span>) <span class="op">=</span> <span class="ident">mpsc</span>::<span class="ident">channel</span>(<span class="number">1</span>);
-        <span class="kw">let</span> <span class="ident">threads_pool</span> <span class="op">=</span> <span class="ident">ThreadPool</span>::<span class="ident">builder</span>()
-            .<span class="ident">name_prefix</span>(<span class="string">&quot;libp2p-nodes-&quot;</span>)
-            .<span class="ident">create</span>().<span class="ident">ok</span>();
-
         <span class="self">Self</span> {
             <span class="ident">tasks</span>: <span class="ident">FnvHashMap</span>::<span class="ident">default</span>(),
             <span class="ident">next_task_id</span>: <span class="ident">TaskId</span>(<span class="number">0</span>),
-            <span class="ident">threads_pool</span>,
+            <span class="ident">executor</span>,
             <span class="ident">local_spawns</span>: <span class="ident">FuturesUnordered</span>::<span class="ident">new</span>(),
             <span class="ident">events_tx</span>: <span class="ident">tx</span>,
             <span class="ident">events_rx</span>: <span class="ident">rx</span>
@@ -635,7 +629,7 @@
     <span class="doccomment">/// processing the node&#39;s events.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_reach_attempt</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">M</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">future</span>: <span class="ident">F</span>, <span class="ident">user_data</span>: <span class="ident">T</span>, <span class="ident">handler</span>: <span class="ident">H</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TaskId</span>
     <span class="kw">where</span>
-        <span class="ident">F</span>: <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">C</span>, <span class="ident">M</span>), <span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+        <span class="ident">F</span>: <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">C</span>, <span class="ident">M</span>), <span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
         <span class="ident">H</span>: <span class="ident">IntoNodeHandler</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
         <span class="ident">H</span>::<span class="ident">Handler</span>: <span class="ident">NodeHandler</span><span class="op">&lt;</span><span class="ident">Substream</span> <span class="op">=</span> <span class="ident">Substream</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>, <span class="ident">InEvent</span> <span class="op">=</span> <span class="ident">I</span>, <span class="ident">OutEvent</span> <span class="op">=</span> <span class="ident">O</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">HE</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
         <span class="ident">E</span>: <span class="ident">error</span>::<span class="ident">Error</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
@@ -654,8 +648,8 @@
         <span class="self">self</span>.<span class="ident">tasks</span>.<span class="ident">insert</span>(<span class="ident">task_id</span>, <span class="ident">TaskInfo</span> { <span class="ident">sender</span>: <span class="ident">tx</span>, <span class="ident">user_data</span> });
 
         <span class="kw">let</span> <span class="ident">task</span> <span class="op">=</span> <span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">Task</span>::<span class="ident">new</span>(<span class="ident">task_id</span>, <span class="self">self</span>.<span class="ident">events_tx</span>.<span class="ident">clone</span>(), <span class="ident">rx</span>, <span class="ident">future</span>, <span class="ident">handler</span>));
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">threads_pool</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">threads_pool</span> {
-            <span class="ident">threads_pool</span>.<span class="ident">spawn_ok</span>(<span class="ident">task</span>);
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">executor</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">executor</span> {
+            <span class="ident">executor</span>.<span class="ident">exec</span>(<span class="ident">task</span> <span class="kw">as</span> <span class="ident">Pin</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>)
         } <span class="kw">else</span> {
             <span class="self">self</span>.<span class="ident">local_spawns</span>.<span class="ident">push</span>(<span class="ident">task</span>);
         }
@@ -690,8 +684,8 @@
         <span class="kw">let</span> <span class="ident">task</span>: <span class="ident">Task</span><span class="op">&lt;</span><span class="ident">Pin</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">Pending</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span>
             <span class="ident">Task</span>::<span class="ident">node</span>(<span class="ident">task_id</span>, <span class="self">self</span>.<span class="ident">events_tx</span>.<span class="ident">clone</span>(), <span class="ident">rx</span>, <span class="ident">HandledNode</span>::<span class="ident">new</span>(<span class="ident">muxer</span>, <span class="ident">handler</span>));
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">threads_pool</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">threads_pool</span> {
-            <span class="ident">threads_pool</span>.<span class="ident">spawn_ok</span>(<span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">task</span>));
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">executor</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">executor</span> {
+            <span class="ident">executor</span>.<span class="ident">exec</span>(<span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">task</span>))
         } <span class="kw">else</span> {
             <span class="self">self</span>.<span class="ident">local_spawns</span>.<span class="ident">push</span>(<span class="ident">Box</span>::<span class="ident">pin</span>(<span class="ident">task</span>));
         }

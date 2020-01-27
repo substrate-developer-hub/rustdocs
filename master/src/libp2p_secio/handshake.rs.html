@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-secio-0.14.0-alpha.1/src/handshake.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>handshake.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-secio-0.15.0/src/handshake.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>handshake.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -492,6 +492,15 @@
 <span id="481">481</span>
 <span id="482">482</span>
 <span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017 Parity Technologies (UK) Ltd.</span>
 <span class="comment">//</span>
@@ -523,8 +532,7 @@
 <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">libp2p_core</span>::<span class="ident">PublicKey</span>;
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">debug</span>, <span class="ident">trace</span>};
-<span class="kw">use</span> <span class="ident">protobuf</span>::<span class="ident">Message</span> <span class="kw">as</span> <span class="ident">ProtobufMessage</span>;
-<span class="kw">use</span> <span class="ident">protobuf</span>::<span class="ident">parse_from_bytes</span> <span class="kw">as</span> <span class="ident">protobuf_parse_from_bytes</span>;
+<span class="kw">use</span> <span class="ident">prost</span>::<span class="ident">Message</span>;
 <span class="kw">use</span> <span class="ident">rand</span>::{<span class="self">self</span>, <span class="ident">RngCore</span>};
 <span class="kw">use</span> <span class="ident">sha2</span>::{<span class="ident">Digest</span> <span class="kw">as</span> <span class="ident">ShaDigestTrait</span>, <span class="ident">Sha256</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cmp</span>::{<span class="self">self</span>, <span class="ident">Ordering</span>};
@@ -558,35 +566,36 @@
     <span class="kw">let</span> <span class="ident">local_public_key_encoded</span> <span class="op">=</span> <span class="ident">config</span>.<span class="ident">key</span>.<span class="ident">public</span>().<span class="ident">into_protobuf_encoding</span>();
 
     <span class="comment">// Send our proposition with our nonce, public key and supported protocols.</span>
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">local_proposition</span> <span class="op">=</span> <span class="ident">Propose</span>::<span class="ident">new</span>();
-    <span class="ident">local_proposition</span>.<span class="ident">set_rand</span>(<span class="ident">local_nonce</span>.<span class="ident">to_vec</span>());
-    <span class="ident">local_proposition</span>.<span class="ident">set_pubkey</span>(<span class="ident">local_public_key_encoded</span>.<span class="ident">clone</span>());
+    <span class="kw">let</span> <span class="ident">local_proposition</span> <span class="op">=</span> <span class="ident">Propose</span> {
+        <span class="ident">rand</span>: <span class="prelude-val">Some</span>(<span class="ident">local_nonce</span>.<span class="ident">to_vec</span>()),
+        <span class="ident">pubkey</span>: <span class="prelude-val">Some</span>(<span class="ident">local_public_key_encoded</span>.<span class="ident">clone</span>()),
+        <span class="ident">exchanges</span>: <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">p</span>) <span class="op">=</span> <span class="ident">config</span>.<span class="ident">agreements_prop</span> {
+            <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;agreements proposition: {}&quot;</span>, <span class="ident">p</span>);
+            <span class="prelude-val">Some</span>(<span class="ident">p</span>.<span class="ident">clone</span>())
+        } <span class="kw">else</span> {
+            <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;agreements proposition: {}&quot;</span>, <span class="ident">algo_support</span>::<span class="ident">DEFAULT_AGREEMENTS_PROPOSITION</span>);
+            <span class="prelude-val">Some</span>(<span class="ident">algo_support</span>::<span class="ident">DEFAULT_AGREEMENTS_PROPOSITION</span>.<span class="ident">into</span>())
+        },
+        <span class="ident">ciphers</span>: <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">p</span>) <span class="op">=</span> <span class="ident">config</span>.<span class="ident">ciphers_prop</span> {
+            <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;ciphers proposition: {}&quot;</span>, <span class="ident">p</span>);
+            <span class="prelude-val">Some</span>(<span class="ident">p</span>.<span class="ident">clone</span>())
+        } <span class="kw">else</span> {
+            <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;ciphers proposition: {}&quot;</span>, <span class="ident">algo_support</span>::<span class="ident">DEFAULT_CIPHERS_PROPOSITION</span>);
+            <span class="prelude-val">Some</span>(<span class="ident">algo_support</span>::<span class="ident">DEFAULT_CIPHERS_PROPOSITION</span>.<span class="ident">into</span>())
+        },
+        <span class="ident">hashes</span>: <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">p</span>) <span class="op">=</span> <span class="ident">config</span>.<span class="ident">digests_prop</span> {
+            <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;digests proposition: {}&quot;</span>, <span class="ident">p</span>);
+            <span class="prelude-val">Some</span>(<span class="ident">p</span>.<span class="ident">clone</span>())
+        } <span class="kw">else</span> {
+            <span class="prelude-val">Some</span>(<span class="ident">algo_support</span>::<span class="ident">DEFAULT_DIGESTS_PROPOSITION</span>.<span class="ident">into</span>())
+        }
+    };
 
-    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">p</span>) <span class="op">=</span> <span class="ident">config</span>.<span class="ident">agreements_prop</span> {
-        <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;agreements proposition: {}&quot;</span>, <span class="ident">p</span>);
-        <span class="ident">local_proposition</span>.<span class="ident">set_exchanges</span>(<span class="ident">p</span>.<span class="ident">clone</span>())
-    } <span class="kw">else</span> {
-        <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;agreements proposition: {}&quot;</span>, <span class="ident">algo_support</span>::<span class="ident">DEFAULT_AGREEMENTS_PROPOSITION</span>);
-        <span class="ident">local_proposition</span>.<span class="ident">set_exchanges</span>(<span class="ident">algo_support</span>::<span class="ident">DEFAULT_AGREEMENTS_PROPOSITION</span>.<span class="ident">into</span>())
-    }
-
-    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">p</span>) <span class="op">=</span> <span class="ident">config</span>.<span class="ident">ciphers_prop</span> {
-        <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;ciphers proposition: {}&quot;</span>, <span class="ident">p</span>);
-        <span class="ident">local_proposition</span>.<span class="ident">set_ciphers</span>(<span class="ident">p</span>.<span class="ident">clone</span>())
-    } <span class="kw">else</span> {
-        <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;ciphers proposition: {}&quot;</span>, <span class="ident">algo_support</span>::<span class="ident">DEFAULT_CIPHERS_PROPOSITION</span>);
-        <span class="ident">local_proposition</span>.<span class="ident">set_ciphers</span>(<span class="ident">algo_support</span>::<span class="ident">DEFAULT_CIPHERS_PROPOSITION</span>.<span class="ident">into</span>())
-    }
-
-    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">p</span>) <span class="op">=</span> <span class="ident">config</span>.<span class="ident">digests_prop</span> {
-        <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;digests proposition: {}&quot;</span>, <span class="ident">p</span>);
-        <span class="ident">local_proposition</span>.<span class="ident">set_hashes</span>(<span class="ident">p</span>.<span class="ident">clone</span>())
-    } <span class="kw">else</span> {
-        <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;digests proposition: {}&quot;</span>, <span class="ident">algo_support</span>::<span class="ident">DEFAULT_DIGESTS_PROPOSITION</span>);
-        <span class="ident">local_proposition</span>.<span class="ident">set_hashes</span>(<span class="ident">algo_support</span>::<span class="ident">DEFAULT_DIGESTS_PROPOSITION</span>.<span class="ident">into</span>())
-    }
-
-    <span class="kw">let</span> <span class="ident">local_proposition_bytes</span> <span class="op">=</span> <span class="ident">local_proposition</span>.<span class="ident">write_to_bytes</span>()<span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="ident">local_proposition_bytes</span> <span class="op">=</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">local_proposition</span>.<span class="ident">encoded_len</span>());
+        <span class="ident">local_proposition</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">buf</span>).<span class="ident">expect</span>(<span class="string">&quot;Vec&lt;u8&gt; provides capacity as needed&quot;</span>);
+        <span class="ident">buf</span>
+    };
     <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;starting handshake; local nonce = {:?}&quot;</span>, <span class="ident">local_nonce</span>);
 
     <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;sending proposition to remote&quot;</span>);
@@ -602,7 +611,7 @@
         },
     };
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">remote_proposition</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">protobuf_parse_from_bytes</span>::<span class="op">&lt;</span><span class="ident">Propose</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="ident">remote_proposition_bytes</span>) {
+    <span class="kw">let</span> <span class="ident">remote_proposition</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">Propose</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="ident">remote_proposition_bytes</span>[..]) {
         <span class="prelude-val">Ok</span>(<span class="ident">prop</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">prop</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
             <span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;failed to parse remote&#39;s proposition protobuf message&quot;</span>);
@@ -610,8 +619,8 @@
         }
     };
 
-    <span class="kw">let</span> <span class="ident">remote_public_key_encoded</span> <span class="op">=</span> <span class="ident">remote_proposition</span>.<span class="ident">take_pubkey</span>();
-    <span class="kw">let</span> <span class="ident">remote_nonce</span> <span class="op">=</span> <span class="ident">remote_proposition</span>.<span class="ident">take_rand</span>();
+    <span class="kw">let</span> <span class="ident">remote_public_key_encoded</span> <span class="op">=</span> <span class="ident">remote_proposition</span>.<span class="ident">pubkey</span>.<span class="ident">unwrap_or_default</span>();
+    <span class="kw">let</span> <span class="ident">remote_nonce</span> <span class="op">=</span> <span class="ident">remote_proposition</span>.<span class="ident">rand</span>.<span class="ident">unwrap_or_default</span>();
 
     <span class="kw">let</span> <span class="ident">remote_public_key</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">PublicKey</span>::<span class="ident">from_protobuf_encoding</span>(<span class="kw-2">&amp;</span><span class="ident">remote_public_key_encoded</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">p</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">p</span>,
@@ -647,7 +656,7 @@
         <span class="kw">let</span> <span class="ident">ours</span> <span class="op">=</span> <span class="ident">config</span>.<span class="ident">agreements_prop</span>.<span class="ident">as_ref</span>()
             .<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">s</span>.<span class="ident">as_ref</span>())
             .<span class="ident">unwrap_or</span>(<span class="ident">algo_support</span>::<span class="ident">DEFAULT_AGREEMENTS_PROPOSITION</span>);
-        <span class="kw">let</span> <span class="ident">theirs</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">remote_proposition</span>.<span class="ident">get_exchanges</span>();
+        <span class="kw">let</span> <span class="ident">theirs</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">remote_proposition</span>.<span class="ident">exchanges</span>.<span class="ident">unwrap_or_default</span>();
         <span class="kw">match</span> <span class="ident">algo_support</span>::<span class="ident">select_agreement</span>(<span class="ident">hashes_ordering</span>, <span class="ident">ours</span>, <span class="ident">theirs</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">a</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">a</span>,
             <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span><span class="op">&gt;</span> {
@@ -661,7 +670,7 @@
         <span class="kw">let</span> <span class="ident">ours</span> <span class="op">=</span> <span class="ident">config</span>.<span class="ident">ciphers_prop</span>.<span class="ident">as_ref</span>()
             .<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">s</span>.<span class="ident">as_ref</span>())
             .<span class="ident">unwrap_or</span>(<span class="ident">algo_support</span>::<span class="ident">DEFAULT_CIPHERS_PROPOSITION</span>);
-        <span class="kw">let</span> <span class="ident">theirs</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">remote_proposition</span>.<span class="ident">get_ciphers</span>();
+        <span class="kw">let</span> <span class="ident">theirs</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">remote_proposition</span>.<span class="ident">ciphers</span>.<span class="ident">unwrap_or_default</span>();
         <span class="kw">match</span> <span class="ident">algo_support</span>::<span class="ident">select_cipher</span>(<span class="ident">hashes_ordering</span>, <span class="ident">ours</span>, <span class="ident">theirs</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">a</span>) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;selected cipher: {:?}&quot;</span>, <span class="ident">a</span>);
@@ -678,7 +687,7 @@
         <span class="kw">let</span> <span class="ident">ours</span> <span class="op">=</span> <span class="ident">config</span>.<span class="ident">digests_prop</span>.<span class="ident">as_ref</span>()
             .<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">s</span>.<span class="ident">as_ref</span>())
             .<span class="ident">unwrap_or</span>(<span class="ident">algo_support</span>::<span class="ident">DEFAULT_DIGESTS_PROPOSITION</span>);
-        <span class="kw">let</span> <span class="ident">theirs</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">remote_proposition</span>.<span class="ident">get_hashes</span>();
+        <span class="kw">let</span> <span class="ident">theirs</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">remote_proposition</span>.<span class="ident">hashes</span>.<span class="ident">unwrap_or_default</span>();
         <span class="kw">match</span> <span class="ident">algo_support</span>::<span class="ident">select_digest</span>(<span class="ident">hashes_ordering</span>, <span class="ident">ours</span>, <span class="ident">theirs</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">a</span>) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;selected hash: {:?}&quot;</span>, <span class="ident">a</span>);
@@ -701,15 +710,19 @@
         <span class="ident">data_to_sign</span>.<span class="ident">extend_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">remote_proposition_bytes</span>);
         <span class="ident">data_to_sign</span>.<span class="ident">extend_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">tmp_pub_key</span>);
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">exchange</span> <span class="op">=</span> <span class="ident">Exchange</span>::<span class="ident">new</span>();
-        <span class="ident">exchange</span>.<span class="ident">set_epubkey</span>(<span class="ident">tmp_pub_key</span>.<span class="ident">clone</span>());
-        <span class="kw">match</span> <span class="ident">config</span>.<span class="ident">key</span>.<span class="ident">sign</span>(<span class="kw-2">&amp;</span><span class="ident">data_to_sign</span>) {
-            <span class="prelude-val">Ok</span>(<span class="ident">sig</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">exchange</span>.<span class="ident">set_signature</span>(<span class="ident">sig</span>),
-            <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SecioError</span>::<span class="ident">SigningFailure</span>)
+        <span class="ident">Exchange</span> {
+            <span class="ident">epubkey</span>: <span class="prelude-val">Some</span>(<span class="ident">tmp_pub_key</span>.<span class="ident">clone</span>()),
+            <span class="ident">signature</span>: <span class="kw">match</span> <span class="ident">config</span>.<span class="ident">key</span>.<span class="ident">sign</span>(<span class="kw-2">&amp;</span><span class="ident">data_to_sign</span>) {
+                <span class="prelude-val">Ok</span>(<span class="ident">sig</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">sig</span>),
+                <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SecioError</span>::<span class="ident">SigningFailure</span>)
+            }
         }
-        <span class="ident">exchange</span>
     };
-    <span class="kw">let</span> <span class="ident">local_exch</span> <span class="op">=</span> <span class="ident">local_exchange</span>.<span class="ident">write_to_bytes</span>()<span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="ident">local_exch</span> <span class="op">=</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">local_exchange</span>.<span class="ident">encoded_len</span>());
+        <span class="ident">local_exchange</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">buf</span>).<span class="ident">expect</span>(<span class="string">&quot;Vec&lt;u8&gt; provides capacity as needed&quot;</span>);
+        <span class="ident">buf</span>
+    };
 
     <span class="comment">// Send our local `Exchange`.</span>
     <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;sending exchange to remote&quot;</span>);
@@ -726,7 +739,7 @@
             },
         };
 
-        <span class="kw">match</span> <span class="ident">protobuf_parse_from_bytes</span>::<span class="op">&lt;</span><span class="ident">Exchange</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="ident">raw</span>) {
+        <span class="kw">match</span> <span class="ident">Exchange</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="ident">raw</span>[..]) {
             <span class="prelude-val">Ok</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;received and decoded the remote&#39;s exchange&quot;</span>);
                 <span class="ident">e</span>
@@ -744,9 +757,9 @@
     {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">data_to_verify</span> <span class="op">=</span> <span class="ident">remote_proposition_bytes</span>.<span class="ident">clone</span>();
         <span class="ident">data_to_verify</span>.<span class="ident">extend_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">local_proposition_bytes</span>);
-        <span class="ident">data_to_verify</span>.<span class="ident">extend_from_slice</span>(<span class="ident">remote_exch</span>.<span class="ident">get_epubkey</span>());
+        <span class="ident">data_to_verify</span>.<span class="ident">extend_from_slice</span>(<span class="ident">remote_exch</span>.<span class="ident">epubkey</span>.<span class="ident">as_deref</span>().<span class="ident">unwrap_or_default</span>());
 
-        <span class="kw">if</span> <span class="op">!</span><span class="ident">remote_public_key</span>.<span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="ident">data_to_verify</span>, <span class="ident">remote_exch</span>.<span class="ident">get_signature</span>()) {
+        <span class="kw">if</span> <span class="op">!</span><span class="ident">remote_public_key</span>.<span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="ident">data_to_verify</span>, <span class="kw-2">&amp;</span><span class="ident">remote_exch</span>.<span class="ident">signature</span>.<span class="ident">unwrap_or_default</span>()) {
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SecioError</span>::<span class="ident">SignatureVerificationFailed</span>)
         }
 
@@ -755,7 +768,12 @@
 
     <span class="comment">// Generate a key from the local ephemeral private key and the remote ephemeral public key,</span>
     <span class="comment">// derive from it a cipher key, an iv, and a hmac key, and build the encoder/decoder.</span>
-    <span class="kw">let</span> <span class="ident">key_material</span> <span class="op">=</span> <span class="ident">exchange</span>::<span class="ident">agree</span>(<span class="ident">chosen_exchange</span>, <span class="ident">tmp_priv_key</span>, <span class="ident">remote_exch</span>.<span class="ident">get_epubkey</span>(), <span class="ident">chosen_hash</span>.<span class="ident">num_bytes</span>()).<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="ident">key_material</span> <span class="op">=</span> <span class="ident">exchange</span>::<span class="ident">agree</span>(
+        <span class="ident">chosen_exchange</span>,
+        <span class="ident">tmp_priv_key</span>,
+        <span class="kw-2">&amp;</span><span class="ident">remote_exch</span>.<span class="ident">epubkey</span>.<span class="ident">unwrap_or_default</span>(),
+        <span class="ident">chosen_hash</span>.<span class="ident">num_bytes</span>()
+    ).<span class="kw">await</span><span class="question-mark">?</span>;
 
     <span class="comment">// Generate a key from the local ephemeral private key and the remote ephemeral public key,</span>
     <span class="comment">// derive from it a cipher key, an iv, and a hmac key, and build the encoder/decoder.</span>
