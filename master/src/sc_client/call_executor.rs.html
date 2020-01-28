@@ -251,6 +251,10 @@
 <span id="240">240</span>
 <span id="241">241</span>
 <span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -331,10 +335,14 @@
 		<span class="ident">extensions</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Extensions</span><span class="op">&gt;</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">sp_blockchain</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">changes</span> <span class="op">=</span> <span class="ident">OverlayedChanges</span>::<span class="ident">default</span>();
+		<span class="kw">let</span> <span class="ident">changes_trie</span> <span class="op">=</span> <span class="ident">backend</span>::<span class="ident">changes_tries_state_at_block</span>(
+			<span class="ident">id</span>, <span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">changes_trie_storage</span>()
+		)<span class="question-mark">?</span>;
+		<span class="comment">// make sure to destroy state before exiting this function</span>
 		<span class="kw">let</span> <span class="ident">state</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">state_at</span>(<span class="kw-2">*</span><span class="ident">id</span>)<span class="question-mark">?</span>;
 		<span class="kw">let</span> <span class="ident">return_data</span> <span class="op">=</span> <span class="ident">StateMachine</span>::<span class="ident">new</span>(
 			<span class="kw-2">&amp;</span><span class="ident">state</span>,
-			<span class="ident">backend</span>::<span class="ident">changes_tries_state_at_block</span>(<span class="ident">id</span>, <span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">changes_trie_storage</span>())<span class="question-mark">?</span>,
+			<span class="ident">changes_trie</span>,
 			<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">changes</span>,
 			<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">executor</span>,
 			<span class="ident">method</span>,
@@ -343,12 +351,12 @@
 		).<span class="ident">execute_using_consensus_failure_handler</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">NeverNativeValue</span>, <span class="kw">fn</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="kw">_</span><span class="op">&gt;</span>(
 			<span class="ident">strategy</span>.<span class="ident">get_manager</span>(),
 			<span class="prelude-val">None</span>,
-		)<span class="question-mark">?</span>;
+		);
 		{
 			<span class="kw">let</span> <span class="ident">_lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">get_import_lock</span>().<span class="ident">read</span>();
 			<span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">destroy_state</span>(<span class="ident">state</span>)<span class="question-mark">?</span>;
 		}
-		<span class="prelude-val">Ok</span>(<span class="ident">return_data</span>.<span class="ident">into_encoded</span>())
+		<span class="prelude-val">Ok</span>(<span class="ident">return_data</span><span class="question-mark">?</span>.<span class="ident">into_encoded</span>())
 	}
 
 	<span class="kw">fn</span> <span class="ident">contextual_call</span><span class="op">&lt;</span>
@@ -385,37 +393,36 @@
 			<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> {},
 		}
 
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">state</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">state_at</span>(<span class="kw-2">*</span><span class="ident">at</span>)<span class="question-mark">?</span>;
 		<span class="kw">let</span> <span class="ident">changes_trie_state</span> <span class="op">=</span> <span class="ident">backend</span>::<span class="ident">changes_tries_state_at_block</span>(<span class="ident">at</span>, <span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">changes_trie_storage</span>())<span class="question-mark">?</span>;
-
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">storage_transaction_cache</span> <span class="op">=</span> <span class="ident">storage_transaction_cache</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> <span class="ident">c</span>.<span class="ident">borrow_mut</span>());
 
+		<span class="comment">// make sure to destroy state before exiting this function</span>
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">state</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">state_at</span>(<span class="kw-2">*</span><span class="ident">at</span>)<span class="question-mark">?</span>;
 		<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">recorder</span> {
-			<span class="prelude-val">Some</span>(<span class="ident">recorder</span>) <span class="op">=</span><span class="op">&gt;</span> {
-				<span class="kw">let</span> <span class="ident">trie_state</span> <span class="op">=</span> <span class="ident">state</span>.<span class="ident">as_trie_backend</span>()
-					.<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span>
-						<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">sp_state_machine</span>::<span class="ident">ExecutionError</span>::<span class="ident">UnableToGenerateProof</span>)
-							<span class="kw">as</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">sp_state_machine</span>::<span class="ident">Error</span><span class="op">&gt;</span>
-					)<span class="question-mark">?</span>;
-
-				<span class="kw">let</span> <span class="ident">backend</span> <span class="op">=</span> <span class="ident">sp_state_machine</span>::<span class="ident">ProvingBackend</span>::<span class="ident">new_with_recorder</span>(
-					<span class="ident">trie_state</span>,
-					<span class="ident">recorder</span>.<span class="ident">clone</span>(),
-				);
-
-				<span class="ident">StateMachine</span>::<span class="ident">new</span>(
-					<span class="kw-2">&amp;</span><span class="ident">backend</span>,
-					<span class="ident">changes_trie_state</span>,
-					<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="ident">changes</span>.<span class="ident">borrow_mut</span>(),
-					<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">executor</span>,
-					<span class="ident">method</span>,
-					<span class="ident">call_data</span>,
-					<span class="ident">extensions</span>.<span class="ident">unwrap_or_default</span>(),
+			<span class="prelude-val">Some</span>(<span class="ident">recorder</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">state</span>.<span class="ident">as_trie_backend</span>()
+				.<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span>
+					<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">sp_state_machine</span>::<span class="ident">ExecutionError</span>::<span class="ident">UnableToGenerateProof</span>)
+						<span class="kw">as</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">sp_state_machine</span>::<span class="ident">Error</span><span class="op">&gt;</span>
 				)
-				<span class="comment">// TODO: https://github.com/paritytech/substrate/issues/4455</span>
-				<span class="comment">// .with_storage_transaction_cache(storage_transaction_cache.as_mut().map(|c| &amp;mut **c))</span>
-				.<span class="ident">execute_using_consensus_failure_handler</span>(<span class="ident">execution_manager</span>, <span class="ident">native_call</span>)
-			}
+				.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">trie_state</span><span class="op">|</span> {
+					<span class="kw">let</span> <span class="ident">backend</span> <span class="op">=</span> <span class="ident">sp_state_machine</span>::<span class="ident">ProvingBackend</span>::<span class="ident">new_with_recorder</span>(
+						<span class="ident">trie_state</span>,
+						<span class="ident">recorder</span>.<span class="ident">clone</span>(),
+					);
+
+					<span class="ident">StateMachine</span>::<span class="ident">new</span>(
+						<span class="kw-2">&amp;</span><span class="ident">backend</span>,
+						<span class="ident">changes_trie_state</span>,
+						<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="ident">changes</span>.<span class="ident">borrow_mut</span>(),
+						<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">executor</span>,
+						<span class="ident">method</span>,
+						<span class="ident">call_data</span>,
+						<span class="ident">extensions</span>.<span class="ident">unwrap_or_default</span>(),
+					)
+					<span class="comment">// TODO: https://github.com/paritytech/substrate/issues/4455</span>
+					<span class="comment">// .with_storage_transaction_cache(storage_transaction_cache.as_mut().map(|c| &amp;mut **c))</span>
+					.<span class="ident">execute_using_consensus_failure_handler</span>(<span class="ident">execution_manager</span>, <span class="ident">native_call</span>)
+				}),
 			<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">StateMachine</span>::<span class="ident">new</span>(
 				<span class="kw-2">&amp;</span><span class="ident">state</span>,
 				<span class="ident">changes_trie_state</span>,
@@ -427,18 +434,19 @@
 			)
 			.<span class="ident">with_storage_transaction_cache</span>(<span class="ident">storage_transaction_cache</span>.<span class="ident">as_mut</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">c</span>))
 			.<span class="ident">execute_using_consensus_failure_handler</span>(<span class="ident">execution_manager</span>, <span class="ident">native_call</span>)
-		}<span class="question-mark">?</span>;
+		};
 		{
 			<span class="kw">let</span> <span class="ident">_lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">get_import_lock</span>().<span class="ident">read</span>();
 			<span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">destroy_state</span>(<span class="ident">state</span>)<span class="question-mark">?</span>;
 		}
-		<span class="prelude-val">Ok</span>(<span class="ident">result</span>)
+		<span class="ident">result</span>.<span class="ident">map_err</span>(<span class="ident">Into</span>::<span class="ident">into</span>)
 	}
 
 	<span class="kw">fn</span> <span class="ident">runtime_version</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">sp_blockchain</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">RuntimeVersion</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">overlay</span> <span class="op">=</span> <span class="ident">OverlayedChanges</span>::<span class="ident">default</span>();
-		<span class="kw">let</span> <span class="ident">state</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">state_at</span>(<span class="kw-2">*</span><span class="ident">id</span>)<span class="question-mark">?</span>;
 		<span class="kw">let</span> <span class="ident">changes_trie_state</span> <span class="op">=</span> <span class="ident">backend</span>::<span class="ident">changes_tries_state_at_block</span>(<span class="ident">id</span>, <span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">changes_trie_storage</span>())<span class="question-mark">?</span>;
+		<span class="comment">// make sure to destroy state before exiting this function</span>
+		<span class="kw">let</span> <span class="ident">state</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">backend</span>.<span class="ident">state_at</span>(<span class="kw-2">*</span><span class="ident">id</span>)<span class="question-mark">?</span>;
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cache</span> <span class="op">=</span> <span class="ident">StorageTransactionCache</span>::<span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">B</span>::<span class="ident">State</span><span class="op">&gt;</span>::<span class="ident">default</span>();
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ext</span> <span class="op">=</span> <span class="ident">Ext</span>::<span class="ident">new</span>(
 			<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">overlay</span>,
