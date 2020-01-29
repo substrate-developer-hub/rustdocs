@@ -381,8 +381,6 @@
 <span id="370">370</span>
 <span id="371">371</span>
 <span id="372">372</span>
-<span id="373">373</span>
-<span id="374">374</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -722,10 +720,8 @@
 {
 	<span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span>;
 
-	<span class="kw">fn</span> <span class="ident">poll</span>(<span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Output</span><span class="op">&gt;</span> {
-		<span class="kw">let</span> <span class="ident">this</span> <span class="op">=</span> <span class="ident">Pin</span>::<span class="ident">into_inner</span>(<span class="self">self</span>);
-
-		<span class="kw">match</span> <span class="ident">Future</span>::<span class="ident">poll</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">this</span>.<span class="ident">observer</span>), <span class="ident">cx</span>) {
+	<span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Output</span><span class="op">&gt;</span> {
+		<span class="kw">match</span> <span class="ident">Future</span>::<span class="ident">poll</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">observer</span>), <span class="ident">cx</span>) {
 			<span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> {}
 			<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Ok</span>(())) <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="comment">// observer commit stream doesn&#39;t conclude naturally; this could reasonably be an error.</span>
@@ -737,12 +733,12 @@
 			}
 			<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">CommandOrError</span>::<span class="ident">VoterCommand</span>(<span class="ident">command</span>))) <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="comment">// some command issued internally</span>
-				<span class="ident">this</span>.<span class="ident">handle_voter_command</span>(<span class="ident">command</span>)<span class="question-mark">?</span>;
+				<span class="self">self</span>.<span class="ident">handle_voter_command</span>(<span class="ident">command</span>)<span class="question-mark">?</span>;
 				<span class="ident">cx</span>.<span class="ident">waker</span>().<span class="ident">wake_by_ref</span>();
 			}
 		}
 
-		<span class="kw">match</span> <span class="ident">Stream</span>::<span class="ident">poll_next</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">this</span>.<span class="ident">voter_commands_rx</span>), <span class="ident">cx</span>) {
+		<span class="kw">match</span> <span class="ident">Stream</span>::<span class="ident">poll_next</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">voter_commands_rx</span>), <span class="ident">cx</span>) {
 			<span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> {}
 			<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>) <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="comment">// the `voter_commands_rx` stream should never conclude since it&#39;s never closed.</span>
@@ -750,12 +746,12 @@
 			}
 			<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">command</span>)) <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="comment">// some command issued externally</span>
-				<span class="ident">this</span>.<span class="ident">handle_voter_command</span>(<span class="ident">command</span>)<span class="question-mark">?</span>;
+				<span class="self">self</span>.<span class="ident">handle_voter_command</span>(<span class="ident">command</span>)<span class="question-mark">?</span>;
 				<span class="ident">cx</span>.<span class="ident">waker</span>().<span class="ident">wake_by_ref</span>();
 			}
 		}
 
-		<span class="ident">Poll</span>::<span class="ident">Pending</span>
+		<span class="ident">Future</span>::<span class="ident">poll</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">network</span>), <span class="ident">cx</span>)
 	}
 }
 </pre></div>
