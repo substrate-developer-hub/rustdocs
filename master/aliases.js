@@ -124,6 +124,7 @@ ALIASES["futures_channel"] = {};
 ALIASES["futures_codec"] = {};
 ALIASES["futures_core"] = {};
 ALIASES["futures_cpupool"] = {};
+ALIASES["futures_diagnose"] = {};
 ALIASES["futures_executor"] = {};
 ALIASES["futures_io"] = {};
 ALIASES["futures_macro"] = {};
