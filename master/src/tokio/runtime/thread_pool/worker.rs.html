@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.4/src/runtime/thread_pool/worker.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>worker.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../../light.css" id="themeStyle"><script src="../../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.11/src/runtime/thread_pool/worker.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>worker.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../../light.css" id="themeStyle"><script src="../../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -619,17 +619,13 @@
 <span id="608">608</span>
 <span id="609">609</span>
 <span id="610">610</span>
-<span id="611">611</span>
-<span id="612">612</span>
-<span id="613">613</span>
-<span id="614">614</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">loom</span>::<span class="ident">cell</span>::<span class="ident">CausalCell</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">loom</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">park</span>::<span class="ident">Park</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">runtime</span>::{<span class="self">self</span>, <span class="ident">blocking</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">runtime</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">runtime</span>::<span class="ident">park</span>::<span class="ident">Parker</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">runtime</span>::<span class="ident">thread_pool</span>::{<span class="ident">current</span>, <span class="ident">slice</span>, <span class="ident">Owned</span>, <span class="ident">Shared</span>, <span class="ident">Spawner</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">runtime</span>::<span class="ident">thread_pool</span>::{<span class="ident">current</span>, <span class="ident">slice</span>, <span class="ident">Owned</span>, <span class="ident">Shared</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">task</span>::<span class="ident">Task</span>;
 
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cell</span>::<span class="ident">Cell</span>;
@@ -652,7 +648,9 @@
         <span class="ident">ON_BLOCK</span>.<span class="ident">with</span>(<span class="op">|</span><span class="ident">ob</span><span class="op">|</span> {
             <span class="kw">let</span> <span class="ident">allow_blocking</span> <span class="op">=</span> <span class="ident">ob</span>
                 .<span class="ident">get</span>()
-                .<span class="ident">expect</span>(<span class="string">&quot;can only call blocking when on Tokio runtime&quot;</span>);
+                <span class="comment">// `block_in_place` can only be called from a spawned task when</span>
+                <span class="comment">// working with the threaded scheduler.</span>
+                .<span class="ident">expect</span>(<span class="string">&quot;can call blocking only when running in a spawned task&quot;</span>);
 
             <span class="comment">// This is safe, because ON_BLOCK was set from an &amp;mut dyn FnMut in the worker that wraps</span>
             <span class="comment">// the worker&#39;s operation, and is unset just prior to when the FnMut is dropped.</span>
@@ -704,10 +702,7 @@
 <span class="kw">struct</span> <span class="ident">WorkerGone</span>;
 
 <span class="comment">// TODO: Move into slices</span>
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">create_set</span>(
-    <span class="ident">pool_size</span>: <span class="ident">usize</span>,
-    <span class="ident">parker</span>: <span class="ident">Parker</span>,
-) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">slice</span>::<span class="ident">Set</span><span class="op">&gt;</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Worker</span><span class="op">&gt;</span>) {
+<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">create_set</span>(<span class="ident">pool_size</span>: <span class="ident">usize</span>, <span class="ident">parker</span>: <span class="ident">Parker</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">slice</span>::<span class="ident">Set</span><span class="op">&gt;</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Worker</span><span class="op">&gt;</span>) {
     <span class="comment">// Create the parks...</span>
     <span class="kw">let</span> <span class="ident">parkers</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> (<span class="number">0</span>..<span class="ident">pool_size</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">parker</span>.<span class="ident">clone</span>()).<span class="ident">collect</span>();
 
@@ -721,13 +716,7 @@
     <span class="kw">let</span> <span class="ident">workers</span> <span class="op">=</span> <span class="ident">parkers</span>
         .<span class="ident">into_iter</span>()
         .<span class="ident">enumerate</span>()
-        .<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">index</span>, <span class="ident">parker</span>)<span class="op">|</span> {
-            <span class="ident">Worker</span>::<span class="ident">new</span>(
-                <span class="ident">slices</span>.<span class="ident">clone</span>(),
-                <span class="ident">index</span>,
-                <span class="ident">parker</span>,
-            )
-        })
+        .<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">index</span>, <span class="ident">parker</span>)<span class="op">|</span> <span class="ident">Worker</span>::<span class="ident">new</span>(<span class="ident">slices</span>.<span class="ident">clone</span>(), <span class="ident">index</span>, <span class="ident">parker</span>))
         .<span class="ident">collect</span>();
 
     (<span class="ident">slices</span>, <span class="ident">workers</span>)
@@ -742,11 +731,7 @@
 <span class="kw">impl</span> <span class="ident">Worker</span> {
     <span class="comment">// Safe as aquiring a lock is required before doing anything potentially</span>
     <span class="comment">// dangerous.</span>
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">new</span>(
-        <span class="ident">slices</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">slice</span>::<span class="ident">Set</span><span class="op">&gt;</span>,
-        <span class="ident">index</span>: <span class="ident">usize</span>,
-        <span class="ident">park</span>: <span class="ident">Parker</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">slices</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">slice</span>::<span class="ident">Set</span><span class="op">&gt;</span>, <span class="ident">index</span>: <span class="ident">usize</span>, <span class="ident">park</span>: <span class="ident">Parker</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="ident">Worker</span> {
             <span class="ident">inner</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Inner</span> {
                 <span class="ident">park</span>: <span class="ident">CausalCell</span>::<span class="ident">new</span>(<span class="ident">park</span>),
@@ -758,53 +743,47 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">run</span>(<span class="self">self</span>, <span class="ident">blocking_pool</span>: <span class="ident">blocking</span>::<span class="ident">Spawner</span>) {
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">run</span>(<span class="self">self</span>) {
         <span class="comment">// First, acquire a lock on the worker.</span>
         <span class="kw">let</span> <span class="ident">guard</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>.<span class="ident">acquire_lock</span>() {
             <span class="prelude-val">Some</span>(<span class="ident">guard</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">guard</span>,
             <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span>,
         };
 
-        <span class="kw">let</span> <span class="ident">spawner</span> <span class="op">=</span> <span class="ident">Spawner</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">slices</span>.<span class="ident">clone</span>());
-
         <span class="comment">// Track the current worker</span>
         <span class="ident">current</span>::<span class="ident">set</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">slices</span>, <span class="self">self</span>.<span class="ident">index</span>, <span class="op">|</span><span class="op">|</span> {
             <span class="comment">// Enter a runtime context</span>
             <span class="kw">let</span> <span class="ident">_enter</span> <span class="op">=</span> <span class="kw">crate</span>::<span class="ident">runtime</span>::<span class="ident">enter</span>();
 
-            <span class="kw">crate</span>::<span class="ident">runtime</span>::<span class="ident">global</span>::<span class="ident">with_thread_pool</span>(<span class="kw-2">&amp;</span><span class="ident">spawner</span>, <span class="op">|</span><span class="op">|</span> {
-                <span class="ident">blocking_pool</span>.<span class="ident">enter</span>(<span class="op">|</span><span class="op">|</span> {
-                    <span class="ident">ON_BLOCK</span>.<span class="ident">with</span>(<span class="op">|</span><span class="ident">ob</span><span class="op">|</span> {
-                        <span class="comment">// Ensure that the ON_BLOCK is removed from the thread-local context</span>
-                        <span class="comment">// when leaving the scope. This handles cases that involve panicking.</span>
-                        <span class="kw">struct</span> <span class="ident">Reset</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Cell</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">*</span><span class="kw">const</span> <span class="kw">dyn</span> <span class="ident">Fn</span>()<span class="op">&gt;</span><span class="op">&gt;</span>);
+            <span class="ident">ON_BLOCK</span>.<span class="ident">with</span>(<span class="op">|</span><span class="ident">ob</span><span class="op">|</span> {
+                <span class="comment">// Ensure that the ON_BLOCK is removed from the thread-local context</span>
+                <span class="comment">// when leaving the scope. This handles cases that involve panicking.</span>
+                <span class="kw">struct</span> <span class="ident">Reset</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Cell</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">*</span><span class="kw">const</span> <span class="kw">dyn</span> <span class="ident">Fn</span>()<span class="op">&gt;</span><span class="op">&gt;</span>);
 
-                        <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">Reset</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
-                            <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
-                                <span class="self">self</span>.<span class="number">0</span>.<span class="ident">set</span>(<span class="prelude-val">None</span>);
-                            }
-                        }
+                <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">Reset</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
+                    <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
+                        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">set</span>(<span class="prelude-val">None</span>);
+                    }
+                }
 
-                        <span class="kw">let</span> <span class="ident">_reset</span> <span class="op">=</span> <span class="ident">Reset</span>(<span class="ident">ob</span>);
+                <span class="kw">let</span> <span class="ident">_reset</span> <span class="op">=</span> <span class="ident">Reset</span>(<span class="ident">ob</span>);
 
-                        <span class="kw">let</span> <span class="ident">allow_blocking</span>: <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">Fn</span>() <span class="op">=</span> <span class="kw-2">&amp;</span><span class="op">|</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">block_in_place</span>(<span class="kw-2">&amp;</span><span class="ident">blocking_pool</span>);
+                <span class="kw">let</span> <span class="ident">allow_blocking</span>: <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">Fn</span>() <span class="op">=</span> <span class="kw-2">&amp;</span><span class="op">|</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">block_in_place</span>();
 
-                        <span class="ident">ob</span>.<span class="ident">set</span>(<span class="prelude-val">Some</span>(<span class="kw">unsafe</span> {
-                            <span class="comment">// NOTE: We cannot use a safe cast to raw pointer here, since we are</span>
-                            <span class="comment">// _also_ erasing the lifetime of these pointers. That is safe here,</span>
-                            <span class="comment">// because we know that ob will set back to None before allow_blocking</span>
-                            <span class="comment">// is dropped.</span>
-                            <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">useless_transmute</span>)]</span>
-                            <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">transmute</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw-2">*</span><span class="kw">const</span> <span class="kw">dyn</span> <span class="ident">Fn</span>()<span class="op">&gt;</span>(<span class="ident">allow_blocking</span>)
-                        }));
+                <span class="ident">ob</span>.<span class="ident">set</span>(<span class="prelude-val">Some</span>(<span class="kw">unsafe</span> {
+                    <span class="comment">// NOTE: We cannot use a safe cast to raw pointer here, since we are</span>
+                    <span class="comment">// _also_ erasing the lifetime of these pointers. That is safe here,</span>
+                    <span class="comment">// because we know that ob will set back to None before allow_blocking</span>
+                    <span class="comment">// is dropped.</span>
+                    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">useless_transmute</span>)]</span>
+                    <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">transmute</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw-2">*</span><span class="kw">const</span> <span class="kw">dyn</span> <span class="ident">Fn</span>()<span class="op">&gt;</span>(<span class="ident">allow_blocking</span>)
+                }));
 
-                        <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">guard</span>.<span class="ident">run</span>();
+                <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">guard</span>.<span class="ident">run</span>();
 
-                        <span class="comment">// Ensure that we reset ob before allow_blocking is dropped.</span>
-                        <span class="ident">drop</span>(<span class="ident">_reset</span>);
-                    });
-                })
-            })
+                <span class="comment">// Ensure that we reset ob before allow_blocking is dropped.</span>
+                <span class="ident">drop</span>(<span class="ident">_reset</span>);
+            });
         });
 
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">gone</span>.<span class="ident">get</span>() {
@@ -825,7 +804,7 @@
         }
     }
 
-    <span class="doccomment">/// Acquire the lock</span>
+    <span class="doccomment">/// Acquires the lock</span>
     <span class="kw">fn</span> <span class="ident">acquire_lock</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">GenerationGuard</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="comment">// Safety: Only getting `&amp;self` access to access atomic field</span>
         <span class="kw">let</span> <span class="ident">owned</span> <span class="op">=</span> <span class="kw">unsafe</span> { <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">slices</span>.<span class="ident">owned</span>()[<span class="self">self</span>.<span class="ident">index</span>].<span class="ident">get</span>() };
@@ -848,8 +827,8 @@
         }
     }
 
-    <span class="doccomment">/// Enter an in-place blocking section</span>
-    <span class="kw">fn</span> <span class="ident">block_in_place</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">blocking_pool</span>: <span class="kw-2">&amp;</span><span class="ident">blocking</span>::<span class="ident">Spawner</span>) {
+    <span class="doccomment">/// Enters an in-place blocking section</span>
+    <span class="kw">fn</span> <span class="ident">block_in_place</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
         <span class="comment">// If our Worker has already been given away, then blocking is fine!</span>
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">gone</span>.<span class="ident">get</span>() {
             <span class="kw">return</span>;
@@ -902,8 +881,7 @@
         };
 
         <span class="comment">// Give away the worker</span>
-        <span class="kw">let</span> <span class="ident">b</span> <span class="op">=</span> <span class="ident">blocking_pool</span>.<span class="ident">clone</span>();
-        <span class="ident">runtime</span>::<span class="ident">spawn_blocking</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> <span class="ident">worker</span>.<span class="ident">run</span>(<span class="ident">b</span>));
+        <span class="ident">runtime</span>::<span class="ident">spawn_blocking</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> <span class="ident">worker</span>.<span class="ident">run</span>());
     }
 }
 
@@ -971,7 +949,7 @@
         }
     }
 
-    <span class="doccomment">/// Find local work</span>
+    <span class="doccomment">/// Finds local work</span>
     <span class="kw">fn</span> <span class="ident">find_local_work</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Task</span><span class="op">&lt;</span><span class="ident">Shared</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">tick</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">tick_fetch_inc</span>();
 
@@ -1171,7 +1149,7 @@
         }
     }
 
-    <span class="doccomment">/// Shutdown the worker.</span>
+    <span class="doccomment">/// Shutdowns the worker.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// Once the shutdown flag has been observed, it is guaranteed that no</span>
     <span class="doccomment">/// further tasks may be pushed into the global queue.</span>
@@ -1179,31 +1157,45 @@
         <span class="comment">// Transition all tasks owned by the worker to canceled.</span>
         <span class="self">self</span>.<span class="ident">owned</span>().<span class="ident">owned_tasks</span>.<span class="ident">shutdown</span>();
 
-        <span class="comment">// First, drain all tasks from both the local &amp; global queue.</span>
-        <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">task</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">owned</span>().<span class="ident">work_queue</span>.<span class="ident">pop_local_first</span>() {
-            <span class="ident">task</span>.<span class="ident">shutdown</span>();
-        }
-
-        <span class="comment">// Notify all workers in case they have pending tasks to drop</span>
-        <span class="comment">//</span>
-        <span class="comment">// Not super efficient, but we are also shutting down.</span>
-        <span class="self">self</span>.<span class="ident">worker</span>.<span class="ident">slices</span>.<span class="ident">notify_all</span>();
+        <span class="comment">// Always notify the first time around. This flushes any released tasks</span>
+        <span class="comment">// that happened before the call to `Worker::shutdown`</span>
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">notify</span> <span class="op">=</span> <span class="bool-val">true</span>;
 
         <span class="comment">// The worker can only shutdown once there are no further owned tasks.</span>
-        <span class="kw">while</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">owned</span>().<span class="ident">owned_tasks</span>.<span class="ident">is_empty</span>() {
+        <span class="kw">loop</span> {
+            <span class="comment">// First, drain all tasks from both the local &amp; global queue.</span>
+            <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">task</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">owned</span>().<span class="ident">work_queue</span>.<span class="ident">pop_local_first</span>() {
+                <span class="ident">notify</span> <span class="op">=</span> <span class="bool-val">true</span>;
+                <span class="ident">task</span>.<span class="ident">shutdown</span>();
+            }
+
+            <span class="kw">if</span> <span class="ident">notify</span> {
+                <span class="comment">// If any tasks are shutdown, they may be pushed on another</span>
+                <span class="comment">// worker&#39;s `pending_drop` stack. However, we don&#39;t know which</span>
+                <span class="comment">// workers need to be notified, so we just notify all of them.</span>
+                <span class="comment">// Since this is a shutdown process, excessive notification is</span>
+                <span class="comment">// not a huge deal.</span>
+                <span class="self">self</span>.<span class="ident">worker</span>.<span class="ident">slices</span>.<span class="ident">notify_all</span>();
+                <span class="ident">notify</span> <span class="op">=</span> <span class="bool-val">false</span>;
+            }
+
+            <span class="comment">// Try draining more tasks</span>
+            <span class="self">self</span>.<span class="ident">drain_tasks_pending_drop</span>();
+
+            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">owned</span>().<span class="ident">owned_tasks</span>.<span class="ident">is_empty</span>() {
+                <span class="kw">break</span>;
+            }
+
             <span class="comment">// Wait until task that this worker owns are released.</span>
             <span class="comment">//</span>
             <span class="comment">// `transition_to_parked` is not called as we are not working</span>
             <span class="comment">// anymore. When a task is released, the owning worker is unparked</span>
             <span class="comment">// directly.</span>
             <span class="self">self</span>.<span class="ident">park_mut</span>().<span class="ident">park</span>().<span class="ident">expect</span>(<span class="string">&quot;park failed&quot;</span>);
-
-            <span class="comment">// Try draining more tasks</span>
-            <span class="self">self</span>.<span class="ident">drain_tasks_pending_drop</span>();
         }
     }
 
-    <span class="doccomment">/// Increment the tick, returning the value from before the increment.</span>
+    <span class="doccomment">/// Increments the tick, returning the value from before the increment.</span>
     <span class="kw">fn</span> <span class="ident">tick_fetch_inc</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u16</span> {
         <span class="kw">let</span> <span class="ident">tick</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">owned</span>().<span class="ident">tick</span>.<span class="ident">get</span>();
         <span class="self">self</span>.<span class="ident">owned</span>().<span class="ident">tick</span>.<span class="ident">set</span>(<span class="ident">tick</span>.<span class="ident">wrapping_add</span>(<span class="number">1</span>));

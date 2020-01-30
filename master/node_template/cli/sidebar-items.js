@@ -1,1 +1,1 @@
-initSidebarItems({"fn":[["load_spec",""],["run","Parse command line arguments into service configuration."],["run_until_exit",""]],"mod":[["error","Initialization errors."]],"struct":[["Exit",""],["VersionInfo","Executable version. Used to pass version information from the root crate."]],"trait":[["IntoExit","Something that can be converted into an exit signal."]]});
+initSidebarItems({"struct":[["Cli",""]]});
