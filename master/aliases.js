@@ -487,6 +487,7 @@ ALIASES["substrate_frame_rpc_system"] = {};
 ALIASES["substrate_test_client"] = {};
 ALIASES["substrate_test_runtime"] = {};
 ALIASES["substrate_test_runtime_client"] = {};
+ALIASES["substrate_test_runtime_transaction_pool"] = {};
 ALIASES["substrate_test_utils"] = {};
 ALIASES["substrate_wasm_builder"] = {};
 ALIASES["substrate_wasm_builder_runner"] = {};
