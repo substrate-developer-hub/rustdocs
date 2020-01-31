@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["http","A high-level helpers for making HTTP requests from Offchain Workers."]]});
+initSidebarItems({"mod":[["http","A high-level helpers for making HTTP requests from Offchain Workers."],["storage","A set of storage helpers for offchain workers."]]});

@@ -691,6 +691,36 @@
 <span id="680">680</span>
 <span id="681">681</span>
 <span id="682">682</span>
+<span id="683">683</span>
+<span id="684">684</span>
+<span id="685">685</span>
+<span id="686">686</span>
+<span id="687">687</span>
+<span id="688">688</span>
+<span id="689">689</span>
+<span id="690">690</span>
+<span id="691">691</span>
+<span id="692">692</span>
+<span id="693">693</span>
+<span id="694">694</span>
+<span id="695">695</span>
+<span id="696">696</span>
+<span id="697">697</span>
+<span id="698">698</span>
+<span id="699">699</span>
+<span id="700">700</span>
+<span id="701">701</span>
+<span id="702">702</span>
+<span id="703">703</span>
+<span id="704">704</span>
+<span id="705">705</span>
+<span id="706">706</span>
+<span id="707">707</span>
+<span id="708">708</span>
+<span id="709">709</span>
+<span id="710">710</span>
+<span id="711">711</span>
+<span id="712">712</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -766,13 +796,14 @@
 
 <span class="kw">use</span> <span class="ident">sp_application_crypto</span>::<span class="ident">RuntimeAppPublic</span>;
 <span class="kw">use</span> <span class="ident">codec</span>::{<span class="ident">Encode</span>, <span class="ident">Decode</span>};
-<span class="kw">use</span> <span class="ident">sp_core</span>::<span class="ident">offchain</span>::{<span class="ident">OpaqueNetworkState</span>, <span class="ident">StorageKind</span>};
+<span class="kw">use</span> <span class="ident">sp_core</span>::<span class="ident">offchain</span>::<span class="ident">OpaqueNetworkState</span>;
 <span class="kw">use</span> <span class="ident">sp_std</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">sp_std</span>::<span class="ident">convert</span>::<span class="ident">TryInto</span>;
 <span class="kw">use</span> <span class="ident">pallet_session</span>::<span class="ident">historical</span>::<span class="ident">IdentificationTuple</span>;
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::{
+	<span class="ident">offchain</span>::<span class="ident">storage</span>::<span class="ident">StorageValueRef</span>,
 	<span class="ident">RuntimeDebug</span>,
-	<span class="ident">traits</span>::{<span class="ident">Convert</span>, <span class="ident">Member</span>, <span class="ident">Printable</span>, <span class="ident">Saturating</span>}, <span class="ident">Perbill</span>,
+	<span class="ident">traits</span>::{<span class="ident">Convert</span>, <span class="ident">Member</span>, <span class="ident">Saturating</span>, <span class="ident">SimpleArithmetic</span>}, <span class="ident">Perbill</span>,
 	<span class="ident">transaction_validity</span>::{
 		<span class="ident">TransactionValidity</span>, <span class="ident">ValidTransaction</span>, <span class="ident">InvalidTransaction</span>,
 		<span class="ident">TransactionPriority</span>,
@@ -783,7 +814,7 @@
 	<span class="ident">offence</span>::{<span class="ident">ReportOffence</span>, <span class="ident">Offence</span>, <span class="ident">Kind</span>},
 };
 <span class="kw">use</span> <span class="ident">frame_support</span>::{
-	<span class="ident">decl_module</span>, <span class="ident">decl_event</span>, <span class="ident">decl_storage</span>, <span class="ident">print</span>, <span class="ident">Parameter</span>, <span class="ident">debug</span>, <span class="ident">decl_error</span>,
+	<span class="ident">decl_module</span>, <span class="ident">decl_event</span>, <span class="ident">decl_storage</span>, <span class="ident">Parameter</span>, <span class="ident">debug</span>, <span class="ident">decl_error</span>,
 	<span class="ident">traits</span>::<span class="ident">Get</span>,
 };
 <span class="kw">use</span> <span class="ident">frame_system</span>::{<span class="self">self</span> <span class="kw">as</span> <span class="ident">system</span>, <span class="ident">ensure_none</span>};
@@ -823,37 +854,70 @@
 	<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">AuthorityId</span> <span class="op">=</span> <span class="ident">app_ed25519</span>::<span class="ident">Public</span>;
 }
 
-<span class="doccomment">/// The local storage database key under which the worker progress status</span>
-<span class="doccomment">/// is tracked.</span>
-<span class="kw">const</span> <span class="ident">DB_KEY</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="string">b&quot;parity/im-online-worker-status&quot;</span>;
+<span class="kw">const</span> <span class="ident">DB_PREFIX</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="string">b&quot;parity/im-online-heartbeat/&quot;</span>;
+<span class="doccomment">/// How many blocks do we wait for heartbeat transaction to be included</span>
+<span class="doccomment">/// before sending another one.</span>
+<span class="kw">const</span> <span class="ident">INCLUDE_THRESHOLD</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="number">3</span>;
 
-<span class="doccomment">/// It&#39;s important to persist the worker state, since e.g. the</span>
-<span class="doccomment">/// server could be restarted while starting the gossip process, but before</span>
-<span class="doccomment">/// finishing it. With every execution of the off-chain worker we check</span>
-<span class="doccomment">/// if we need to recover and resume gossipping or if there is already</span>
-<span class="doccomment">/// another off-chain worker in the process of gossipping.</span>
+<span class="doccomment">/// Status of the offchain worker code.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// This stores the block number at which heartbeat was requested and when the worker</span>
+<span class="doccomment">/// has actually managed to produce it.</span>
+<span class="doccomment">/// Note we store such status for every `authority_index` separately.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Encode</span>, <span class="ident">Decode</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">RuntimeDebug</span>)]</span>
-<span class="kw">struct</span> <span class="ident">WorkerStatus</span><span class="op">&lt;</span><span class="ident">BlockNumber</span><span class="op">&gt;</span> {
-	<span class="ident">done</span>: <span class="ident">bool</span>,
-	<span class="ident">gossipping_at</span>: <span class="ident">BlockNumber</span>,
+<span class="kw">struct</span> <span class="ident">HeartbeatStatus</span><span class="op">&lt;</span><span class="ident">BlockNumber</span><span class="op">&gt;</span> {
+	<span class="doccomment">/// An index of the session that we are supposed to send heartbeat for.</span>
+	<span class="kw">pub</span> <span class="ident">session_index</span>: <span class="ident">SessionIndex</span>,
+	<span class="doccomment">/// A block number at which the heartbeat for that session has been actually sent.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// It may be 0 in case the sending failed. In such case we should just retry</span>
+	<span class="doccomment">/// as soon as possible (i.e. in a worker running for the next block).</span>
+	<span class="kw">pub</span> <span class="ident">sent_at</span>: <span class="ident">BlockNumber</span>,
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">BlockNumber</span>: <span class="ident">PartialEq</span> <span class="op">+</span> <span class="ident">SimpleArithmetic</span> <span class="op">+</span> <span class="ident">Copy</span><span class="op">&gt;</span> <span class="ident">HeartbeatStatus</span><span class="op">&lt;</span><span class="ident">BlockNumber</span><span class="op">&gt;</span> {
+	<span class="doccomment">/// Returns true if heartbeat has been recently sent.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// Parameters:</span>
+	<span class="doccomment">/// `session_index` - index of current session.</span>
+	<span class="doccomment">/// `now` - block at which the offchain worker is running.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// This function will return `true` iff:</span>
+	<span class="doccomment">/// 1. the session index is the same (we don&#39;t care if it went up or down)</span>
+	<span class="doccomment">/// 2. the heartbeat has been sent recently (within the threshold)</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// The reasoning for 1. is that it&#39;s better to send an extra heartbeat than</span>
+	<span class="doccomment">/// to stall or not send one in case of a bug.</span>
+	<span class="kw">fn</span> <span class="ident">is_recent</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">session_index</span>: <span class="ident">SessionIndex</span>, <span class="ident">now</span>: <span class="ident">BlockNumber</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+		<span class="self">self</span>.<span class="ident">session_index</span> <span class="op">=</span><span class="op">=</span> <span class="ident">session_index</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="self">self</span>.<span class="ident">sent_at</span> <span class="op">+</span> <span class="ident">INCLUDE_THRESHOLD</span>.<span class="ident">into</span>() <span class="op">&gt;</span> <span class="ident">now</span>
+	}
 }
 
 <span class="doccomment">/// Error which may occur while executing the off-chain code.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">RuntimeDebug</span>)]</span>
-<span class="kw">enum</span> <span class="ident">OffchainErr</span> {
-	<span class="ident">DecodeWorkerStatus</span>,
+<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">test</span>, <span class="ident">derive</span>(<span class="ident">PartialEq</span>))]</span>
+<span class="kw">enum</span> <span class="ident">OffchainErr</span><span class="op">&lt;</span><span class="ident">BlockNumber</span><span class="op">&gt;</span> {
+	<span class="ident">TooEarly</span>(<span class="ident">BlockNumber</span>),
+	<span class="ident">WaitingForInclusion</span>(<span class="ident">BlockNumber</span>),
+	<span class="ident">AlreadyOnline</span>(<span class="ident">u32</span>),
 	<span class="ident">FailedSigning</span>,
+	<span class="ident">FailedToAcquireLock</span>,
 	<span class="ident">NetworkState</span>,
 	<span class="ident">SubmitTransaction</span>,
 }
 
-<span class="kw">impl</span> <span class="ident">Printable</span> <span class="kw">for</span> <span class="ident">OffchainErr</span> {
-	<span class="kw">fn</span> <span class="ident">print</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-		<span class="kw">match</span> <span class="self">self</span> {
-			<span class="ident">OffchainErr</span>::<span class="ident">DecodeWorkerStatus</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">print</span>(<span class="string">&quot;Offchain error: decoding WorkerStatus failed!&quot;</span>),
-			<span class="ident">OffchainErr</span>::<span class="ident">FailedSigning</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">print</span>(<span class="string">&quot;Offchain error: signing failed!&quot;</span>),
-			<span class="ident">OffchainErr</span>::<span class="ident">NetworkState</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">print</span>(<span class="string">&quot;Offchain error: fetching network state failed!&quot;</span>),
-			<span class="ident">OffchainErr</span>::<span class="ident">SubmitTransaction</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">print</span>(<span class="string">&quot;Offchain error: submitting transaction failed!&quot;</span>),
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">BlockNumber</span>: <span class="ident">sp_std</span>::<span class="ident">fmt</span>::<span class="ident">Debug</span><span class="op">&gt;</span> <span class="ident">sp_std</span>::<span class="ident">fmt</span>::<span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">OffchainErr</span><span class="op">&lt;</span><span class="ident">BlockNumber</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">fmt</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">sp_std</span>::<span class="ident">fmt</span>::<span class="ident">Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">sp_std</span>::<span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
+		<span class="kw">match</span> <span class="kw-2">*</span><span class="self">self</span> {
+			<span class="ident">OffchainErr</span>::<span class="ident">TooEarly</span>(<span class="kw-2">ref</span> <span class="ident">block</span>) <span class="op">=</span><span class="op">&gt;</span>
+				<span class="macro">write</span><span class="macro">!</span>(<span class="ident">fmt</span>, <span class="string">&quot;Too early to send heartbeat, next expected at {:?}&quot;</span>, <span class="ident">block</span>),
+			<span class="ident">OffchainErr</span>::<span class="ident">WaitingForInclusion</span>(<span class="kw-2">ref</span> <span class="ident">block</span>) <span class="op">=</span><span class="op">&gt;</span>
+				<span class="macro">write</span><span class="macro">!</span>(<span class="ident">fmt</span>, <span class="string">&quot;Heartbeat already sent at {:?}. Waiting for inclusion.&quot;</span>, <span class="ident">block</span>),
+			<span class="ident">OffchainErr</span>::<span class="ident">AlreadyOnline</span>(<span class="ident">auth_idx</span>) <span class="op">=</span><span class="op">&gt;</span>
+				<span class="macro">write</span><span class="macro">!</span>(<span class="ident">fmt</span>, <span class="string">&quot;Authority {} is already online&quot;</span>, <span class="ident">auth_idx</span>),
+			<span class="ident">OffchainErr</span>::<span class="ident">FailedSigning</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">fmt</span>, <span class="string">&quot;Failed to sign heartbeat&quot;</span>),
+			<span class="ident">OffchainErr</span>::<span class="ident">FailedToAcquireLock</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">fmt</span>, <span class="string">&quot;Failed to acquire lock&quot;</span>),
+			<span class="ident">OffchainErr</span>::<span class="ident">NetworkState</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">fmt</span>, <span class="string">&quot;Failed to fetch network state&quot;</span>),
+			<span class="ident">OffchainErr</span>::<span class="ident">SubmitTransaction</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">fmt</span>, <span class="string">&quot;Failed to submit transaction&quot;</span>),
 		}
 	}
 }
@@ -891,7 +955,9 @@
 	<span class="doccomment">/// An expected duration of the session.</span>
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// This parameter is used to determine the longevity of `heartbeat` transaction</span>
-	<span class="doccomment">/// and a rough time when the heartbeat should be sent.</span>
+	<span class="doccomment">/// and a rough time when we should start considering sending hearbeats,</span>
+	<span class="doccomment">/// since the workers avoids sending them at the very beginning of the session, assuming</span>
+	<span class="doccomment">/// there is a chance the authority will produce a block and they won&#39;t be necessary.</span>
 	<span class="kw">type</span> <span class="ident">SessionDuration</span>: <span class="ident">Get</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">BlockNumber</span><span class="op">&gt;</span>;
 
 	<span class="doccomment">/// A type that gives us the ability to submit unresponsiveness offence reports.</span>
@@ -919,8 +985,13 @@
 
 <span class="macro">decl_storage</span><span class="macro">!</span> {
 	<span class="kw">trait</span> <span class="ident">Store</span> <span class="kw">for</span> <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Trait</span><span class="op">&gt;</span> <span class="kw">as</span> <span class="ident">ImOnline</span> {
-		<span class="doccomment">/// The block number when we should gossip.</span>
-		<span class="ident">GossipAt</span> <span class="ident">get</span>(<span class="kw">fn</span> <span class="ident">gossip_at</span>): <span class="ident">T</span>::<span class="ident">BlockNumber</span>;
+		<span class="doccomment">/// The block number after which it&#39;s ok to send heartbeats in current session.</span>
+		<span class="doccomment">///</span>
+		<span class="doccomment">/// At the beginning of each session we set this to a value that should</span>
+		<span class="doccomment">/// fall roughly in the middle of the session duration.</span>
+		<span class="doccomment">/// The idea is to first wait for the validators to produce a block</span>
+		<span class="doccomment">/// in the current session, so that the heartbeat later on will not be necessary.</span>
+		<span class="ident">HeartbeatAfter</span> <span class="ident">get</span>(<span class="kw">fn</span> <span class="ident">heartbeat_after</span>): <span class="ident">T</span>::<span class="ident">BlockNumber</span>;
 
 		<span class="doccomment">/// The current set of keys that may issue a heartbeat.</span>
 		<span class="ident">Keys</span> <span class="ident">get</span>(<span class="kw">fn</span> <span class="ident">keys</span>): <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">AuthorityId</span><span class="op">&gt;</span>;
@@ -996,11 +1067,28 @@
 
 			<span class="comment">// Only send messages if we are a potential validator.</span>
 			<span class="kw">if</span> <span class="ident">sp_io</span>::<span class="ident">offchain</span>::<span class="ident">is_validator</span>() {
-				<span class="self">Self</span>::<span class="ident">offchain</span>(<span class="ident">now</span>);
+				<span class="kw">for</span> <span class="ident">res</span> <span class="kw">in</span> <span class="self">Self</span>::<span class="ident">send_heartbeats</span>(<span class="ident">now</span>).<span class="ident">into_iter</span>().<span class="ident">flatten</span>() {
+					<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span> <span class="ident">res</span> {
+						<span class="ident">debug</span>::<span class="macro">debug</span><span class="macro">!</span>(
+							<span class="ident">target</span>: <span class="string">&quot;imonline&quot;</span>,
+							<span class="string">&quot;Skipping heartbeat at {:?}: {:?}&quot;</span>,
+							<span class="ident">now</span>,
+							<span class="ident">e</span>,
+						)
+					}
+				}
+			} <span class="kw">else</span> {
+				<span class="ident">debug</span>::<span class="macro">trace</span><span class="macro">!</span>(
+					<span class="ident">target</span>: <span class="string">&quot;imonline&quot;</span>,
+					<span class="string">&quot;Skipping heartbeat at {:?}. Not a validator.&quot;</span>,
+					<span class="ident">now</span>,
+				)
 			}
 		}
 	}
 }
+
+<span class="kw">type</span> <span class="ident">OffchainResult</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">A</span><span class="op">&gt;</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">OffchainErr</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">T</span> <span class="kw">as</span> <span class="ident">frame_system</span>::<span class="ident">Trait</span><span class="op">&gt;</span>::<span class="ident">BlockNumber</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
 <span class="doccomment">/// Keep track of number of authored blocks per authority, uncles are counted as</span>
 <span class="doccomment">/// well since they&#39;re a valid proof of onlineness.</span>
@@ -1059,156 +1147,128 @@
 		);
 	}
 
-	<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">offchain</span>(<span class="ident">now</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>) {
-		<span class="kw">let</span> <span class="ident">next_gossip</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">GossipAt</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">get</span>();
-		<span class="kw">let</span> <span class="ident">check</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">check_not_yet_gossipped</span>(<span class="ident">now</span>, <span class="ident">next_gossip</span>);
-		<span class="kw">let</span> (<span class="ident">curr_worker_status</span>, <span class="ident">not_yet_gossipped</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">check</span> {
-			<span class="prelude-val">Ok</span>((<span class="ident">s</span>, <span class="ident">v</span>)) <span class="op">=</span><span class="op">&gt;</span> (<span class="ident">s</span>, <span class="ident">v</span>),
-			<span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span><span class="op">&gt;</span> {
-				<span class="ident">print</span>(<span class="ident">err</span>);
-				<span class="kw">return</span>;
-			},
-		};
-		<span class="kw">if</span> <span class="ident">next_gossip</span> <span class="op">&lt;</span> <span class="ident">now</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">not_yet_gossipped</span> {
-			<span class="kw">let</span> <span class="ident">value_set</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">compare_and_set_worker_status</span>(<span class="ident">now</span>, <span class="bool-val">false</span>, <span class="ident">curr_worker_status</span>);
-			<span class="kw">if</span> <span class="op">!</span><span class="ident">value_set</span> {
-				<span class="comment">// value could not be set in local storage, since the value was</span>
-				<span class="comment">// different from `curr_worker_status`. this indicates that</span>
-				<span class="comment">// another worker was running in parallel.</span>
-				<span class="kw">return</span>;
-			}
-
-			<span class="kw">match</span> <span class="self">Self</span>::<span class="ident">do_gossip_at</span>(<span class="ident">now</span>) {
-				<span class="prelude-val">Ok</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {},
-				<span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">print</span>(<span class="ident">err</span>),
-			}
-		} <span class="kw">else</span> {
-			<span class="ident">debug</span>::<span class="ident">native</span>::<span class="macro">debug</span><span class="macro">!</span>(
-				<span class="ident">target</span>: <span class="string">&quot;imonline&quot;</span>,
-				<span class="string">&quot;Skipping gossip at: {:?} &gt;= {:?} || {:?}&quot;</span>,
-				<span class="ident">next_gossip</span>,
-				<span class="ident">now</span>,
-				<span class="kw">if</span> <span class="ident">not_yet_gossipped</span> { <span class="string">&quot;not gossipped&quot;</span> } <span class="kw">else</span> { <span class="string">&quot;gossipped&quot;</span> }
-			);
+	<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">send_heartbeats</span>(<span class="ident">block_number</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>)
+		<span class="op">-</span><span class="op">&gt;</span> <span class="ident">OffchainResult</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span><span class="ident">OffchainResult</span><span class="op">&lt;</span><span class="ident">T</span>, ()<span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>
+	{
+		<span class="kw">let</span> <span class="ident">heartbeat_after</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">HeartbeatAfter</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">get</span>();
+		<span class="kw">if</span> <span class="ident">block_number</span> <span class="op">&lt;</span> <span class="ident">heartbeat_after</span> {
+			<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">OffchainErr</span>::<span class="ident">TooEarly</span>(<span class="ident">heartbeat_after</span>))
 		}
+
+		<span class="kw">let</span> <span class="ident">session_index</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">pallet_session</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">current_index</span>();
+		<span class="prelude-val">Ok</span>(<span class="self">Self</span>::<span class="ident">local_authority_keys</span>()
+			.<span class="ident">map</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="ident">authority_index</span>, <span class="ident">key</span>)<span class="op">|</span>
+				<span class="self">Self</span>::<span class="ident">send_single_heartbeat</span>(<span class="ident">authority_index</span>, <span class="ident">key</span>, <span class="ident">session_index</span>, <span class="ident">block_number</span>)
+			))
 	}
 
-	<span class="kw">fn</span> <span class="ident">do_gossip_at</span>(<span class="ident">block_number</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">OffchainErr</span><span class="op">&gt;</span> {
-		<span class="comment">// we run only when a local authority key is configured</span>
-		<span class="kw">let</span> <span class="ident">authorities</span> <span class="op">=</span> <span class="ident">Keys</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>::<span class="ident">get</span>();
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">results</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">local_keys</span> <span class="op">=</span> <span class="ident">T</span>::<span class="ident">AuthorityId</span>::<span class="ident">all</span>();
-		<span class="ident">local_keys</span>.<span class="ident">sort</span>();
 
-		<span class="kw">for</span> (<span class="ident">authority_index</span>, <span class="ident">key</span>) <span class="kw">in</span> <span class="ident">authorities</span>.<span class="ident">into_iter</span>()
-			.<span class="ident">enumerate</span>()
-			.<span class="ident">filter_map</span>(<span class="op">|</span>(<span class="ident">index</span>, <span class="ident">authority</span>)<span class="op">|</span> {
-				<span class="ident">local_keys</span>.<span class="ident">binary_search</span>(<span class="kw-2">&amp;</span><span class="ident">authority</span>)
-					.<span class="ident">ok</span>()
-					.<span class="ident">map</span>(<span class="op">|</span><span class="ident">location</span><span class="op">|</span> (<span class="ident">index</span> <span class="kw">as</span> <span class="ident">u32</span>, <span class="kw-2">&amp;</span><span class="ident">local_keys</span>[<span class="ident">location</span>]))
-			})
-		{
-			<span class="kw">if</span> <span class="self">Self</span>::<span class="ident">is_online</span>(<span class="ident">authority_index</span>) {
-				<span class="ident">debug</span>::<span class="ident">native</span>::<span class="macro">info</span><span class="macro">!</span>(
-					<span class="ident">target</span>: <span class="string">&quot;imonline&quot;</span>,
-					<span class="string">&quot;[index: {:?}] Skipping sending heartbeat at block: {:?}. Already online.&quot;</span>,
-					<span class="ident">authority_index</span>,
-					<span class="ident">block_number</span>
-				);
-				<span class="kw">continue</span>;
-			}
-
+	<span class="kw">fn</span> <span class="ident">send_single_heartbeat</span>(
+		<span class="ident">authority_index</span>: <span class="ident">u32</span>,
+		<span class="ident">key</span>: <span class="ident">T</span>::<span class="ident">AuthorityId</span>,
+		<span class="ident">session_index</span>: <span class="ident">SessionIndex</span>,
+		<span class="ident">block_number</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">OffchainResult</span><span class="op">&lt;</span><span class="ident">T</span>, ()<span class="op">&gt;</span> {
+		<span class="comment">// A helper function to prepare heartbeat call.</span>
+		<span class="kw">let</span> <span class="ident">prepare_heartbeat</span> <span class="op">=</span> <span class="op">|</span><span class="op">|</span> <span class="op">-</span><span class="op">&gt;</span> <span class="ident">OffchainResult</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">Call</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 			<span class="kw">let</span> <span class="ident">network_state</span> <span class="op">=</span> <span class="ident">sp_io</span>::<span class="ident">offchain</span>::<span class="ident">network_state</span>()
 				.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">OffchainErr</span>::<span class="ident">NetworkState</span>)<span class="question-mark">?</span>;
 			<span class="kw">let</span> <span class="ident">heartbeat_data</span> <span class="op">=</span> <span class="ident">Heartbeat</span> {
 				<span class="ident">block_number</span>,
 				<span class="ident">network_state</span>,
-				<span class="ident">session_index</span>: <span class="op">&lt;</span><span class="ident">pallet_session</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">current_index</span>(),
+				<span class="ident">session_index</span>,
 				<span class="ident">authority_index</span>,
 			};
-
 			<span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span> <span class="ident">key</span>.<span class="ident">sign</span>(<span class="kw-2">&amp;</span><span class="ident">heartbeat_data</span>.<span class="ident">encode</span>()).<span class="ident">ok_or</span>(<span class="ident">OffchainErr</span>::<span class="ident">FailedSigning</span>)<span class="question-mark">?</span>;
-			<span class="kw">let</span> <span class="ident">call</span> <span class="op">=</span> <span class="ident">Call</span>::<span class="ident">heartbeat</span>(<span class="ident">heartbeat_data</span>, <span class="ident">signature</span>);
+			<span class="prelude-val">Ok</span>(<span class="ident">Call</span>::<span class="ident">heartbeat</span>(<span class="ident">heartbeat_data</span>, <span class="ident">signature</span>))
+		};
 
-			<span class="ident">debug</span>::<span class="macro">info</span><span class="macro">!</span>(
-				<span class="ident">target</span>: <span class="string">&quot;imonline&quot;</span>,
-				<span class="string">&quot;[index: {:?}] Reporting im-online at block: {:?}&quot;</span>,
-				<span class="ident">authority_index</span>,
-				<span class="ident">block_number</span>
-			);
-
-			<span class="ident">results</span>.<span class="ident">push</span>(
-				<span class="ident">T</span>::<span class="ident">SubmitTransaction</span>::<span class="ident">submit_unsigned</span>(<span class="ident">call</span>)
-					.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">OffchainErr</span>::<span class="ident">SubmitTransaction</span>)
-			);
+		<span class="kw">if</span> <span class="self">Self</span>::<span class="ident">is_online</span>(<span class="ident">authority_index</span>) {
+			<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">OffchainErr</span>::<span class="ident">AlreadyOnline</span>(<span class="ident">authority_index</span>));
 		}
 
-		<span class="comment">// fail only after trying all keys.</span>
-		<span class="ident">results</span>.<span class="ident">into_iter</span>().<span class="ident">collect</span>::<span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span>, <span class="ident">OffchainErr</span><span class="op">&gt;</span><span class="op">&gt;</span>()<span class="question-mark">?</span>;
+		<span class="comment">// acquire lock for that authority at current heartbeat to make sure we don&#39;t</span>
+		<span class="comment">// send concurrent heartbeats.</span>
+		<span class="self">Self</span>::<span class="ident">with_heartbeat_lock</span>(
+			<span class="ident">authority_index</span>,
+			<span class="ident">session_index</span>,
+			<span class="ident">block_number</span>,
+			<span class="op">|</span><span class="op">|</span> {
+				<span class="kw">let</span> <span class="ident">call</span> <span class="op">=</span> <span class="ident">prepare_heartbeat</span>()<span class="question-mark">?</span>;
+				<span class="ident">debug</span>::<span class="macro">info</span><span class="macro">!</span>(
+					<span class="ident">target</span>: <span class="string">&quot;imonline&quot;</span>,
+					<span class="string">&quot;[index: {:?}] Reporting im-online at block: {:?} (session: {:?}): {:?}&quot;</span>,
+					<span class="ident">authority_index</span>,
+					<span class="ident">block_number</span>,
+					<span class="ident">session_index</span>,
+					<span class="ident">call</span>,
+				);
 
-		<span class="comment">// once finished we set the worker status without comparing</span>
-		<span class="comment">// if the existing value changed in the meantime. this is</span>
-		<span class="comment">// because at this point the heartbeat was definitely submitted.</span>
-		<span class="self">Self</span>::<span class="ident">set_worker_status</span>(<span class="ident">block_number</span>, <span class="bool-val">true</span>);
+				<span class="ident">T</span>::<span class="ident">SubmitTransaction</span>::<span class="ident">submit_unsigned</span>(<span class="ident">call</span>)
+					.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">OffchainErr</span>::<span class="ident">SubmitTransaction</span>)<span class="question-mark">?</span>;
 
-		<span class="prelude-val">Ok</span>(())
-	}
-
-	<span class="kw">fn</span> <span class="ident">compare_and_set_worker_status</span>(
-		<span class="ident">gossipping_at</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>,
-		<span class="ident">done</span>: <span class="ident">bool</span>,
-		<span class="ident">curr_worker_status</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-		<span class="kw">let</span> <span class="ident">enc</span> <span class="op">=</span> <span class="ident">WorkerStatus</span> {
-			<span class="ident">done</span>,
-			<span class="ident">gossipping_at</span>,
-		};
-		<span class="ident">sp_io</span>::<span class="ident">offchain</span>::<span class="ident">local_storage_compare_and_set</span>(
-			<span class="ident">StorageKind</span>::<span class="ident">PERSISTENT</span>,
-			<span class="ident">DB_KEY</span>,
-			<span class="ident">curr_worker_status</span>,
-			<span class="kw-2">&amp;</span><span class="ident">enc</span>.<span class="ident">encode</span>()
+				<span class="prelude-val">Ok</span>(())
+			},
 		)
 	}
 
-	<span class="kw">fn</span> <span class="ident">set_worker_status</span>(
-		<span class="ident">gossipping_at</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>,
-		<span class="ident">done</span>: <span class="ident">bool</span>,
-	) {
-		<span class="kw">let</span> <span class="ident">enc</span> <span class="op">=</span> <span class="ident">WorkerStatus</span> {
-			<span class="ident">done</span>,
-			<span class="ident">gossipping_at</span>,
-		};
-		<span class="ident">sp_io</span>::<span class="ident">offchain</span>::<span class="ident">local_storage_set</span>(<span class="ident">StorageKind</span>::<span class="ident">PERSISTENT</span>, <span class="ident">DB_KEY</span>, <span class="kw-2">&amp;</span><span class="ident">enc</span>.<span class="ident">encode</span>());
+	<span class="kw">fn</span> <span class="ident">local_authority_keys</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span>(<span class="ident">u32</span>, <span class="ident">T</span>::<span class="ident">AuthorityId</span>)<span class="op">&gt;</span> {
+		<span class="comment">// we run only when a local authority key is configured</span>
+		<span class="kw">let</span> <span class="ident">authorities</span> <span class="op">=</span> <span class="ident">Keys</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>::<span class="ident">get</span>();
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">local_keys</span> <span class="op">=</span> <span class="ident">T</span>::<span class="ident">AuthorityId</span>::<span class="ident">all</span>();
+		<span class="ident">local_keys</span>.<span class="ident">sort</span>();
+
+		<span class="ident">authorities</span>.<span class="ident">into_iter</span>()
+			.<span class="ident">enumerate</span>()
+			.<span class="ident">filter_map</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="ident">index</span>, <span class="ident">authority</span>)<span class="op">|</span> {
+				<span class="ident">local_keys</span>.<span class="ident">binary_search</span>(<span class="kw-2">&amp;</span><span class="ident">authority</span>)
+					.<span class="ident">ok</span>()
+					.<span class="ident">map</span>(<span class="op">|</span><span class="ident">location</span><span class="op">|</span> (<span class="ident">index</span> <span class="kw">as</span> <span class="ident">u32</span>, <span class="ident">local_keys</span>[<span class="ident">location</span>].<span class="ident">clone</span>()))
+			})
 	}
 
-	<span class="comment">// Checks if a heartbeat gossip already occurred at this block number.</span>
-	<span class="comment">// Returns a tuple of `(current worker status, bool)`, whereby the bool</span>
-	<span class="comment">// is true if not yet gossipped.</span>
-	<span class="kw">fn</span> <span class="ident">check_not_yet_gossipped</span>(
+	<span class="kw">fn</span> <span class="ident">with_heartbeat_lock</span><span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;</span>(
+		<span class="ident">authority_index</span>: <span class="ident">u32</span>,
+		<span class="ident">session_index</span>: <span class="ident">SessionIndex</span>,
 		<span class="ident">now</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>,
-		<span class="ident">next_gossip</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>,
-	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">bool</span>), <span class="ident">OffchainErr</span><span class="op">&gt;</span> {
-		<span class="kw">let</span> <span class="ident">last_gossip</span> <span class="op">=</span> <span class="ident">sp_io</span>::<span class="ident">offchain</span>::<span class="ident">local_storage_get</span>(<span class="ident">StorageKind</span>::<span class="ident">PERSISTENT</span>, <span class="ident">DB_KEY</span>);
-		<span class="kw">match</span> <span class="ident">last_gossip</span> {
-			<span class="prelude-val">Some</span>(<span class="ident">last</span>) <span class="op">=</span><span class="op">&gt;</span> {
-				<span class="kw">let</span> <span class="ident">worker_status</span>: <span class="ident">WorkerStatus</span><span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">BlockNumber</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Decode</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="ident">last</span>[..])
-					.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">OffchainErr</span>::<span class="ident">DecodeWorkerStatus</span>)<span class="question-mark">?</span>;
+		<span class="ident">f</span>: <span class="kw">impl</span> <span class="ident">FnOnce</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">OffchainResult</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">R</span><span class="op">&gt;</span>,
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">OffchainResult</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">R</span><span class="op">&gt;</span> {
+		<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> {
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">DB_PREFIX</span>.<span class="ident">to_vec</span>();
+			<span class="ident">key</span>.<span class="ident">extend</span>(<span class="ident">authority_index</span>.<span class="ident">encode</span>());
+			<span class="ident">key</span>
+		};
+		<span class="kw">let</span> <span class="ident">storage</span> <span class="op">=</span> <span class="ident">StorageValueRef</span>::<span class="ident">persistent</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>);
+		<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">storage</span>.<span class="ident">mutate</span>(<span class="op">|</span><span class="ident">status</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">HeartbeatStatus</span><span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">BlockNumber</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">|</span> {
+			<span class="comment">// Check if there is already a lock for that particular block.</span>
+			<span class="comment">// This means that the heartbeat has already been sent, and we are just waiting</span>
+			<span class="comment">// for it to be included. However if it doesn&#39;t get included for INCLUDE_THRESHOLD</span>
+			<span class="comment">// we will re-send it.</span>
+			<span class="kw">match</span> <span class="ident">status</span> {
+				<span class="comment">// we are still waiting for inclusion.</span>
+				<span class="prelude-val">Some</span>(<span class="prelude-val">Some</span>(<span class="ident">status</span>)) <span class="kw">if</span> <span class="ident">status</span>.<span class="ident">is_recent</span>(<span class="ident">session_index</span>, <span class="ident">now</span>) <span class="op">=</span><span class="op">&gt;</span> {
+					<span class="prelude-val">Err</span>(<span class="ident">OffchainErr</span>::<span class="ident">WaitingForInclusion</span>(<span class="ident">status</span>.<span class="ident">sent_at</span>))
+				},
+				<span class="comment">// attempt to set new status</span>
+				<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">HeartbeatStatus</span> {
+					<span class="ident">session_index</span>,
+					<span class="ident">sent_at</span>: <span class="ident">now</span>,
+				}),
+			}
+		})<span class="question-mark">?</span>;
 
-				<span class="kw">let</span> <span class="ident">was_aborted</span> <span class="op">=</span> <span class="op">!</span><span class="ident">worker_status</span>.<span class="ident">done</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">worker_status</span>.<span class="ident">gossipping_at</span> <span class="op">&lt;</span> <span class="ident">now</span>;
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_status</span> <span class="op">=</span> <span class="ident">res</span>.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">OffchainErr</span>::<span class="ident">FailedToAcquireLock</span>)<span class="question-mark">?</span>;
 
-				<span class="comment">// another off-chain worker is currently in the process of submitting</span>
-				<span class="kw">let</span> <span class="ident">already_submitting</span> <span class="op">=</span>
-					<span class="op">!</span><span class="ident">worker_status</span>.<span class="ident">done</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">worker_status</span>.<span class="ident">gossipping_at</span> <span class="op">=</span><span class="op">=</span> <span class="ident">now</span>;
+		<span class="comment">// we got the lock, let&#39;s try to send the heartbeat.</span>
+		<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">f</span>();
 
-				<span class="kw">let</span> <span class="ident">not_yet_gossipped</span> <span class="op">=</span>
-					<span class="ident">worker_status</span>.<span class="ident">done</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">worker_status</span>.<span class="ident">gossipping_at</span> <span class="op">&lt;</span> <span class="ident">next_gossip</span>;
-
-				<span class="kw">let</span> <span class="ident">ret</span> <span class="op">=</span> (<span class="ident">was_aborted</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="op">!</span><span class="ident">already_submitting</span>) <span class="op">|</span><span class="op">|</span> <span class="ident">not_yet_gossipped</span>;
-				<span class="prelude-val">Ok</span>((<span class="prelude-val">Some</span>(<span class="ident">last</span>), <span class="ident">ret</span>))
-			},
-			<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>((<span class="prelude-val">None</span>, <span class="bool-val">true</span>)),
+		<span class="comment">// clear the lock in case we have failed to send transaction.</span>
+		<span class="kw">if</span> <span class="ident">res</span>.<span class="ident">is_err</span>() {
+			<span class="ident">new_status</span>.<span class="ident">sent_at</span> <span class="op">=</span> <span class="number">0</span>.<span class="ident">into</span>();
+			<span class="ident">storage</span>.<span class="ident">set</span>(<span class="kw-2">&amp;</span><span class="ident">new_status</span>);
 		}
+
+		<span class="ident">res</span>
 	}
 
 	<span class="kw">fn</span> <span class="ident">initialize_keys</span>(<span class="ident">keys</span>: <span class="kw-2">&amp;</span>[<span class="ident">T</span>::<span class="ident">AuthorityId</span>]) {
@@ -1238,10 +1298,10 @@
 	{
 		<span class="comment">// Tell the offchain worker to start making the next session&#39;s heartbeats.</span>
 		<span class="comment">// Since we consider producing blocks as being online,</span>
-		<span class="comment">// the hearbeat is defered a bit to prevent spaming.</span>
+		<span class="comment">// the heartbeat is defered a bit to prevent spaming.</span>
 		<span class="kw">let</span> <span class="ident">block_number</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">frame_system</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">block_number</span>();
 		<span class="kw">let</span> <span class="ident">half_session</span> <span class="op">=</span> <span class="ident">T</span>::<span class="ident">SessionDuration</span>::<span class="ident">get</span>() <span class="op">/</span> <span class="number">2</span>.<span class="ident">into</span>();
-		<span class="op">&lt;</span><span class="ident">GossipAt</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">put</span>(<span class="ident">block_number</span> <span class="op">+</span> <span class="ident">half_session</span>);
+		<span class="op">&lt;</span><span class="ident">HeartbeatAfter</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">put</span>(<span class="ident">block_number</span> <span class="op">+</span> <span class="ident">half_session</span>);
 
 		<span class="comment">// Remember who the authorities are for the new session.</span>
 		<span class="ident">Keys</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>::<span class="ident">put</span>(<span class="ident">validators</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="number">1</span>).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>());

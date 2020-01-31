@@ -12,6 +12,7 @@ ALIASES["arrayref"] = {};
 ALIASES["arrayvec"] = {};
 ALIASES["asn1_der"] = {};
 ALIASES["asn1_der_derive"] = {};
+ALIASES["assert_matches"] = {};
 ALIASES["async_std"] = {};
 ALIASES["async_task"] = {};
 ALIASES["async_tls"] = {};

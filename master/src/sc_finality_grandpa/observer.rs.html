@@ -381,6 +381,82 @@
 <span id="370">370</span>
 <span id="371">371</span>
 <span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
+<span id="401">401</span>
+<span id="402">402</span>
+<span id="403">403</span>
+<span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
+<span id="407">407</span>
+<span id="408">408</span>
+<span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
+<span id="438">438</span>
+<span id="439">439</span>
+<span id="440">440</span>
+<span id="441">441</span>
+<span id="442">442</span>
+<span id="443">443</span>
+<span id="444">444</span>
+<span id="445">445</span>
+<span id="446">446</span>
+<span id="447">447</span>
+<span id="448">448</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -752,6 +828,82 @@
 		}
 
 		<span class="ident">Future</span>::<span class="ident">poll</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">network</span>), <span class="ident">cx</span>)
+	}
+}
+
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
+<span class="kw">mod</span> <span class="ident">tests</span> {
+	<span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
+
+	<span class="kw">use</span> <span class="ident">assert_matches</span>::<span class="ident">assert_matches</span>;
+	<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">aux_schema</span>,	<span class="ident">communication</span>::<span class="ident">tests</span>::{<span class="ident">Event</span>, <span class="ident">make_test_network</span>}};
+	<span class="kw">use</span> <span class="ident">substrate_test_runtime_client</span>::{<span class="ident">TestClientBuilder</span>, <span class="ident">TestClientBuilderExt</span>};
+	<span class="kw">use</span> <span class="ident">sc_network</span>::<span class="ident">PeerId</span>;
+
+	<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">executor</span>::{<span class="self">self</span>, <span class="ident">ThreadPool</span>};
+
+	<span class="doccomment">/// Ensure `Future` implementation of `ObserverWork` is polling its `NetworkBridge`. Regression</span>
+	<span class="doccomment">/// test for bug introduced in d4fbb897c and fixed in b7af8b339.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// When polled, `NetworkBridge` forwards reputation change requests from the `GossipValidator`</span>
+	<span class="doccomment">/// to the underlying `dyn Network`. This test triggers a reputation change by calling</span>
+	<span class="doccomment">/// `GossipValidator::validate` with an invalid gossip message. After polling the `ObserverWork`</span>
+	<span class="doccomment">/// which should poll the `NetworkBridge`, the reputation change should be forwarded to the test</span>
+	<span class="doccomment">/// network.</span>
+	<span class="attribute">#[<span class="ident">test</span>]</span>
+	<span class="kw">fn</span> <span class="ident">observer_work_polls_underlying_network_bridge</span>() {
+		<span class="kw">let</span> <span class="ident">thread_pool</span> <span class="op">=</span> <span class="ident">ThreadPool</span>::<span class="ident">new</span>().<span class="ident">unwrap</span>();
+
+		<span class="comment">// Create a test network.</span>
+		<span class="kw">let</span> (<span class="ident">tester_fut</span>, <span class="ident">_network</span>) <span class="op">=</span> <span class="ident">make_test_network</span>(<span class="kw-2">&amp;</span><span class="ident">thread_pool</span>);
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">tester</span> <span class="op">=</span> <span class="ident">executor</span>::<span class="ident">block_on</span>(<span class="ident">tester_fut</span>);
+
+		<span class="comment">// Create an observer.</span>
+		<span class="kw">let</span> (<span class="ident">client</span>, <span class="ident">backend</span>) <span class="op">=</span> {
+			<span class="kw">let</span> <span class="ident">builder</span> <span class="op">=</span> <span class="ident">TestClientBuilder</span>::<span class="ident">with_default_backend</span>();
+			<span class="kw">let</span> <span class="ident">backend</span> <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">backend</span>();
+			<span class="kw">let</span> (<span class="ident">client</span>, <span class="kw">_</span>) <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">build_with_longest_chain</span>();
+			(<span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">client</span>), <span class="ident">backend</span>)
+		};
+
+		<span class="kw">let</span> <span class="ident">persistent_data</span> <span class="op">=</span> <span class="ident">aux_schema</span>::<span class="ident">load_persistent</span>(
+			<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">backend</span>,
+			<span class="ident">client</span>.<span class="ident">chain_info</span>().<span class="ident">genesis_hash</span>,
+			<span class="number">0</span>,
+			<span class="op">|</span><span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="macro">vec</span><span class="macro">!</span>[]),
+		).<span class="ident">unwrap</span>();
+
+		<span class="kw">let</span> (<span class="ident">_tx</span>, <span class="ident">voter_command_rx</span>) <span class="op">=</span> <span class="ident">mpsc</span>::<span class="ident">unbounded</span>();
+		<span class="kw">let</span> <span class="ident">observer</span> <span class="op">=</span> <span class="ident">ObserverWork</span>::<span class="ident">new</span>(
+			<span class="ident">client</span>,
+			<span class="ident">tester</span>.<span class="ident">net_handle</span>.<span class="ident">clone</span>(),
+			<span class="ident">persistent_data</span>,
+			<span class="prelude-val">None</span>,
+			<span class="ident">voter_command_rx</span>,
+		);
+
+		<span class="comment">// Trigger a reputation change through the gossip validator.</span>
+		<span class="kw">let</span> <span class="ident">peer_id</span> <span class="op">=</span> <span class="ident">PeerId</span>::<span class="ident">random</span>();
+		<span class="ident">tester</span>.<span class="ident">trigger_gossip_validator_reputation_change</span>(<span class="kw-2">&amp;</span><span class="ident">peer_id</span>);
+
+		<span class="ident">executor</span>::<span class="ident">block_on</span>(<span class="kw">async</span> <span class="kw">move</span> {
+			<span class="comment">// Ignore initial event stream request by gossip engine.</span>
+			<span class="kw">match</span> <span class="ident">tester</span>.<span class="ident">events</span>.<span class="ident">next</span>().<span class="ident">now_or_never</span>() {
+				<span class="prelude-val">Some</span>(<span class="prelude-val">Some</span>(<span class="ident">Event</span>::<span class="ident">EventStream</span>(<span class="kw">_</span>))) <span class="op">=</span><span class="op">&gt;</span> {},
+				<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;expected event stream request&quot;</span>),
+			};
+
+			<span class="macro">assert</span><span class="macro">!</span>(
+				<span class="ident">tester</span>.<span class="ident">events</span>.<span class="ident">next</span>().<span class="ident">now_or_never</span>().<span class="ident">is_none</span>(),
+				<span class="string">&quot;expect no further network events&quot;</span>,
+			);
+
+			<span class="comment">// Poll the observer once and have it forward the reputation change from the gossip</span>
+			<span class="comment">// validator to the test network.</span>
+			<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">observer</span>.<span class="ident">now_or_never</span>().<span class="ident">is_none</span>());
+
+			<span class="macro">assert_matches</span><span class="macro">!</span>(<span class="ident">tester</span>.<span class="ident">events</span>.<span class="ident">next</span>().<span class="ident">now_or_never</span>(), <span class="prelude-val">Some</span>(<span class="prelude-val">Some</span>(<span class="ident">Event</span>::<span class="ident">Report</span>(<span class="kw">_</span>, <span class="kw">_</span>))));
+		});
 	}
 }
 </pre></div>
