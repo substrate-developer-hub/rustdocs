@@ -266,6 +266,7 @@ ALIASES["pallet_babe"] = {};
 ALIASES["pallet_balances"] = {};
 ALIASES["pallet_collective"] = {};
 ALIASES["pallet_contracts"] = {};
+ALIASES["pallet_contracts_primitives"] = {};
 ALIASES["pallet_contracts_rpc"] = {};
 ALIASES["pallet_contracts_rpc_runtime_api"] = {};
 ALIASES["pallet_democracy"] = {};
