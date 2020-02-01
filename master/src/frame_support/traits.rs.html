@@ -811,8 +811,6 @@
 <span id="800">800</span>
 <span id="801">801</span>
 <span id="802">802</span>
-<span id="803">803</span>
-<span id="804">804</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -880,13 +878,6 @@
 	<span class="kw">fn</span> <span class="ident">count</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> { <span class="self">Self</span>::<span class="ident">sorted_members</span>().<span class="ident">len</span>() }
 }
 
-<span class="doccomment">/// The account with the given id was killed.</span>
-<span class="attribute">#[<span class="ident">impl_trait_for_tuples</span>::<span class="ident">impl_for_tuples</span>(<span class="number">30</span>)]</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">OnFreeBalanceZero</span><span class="op">&lt;</span><span class="ident">AccountId</span><span class="op">&gt;</span> {
-	<span class="doccomment">/// The account with the given id was killed.</span>
-	<span class="kw">fn</span> <span class="ident">on_free_balance_zero</span>(<span class="ident">who</span>: <span class="kw-2">&amp;</span><span class="ident">AccountId</span>);
-}
-
 <span class="doccomment">/// The account with the given id was reaped.</span>
 <span class="attribute">#[<span class="ident">impl_trait_for_tuples</span>::<span class="ident">impl_for_tuples</span>(<span class="number">30</span>)]</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">OnReapAccount</span><span class="op">&lt;</span><span class="ident">AccountId</span><span class="op">&gt;</span> {
@@ -900,6 +891,12 @@
 	<span class="ident">Updated</span>,
 	<span class="doccomment">/// The update led to killing the account.</span>
 	<span class="ident">AccountKilled</span>,
+	<span class="doccomment">/// Free balance became zero as a result of this update.</span>
+	<span class="ident">FreeBalanceZero</span>,
+	<span class="doccomment">/// Reserved balance became zero as a result of this update.</span>
+	<span class="ident">ReservedBalanceZero</span>,
+	<span class="doccomment">/// The account started and ended non-existent.</span>
+	<span class="ident">StillDead</span>,
 }
 
 <span class="doccomment">/// A trait for finding the author of a block header based on the `PreRuntime` digests contained</span>
@@ -1192,9 +1189,7 @@
 	<span class="doccomment">/// This is the only balance that matters in terms of most operations on tokens. It alone</span>
 	<span class="doccomment">/// is used to determine the balance when in the contract execution environment. When this</span>
 	<span class="doccomment">/// balance falls below the value of `ExistentialDeposit`, then the &#39;current account&#39; is</span>
-	<span class="doccomment">/// deleted: specifically `FreeBalance`. Further, the `OnFreeBalanceZero` callback</span>
-	<span class="doccomment">/// is invoked, giving a chance to external modules to clean up data associated with</span>
-	<span class="doccomment">/// the deleted account.</span>
+	<span class="doccomment">/// deleted: specifically `FreeBalance`.</span>
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// `system::AccountNonce` is also deleted if `ReservedBalance` is also zero (it also gets</span>
 	<span class="doccomment">/// collapsed to zero if it ever becomes less than `ExistentialDeposit`.</span>
@@ -1397,7 +1392,6 @@
 		<span class="ident">id</span>: <span class="ident">LockIdentifier</span>,
 		<span class="ident">who</span>: <span class="kw-2">&amp;</span><span class="ident">AccountId</span>,
 		<span class="ident">amount</span>: <span class="self">Self</span>::<span class="ident">Balance</span>,
-		<span class="ident">until</span>: <span class="self">Self</span>::<span class="ident">Moment</span>,
 		<span class="ident">reasons</span>: <span class="ident">WithdrawReasons</span>,
 	);
 
@@ -1408,13 +1402,11 @@
 	<span class="doccomment">/// applies the most severe constraints of the two, while `set_lock` replaces the lock</span>
 	<span class="doccomment">/// with the new parameters. As in, `extend_lock` will set:</span>
 	<span class="doccomment">/// - maximum `amount`</span>
-	<span class="doccomment">/// - farthest duration (`until`)</span>
 	<span class="doccomment">/// - bitwise mask of all `reasons`</span>
 	<span class="kw">fn</span> <span class="ident">extend_lock</span>(
 		<span class="ident">id</span>: <span class="ident">LockIdentifier</span>,
 		<span class="ident">who</span>: <span class="kw-2">&amp;</span><span class="ident">AccountId</span>,
 		<span class="ident">amount</span>: <span class="self">Self</span>::<span class="ident">Balance</span>,
-		<span class="ident">until</span>: <span class="self">Self</span>::<span class="ident">Moment</span>,
 		<span class="ident">reasons</span>: <span class="ident">WithdrawReasons</span>,
 	);
 
@@ -1425,13 +1417,17 @@
 	);
 }
 
-<span class="doccomment">/// A currency whose accounts can have balances which vest over time.</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">VestingCurrency</span><span class="op">&lt;</span><span class="ident">AccountId</span><span class="op">&gt;</span>: <span class="ident">Currency</span><span class="op">&lt;</span><span class="ident">AccountId</span><span class="op">&gt;</span> {
+<span class="doccomment">/// A vesting schedule over a currency. This allows a particular currency to have vesting limits</span>
+<span class="doccomment">/// applied to it.</span>
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">VestingSchedule</span><span class="op">&lt;</span><span class="ident">AccountId</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// The quantity used to denote time; usually just a `BlockNumber`.</span>
 	<span class="kw">type</span> <span class="ident">Moment</span>;
 
+	<span class="doccomment">/// The currency that this schedule applies to.</span>
+	<span class="kw">type</span> <span class="ident">Currency</span>: <span class="ident">Currency</span><span class="op">&lt;</span><span class="ident">AccountId</span><span class="op">&gt;</span>;
+
 	<span class="doccomment">/// Get the amount that is currently being vested and cannot be transferred out of this account.</span>
-	<span class="kw">fn</span> <span class="ident">vesting_balance</span>(<span class="ident">who</span>: <span class="kw-2">&amp;</span><span class="ident">AccountId</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>::<span class="ident">Balance</span>;
+	<span class="kw">fn</span> <span class="ident">vesting_balance</span>(<span class="ident">who</span>: <span class="kw-2">&amp;</span><span class="ident">AccountId</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Currency</span> <span class="kw">as</span> <span class="ident">Currency</span><span class="op">&lt;</span><span class="ident">AccountId</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">Balance</span>;
 
 	<span class="doccomment">/// Adds a vesting schedule to a given account.</span>
 	<span class="doccomment">///</span>
@@ -1439,8 +1435,8 @@
 	<span class="doccomment">/// and nothing is updated.</span>
 	<span class="kw">fn</span> <span class="ident">add_vesting_schedule</span>(
 		<span class="ident">who</span>: <span class="kw-2">&amp;</span><span class="ident">AccountId</span>,
-		<span class="ident">locked</span>: <span class="self">Self</span>::<span class="ident">Balance</span>,
-		<span class="ident">per_block</span>: <span class="self">Self</span>::<span class="ident">Balance</span>,
+		<span class="ident">locked</span>: <span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Currency</span> <span class="kw">as</span> <span class="ident">Currency</span><span class="op">&lt;</span><span class="ident">AccountId</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">Balance</span>,
+		<span class="ident">per_block</span>: <span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Currency</span> <span class="kw">as</span> <span class="ident">Currency</span><span class="op">&lt;</span><span class="ident">AccountId</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">Balance</span>,
 		<span class="ident">starting_block</span>: <span class="self">Self</span>::<span class="ident">Moment</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">DispatchResult</span>;
 
@@ -1460,7 +1456,7 @@
 		<span class="ident">TransactionPayment</span> <span class="op">=</span> <span class="number">0b00000001</span>,
 		<span class="doccomment">/// In order to transfer ownership.</span>
 		<span class="ident">Transfer</span> <span class="op">=</span> <span class="number">0b00000010</span>,
-		<span class="doccomment">/// In order to reserve some funds for a later return or repatriation</span>
+		<span class="doccomment">/// In order to reserve some funds for a later return or repatriation.</span>
 		<span class="ident">Reserve</span> <span class="op">=</span> <span class="number">0b00000100</span>,
 		<span class="doccomment">/// In order to pay some other (higher-level) fees.</span>
 		<span class="ident">Fee</span> <span class="op">=</span> <span class="number">0b00001000</span>,

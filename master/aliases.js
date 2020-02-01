@@ -298,6 +298,7 @@ ALIASES["pallet_transaction_payment_rpc"] = {};
 ALIASES["pallet_transaction_payment_rpc_runtime_api"] = {};
 ALIASES["pallet_treasury"] = {};
 ALIASES["pallet_utility"] = {};
+ALIASES["pallet_vesting"] = {};
 ALIASES["parity_bytes"] = {};
 ALIASES["parity_multiaddr"] = {};
 ALIASES["parity_multihash"] = {};
