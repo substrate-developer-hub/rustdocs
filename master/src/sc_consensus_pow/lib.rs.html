@@ -684,6 +684,8 @@
 <span id="673">673</span>
 <span id="674">674</span>
 <span id="675">675</span>
+<span id="676">676</span>
+<span id="677">677</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -717,6 +719,8 @@
 <span class="doccomment">//! clients.</span>
 
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">any</span>::<span class="ident">Any</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">borrow</span>::<span class="ident">Cow</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">thread</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">marker</span>::<span class="ident">PhantomData</span>;
@@ -750,8 +754,6 @@
 	<span class="ident">InvalidSeal</span>,
 	<span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;PoW validation error: invalid difficulty&quot;</span>)]</span>
 	<span class="ident">InvalidDifficulty</span>,
-	<span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;PoW block import expects an intermediate, but not found one&quot;</span>)]</span>
-	<span class="ident">NoIntermediate</span>,
 	<span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Rejecting block too far in future&quot;</span>)]</span>
 	<span class="ident">TooFarInFuture</span>,
 	<span class="attribute">#[<span class="ident">display</span>(<span class="ident">fmt</span> <span class="op">=</span> <span class="string">&quot;Fetching best header failed using select chain: {:?}&quot;</span>, <span class="ident">_0</span>)]</span>
@@ -944,6 +946,7 @@
 	<span class="ident">C</span>: <span class="ident">ProvideRuntimeApi</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="ident">HeaderBackend</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">AuxStore</span> <span class="op">+</span> <span class="ident">ProvideCache</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">BlockOf</span>,
 	<span class="ident">C</span>::<span class="ident">Api</span>: <span class="ident">BlockBuilderApi</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">sp_blockchain</span>::<span class="ident">Error</span><span class="op">&gt;</span>,
 	<span class="ident">Algorithm</span>: <span class="ident">PowAlgorithm</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+	<span class="ident">Algorithm</span>::<span class="ident">Difficulty</span>: <span class="lifetime">&#39;static</span>,
 {
 	<span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ConsensusError</span>;
 	<span class="kw">type</span> <span class="ident">Transaction</span> <span class="op">=</span> <span class="ident">sp_api</span>::<span class="ident">TransactionFor</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">B</span><span class="op">&gt;</span>;
@@ -999,10 +1002,9 @@
 			<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>::<span class="ident">HeaderUnsealed</span>(<span class="ident">block</span>.<span class="ident">header</span>.<span class="ident">hash</span>()).<span class="ident">into</span>()),
 		};
 
-		<span class="kw">let</span> <span class="ident">intermediate</span> <span class="op">=</span> <span class="ident">PowIntermediate</span>::<span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Algorithm</span>::<span class="ident">Difficulty</span><span class="op">&gt;</span>::<span class="ident">decode</span>(
-			<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="ident">block</span>.<span class="ident">intermediates</span>.<span class="ident">remove</span>(<span class="ident">INTERMEDIATE_KEY</span>)
-				.<span class="ident">ok_or</span>(<span class="ident">Error</span>::<span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>::<span class="ident">NoIntermediate</span>)<span class="question-mark">?</span>[..]
-		).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">Error</span>::<span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>::<span class="ident">NoIntermediate</span>)<span class="question-mark">?</span>;
+		<span class="kw">let</span> <span class="ident">intermediate</span> <span class="op">=</span> <span class="ident">block</span>.<span class="ident">take_intermediate</span>::<span class="op">&lt;</span><span class="ident">PowIntermediate</span>::<span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Algorithm</span>::<span class="ident">Difficulty</span><span class="op">&gt;</span><span class="op">&gt;</span>(
+			<span class="ident">INTERMEDIATE_KEY</span>
+		)<span class="question-mark">?</span>;
 
 		<span class="kw">let</span> <span class="ident">difficulty</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">intermediate</span>.<span class="ident">difficulty</span> {
 			<span class="prelude-val">Some</span>(<span class="ident">difficulty</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">difficulty</span>,
@@ -1079,6 +1081,7 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">Algorithm</span><span class="op">&gt;</span> <span class="ident">Verifier</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">PowVerifier</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Algorithm</span><span class="op">&gt;</span> <span class="kw">where</span>
 	<span class="ident">Algorithm</span>: <span class="ident">PowAlgorithm</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
+	<span class="ident">Algorithm</span>::<span class="ident">Difficulty</span>: <span class="lifetime">&#39;static</span>,
 {
 	<span class="kw">fn</span> <span class="ident">verify</span>(
 		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
@@ -1105,7 +1108,7 @@
 			<span class="ident">justification</span>,
 			<span class="ident">intermediates</span>: {
 				<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ret</span> <span class="op">=</span> <span class="ident">HashMap</span>::<span class="ident">new</span>();
-				<span class="ident">ret</span>.<span class="ident">insert</span>(<span class="ident">INTERMEDIATE_KEY</span>.<span class="ident">to_vec</span>(), <span class="ident">intermediate</span>.<span class="ident">encode</span>());
+				<span class="ident">ret</span>.<span class="ident">insert</span>(<span class="ident">Cow</span>::<span class="ident">from</span>(<span class="ident">INTERMEDIATE_KEY</span>), <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">intermediate</span>) <span class="kw">as</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Any</span><span class="op">&gt;</span>);
 				<span class="ident">ret</span>
 			},
 			<span class="ident">auxiliary</span>: <span class="macro">vec</span><span class="macro">!</span>[],
@@ -1240,6 +1243,7 @@
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="kw">where</span>
 	<span class="ident">C</span>: <span class="ident">HeaderBackend</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">AuxStore</span> <span class="op">+</span> <span class="ident">ProvideRuntimeApi</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 	<span class="ident">Algorithm</span>: <span class="ident">PowAlgorithm</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+	<span class="ident">Algorithm</span>::<span class="ident">Difficulty</span>: <span class="lifetime">&#39;static</span>,
 	<span class="ident">E</span>: <span class="ident">Environment</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 	<span class="ident">E</span>::<span class="ident">Proposer</span>: <span class="ident">Proposer</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Transaction</span> <span class="op">=</span> <span class="ident">sp_api</span>::<span class="ident">TransactionFor</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">E</span>::<span class="ident">Error</span>: <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Debug</span>,
@@ -1346,7 +1350,7 @@
 			<span class="ident">storage_changes</span>: <span class="prelude-val">Some</span>(<span class="ident">proposal</span>.<span class="ident">storage_changes</span>),
 			<span class="ident">intermediates</span>: {
 				<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ret</span> <span class="op">=</span> <span class="ident">HashMap</span>::<span class="ident">new</span>();
-				<span class="ident">ret</span>.<span class="ident">insert</span>(<span class="ident">INTERMEDIATE_KEY</span>.<span class="ident">to_vec</span>(), <span class="ident">intermediate</span>.<span class="ident">encode</span>());
+				<span class="ident">ret</span>.<span class="ident">insert</span>(<span class="ident">Cow</span>::<span class="ident">from</span>(<span class="ident">INTERMEDIATE_KEY</span>), <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">intermediate</span>) <span class="kw">as</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Any</span><span class="op">&gt;</span>);
 				<span class="ident">ret</span>
 			},
 			<span class="ident">finalized</span>: <span class="bool-val">false</span>,
