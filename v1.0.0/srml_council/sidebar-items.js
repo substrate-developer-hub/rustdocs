@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["motions","Council voting system."],["seats","Council member seat candidacy, voting, approval, and maintenance."],["voting","Council proposal voting, tallying, and vetoing."]]});

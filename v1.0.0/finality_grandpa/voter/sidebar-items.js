@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["RoundData","Data necessary to participate in a round."],["Voter","A future that maintains and multiplexes between different rounds, and caches votes."],["VotingRound","Logic for a voter on a specific round."]],"trait":[["Environment","Necessary environment for a voter."]]});

@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["node_template"] = [{"text":"impl <a class=\"trait\" href=\"substrate_service/components/trait.ServiceFactory.html\" title=\"trait substrate_service::components::ServiceFactory\">ServiceFactory</a> for <a class=\"struct\" href=\"node_template/service/struct.Factory.html\" title=\"struct node_template::service::Factory\">Factory</a>","synthetic":false,"types":["node_template::service::Factory"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

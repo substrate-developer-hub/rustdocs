@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Chain","Chain API with subscriptions support."]],"trait":[["ChainApi","Substrate blockchain API"]]});

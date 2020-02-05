@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["NoiseInboundFuture","A future for inbound upgrades."],["NoiseOutboundFuture","A future for outbound upgrades."]]});

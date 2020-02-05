@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["InherentsPool","Inherents Pool"]]});

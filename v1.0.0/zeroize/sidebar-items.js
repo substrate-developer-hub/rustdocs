@@ -1,0 +1,1 @@
+initSidebarItems({"trait":[["Zeroize","Trait for securely erasing types from memory"],["ZeroizeWithDefault","Marker trait for types which can be zeroized with the `Default` value"]]});

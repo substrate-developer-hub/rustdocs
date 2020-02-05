@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["WsConfig","Represents the configuration for a websocket transport capability for libp2p. Must be put on top of another `Transport`."]]});
