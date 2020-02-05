@@ -607,6 +607,13 @@
 <span id="596">596</span>
 <span id="597">597</span>
 <span id="598">598</span>
+<span id="599">599</span>
+<span id="600">600</span>
+<span id="601">601</span>
+<span id="602">602</span>
+<span id="603">603</span>
+<span id="604">604</span>
+<span id="605">605</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -637,7 +644,7 @@
 	<span class="ident">Externals</span>, <span class="ident">ImportResolver</span>, <span class="ident">MemoryInstance</span>, <span class="ident">MemoryRef</span>, <span class="ident">Module</span>, <span class="ident">ModuleInstance</span>,
 	<span class="ident">ModuleRef</span>, <span class="ident">RuntimeArgs</span>, <span class="ident">RuntimeValue</span>, <span class="ident">Trap</span>, <span class="ident">TrapKind</span>, <span class="ident">memory_units</span>::<span class="ident">Pages</span>,
 };
-<span class="kw">use</span> <span class="ident">sp_wasm_interface</span>::{<span class="ident">Pointer</span>, <span class="ident">WordSize</span>};
+<span class="kw">use</span> <span class="ident">sp_wasm_interface</span>::{<span class="ident">FunctionContext</span>, <span class="ident">Pointer</span>, <span class="ident">WordSize</span>};
 
 <span class="doccomment">/// Index of a function inside the supervisor.</span>
 <span class="doccomment">///</span>
@@ -754,47 +761,9 @@
 <span class="doccomment">/// This trait encapsulates sandboxing capabilities.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// Note that this functions are only called in the `supervisor` context.</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">SandboxCapabilities</span> {
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">SandboxCapabilities</span>: <span class="ident">FunctionContext</span> {
 	<span class="doccomment">/// Represents a function reference into the supervisor environment.</span>
 	<span class="kw">type</span> <span class="ident">SupervisorFuncRef</span>;
-
-	<span class="doccomment">/// Returns a reference to an associated sandbox `Store`.</span>
-	<span class="kw">fn</span> <span class="ident">store</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">Store</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">SupervisorFuncRef</span><span class="op">&gt;</span>;
-
-	<span class="doccomment">/// Returns a mutable reference to an associated sandbox `Store`.</span>
-	<span class="kw">fn</span> <span class="ident">store_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Store</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">SupervisorFuncRef</span><span class="op">&gt;</span>;
-
-	<span class="doccomment">/// Allocate space of the specified length in the supervisor memory.</span>
-	<span class="doccomment">///</span>
-	<span class="doccomment">/// # Errors</span>
-	<span class="doccomment">///</span>
-	<span class="doccomment">/// Returns `Err` if allocation not possible or errors during heap management.</span>
-	<span class="doccomment">///</span>
-	<span class="doccomment">/// Returns pointer to the allocated block.</span>
-	<span class="kw">fn</span> <span class="ident">allocate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">len</span>: <span class="ident">WordSize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Pointer</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>;
-
-	<span class="doccomment">/// Deallocate space specified by the pointer that was previously returned by [`allocate`].</span>
-	<span class="doccomment">///</span>
-	<span class="doccomment">/// # Errors</span>
-	<span class="doccomment">///</span>
-	<span class="doccomment">/// Returns `Err` if deallocation not possible or because of errors in heap management.</span>
-	<span class="doccomment">///</span>
-	<span class="doccomment">/// [`allocate`]: #tymethod.allocate</span>
-	<span class="kw">fn</span> <span class="ident">deallocate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">ptr</span>: <span class="ident">Pointer</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>;
-
-	<span class="doccomment">/// Write `data` into the supervisor memory at offset specified by `ptr`.</span>
-	<span class="doccomment">///</span>
-	<span class="doccomment">/// # Errors</span>
-	<span class="doccomment">///</span>
-	<span class="doccomment">/// Returns `Err` if `ptr + data.len()` is out of bounds.</span>
-	<span class="kw">fn</span> <span class="ident">write_memory</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">ptr</span>: <span class="ident">Pointer</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>;
-
-	<span class="doccomment">/// Read `len` bytes from the supervisor memory.</span>
-	<span class="doccomment">///</span>
-	<span class="doccomment">/// # Errors</span>
-	<span class="doccomment">///</span>
-	<span class="doccomment">/// Returns `Err` if `ptr + len` is out of bounds.</span>
-	<span class="kw">fn</span> <span class="ident">read_memory</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">ptr</span>: <span class="ident">Pointer</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">len</span>: <span class="ident">WordSize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
 	<span class="doccomment">/// Invoke a function in the supervisor environment.</span>
 	<span class="doccomment">///</span>
@@ -880,8 +849,14 @@
 		<span class="comment">// Move serialized arguments inside the memory and invoke dispatch thunk and</span>
 		<span class="comment">// then free allocated memory.</span>
 		<span class="kw">let</span> <span class="ident">invoke_args_len</span> <span class="op">=</span> <span class="ident">invoke_args_data</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">WordSize</span>;
-		<span class="kw">let</span> <span class="ident">invoke_args_ptr</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">supervisor_externals</span>.<span class="ident">allocate</span>(<span class="ident">invoke_args_len</span>)<span class="question-mark">?</span>;
-		<span class="self">self</span>.<span class="ident">supervisor_externals</span>.<span class="ident">write_memory</span>(<span class="ident">invoke_args_ptr</span>, <span class="kw-2">&amp;</span><span class="ident">invoke_args_data</span>)<span class="question-mark">?</span>;
+		<span class="kw">let</span> <span class="ident">invoke_args_ptr</span> <span class="op">=</span> <span class="self">self</span>
+			.<span class="ident">supervisor_externals</span>
+			.<span class="ident">allocate_memory</span>(<span class="ident">invoke_args_len</span>)
+			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">trap</span>(<span class="string">&quot;Can&#39;t allocate memory in supervisor for the arguments&quot;</span>))<span class="question-mark">?</span>;
+		<span class="self">self</span>
+			.<span class="ident">supervisor_externals</span>
+			.<span class="ident">write_memory</span>(<span class="ident">invoke_args_ptr</span>, <span class="kw-2">&amp;</span><span class="ident">invoke_args_data</span>)
+			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">trap</span>(<span class="string">&quot;Can&#39;t write invoke args into memory&quot;</span>))<span class="question-mark">?</span>;
 		<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">supervisor_externals</span>.<span class="ident">invoke</span>(
 			<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">sandbox_instance</span>.<span class="ident">dispatch_thunk</span>,
 			<span class="ident">invoke_args_ptr</span>,
@@ -889,7 +864,10 @@
 			<span class="ident">state</span>,
 			<span class="ident">func_idx</span>,
 		)<span class="question-mark">?</span>;
-		<span class="self">self</span>.<span class="ident">supervisor_externals</span>.<span class="ident">deallocate</span>(<span class="ident">invoke_args_ptr</span>)<span class="question-mark">?</span>;
+		<span class="self">self</span>
+			.<span class="ident">supervisor_externals</span>
+			.<span class="ident">deallocate_memory</span>(<span class="ident">invoke_args_ptr</span>)
+			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">trap</span>(<span class="string">&quot;Can&#39;t deallocate memory for dispatch thunk&#39;s invoke arguments&quot;</span>))<span class="question-mark">?</span>;
 
 		<span class="comment">// dispatch_thunk returns pointer to serialized arguments.</span>
 		<span class="comment">// Unpack pointer and len of the serialized result data.</span>
@@ -902,9 +880,11 @@
 		};
 
 		<span class="kw">let</span> <span class="ident">serialized_result_val</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">supervisor_externals</span>
-			.<span class="ident">read_memory</span>(<span class="ident">serialized_result_val_ptr</span>, <span class="ident">serialized_result_val_len</span>)<span class="question-mark">?</span>;
+			.<span class="ident">read_memory</span>(<span class="ident">serialized_result_val_ptr</span>, <span class="ident">serialized_result_val_len</span>)
+			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">trap</span>(<span class="string">&quot;Can&#39;t read the serialized result from dispatch thunk&quot;</span>))<span class="question-mark">?</span>;
 		<span class="self">self</span>.<span class="ident">supervisor_externals</span>
-			.<span class="ident">deallocate</span>(<span class="ident">serialized_result_val_ptr</span>)<span class="question-mark">?</span>;
+			.<span class="ident">deallocate_memory</span>(<span class="ident">serialized_result_val_ptr</span>)
+			.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">trap</span>(<span class="string">&quot;Can&#39;t deallocate memory for dispatch thunk&#39;s result&quot;</span>))<span class="question-mark">?</span>;
 
 		<span class="ident">deserialize_result</span>(<span class="kw-2">&amp;</span><span class="ident">serialized_result_val</span>)
 	}
@@ -1043,6 +1023,46 @@
 	))
 }
 
+<span class="doccomment">/// An environment in which the guest module is instantiated.</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">GuestEnvironment</span> {
+	<span class="ident">imports</span>: <span class="ident">Imports</span>,
+	<span class="ident">guest_to_supervisor_mapping</span>: <span class="ident">GuestToSupervisorFunctionMapping</span>,
+}
+
+<span class="kw">impl</span> <span class="ident">GuestEnvironment</span> {
+	<span class="doccomment">/// Decodes an environment definition from the given raw bytes.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// Returns `Err` if the definition cannot be decoded.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">decode</span><span class="op">&lt;</span><span class="ident">FR</span><span class="op">&gt;</span>(
+		<span class="ident">store</span>: <span class="kw-2">&amp;</span><span class="ident">Store</span><span class="op">&lt;</span><span class="ident">FR</span><span class="op">&gt;</span>,
+		<span class="ident">raw_env_def</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">InstantiationError</span><span class="op">&gt;</span> {
+		<span class="kw">let</span> (<span class="ident">imports</span>, <span class="ident">guest_to_supervisor_mapping</span>) <span class="op">=</span>
+			<span class="ident">decode_environment_definition</span>(<span class="ident">raw_env_def</span>, <span class="kw-2">&amp;</span><span class="ident">store</span>.<span class="ident">memories</span>)<span class="question-mark">?</span>;
+		<span class="prelude-val">Ok</span>(<span class="self">Self</span> {
+			<span class="ident">imports</span>,
+			<span class="ident">guest_to_supervisor_mapping</span>,
+		})
+	}
+}
+
+<span class="doccomment">/// An unregistered sandboxed instance.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// To finish off the instantiation the user must call `register`.</span>
+<span class="attribute">#[<span class="ident">must_use</span>]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">UnregisteredInstance</span><span class="op">&lt;</span><span class="ident">FR</span><span class="op">&gt;</span> {
+	<span class="ident">sandbox_instance</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">SandboxInstance</span><span class="op">&lt;</span><span class="ident">FR</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">FR</span><span class="op">&gt;</span> <span class="ident">UnregisteredInstance</span><span class="op">&lt;</span><span class="ident">FR</span><span class="op">&gt;</span> {
+	<span class="doccomment">/// Finalizes instantiation of this module.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">register</span>(<span class="self">self</span>, <span class="ident">store</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">FR</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u32</span> {
+		<span class="comment">// At last, register the instance.</span>
+		<span class="kw">let</span> <span class="ident">instance_idx</span> <span class="op">=</span> <span class="ident">store</span>.<span class="ident">register_sandbox_instance</span>(<span class="self">self</span>.<span class="ident">sandbox_instance</span>);
+		<span class="ident">instance_idx</span>
+	}
+}
+
 <span class="doccomment">/// Instantiate a guest module and return it&#39;s index in the store.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// The guest module&#39;s code is specified in `wasm`. Environment that will be available to</span>
@@ -1057,18 +1077,16 @@
 <span class="doccomment">/// - Module in `wasm` is invalid or couldn&#39;t be instantiated.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// [`EnvironmentDefinition`]: ../sandbox/struct.EnvironmentDefinition.html</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">instantiate</span><span class="op">&lt;</span><span class="ident">FE</span>: <span class="ident">SandboxCapabilities</span><span class="op">&gt;</span>(
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">instantiate</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">FE</span>: <span class="ident">SandboxCapabilities</span><span class="op">&gt;</span>(
 	<span class="ident">supervisor_externals</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FE</span>,
 	<span class="ident">dispatch_thunk</span>: <span class="ident">FE</span>::<span class="ident">SupervisorFuncRef</span>,
 	<span class="ident">wasm</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
-	<span class="ident">raw_env_def</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
+	<span class="ident">host_env</span>: <span class="ident">GuestEnvironment</span>,
 	<span class="ident">state</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span>, <span class="ident">InstantiationError</span><span class="op">&gt;</span> {
-	<span class="kw">let</span> (<span class="ident">imports</span>, <span class="ident">guest_to_supervisor_mapping</span>) <span class="op">=</span>
-		<span class="ident">decode_environment_definition</span>(<span class="ident">raw_env_def</span>, <span class="kw-2">&amp;</span><span class="ident">supervisor_externals</span>.<span class="ident">store</span>().<span class="ident">memories</span>)<span class="question-mark">?</span>;
-
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">UnregisteredInstance</span><span class="op">&lt;</span><span class="ident">FE</span>::<span class="ident">SupervisorFuncRef</span><span class="op">&gt;</span>, <span class="ident">InstantiationError</span><span class="op">&gt;</span> {
 	<span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">Module</span>::<span class="ident">from_buffer</span>(<span class="ident">wasm</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">InstantiationError</span>::<span class="ident">ModuleDecoding</span>)<span class="question-mark">?</span>;
-	<span class="kw">let</span> <span class="ident">instance</span> <span class="op">=</span> <span class="ident">ModuleInstance</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">module</span>, <span class="kw-2">&amp;</span><span class="ident">imports</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">InstantiationError</span>::<span class="ident">Instantiation</span>)<span class="question-mark">?</span>;
+	<span class="kw">let</span> <span class="ident">instance</span> <span class="op">=</span> <span class="ident">ModuleInstance</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">module</span>, <span class="kw-2">&amp;</span><span class="ident">host_env</span>.<span class="ident">imports</span>)
+		.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">InstantiationError</span>::<span class="ident">Instantiation</span>)<span class="question-mark">?</span>;
 
 	<span class="kw">let</span> <span class="ident">sandbox_instance</span> <span class="op">=</span> <span class="ident">Rc</span>::<span class="ident">new</span>(<span class="ident">SandboxInstance</span> {
 		<span class="comment">// In general, it&#39;s not a very good idea to use `.not_started_instance()` for anything</span>
@@ -1076,7 +1094,7 @@
 		<span class="comment">// for the purpose of running `start` function which should be ok.</span>
 		<span class="ident">instance</span>: <span class="ident">instance</span>.<span class="ident">not_started_instance</span>().<span class="ident">clone</span>(),
 		<span class="ident">dispatch_thunk</span>,
-		<span class="ident">guest_to_supervisor_mapping</span>,
+		<span class="ident">guest_to_supervisor_mapping</span>: <span class="ident">host_env</span>.<span class="ident">guest_to_supervisor_mapping</span>,
 	});
 
 	<span class="ident">with_guest_externals</span>(
@@ -1090,11 +1108,7 @@
 		},
 	)<span class="question-mark">?</span>;
 
-	<span class="comment">// At last, register the instance.</span>
-	<span class="kw">let</span> <span class="ident">instance_idx</span> <span class="op">=</span> <span class="ident">supervisor_externals</span>
-		.<span class="ident">store_mut</span>()
-		.<span class="ident">register_sandbox_instance</span>(<span class="ident">sandbox_instance</span>);
-	<span class="prelude-val">Ok</span>(<span class="ident">instance_idx</span>)
+	<span class="prelude-val">Ok</span>(<span class="ident">UnregisteredInstance</span> { <span class="ident">sandbox_instance</span> })
 }
 
 <span class="doccomment">/// This struct keeps track of all sandboxed components.</span>
