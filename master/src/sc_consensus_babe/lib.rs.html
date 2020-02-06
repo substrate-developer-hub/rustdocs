@@ -1280,6 +1280,40 @@
 <span id="1269">1269</span>
 <span id="1270">1270</span>
 <span id="1271">1271</span>
+<span id="1272">1272</span>
+<span id="1273">1273</span>
+<span id="1274">1274</span>
+<span id="1275">1275</span>
+<span id="1276">1276</span>
+<span id="1277">1277</span>
+<span id="1278">1278</span>
+<span id="1279">1279</span>
+<span id="1280">1280</span>
+<span id="1281">1281</span>
+<span id="1282">1282</span>
+<span id="1283">1283</span>
+<span id="1284">1284</span>
+<span id="1285">1285</span>
+<span id="1286">1286</span>
+<span id="1287">1287</span>
+<span id="1288">1288</span>
+<span id="1289">1289</span>
+<span id="1290">1290</span>
+<span id="1291">1291</span>
+<span id="1292">1292</span>
+<span id="1293">1293</span>
+<span id="1294">1294</span>
+<span id="1295">1295</span>
+<span id="1296">1296</span>
+<span id="1297">1297</span>
+<span id="1298">1298</span>
+<span id="1299">1299</span>
+<span id="1300">1300</span>
+<span id="1301">1301</span>
+<span id="1302">1302</span>
+<span id="1303">1303</span>
+<span id="1304">1304</span>
+<span id="1305">1305</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1342,8 +1376,10 @@
 <span class="attribute">#![<span class="ident">forbid</span>(<span class="ident">unsafe_code</span>)]</span>
 <span class="attribute">#![<span class="ident">warn</span>(<span class="ident">missing_docs</span>)]</span>
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">sp_consensus_babe</span>::{
-	<span class="ident">BabeApi</span>, <span class="ident">ConsensusLog</span>, <span class="ident">BABE_ENGINE_ID</span>, <span class="ident">BabePreDigest</span>, <span class="ident">SlotNumber</span>, <span class="ident">BabeConfiguration</span>,
-	<span class="ident">CompatibleDigestItem</span>,
+	<span class="ident">BabeApi</span>, <span class="ident">ConsensusLog</span>, <span class="ident">BABE_ENGINE_ID</span>, <span class="ident">SlotNumber</span>, <span class="ident">BabeConfiguration</span>,
+	<span class="ident">AuthorityId</span>, <span class="ident">AuthorityPair</span>, <span class="ident">AuthoritySignature</span>,
+	<span class="ident">BabeAuthorityWeight</span>, <span class="ident">VRF_OUTPUT_LENGTH</span>,
+	<span class="ident">digests</span>::{<span class="ident">PreDigest</span>, <span class="ident">CompatibleDigestItem</span>, <span class="ident">NextEpochDescriptor</span>},
 };
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">sp_consensus</span>::<span class="ident">SyncOracle</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">collections</span>::<span class="ident">HashMap</span>, <span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">u64</span>, <span class="ident">pin</span>::<span class="ident">Pin</span>, <span class="ident">time</span>::{<span class="ident">Instant</span>, <span class="ident">Duration</span>}};
@@ -1384,26 +1420,58 @@
 <span class="kw">use</span> <span class="ident">sc_consensus_slots</span>::{
 	<span class="ident">SlotWorker</span>, <span class="ident">SlotInfo</span>, <span class="ident">SlotCompatible</span>, <span class="ident">StorageChanges</span>, <span class="ident">CheckedHeader</span>, <span class="ident">check_equivocation</span>,
 };
-<span class="kw">use</span> <span class="ident">epoch_changes</span>::<span class="ident">descendent_query</span>;
+<span class="kw">use</span> <span class="ident">sc_consensus_epochs</span>::{<span class="ident">descendent_query</span>, <span class="ident">SharedEpochChanges</span>, <span class="ident">EpochChangesFor</span>, <span class="ident">Epoch</span> <span class="kw">as</span> <span class="ident">EpochT</span>};
 <span class="kw">use</span> <span class="ident">sp_blockchain</span>::{
 	<span class="prelude-ty">Result</span> <span class="kw">as</span> <span class="ident">ClientResult</span>, <span class="ident">Error</span> <span class="kw">as</span> <span class="ident">ClientError</span>,
 	<span class="ident">HeaderBackend</span>, <span class="ident">ProvideCache</span>, <span class="ident">HeaderMetadata</span>
 };
 <span class="kw">use</span> <span class="ident">schnorrkel</span>::<span class="ident">SignatureError</span>;
-
+<span class="kw">use</span> <span class="ident">codec</span>::{<span class="ident">Encode</span>, <span class="ident">Decode</span>};
 <span class="kw">use</span> <span class="ident">sp_api</span>::<span class="ident">ApiExt</span>;
 
 <span class="kw">mod</span> <span class="ident">aux_schema</span>;
 <span class="kw">mod</span> <span class="ident">verification</span>;
-<span class="kw">mod</span> <span class="ident">epoch_changes</span>;
 <span class="kw">mod</span> <span class="ident">authorship</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">sp_consensus_babe</span>::{
-	<span class="ident">AuthorityId</span>, <span class="ident">AuthorityPair</span>, <span class="ident">AuthoritySignature</span>, <span class="ident">Epoch</span>, <span class="ident">NextEpochDescriptor</span>,
-};
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">epoch_changes</span>::{<span class="ident">EpochChanges</span>, <span class="ident">EpochChangesFor</span>, <span class="ident">SharedEpochChanges</span>};
 
+<span class="doccomment">/// BABE epoch information</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Decode</span>, <span class="ident">Encode</span>, <span class="ident">Default</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Clone</span>, <span class="ident">Debug</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Epoch</span> {
+	<span class="doccomment">/// The epoch index</span>
+	<span class="kw">pub</span> <span class="ident">epoch_index</span>: <span class="ident">u64</span>,
+	<span class="doccomment">/// The starting slot of the epoch,</span>
+	<span class="kw">pub</span> <span class="ident">start_slot</span>: <span class="ident">SlotNumber</span>,
+	<span class="doccomment">/// The duration of this epoch</span>
+	<span class="kw">pub</span> <span class="ident">duration</span>: <span class="ident">SlotNumber</span>,
+	<span class="doccomment">/// The authorities and their weights</span>
+	<span class="kw">pub</span> <span class="ident">authorities</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AuthorityId</span>, <span class="ident">BabeAuthorityWeight</span>)<span class="op">&gt;</span>,
+	<span class="doccomment">/// Randomness for this epoch</span>
+	<span class="kw">pub</span> <span class="ident">randomness</span>: [<span class="ident">u8</span>; <span class="ident">VRF_OUTPUT_LENGTH</span>],
+}
+
+<span class="kw">impl</span> <span class="ident">EpochT</span> <span class="kw">for</span> <span class="ident">Epoch</span> {
+	<span class="kw">type</span> <span class="ident">NextEpochDescriptor</span> <span class="op">=</span> <span class="ident">NextEpochDescriptor</span>;
+	<span class="kw">type</span> <span class="ident">SlotNumber</span> <span class="op">=</span> <span class="ident">SlotNumber</span>;
+
+	<span class="kw">fn</span> <span class="ident">increment</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">descriptor</span>: <span class="ident">NextEpochDescriptor</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Epoch</span> {
+		<span class="ident">Epoch</span> {
+			<span class="ident">epoch_index</span>: <span class="self">self</span>.<span class="ident">epoch_index</span> <span class="op">+</span> <span class="number">1</span>,
+			<span class="ident">start_slot</span>: <span class="self">self</span>.<span class="ident">start_slot</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">duration</span>,
+			<span class="ident">duration</span>: <span class="self">self</span>.<span class="ident">duration</span>,
+			<span class="ident">authorities</span>: <span class="ident">descriptor</span>.<span class="ident">authorities</span>,
+			<span class="ident">randomness</span>: <span class="ident">descriptor</span>.<span class="ident">randomness</span>,
+		}
+	}
+
+	<span class="kw">fn</span> <span class="ident">start_slot</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">SlotNumber</span> {
+		<span class="self">self</span>.<span class="ident">start_slot</span>
+	}
+
+	<span class="kw">fn</span> <span class="ident">end_slot</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">SlotNumber</span> {
+		<span class="self">self</span>.<span class="ident">start_slot</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">duration</span>
+	}
+}
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">derive_more</span>::<span class="ident">Display</span>, <span class="ident">Debug</span>)]</span>
 <span class="kw">enum</span> <span class="ident">Error</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> {
@@ -1626,7 +1694,7 @@
 	<span class="ident">sync_oracle</span>: <span class="ident">SO</span>,
 	<span class="ident">force_authoring</span>: <span class="ident">bool</span>,
 	<span class="ident">keystore</span>: <span class="ident">KeyStorePtr</span>,
-	<span class="ident">epoch_changes</span>: <span class="ident">SharedEpochChanges</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+	<span class="ident">epoch_changes</span>: <span class="ident">SharedEpochChanges</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Epoch</span><span class="op">&gt;</span>,
 	<span class="ident">config</span>: <span class="ident">Config</span>,
 }
 
@@ -1644,7 +1712,7 @@
 	<span class="ident">Error</span>: <span class="ident">std</span>::<span class="ident">error</span>::<span class="ident">Error</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">ConsensusError</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">I</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 {
 	<span class="kw">type</span> <span class="ident">EpochData</span> <span class="op">=</span> <span class="ident">Epoch</span>;
-	<span class="kw">type</span> <span class="ident">Claim</span> <span class="op">=</span> (<span class="ident">BabePreDigest</span>, <span class="ident">AuthorityPair</span>);
+	<span class="kw">type</span> <span class="ident">Claim</span> <span class="op">=</span> (<span class="ident">PreDigest</span>, <span class="ident">AuthorityPair</span>);
 	<span class="kw">type</span> <span class="ident">SyncOracle</span> <span class="op">=</span> <span class="ident">SO</span>;
 	<span class="kw">type</span> <span class="ident">CreateProposer</span> <span class="op">=</span> <span class="ident">Pin</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span>
 		<span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">E</span>::<span class="ident">Proposer</span>, <span class="ident">sp_consensus</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>
@@ -1816,12 +1884,12 @@
 
 <span class="doccomment">/// Extract the BABE pre digest from the given header. Pre-runtime digests are</span>
 <span class="doccomment">/// mandatory, the function will return `Err` if none is found.</span>
-<span class="kw">fn</span> <span class="ident">find_pre_digest</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span>(<span class="ident">header</span>: <span class="kw-2">&amp;</span><span class="ident">B</span>::<span class="ident">Header</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">BabePreDigest</span>, <span class="ident">Error</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>
+<span class="kw">fn</span> <span class="ident">find_pre_digest</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span>(<span class="ident">header</span>: <span class="kw-2">&amp;</span><span class="ident">B</span>::<span class="ident">Header</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">PreDigest</span>, <span class="ident">Error</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>
 {
 	<span class="comment">// genesis block doesn&#39;t contain a pre digest so let&#39;s generate a</span>
 	<span class="comment">// dummy one to not break any invariants in the rest of the code</span>
 	<span class="kw">if</span> <span class="ident">header</span>.<span class="ident">number</span>().<span class="ident">is_zero</span>() {
-		<span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">BabePreDigest</span>::<span class="ident">Secondary</span> {
+		<span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">PreDigest</span>::<span class="ident">Secondary</span> {
 			<span class="ident">slot_number</span>: <span class="number">0</span>,
 			<span class="ident">authority_index</span>: <span class="number">0</span>,
 		});
@@ -1880,7 +1948,7 @@
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BabeLink</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> {
 	<span class="ident">time_source</span>: <span class="ident">TimeSource</span>,
-	<span class="ident">epoch_changes</span>: <span class="ident">SharedEpochChanges</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
+	<span class="ident">epoch_changes</span>: <span class="ident">SharedEpochChanges</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Epoch</span><span class="op">&gt;</span>,
 	<span class="ident">config</span>: <span class="ident">Config</span>,
 }
 <span class="doccomment">/// A verifier for Babe blocks.</span>
@@ -1889,7 +1957,7 @@
 	<span class="ident">api</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PRA</span><span class="op">&gt;</span>,
 	<span class="ident">inherent_data_providers</span>: <span class="ident">sp_inherents</span>::<span class="ident">InherentDataProviders</span>,
 	<span class="ident">config</span>: <span class="ident">Config</span>,
-	<span class="ident">epoch_changes</span>: <span class="ident">SharedEpochChanges</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
+	<span class="ident">epoch_changes</span>: <span class="ident">SharedEpochChanges</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Epoch</span><span class="op">&gt;</span>,
 	<span class="ident">time_source</span>: <span class="ident">TimeSource</span>,
 }
 
@@ -1994,7 +2062,7 @@
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">inherent_data</span> <span class="op">=</span> <span class="self">self</span>
 			.<span class="ident">inherent_data_providers</span>
 			.<span class="ident">create_inherent_data</span>()
-			.<span class="ident">map_err</span>( <span class="ident">Error</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>::<span class="ident">Runtime</span>)<span class="question-mark">?</span>;
+			.<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>::<span class="ident">Runtime</span>)<span class="question-mark">?</span>;
 
 		<span class="kw">let</span> (<span class="kw">_</span>, <span class="ident">slot_now</span>, <span class="kw">_</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">time_source</span>.<span class="ident">extract_timestamp_and_slot</span>(<span class="kw-2">&amp;</span><span class="ident">inherent_data</span>)
 			.<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>::<span class="ident">Extraction</span>)<span class="question-mark">?</span>;
@@ -2138,7 +2206,7 @@
 	<span class="ident">inner</span>: <span class="ident">I</span>,
 	<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">api</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PRA</span><span class="op">&gt;</span>,
-	<span class="ident">epoch_changes</span>: <span class="ident">SharedEpochChanges</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
+	<span class="ident">epoch_changes</span>: <span class="ident">SharedEpochChanges</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Epoch</span><span class="op">&gt;</span>,
 	<span class="ident">config</span>: <span class="ident">Config</span>,
 }
 
@@ -2158,7 +2226,7 @@
 	<span class="kw">fn</span> <span class="ident">new</span>(
 		<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 		<span class="ident">api</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PRA</span><span class="op">&gt;</span>,
-		<span class="ident">epoch_changes</span>: <span class="ident">SharedEpochChanges</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
+		<span class="ident">epoch_changes</span>: <span class="ident">SharedEpochChanges</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Epoch</span><span class="op">&gt;</span>,
 		<span class="ident">block_import</span>: <span class="ident">I</span>,
 		<span class="ident">config</span>: <span class="ident">Config</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
@@ -2397,7 +2465,7 @@
 <span class="doccomment">/// Gets the best finalized block and its slot, and prunes the given epoch tree.</span>
 <span class="kw">fn</span> <span class="ident">prune_finalized</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span>(
 	<span class="ident">client</span>: <span class="kw-2">&amp;</span><span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span>,
-	<span class="ident">epoch_changes</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EpochChangesFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
+	<span class="ident">epoch_changes</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EpochChangesFor</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Epoch</span><span class="op">&gt;</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ConsensusError</span><span class="op">&gt;</span> <span class="kw">where</span>
 	<span class="ident">Block</span>: <span class="ident">BlockT</span>,
 	<span class="ident">E</span>: <span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
@@ -2444,7 +2512,7 @@
 	<span class="ident">RA</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
 	<span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span>: <span class="ident">AuxStore</span>,
 {
-	<span class="kw">let</span> <span class="ident">epoch_changes</span> <span class="op">=</span> <span class="ident">aux_schema</span>::<span class="ident">load_epoch_changes</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">client</span>)<span class="question-mark">?</span>;
+	<span class="kw">let</span> <span class="ident">epoch_changes</span> <span class="op">=</span> <span class="ident">aux_schema</span>::<span class="ident">load_epoch_changes</span>::<span class="op">&lt;</span><span class="ident">Block</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">client</span>)<span class="question-mark">?</span>;
 	<span class="kw">let</span> <span class="ident">link</span> <span class="op">=</span> <span class="ident">BabeLink</span> {
 		<span class="ident">epoch_changes</span>: <span class="ident">epoch_changes</span>.<span class="ident">clone</span>(),
 		<span class="ident">time_source</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
@@ -2528,7 +2596,7 @@
 		<span class="ident">client</span>: <span class="kw-2">&amp;</span><span class="ident">C</span>,
 		<span class="ident">keystore</span>: <span class="kw-2">&amp;</span><span class="ident">KeyStorePtr</span>,
 		<span class="ident">link</span>: <span class="kw-2">&amp;</span><span class="ident">BabeLink</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
-	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">BabePreDigest</span><span class="op">&gt;</span> <span class="kw">where</span>
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PreDigest</span><span class="op">&gt;</span> <span class="kw">where</span>
 		<span class="ident">B</span>: <span class="ident">BlockT</span>,
 		<span class="ident">C</span>: <span class="ident">ProvideRuntimeApi</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span>
 			<span class="ident">ProvideCache</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span>

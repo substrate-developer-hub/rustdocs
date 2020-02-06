@@ -561,6 +561,7 @@
 <span id="550">550</span>
 <span id="551">551</span>
 <span id="552">552</span>
+<span id="553">553</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -599,8 +600,9 @@
 <span class="kw">use</span> <span class="ident">codec</span>::{<span class="ident">Encode</span>, <span class="ident">Decode</span>};
 <span class="kw">use</span> <span class="ident">sp_inherents</span>::{<span class="ident">InherentIdentifier</span>, <span class="ident">InherentData</span>, <span class="ident">ProvideInherent</span>, <span class="ident">MakeFatalError</span>};
 <span class="kw">use</span> <span class="ident">sp_consensus_babe</span>::{
-	<span class="ident">BABE_ENGINE_ID</span>, <span class="ident">ConsensusLog</span>, <span class="ident">BabeAuthorityWeight</span>, <span class="ident">NextEpochDescriptor</span>, <span class="ident">RawBabePreDigest</span>,
-	<span class="ident">SlotNumber</span>, <span class="ident">inherents</span>::{<span class="ident">INHERENT_IDENTIFIER</span>, <span class="ident">BabeInherentData</span>}
+	<span class="ident">BABE_ENGINE_ID</span>, <span class="ident">ConsensusLog</span>, <span class="ident">BabeAuthorityWeight</span>, <span class="ident">SlotNumber</span>,
+	<span class="ident">inherents</span>::{<span class="ident">INHERENT_IDENTIFIER</span>, <span class="ident">BabeInherentData</span>},
+	<span class="ident">digests</span>::{<span class="ident">NextEpochDescriptor</span>, <span class="ident">RawPreDigest</span>},
 };
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">sp_consensus_babe</span>::{<span class="ident">AuthorityId</span>, <span class="ident">VRF_OUTPUT_LENGTH</span>, <span class="ident">PUBLIC_KEY_LENGTH</span>};
 
@@ -769,11 +771,11 @@
 	{
 		<span class="kw">for</span> (<span class="ident">id</span>, <span class="kw-2">mut</span> <span class="ident">data</span>) <span class="kw">in</span> <span class="ident">digests</span>.<span class="ident">into_iter</span>() {
 			<span class="kw">if</span> <span class="ident">id</span> <span class="op">=</span><span class="op">=</span> <span class="ident">BABE_ENGINE_ID</span> {
-				<span class="kw">let</span> <span class="ident">pre_digest</span> <span class="op">=</span> <span class="ident">RawBabePreDigest</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">data</span>).<span class="ident">ok</span>()<span class="question-mark">?</span>;
+				<span class="kw">let</span> <span class="ident">pre_digest</span> <span class="op">=</span> <span class="ident">RawPreDigest</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">data</span>).<span class="ident">ok</span>()<span class="question-mark">?</span>;
 				<span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="kw">match</span> <span class="ident">pre_digest</span> {
-					<span class="ident">RawBabePreDigest</span>::<span class="ident">Primary</span> { <span class="ident">authority_index</span>, .. } <span class="op">=</span><span class="op">&gt;</span>
+					<span class="ident">RawPreDigest</span>::<span class="ident">Primary</span> { <span class="ident">authority_index</span>, .. } <span class="op">=</span><span class="op">&gt;</span>
 						<span class="ident">authority_index</span>,
-					<span class="ident">RawBabePreDigest</span>::<span class="ident">Secondary</span> { <span class="ident">authority_index</span>, .. } <span class="op">=</span><span class="op">&gt;</span>
+					<span class="ident">RawPreDigest</span>::<span class="ident">Secondary</span> { <span class="ident">authority_index</span>, .. } <span class="op">=</span><span class="op">&gt;</span>
 						<span class="ident">authority_index</span>,
 				});
 			}
@@ -961,7 +963,7 @@
 			.<span class="ident">iter</span>()
 			.<span class="ident">filter_map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">s</span>.<span class="ident">as_pre_runtime</span>())
 			.<span class="ident">filter_map</span>(<span class="op">|</span>(<span class="ident">id</span>, <span class="kw-2">mut</span> <span class="ident">data</span>)<span class="op">|</span> <span class="kw">if</span> <span class="ident">id</span> <span class="op">=</span><span class="op">=</span> <span class="ident">BABE_ENGINE_ID</span> {
-				<span class="ident">RawBabePreDigest</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">data</span>).<span class="ident">ok</span>()
+				<span class="ident">RawPreDigest</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">data</span>).<span class="ident">ok</span>()
 			} <span class="kw">else</span> {
 				<span class="prelude-val">None</span>
 			})
@@ -988,7 +990,7 @@
 
 			<span class="ident">CurrentSlot</span>::<span class="ident">put</span>(<span class="ident">digest</span>.<span class="ident">slot_number</span>());
 
-			<span class="kw">if</span> <span class="kw">let</span> <span class="ident">RawBabePreDigest</span>::<span class="ident">Primary</span> { <span class="ident">vrf_output</span>, .. } <span class="op">=</span> <span class="ident">digest</span> {
+			<span class="kw">if</span> <span class="kw">let</span> <span class="ident">RawPreDigest</span>::<span class="ident">Primary</span> { <span class="ident">vrf_output</span>, .. } <span class="op">=</span> <span class="ident">digest</span> {
 				<span class="comment">// place the VRF output into the `Initialized` storage item</span>
 				<span class="comment">// and it&#39;ll be put onto the under-construction randomness</span>
 				<span class="comment">// later, once we&#39;ve decided which epoch this block is in.</span>
