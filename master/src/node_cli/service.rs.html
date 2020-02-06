@@ -638,6 +638,26 @@
 <span id="627">627</span>
 <span id="628">628</span>
 <span id="629">629</span>
+<span id="630">630</span>
+<span id="631">631</span>
+<span id="632">632</span>
+<span id="633">633</span>
+<span id="634">634</span>
+<span id="635">635</span>
+<span id="636">636</span>
+<span id="637">637</span>
+<span id="638">638</span>
+<span id="639">639</span>
+<span id="640">640</span>
+<span id="641">641</span>
+<span id="642">642</span>
+<span id="643">643</span>
+<span id="644">644</span>
+<span id="645">645</span>
+<span id="646">646</span>
+<span id="647">647</span>
+<span id="648">648</span>
+<span id="649">649</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1012,8 +1032,11 @@
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span> {
-	<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
-	<span class="kw">use</span> <span class="ident">sc_consensus_babe</span>::<span class="ident">CompatibleDigestItem</span>;
+	<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">collections</span>::<span class="ident">HashMap</span>, <span class="ident">borrow</span>::<span class="ident">Cow</span>, <span class="ident">any</span>::<span class="ident">Any</span>};
+	<span class="kw">use</span> <span class="ident">sc_consensus_babe</span>::{
+		<span class="ident">CompatibleDigestItem</span>, <span class="ident">BabeIntermediate</span>, <span class="ident">INTERMEDIATE_KEY</span>
+	};
+	<span class="kw">use</span> <span class="ident">sc_consensus_epochs</span>::<span class="ident">descendent_query</span>;
 	<span class="kw">use</span> <span class="ident">sp_consensus</span>::{
 		<span class="ident">Environment</span>, <span class="ident">Proposer</span>, <span class="ident">BlockImportParams</span>, <span class="ident">BlockOrigin</span>, <span class="ident">ForkChoiceStrategy</span>, <span class="ident">BlockImport</span>,
 		<span class="ident">RecordProof</span>,
@@ -1025,7 +1048,7 @@
 	<span class="kw">use</span> <span class="ident">sp_core</span>::{<span class="ident">crypto</span>::<span class="ident">Pair</span> <span class="kw">as</span> <span class="ident">CryptoPair</span>, <span class="ident">H256</span>};
 	<span class="kw">use</span> <span class="ident">sp_runtime</span>::{
 		<span class="ident">generic</span>::{<span class="ident">BlockId</span>, <span class="ident">Era</span>, <span class="ident">Digest</span>, <span class="ident">SignedPayload</span>},
-		<span class="ident">traits</span>::<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>,
+		<span class="ident">traits</span>::{<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">Header</span> <span class="kw">as</span> <span class="ident">HeaderT</span>},
 		<span class="ident">traits</span>::<span class="ident">Verify</span>,
 		<span class="ident">OpaqueExtrinsic</span>,
 	};
@@ -1140,10 +1163,20 @@
 
 				<span class="kw">let</span> <span class="ident">parent_id</span> <span class="op">=</span> <span class="ident">BlockId</span>::<span class="ident">number</span>(<span class="ident">service</span>.<span class="ident">client</span>().<span class="ident">chain_info</span>().<span class="ident">best_number</span>);
 				<span class="kw">let</span> <span class="ident">parent_header</span> <span class="op">=</span> <span class="ident">service</span>.<span class="ident">client</span>().<span class="ident">header</span>(<span class="kw-2">&amp;</span><span class="ident">parent_id</span>).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>();
+				<span class="kw">let</span> <span class="ident">parent_hash</span> <span class="op">=</span> <span class="ident">parent_header</span>.<span class="ident">hash</span>();
+				<span class="kw">let</span> <span class="ident">parent_number</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">parent_header</span>.<span class="ident">number</span>();
 				<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">proposer_factory</span> <span class="op">=</span> <span class="ident">sc_basic_authorship</span>::<span class="ident">ProposerFactory</span> {
 					<span class="ident">client</span>: <span class="ident">service</span>.<span class="ident">client</span>(),
 					<span class="ident">transaction_pool</span>: <span class="ident">service</span>.<span class="ident">transaction_pool</span>(),
 				};
+
+				<span class="kw">let</span> <span class="ident">epoch</span> <span class="op">=</span> <span class="ident">babe_link</span>.<span class="ident">epoch_changes</span>().<span class="ident">lock</span>().<span class="ident">epoch_for_child_of</span>(
+					<span class="ident">descendent_query</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">service</span>.<span class="ident">client</span>()),
+					<span class="kw-2">&amp;</span><span class="ident">parent_hash</span>,
+					<span class="ident">parent_number</span>,
+					<span class="ident">slot_num</span>,
+					<span class="op">|</span><span class="ident">slot</span><span class="op">|</span> <span class="ident">babe_link</span>.<span class="ident">config</span>().<span class="ident">genesis_epoch</span>(<span class="ident">slot</span>)
+				).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>();
 
 				<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">digest</span> <span class="op">=</span> <span class="ident">Digest</span>::<span class="op">&lt;</span><span class="ident">H256</span><span class="op">&gt;</span>::<span class="ident">default</span>();
 
@@ -1196,7 +1229,14 @@
 					<span class="ident">storage_changes</span>: <span class="prelude-val">None</span>,
 					<span class="ident">finalized</span>: <span class="bool-val">false</span>,
 					<span class="ident">auxiliary</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
-					<span class="ident">intermediates</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
+					<span class="ident">intermediates</span>: {
+						<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">intermediates</span> <span class="op">=</span> <span class="ident">HashMap</span>::<span class="ident">new</span>();
+						<span class="ident">intermediates</span>.<span class="ident">insert</span>(
+							<span class="ident">Cow</span>::<span class="ident">from</span>(<span class="ident">INTERMEDIATE_KEY</span>),
+							<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">BabeIntermediate</span> { <span class="ident">epoch</span> }) <span class="kw">as</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Any</span><span class="op">&gt;</span>,
+						);
+						<span class="ident">intermediates</span>
+					},
 					<span class="ident">fork_choice</span>: <span class="prelude-val">Some</span>(<span class="ident">ForkChoiceStrategy</span>::<span class="ident">LongestChain</span>),
 					<span class="ident">allow_missing_state</span>: <span class="bool-val">false</span>,
 					<span class="ident">import_existing</span>: <span class="bool-val">false</span>,
