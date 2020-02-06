@@ -292,6 +292,7 @@ ALIASES["pallet_society"] = {};
 ALIASES["pallet_staking"] = {};
 ALIASES["pallet_staking_reward_curve"] = {};
 ALIASES["pallet_sudo"] = {};
+ALIASES["pallet_template"] = {};
 ALIASES["pallet_timestamp"] = {};
 ALIASES["pallet_transaction_payment"] = {};
 ALIASES["pallet_transaction_payment_rpc"] = {};
