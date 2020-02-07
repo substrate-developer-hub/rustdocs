@@ -218,7 +218,6 @@ ALIASES["linked_hash_set"] = {};
 ALIASES["lock_api"] = {};
 ALIASES["log"] = {};
 ALIASES["lru"] = {};
-ALIASES["malloc_size_of_derive"] = {};
 ALIASES["matches"] = {};
 ALIASES["maybe_uninit"] = {};
 ALIASES["memchr"] = {};

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/futures-util-0.3.1/src/stream/futures_unordered/iter.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>iter.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../../light.css" id="themeStyle"><script src="../../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/futures-util-0.3.4/src/stream/futures_unordered/iter.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>iter.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../../light.css" id="themeStyle"><script src="../../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -111,11 +111,27 @@
 <span id="100">100</span>
 <span id="101">101</span>
 <span id="102">102</span>
+<span id="103">103</span>
+<span id="104">104</span>
+<span id="105">105</span>
+<span id="106">106</span>
+<span id="107">107</span>
+<span id="108">108</span>
+<span id="109">109</span>
+<span id="110">110</span>
+<span id="111">111</span>
+<span id="112">112</span>
+<span id="113">113</span>
+<span id="114">114</span>
+<span id="115">115</span>
+<span id="116">116</span>
+<span id="117">117</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">super</span>::<span class="ident">FuturesUnordered</span>;
 <span class="kw">use</span> <span class="kw">super</span>::<span class="ident">task</span>::<span class="ident">Task</span>;
 <span class="kw">use</span> <span class="ident">core</span>::<span class="ident">marker</span>::<span class="ident">PhantomData</span>;
 <span class="kw">use</span> <span class="ident">core</span>::<span class="ident">pin</span>::<span class="ident">Pin</span>;
+<span class="kw">use</span> <span class="ident">core</span>::<span class="ident">sync</span>::<span class="ident">atomic</span>::<span class="ident">Ordering</span>::<span class="ident">Relaxed</span>;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="doccomment">/// Mutable iterator over all futures in the unordered set.</span>
@@ -134,6 +150,7 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">IterPinRef</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">Fut</span><span class="op">&gt;</span> {
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">task</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">Task</span><span class="op">&lt;</span><span class="ident">Fut</span><span class="op">&gt;</span>,
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">len</span>: <span class="ident">usize</span>,
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">pending_next_all</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">Task</span><span class="op">&lt;</span><span class="ident">Fut</span><span class="op">&gt;</span>,
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">_marker</span>: <span class="ident">PhantomData</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">FuturesUnordered</span><span class="op">&lt;</span><span class="ident">Fut</span><span class="op">&gt;</span><span class="op">&gt;</span>
 }
 
@@ -150,7 +167,12 @@
         }
         <span class="kw">unsafe</span> {
             <span class="kw">let</span> <span class="ident">future</span> <span class="op">=</span> (<span class="kw-2">*</span>(<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">task</span>).<span class="ident">future</span>.<span class="ident">get</span>()).<span class="ident">as_mut</span>().<span class="ident">unwrap</span>();
-            <span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> <span class="kw-2">*</span>(<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">task</span>).<span class="ident">next_all</span>.<span class="ident">get</span>();
+
+            <span class="comment">// Mutable access to a previously shared `FuturesUnordered` implies</span>
+            <span class="comment">// that the other threads already released the object before the</span>
+            <span class="comment">// current thread acquired it, so relaxed ordering can be used and</span>
+            <span class="comment">// valid `next_all` checks can be skipped.</span>
+            <span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> (<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">task</span>).<span class="ident">next_all</span>.<span class="ident">load</span>(<span class="ident">Relaxed</span>);
             <span class="self">self</span>.<span class="ident">task</span> <span class="op">=</span> <span class="ident">next</span>;
             <span class="self">self</span>.<span class="ident">len</span> <span class="op">-</span><span class="op">=</span> <span class="number">1</span>;
             <span class="prelude-val">Some</span>(<span class="ident">Pin</span>::<span class="ident">new_unchecked</span>(<span class="ident">future</span>))
@@ -187,7 +209,15 @@
         }
         <span class="kw">unsafe</span> {
             <span class="kw">let</span> <span class="ident">future</span> <span class="op">=</span> (<span class="kw-2">*</span>(<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">task</span>).<span class="ident">future</span>.<span class="ident">get</span>()).<span class="ident">as_ref</span>().<span class="ident">unwrap</span>();
-            <span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> <span class="kw-2">*</span>(<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">task</span>).<span class="ident">next_all</span>.<span class="ident">get</span>();
+
+            <span class="comment">// Relaxed ordering can be used since acquire ordering when</span>
+            <span class="comment">// `head_all` was initially read for this iterator implies acquire</span>
+            <span class="comment">// ordering for all previously inserted nodes (and we don&#39;t need to</span>
+            <span class="comment">// read `len_all` again for any other nodes).</span>
+            <span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> (<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">task</span>).<span class="ident">spin_next_all</span>(
+                <span class="self">self</span>.<span class="ident">pending_next_all</span>,
+                <span class="ident">Relaxed</span>,
+            );
             <span class="self">self</span>.<span class="ident">task</span> <span class="op">=</span> <span class="ident">next</span>;
             <span class="self">self</span>.<span class="ident">len</span> <span class="op">-</span><span class="op">=</span> <span class="number">1</span>;
             <span class="prelude-val">Some</span>(<span class="ident">Pin</span>::<span class="ident">new_unchecked</span>(<span class="ident">future</span>))

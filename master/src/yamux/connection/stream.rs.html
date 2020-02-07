@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/yamux-0.4.1/src/connection/stream.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>stream.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/yamux-0.4.2/src/connection/stream.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>stream.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -390,6 +390,53 @@
 <span id="379">379</span>
 <span id="380">380</span>
 <span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
+<span id="401">401</span>
+<span id="402">402</span>
+<span id="403">403</span>
+<span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
+<span id="407">407</span>
+<span id="408">408</span>
+<span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright (c) 2018-2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">//</span>
@@ -409,10 +456,10 @@
     <span class="ident">connection</span>::{<span class="self">self</span>, <span class="ident">StreamCommand</span>},
     <span class="ident">frame</span>::{
         <span class="ident">Frame</span>,
-        <span class="ident">header</span>::{<span class="ident">StreamId</span>, <span class="ident">WindowUpdate</span>}
+        <span class="ident">header</span>::{<span class="ident">Header</span>, <span class="ident">StreamId</span>, <span class="ident">Data</span>, <span class="ident">WindowUpdate</span>}
     }
 };
-<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">ready</span>, <span class="ident">channel</span>::<span class="ident">mpsc</span>, <span class="ident">io</span>::{<span class="ident">AsyncRead</span>, <span class="ident">AsyncWrite</span>}};
+<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">future</span>::<span class="ident">Either</span>, <span class="ident">ready</span>, <span class="ident">channel</span>::<span class="ident">mpsc</span>, <span class="ident">io</span>::{<span class="ident">AsyncRead</span>, <span class="ident">AsyncWrite</span>}};
 <span class="kw">use</span> <span class="ident">parking_lot</span>::{<span class="ident">Mutex</span>, <span class="ident">MutexGuard</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">fmt</span>, <span class="ident">io</span>, <span class="ident">pin</span>::<span class="ident">Pin</span>, <span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>, <span class="ident">Waker</span>}};
 
@@ -449,6 +496,17 @@
     }
 }
 
+<span class="doccomment">/// Indicate if a flag still needs to be set on an outbound header.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Copy</span>, <span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>)]</span>
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum</span> <span class="ident">Flag</span> {
+    <span class="doccomment">/// No flag needs to be set.</span>
+    <span class="prelude-val">None</span>,
+    <span class="doccomment">/// The stream was opened lazily, so set the initial SYN flag.</span>
+    <span class="ident">Syn</span>,
+    <span class="doccomment">/// The stream still needs acknowledgement, so set the ACK flag.</span>
+    <span class="ident">Ack</span>
+}
+
 <span class="doccomment">/// A multiplexed Yamux stream.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// Streams are created either outbound via [`crate::Control::open_stream`]</span>
@@ -462,6 +520,7 @@
     <span class="ident">config</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Config</span><span class="op">&gt;</span>,
     <span class="ident">sender</span>: <span class="ident">mpsc</span>::<span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">StreamCommand</span><span class="op">&gt;</span>,
     <span class="ident">pending</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Frame</span><span class="op">&lt;</span><span class="ident">WindowUpdate</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">flag</span>: <span class="ident">Flag</span>,
     <span class="ident">shared</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">Shared</span><span class="op">&gt;</span><span class="op">&gt;</span>
 }
 
@@ -497,6 +556,7 @@
             <span class="ident">config</span>,
             <span class="ident">sender</span>,
             <span class="ident">pending</span>: <span class="prelude-val">None</span>,
+            <span class="ident">flag</span>: <span class="ident">Flag</span>::<span class="prelude-val">None</span>,
             <span class="ident">shared</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Mutex</span>::<span class="ident">new</span>(<span class="ident">Shared</span>::<span class="ident">new</span>(<span class="ident">window</span>, <span class="ident">credit</span>))),
         }
     }
@@ -504,6 +564,11 @@
     <span class="doccomment">/// Get this stream&#39;s identifier.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">StreamId</span> {
         <span class="self">self</span>.<span class="ident">id</span>
+    }
+
+    <span class="doccomment">/// Set the flag that should be set on the next outbound frame header.</span>
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">set_flag</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">flag</span>: <span class="ident">Flag</span>) {
+        <span class="self">self</span>.<span class="ident">flag</span> <span class="op">=</span> <span class="ident">flag</span>
     }
 
     <span class="doccomment">/// Get this stream&#39;s state.</span>
@@ -526,6 +591,7 @@
             <span class="ident">config</span>: <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">clone</span>(),
             <span class="ident">sender</span>: <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">clone</span>(),
             <span class="ident">pending</span>: <span class="prelude-val">None</span>,
+            <span class="ident">flag</span>: <span class="self">self</span>.<span class="ident">flag</span>,
             <span class="ident">shared</span>: <span class="self">self</span>.<span class="ident">shared</span>.<span class="ident">clone</span>()
         }
     }
@@ -533,6 +599,21 @@
     <span class="kw">fn</span> <span class="ident">write_zero_err</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="ident">Error</span> {
         <span class="kw">let</span> <span class="ident">msg</span> <span class="op">=</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}/{}: connection is closed&quot;</span>, <span class="self">self</span>.<span class="ident">conn</span>, <span class="self">self</span>.<span class="ident">id</span>);
         <span class="ident">io</span>::<span class="ident">Error</span>::<span class="ident">new</span>(<span class="ident">io</span>::<span class="ident">ErrorKind</span>::<span class="ident">WriteZero</span>, <span class="ident">msg</span>)
+    }
+
+    <span class="doccomment">/// Set ACK or SYN flag if necessary.</span>
+    <span class="kw">fn</span> <span class="ident">add_flag</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">header</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Header</span><span class="op">&lt;</span><span class="ident">Either</span><span class="op">&lt;</span><span class="ident">Data</span>, <span class="ident">WindowUpdate</span><span class="op">&gt;</span><span class="op">&gt;</span>) {
+        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">flag</span> {
+            <span class="ident">Flag</span>::<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> (),
+            <span class="ident">Flag</span>::<span class="ident">Syn</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">header</span>.<span class="ident">syn</span>();
+                <span class="self">self</span>.<span class="ident">flag</span> <span class="op">=</span> <span class="ident">Flag</span>::<span class="prelude-val">None</span>
+            }
+            <span class="ident">Flag</span>::<span class="ident">Ack</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">header</span>.<span class="ident">ack</span>();
+                <span class="self">self</span>.<span class="ident">flag</span> <span class="op">=</span> <span class="ident">Flag</span>::<span class="prelude-val">None</span>
+            }
+        }
     }
 }
 
@@ -557,8 +638,9 @@
         <span class="comment">// Try to deliver any pending window updates first.</span>
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">is_some</span>() {
             <span class="macro">ready</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">poll_ready</span>(<span class="ident">cx</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">write_zero_err</span>())<span class="question-mark">?</span>);
-            <span class="kw">let</span> <span class="ident">frm</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">take</span>().<span class="ident">expect</span>(<span class="string">&quot;pending.is_some()&quot;</span>);
-            <span class="kw">let</span> <span class="ident">cmd</span> <span class="op">=</span> <span class="ident">StreamCommand</span>::<span class="ident">SendFrame</span>(<span class="ident">frm</span>.<span class="ident">cast</span>());
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">frame</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">take</span>().<span class="ident">expect</span>(<span class="string">&quot;pending.is_some()&quot;</span>).<span class="ident">right</span>();
+            <span class="self">self</span>.<span class="ident">add_flag</span>(<span class="ident">frame</span>.<span class="ident">header_mut</span>());
+            <span class="kw">let</span> <span class="ident">cmd</span> <span class="op">=</span> <span class="ident">StreamCommand</span>::<span class="ident">SendFrame</span>(<span class="ident">frame</span>);
             <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">start_send</span>(<span class="ident">cmd</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">write_zero_err</span>())<span class="question-mark">?</span>
         }
 
@@ -594,7 +676,9 @@
         <span class="kw">let</span> <span class="ident">frame</span> <span class="op">=</span> <span class="ident">Frame</span>::<span class="ident">window_update</span>(<span class="self">self</span>.<span class="ident">id</span>, <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">receive_window</span>);
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">poll_ready</span>(<span class="ident">cx</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">write_zero_err</span>())<span class="question-mark">?</span> {
             <span class="ident">Poll</span>::<span class="ident">Ready</span>(()) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="kw">let</span> <span class="ident">cmd</span> <span class="op">=</span> <span class="ident">StreamCommand</span>::<span class="ident">SendFrame</span>(<span class="ident">frame</span>.<span class="ident">cast</span>());
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">frame</span> <span class="op">=</span> <span class="ident">frame</span>.<span class="ident">right</span>();
+                <span class="self">self</span>.<span class="ident">add_flag</span>(<span class="ident">frame</span>.<span class="ident">header_mut</span>());
+                <span class="kw">let</span> <span class="ident">cmd</span> <span class="op">=</span> <span class="ident">StreamCommand</span>::<span class="ident">SendFrame</span>(<span class="ident">frame</span>);
                 <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">start_send</span>(<span class="ident">cmd</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">write_zero_err</span>())<span class="question-mark">?</span>
             }
             <span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">pending</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">frame</span>)
@@ -615,8 +699,9 @@
         <span class="comment">// Try to deliver any pending window updates first.</span>
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">is_some</span>() {
             <span class="macro">ready</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">poll_ready</span>(<span class="ident">cx</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">write_zero_err</span>())<span class="question-mark">?</span>);
-            <span class="kw">let</span> <span class="ident">frm</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">take</span>().<span class="ident">expect</span>(<span class="string">&quot;pending.is_some()&quot;</span>);
-            <span class="kw">let</span> <span class="ident">cmd</span> <span class="op">=</span> <span class="ident">StreamCommand</span>::<span class="ident">SendFrame</span>(<span class="ident">frm</span>.<span class="ident">cast</span>());
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">frame</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">take</span>().<span class="ident">expect</span>(<span class="string">&quot;pending.is_some()&quot;</span>).<span class="ident">right</span>();
+            <span class="self">self</span>.<span class="ident">add_flag</span>(<span class="ident">frame</span>.<span class="ident">header_mut</span>());
+            <span class="kw">let</span> <span class="ident">cmd</span> <span class="op">=</span> <span class="ident">StreamCommand</span>::<span class="ident">SendFrame</span>(<span class="ident">frame</span>);
             <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">start_send</span>(<span class="ident">cmd</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">write_zero_err</span>())<span class="question-mark">?</span>
         }
 
@@ -668,7 +753,9 @@
         <span class="kw">let</span> <span class="ident">frame</span> <span class="op">=</span> <span class="ident">Frame</span>::<span class="ident">window_update</span>(<span class="self">self</span>.<span class="ident">id</span>, <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">receive_window</span>);
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">poll_ready</span>(<span class="ident">cx</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">write_zero_err</span>())<span class="question-mark">?</span> {
             <span class="ident">Poll</span>::<span class="ident">Ready</span>(()) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="kw">let</span> <span class="ident">cmd</span> <span class="op">=</span> <span class="ident">StreamCommand</span>::<span class="ident">SendFrame</span>(<span class="ident">frame</span>.<span class="ident">cast</span>());
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">frame</span> <span class="op">=</span> <span class="ident">frame</span>.<span class="ident">right</span>();
+                <span class="self">self</span>.<span class="ident">add_flag</span>(<span class="ident">frame</span>.<span class="ident">header_mut</span>());
+                <span class="kw">let</span> <span class="ident">cmd</span> <span class="op">=</span> <span class="ident">StreamCommand</span>::<span class="ident">SendFrame</span>(<span class="ident">frame</span>);
                 <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">start_send</span>(<span class="ident">cmd</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">write_zero_err</span>())<span class="question-mark">?</span>
             }
             <span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">pending</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">frame</span>)
@@ -697,9 +784,10 @@
             <span class="ident">Bytes</span>::<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">buf</span>[.. <span class="ident">k</span>])
         };
         <span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> <span class="ident">body</span>.<span class="ident">len</span>();
-        <span class="kw">let</span> <span class="ident">frame</span> <span class="op">=</span> <span class="ident">Frame</span>::<span class="ident">data</span>(<span class="self">self</span>.<span class="ident">id</span>, <span class="ident">body</span>).<span class="ident">expect</span>(<span class="string">&quot;body &lt;= u32::MAX&quot;</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">frame</span> <span class="op">=</span> <span class="ident">Frame</span>::<span class="ident">data</span>(<span class="self">self</span>.<span class="ident">id</span>, <span class="ident">body</span>).<span class="ident">expect</span>(<span class="string">&quot;body &lt;= u32::MAX&quot;</span>).<span class="ident">left</span>();
+        <span class="self">self</span>.<span class="ident">add_flag</span>(<span class="ident">frame</span>.<span class="ident">header_mut</span>());
         <span class="ident">log</span>::<span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;{}/{}: write {} bytes&quot;</span>, <span class="self">self</span>.<span class="ident">conn</span>, <span class="self">self</span>.<span class="ident">id</span>, <span class="ident">n</span>);
-        <span class="kw">let</span> <span class="ident">cmd</span> <span class="op">=</span> <span class="ident">StreamCommand</span>::<span class="ident">SendFrame</span>(<span class="ident">frame</span>.<span class="ident">cast</span>());
+        <span class="kw">let</span> <span class="ident">cmd</span> <span class="op">=</span> <span class="ident">StreamCommand</span>::<span class="ident">SendFrame</span>(<span class="ident">frame</span>);
         <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">start_send</span>(<span class="ident">cmd</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">write_zero_err</span>())<span class="question-mark">?</span>;
         <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Ok</span>(<span class="ident">n</span>))
     }
@@ -714,7 +802,13 @@
         }
         <span class="ident">log</span>::<span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;{}/{}: close&quot;</span>, <span class="self">self</span>.<span class="ident">conn</span>, <span class="self">self</span>.<span class="ident">id</span>);
         <span class="macro">ready</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">poll_ready</span>(<span class="ident">cx</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">write_zero_err</span>())<span class="question-mark">?</span>);
-        <span class="kw">let</span> <span class="ident">cmd</span> <span class="op">=</span> <span class="ident">StreamCommand</span>::<span class="ident">CloseStream</span>(<span class="self">self</span>.<span class="ident">id</span>);
+        <span class="kw">let</span> <span class="ident">ack</span> <span class="op">=</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">flag</span> <span class="op">=</span><span class="op">=</span> <span class="ident">Flag</span>::<span class="ident">Ack</span> {
+            <span class="self">self</span>.<span class="ident">flag</span> <span class="op">=</span> <span class="ident">Flag</span>::<span class="prelude-val">None</span>;
+            <span class="bool-val">true</span>
+        } <span class="kw">else</span> {
+            <span class="bool-val">false</span>
+        };
+        <span class="kw">let</span> <span class="ident">cmd</span> <span class="op">=</span> <span class="ident">StreamCommand</span>::<span class="ident">CloseStream</span> { <span class="ident">id</span>: <span class="self">self</span>.<span class="ident">id</span>, <span class="ident">ack</span> };
         <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">start_send</span>(<span class="ident">cmd</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">write_zero_err</span>())<span class="question-mark">?</span>;
         <span class="self">self</span>.<span class="ident">shared</span>().<span class="ident">update_state</span>(<span class="self">self</span>.<span class="ident">conn</span>, <span class="self">self</span>.<span class="ident">id</span>, <span class="ident">State</span>::<span class="ident">SendClosed</span>);
         <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Ok</span>(()))
