@@ -2989,7 +2989,7 @@
 <span class="doccomment">/// Used as inner structure under lock in `FrozenForDuration`.</span>
 <span class="kw">struct</span> <span class="ident">Frozen</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Clone</span><span class="op">&gt;</span> {
 	<span class="ident">at</span>: <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Instant</span>,
-	<span class="ident">value</span>: <span class="ident">T</span>,
+	<span class="ident">value</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
 }
 
 <span class="doccomment">/// Some value frozen for period of time.</span>
@@ -2999,26 +2999,26 @@
 <span class="doccomment">/// a new value which will be again frozen for `duration`.</span>
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">FrozenForDuration</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Clone</span><span class="op">&gt;</span> {
 	<span class="ident">duration</span>: <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>,
-	<span class="ident">value</span>: <span class="ident">RwLock</span><span class="op">&lt;</span><span class="ident">Frozen</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">value</span>: <span class="ident">parking_lot</span>::<span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">Frozen</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Clone</span><span class="op">&gt;</span> <span class="ident">FrozenForDuration</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-	<span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">duration</span>: <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>, <span class="ident">initial</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+	<span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">duration</span>: <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
 		<span class="self">Self</span> {
 			<span class="ident">duration</span>,
-			<span class="ident">value</span>: <span class="ident">Frozen</span> { <span class="ident">at</span>: <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Instant</span>::<span class="ident">now</span>(), <span class="ident">value</span>: <span class="ident">initial</span> }.<span class="ident">into</span>(),
+			<span class="ident">value</span>: <span class="ident">Frozen</span> { <span class="ident">at</span>: <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Instant</span>::<span class="ident">now</span>(), <span class="ident">value</span>: <span class="prelude-val">None</span> }.<span class="ident">into</span>(),
 		}
 	}
 
 	<span class="kw">fn</span> <span class="ident">take_or_else</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">T</span> <span class="kw">where</span> <span class="ident">F</span>: <span class="ident">FnOnce</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">T</span> {
-		<span class="kw">if</span> <span class="self">self</span>.<span class="ident">value</span>.<span class="ident">read</span>().<span class="ident">at</span>.<span class="ident">elapsed</span>() <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">duration</span> {
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">write_lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">value</span>.<span class="ident">write</span>();
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">value</span>.<span class="ident">lock</span>();
+		<span class="kw">if</span> <span class="ident">lock</span>.<span class="ident">at</span>.<span class="ident">elapsed</span>() <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">duration</span> <span class="op">|</span><span class="op">|</span> <span class="ident">lock</span>.<span class="ident">value</span>.<span class="ident">is_none</span>() {
 			<span class="kw">let</span> <span class="ident">new_value</span> <span class="op">=</span> <span class="ident">f</span>();
-			<span class="ident">write_lock</span>.<span class="ident">at</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Instant</span>::<span class="ident">now</span>();
-			<span class="ident">write_lock</span>.<span class="ident">value</span> <span class="op">=</span> <span class="ident">new_value</span>.<span class="ident">clone</span>();
+			<span class="ident">lock</span>.<span class="ident">at</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Instant</span>::<span class="ident">now</span>();
+			<span class="ident">lock</span>.<span class="ident">value</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">new_value</span>.<span class="ident">clone</span>());
 			<span class="ident">new_value</span>
 		} <span class="kw">else</span> {
-			<span class="self">self</span>.<span class="ident">value</span>.<span class="ident">read</span>().<span class="ident">value</span>.<span class="ident">clone</span>()
+			<span class="ident">lock</span>.<span class="ident">value</span>.<span class="ident">as_ref</span>().<span class="ident">expect</span>(<span class="string">&quot;checked with lock above&quot;</span>).<span class="ident">clone</span>()
 		}
 	}
 }
@@ -3108,7 +3108,7 @@
 			),
 			<span class="ident">import_lock</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
 			<span class="ident">is_archive</span>: <span class="ident">is_archive_pruning</span>,
-			<span class="ident">io_stats</span>: <span class="ident">FrozenForDuration</span>::<span class="ident">new</span>(<span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">1</span>), (<span class="ident">kvdb</span>::<span class="ident">IoStats</span>::<span class="ident">empty</span>(), <span class="ident">StateUsageInfo</span>::<span class="ident">empty</span>())),
+			<span class="ident">io_stats</span>: <span class="ident">FrozenForDuration</span>::<span class="ident">new</span>(<span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">1</span>)),
 			<span class="ident">state_usage</span>: <span class="ident">StateUsageStats</span>::<span class="ident">new</span>(),
 		})
 	}

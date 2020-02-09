@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/trie-db-0.20.0/src/triedb.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>triedb.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/trie-db-0.19.2/src/triedb.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>triedb.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -731,15 +731,19 @@
 <span class="kw">use</span> <span class="ident">hash_db</span>::{<span class="ident">HashDBRef</span>, <span class="ident">Prefix</span>, <span class="ident">EMPTY_PREFIX</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">nibble</span>::<span class="ident">NibbleSlice</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">iterator</span>::<span class="ident">TrieDBNodeIterator</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">rstd</span>::<span class="ident">boxed</span>::<span class="ident">Box</span>;
 <span class="kw">use</span> <span class="kw">super</span>::<span class="ident">node</span>::{<span class="ident">NodeHandle</span>, <span class="ident">Node</span>, <span class="ident">OwnedNode</span>, <span class="ident">decode_hash</span>};
 <span class="kw">use</span> <span class="kw">super</span>::<span class="ident">lookup</span>::<span class="ident">Lookup</span>;
 <span class="kw">use</span> <span class="kw">super</span>::{<span class="prelude-ty">Result</span>, <span class="ident">DBValue</span>, <span class="ident">Trie</span>, <span class="ident">TrieItem</span>, <span class="ident">TrieError</span>, <span class="ident">TrieIterator</span>, <span class="ident">Query</span>,
 	<span class="ident">TrieLayout</span>, <span class="ident">CError</span>, <span class="ident">TrieHash</span>};
 <span class="kw">use</span> <span class="kw">super</span>::<span class="ident">nibble</span>::<span class="ident">NibbleVec</span>;
-
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>)]</span>
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">rstd</span>::{<span class="ident">fmt</span>, <span class="ident">vec</span>::<span class="ident">Vec</span>};
+<span class="kw">use</span> ::<span class="ident">std</span>::<span class="ident">fmt</span>;
+
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>))]</span>
+<span class="kw">use</span> <span class="ident">alloc</span>::<span class="ident">boxed</span>::<span class="ident">Box</span>;
+
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>))]</span>
+<span class="kw">use</span> <span class="ident">alloc</span>::<span class="ident">vec</span>::<span class="ident">Vec</span>;
 
 <span class="doccomment">/// A `Trie` implementation using a generic `HashDB` backing database, a `Hasher`</span>
 <span class="doccomment">/// implementation to generate keys and a `NodeCodec` implementation to encode/decode</span>
@@ -750,24 +754,32 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// # Example</span>
 <span class="doccomment">/// ```</span>
+<span class="doccomment">/// extern crate trie_db;</span>
+<span class="doccomment">/// extern crate reference_trie;</span>
+<span class="doccomment">/// extern crate hash_db;</span>
+<span class="doccomment">/// extern crate keccak_hasher;</span>
+<span class="doccomment">/// extern crate memory_db;</span>
+<span class="doccomment">///</span>
 <span class="doccomment">/// use hash_db::Hasher;</span>
 <span class="doccomment">/// use reference_trie::{RefTrieDBMut, RefTrieDB, Trie, TrieMut};</span>
 <span class="doccomment">/// use trie_db::DBValue;</span>
 <span class="doccomment">/// use keccak_hasher::KeccakHasher;</span>
 <span class="doccomment">/// use memory_db::*;</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// let mut memdb = MemoryDB::&lt;KeccakHasher, HashKey&lt;_&gt;, _&gt;::default();</span>
-<span class="doccomment">/// let mut root = Default::default();</span>
-<span class="doccomment">/// RefTrieDBMut::new(&amp;mut memdb, &amp;mut root).insert(b&quot;foo&quot;, b&quot;bar&quot;).unwrap();</span>
-<span class="doccomment">/// let t = RefTrieDB::new(&amp;memdb, &amp;root).unwrap();</span>
-<span class="doccomment">/// assert!(t.contains(b&quot;foo&quot;).unwrap());</span>
-<span class="doccomment">/// assert_eq!(t.get(b&quot;foo&quot;).unwrap().unwrap(), b&quot;bar&quot;.to_vec());</span>
+<span class="doccomment">/// fn main() {</span>
+<span class="doccomment">///   let mut memdb = MemoryDB::&lt;KeccakHasher, HashKey&lt;_&gt;, _&gt;::default();</span>
+<span class="doccomment">///   let mut root = Default::default();</span>
+<span class="doccomment">///   RefTrieDBMut::new(&amp;mut memdb, &amp;mut root).insert(b&quot;foo&quot;, b&quot;bar&quot;).unwrap();</span>
+<span class="doccomment">///   let t = RefTrieDB::new(&amp;memdb, &amp;root).unwrap();</span>
+<span class="doccomment">///   assert!(t.contains(b&quot;foo&quot;).unwrap());</span>
+<span class="doccomment">///   assert_eq!(t.get(b&quot;foo&quot;).unwrap().unwrap(), b&quot;bar&quot;.to_vec());</span>
+<span class="doccomment">/// }</span>
 <span class="doccomment">/// ```</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">TrieDB</span><span class="op">&lt;</span><span class="lifetime">&#39;db</span>, <span class="ident">L</span><span class="op">&gt;</span>
 <span class="kw">where</span>
 	<span class="ident">L</span>: <span class="ident">TrieLayout</span>,
 {
-	<span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;db</span> <span class="kw">dyn</span> <span class="ident">HashDBRef</span><span class="op">&lt;</span><span class="ident">L</span>::<span class="ident">Hash</span>, <span class="ident">DBValue</span><span class="op">&gt;</span>,
+	<span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;db</span> <span class="ident">dyn</span> <span class="ident">HashDBRef</span><span class="op">&lt;</span><span class="ident">L</span>::<span class="ident">Hash</span>, <span class="ident">DBValue</span><span class="op">&gt;</span>,
 	<span class="ident">root</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;db</span> <span class="ident">TrieHash</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// The number of hashes performed so far in operations on this trie.</span>
 	<span class="ident">hash_count</span>: <span class="ident">usize</span>,
@@ -780,7 +792,7 @@
 	<span class="doccomment">/// Create a new trie with the backing database `db` and `root`</span>
 	<span class="doccomment">/// Returns an error if `root` does not exist</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
-		<span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;db</span> <span class="kw">dyn</span> <span class="ident">HashDBRef</span><span class="op">&lt;</span><span class="ident">L</span>::<span class="ident">Hash</span>, <span class="ident">DBValue</span><span class="op">&gt;</span>,
+		<span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;db</span> <span class="ident">dyn</span> <span class="ident">HashDBRef</span><span class="op">&lt;</span><span class="ident">L</span>::<span class="ident">Hash</span>, <span class="ident">DBValue</span><span class="op">&gt;</span>,
 		<span class="ident">root</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;db</span> <span class="ident">TrieHash</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">TrieHash</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">CError</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 		<span class="kw">if</span> <span class="op">!</span><span class="ident">db</span>.<span class="ident">contains</span>(<span class="ident">root</span>, <span class="ident">EMPTY_PREFIX</span>) {
@@ -791,7 +803,7 @@
 	}
 
 	<span class="doccomment">/// Get the backing database.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">db</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;db</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;db</span> <span class="kw">dyn</span> <span class="ident">HashDBRef</span><span class="op">&lt;</span><span class="ident">L</span>::<span class="ident">Hash</span>, <span class="ident">DBValue</span><span class="op">&gt;</span> { <span class="self">self</span>.<span class="ident">db</span> }
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">db</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;db</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;db</span> <span class="ident">dyn</span> <span class="ident">HashDBRef</span><span class="op">&lt;</span><span class="ident">L</span>::<span class="ident">Hash</span>, <span class="ident">DBValue</span><span class="op">&gt;</span> { <span class="self">self</span>.<span class="ident">db</span> }
 
 	<span class="doccomment">/// Given some node-describing data `node`, and node key return the actual node RLP.</span>
 	<span class="doccomment">/// This could be a simple identity operation in the case that the node is sufficiently small,</span>
@@ -852,7 +864,7 @@
 	}
 
 	<span class="kw">fn</span> <span class="ident">iter</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="self">self</span>)<span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>
-		<span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">TrieIterator</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">Item</span><span class="op">=</span><span class="ident">TrieItem</span><span class="op">&lt;</span><span class="ident">TrieHash</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">CError</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;a</span><span class="op">&gt;</span>,
+		<span class="ident">Box</span><span class="op">&lt;</span><span class="ident">dyn</span> <span class="ident">TrieIterator</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">Item</span><span class="op">=</span><span class="ident">TrieItem</span><span class="op">&lt;</span><span class="ident">TrieHash</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">CError</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;a</span><span class="op">&gt;</span>,
 		<span class="ident">TrieHash</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
 		<span class="ident">CError</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
 	<span class="op">&gt;</span> {
@@ -988,17 +1000,6 @@
 		<span class="kw">let</span> <span class="ident">inner</span> <span class="op">=</span> <span class="ident">TrieDBNodeIterator</span>::<span class="ident">new</span>(<span class="ident">db</span>)<span class="question-mark">?</span>;
 		<span class="prelude-val">Ok</span>(<span class="ident">TrieDBIterator</span> { <span class="ident">inner</span> })
 	}
-
-	<span class="doccomment">/// Create a new iterator, but limited to a given prefix.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_prefixed</span>(<span class="ident">db</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">TrieDB</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">prefix</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">TrieDBIterator</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">TrieHash</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">CError</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">inner</span> <span class="op">=</span> <span class="ident">TrieDBNodeIterator</span>::<span class="ident">new</span>(<span class="ident">db</span>)<span class="question-mark">?</span>;
-		<span class="ident">inner</span>.<span class="ident">prefix</span>(<span class="ident">prefix</span>)<span class="question-mark">?</span>;
-
-		<span class="prelude-val">Ok</span>(<span class="ident">TrieDBIterator</span> {
-			<span class="ident">inner</span>,
-		})
-	}
-
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span>: <span class="ident">TrieLayout</span><span class="op">&gt;</span> <span class="ident">TrieIterator</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">TrieDBIterator</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span><span class="op">&gt;</span> {
@@ -1052,7 +1053,6 @@
 	<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">DBValue</span>;
 	<span class="kw">use</span> <span class="ident">reference_trie</span>::{<span class="ident">RefTrieDB</span>, <span class="ident">RefTrieDBMut</span>, <span class="ident">RefLookup</span>, <span class="ident">Trie</span>, <span class="ident">TrieMut</span>, <span class="ident">NibbleSlice</span>};
 	<span class="kw">use</span> <span class="ident">reference_trie</span>::{<span class="ident">RefTrieDBNoExt</span>, <span class="ident">RefTrieDBMutNoExt</span>};
-	<span class="kw">use</span> <span class="ident">hex_literal</span>::<span class="ident">hex</span>;
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
 	<span class="kw">fn</span> <span class="ident">iterator_works</span>() {
