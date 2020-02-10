@@ -619,6 +619,12 @@
 <span id="608">608</span>
 <span id="609">609</span>
 <span id="610">610</span>
+<span id="611">611</span>
+<span id="612">612</span>
+<span id="613">613</span>
+<span id="614">614</span>
+<span id="615">615</span>
+<span id="616">616</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -674,7 +680,7 @@
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::{<span class="ident">DispatchResult</span>, <span class="ident">RuntimeDebug</span>, <span class="ident">traits</span>::{
 	<span class="ident">StaticLookup</span>, <span class="ident">Zero</span>, <span class="ident">SimpleArithmetic</span>, <span class="ident">MaybeSerializeDeserialize</span>, <span class="ident">Saturating</span>, <span class="ident">Convert</span>
 }};
-<span class="kw">use</span> <span class="ident">frame_support</span>::{<span class="ident">decl_module</span>, <span class="ident">decl_event</span>, <span class="ident">decl_storage</span>, <span class="ident">ensure</span>, <span class="ident">decl_error</span>};
+<span class="kw">use</span> <span class="ident">frame_support</span>::{<span class="ident">decl_module</span>, <span class="ident">decl_event</span>, <span class="ident">decl_storage</span>, <span class="ident">decl_error</span>};
 <span class="kw">use</span> <span class="ident">frame_support</span>::<span class="ident">traits</span>::{
 	<span class="ident">Currency</span>, <span class="ident">LockableCurrency</span>, <span class="ident">VestingSchedule</span>, <span class="ident">WithdrawReason</span>, <span class="ident">LockIdentifier</span>
 };
@@ -834,16 +840,18 @@
 	<span class="doccomment">/// (Re)set or remove the module&#39;s currency lock on `who`&#39;s account in accordance with their</span>
 	<span class="doccomment">/// current unvested amount.</span>
 	<span class="kw">fn</span> <span class="ident">update_lock</span>(<span class="ident">who</span>: <span class="ident">T</span>::<span class="ident">AccountId</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">DispatchResult</span> {
-		<span class="macro">ensure</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>::<span class="ident">contains_key</span>(<span class="kw-2">&amp;</span><span class="ident">who</span>), <span class="ident">Error</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>::<span class="ident">NotVesting</span>);
-		<span class="kw">let</span> <span class="ident">unvested</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="ident">who</span>);
-		<span class="kw">if</span> <span class="ident">unvested</span>.<span class="ident">is_zero</span>() {
+		<span class="kw">let</span> <span class="ident">vesting</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">vesting</span>(<span class="kw-2">&amp;</span><span class="ident">who</span>).<span class="ident">ok_or</span>(<span class="ident">Error</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>::<span class="ident">NotVesting</span>)<span class="question-mark">?</span>;
+		<span class="kw">let</span> <span class="ident">now</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">frame_system</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">block_number</span>();
+		<span class="kw">let</span> <span class="ident">locked_now</span> <span class="op">=</span> <span class="ident">vesting</span>.<span class="ident">locked_at</span>::<span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">BlockNumberToBalance</span><span class="op">&gt;</span>(<span class="ident">now</span>);
+
+		<span class="kw">if</span> <span class="ident">locked_now</span>.<span class="ident">is_zero</span>() {
 			<span class="ident">T</span>::<span class="ident">Currency</span>::<span class="ident">remove_lock</span>(<span class="ident">VESTING_ID</span>, <span class="kw-2">&amp;</span><span class="ident">who</span>);
 			<span class="ident">Vesting</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>::<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">who</span>);
 			<span class="self">Self</span>::<span class="ident">deposit_event</span>(<span class="ident">RawEvent</span>::<span class="ident">VestingCompleted</span>(<span class="ident">who</span>));
 		} <span class="kw">else</span> {
 			<span class="kw">let</span> <span class="ident">reasons</span> <span class="op">=</span> <span class="ident">WithdrawReason</span>::<span class="ident">Transfer</span> <span class="op">|</span> <span class="ident">WithdrawReason</span>::<span class="ident">Reserve</span>;
-			<span class="ident">T</span>::<span class="ident">Currency</span>::<span class="ident">set_lock</span>(<span class="ident">VESTING_ID</span>, <span class="kw-2">&amp;</span><span class="ident">who</span>, <span class="ident">unvested</span>, <span class="ident">reasons</span>);
-			<span class="self">Self</span>::<span class="ident">deposit_event</span>(<span class="ident">RawEvent</span>::<span class="ident">VestingUpdated</span>(<span class="ident">who</span>, <span class="ident">unvested</span>));
+			<span class="ident">T</span>::<span class="ident">Currency</span>::<span class="ident">set_lock</span>(<span class="ident">VESTING_ID</span>, <span class="kw-2">&amp;</span><span class="ident">who</span>, <span class="ident">locked_now</span>, <span class="ident">reasons</span>);
+			<span class="self">Self</span>::<span class="ident">deposit_event</span>(<span class="ident">RawEvent</span>::<span class="ident">VestingUpdated</span>(<span class="ident">who</span>, <span class="ident">locked_now</span>));
 		}
 		<span class="prelude-val">Ok</span>(())
 	}
@@ -870,6 +878,10 @@
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// If there already exists a vesting schedule for the given account, an `Err` is returned</span>
 	<span class="doccomment">/// and nothing is updated.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// On success, a linearly reducing amount of funds will be locked. In order to realise any</span>
+	<span class="doccomment">/// reduction of the lock over time as it diminishes, the account owner must use `vest` or</span>
+	<span class="doccomment">/// `vest_other`.</span>
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// Is a no-op if the amount to be vested is zero.</span>
 	<span class="kw">fn</span> <span class="ident">add_vesting_schedule</span>(

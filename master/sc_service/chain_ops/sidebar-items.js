@@ -1,1 +1,1 @@
-initSidebarItems({"fn":[["build_spec","Build a chain spec json"]]});
+initSidebarItems({"fn":[["benchmark_runtime","Run runtime benchmarks."],["build_spec","Build a chain spec json"]]});

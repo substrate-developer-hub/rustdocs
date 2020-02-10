@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["commit_db","Commit pending storage changes to the trie database and clear the database cache."],["current_time","Get the number of nanoseconds passed since the UNIX epoch"],["wipe_db","Reset the trie database to the genesis state."]],"struct":[["HostFunctions","Provides implementations for the extern host functions."]]});
