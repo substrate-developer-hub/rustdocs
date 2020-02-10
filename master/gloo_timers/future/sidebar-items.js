@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["IntervalStream","A scheduled interval as a `Stream`."],["TimeoutFuture","A scheduled timeout as a `Future`."]]});

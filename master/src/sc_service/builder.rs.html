@@ -1214,6 +1214,11 @@
 <span id="1203">1203</span>
 <span id="1204">1204</span>
 <span id="1205">1205</span>
+<span id="1206">1206</span>
+<span id="1207">1207</span>
+<span id="1208">1208</span>
+<span id="1209">1209</span>
+<span id="1210">1210</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1231,7 +1236,7 @@
 <span class="comment">// You should have received a copy of the GNU General Public License</span>
 <span class="comment">// along with Substrate.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
 
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">Service</span>, <span class="ident">NetworkStatus</span>, <span class="ident">NetworkState</span>, <span class="ident">error</span>::<span class="ident">Error</span>, <span class="ident">DEFAULT_PROTOCOL_ID</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">Service</span>, <span class="ident">NetworkStatus</span>, <span class="ident">NetworkState</span>, <span class="ident">error</span>::<span class="ident">Error</span>, <span class="ident">DEFAULT_PROTOCOL_ID</span>, <span class="ident">MallocSizeOfWasm</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">SpawnTaskHandle</span>, <span class="ident">start_rpc_servers</span>, <span class="ident">build_network_future</span>, <span class="ident">TransactionPoolAdapter</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">status_sinks</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">config</span>::{<span class="ident">Configuration</span>, <span class="ident">DatabaseConfig</span>, <span class="ident">KeystoreConfig</span>};
@@ -1263,8 +1268,9 @@
 <span class="kw">use</span> <span class="ident">std</span>::{
 	<span class="ident">borrow</span>::<span class="ident">Cow</span>,
 	<span class="ident">io</span>::{<span class="ident">Read</span>, <span class="ident">Write</span>, <span class="ident">Seek</span>},
-	<span class="ident">marker</span>::<span class="ident">PhantomData</span>, <span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">time</span>::<span class="ident">SystemTime</span>, <span class="ident">pin</span>::<span class="ident">Pin</span>
+	<span class="ident">marker</span>::<span class="ident">PhantomData</span>, <span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">pin</span>::<span class="ident">Pin</span>
 };
+<span class="kw">use</span> <span class="ident">wasm_timer</span>::<span class="ident">SystemTime</span>;
 <span class="kw">use</span> <span class="ident">sysinfo</span>::{<span class="ident">get_current_pid</span>, <span class="ident">ProcessExt</span>, <span class="ident">System</span>, <span class="ident">SystemExt</span>};
 <span class="kw">use</span> <span class="ident">sc_telemetry</span>::{<span class="ident">telemetry</span>, <span class="ident">SUBSTRATE_INFO</span>};
 <span class="kw">use</span> <span class="ident">sp_transaction_pool</span>::<span class="ident">MaintainedTransactionPool</span>;
@@ -1955,7 +1961,7 @@
 	<span class="ident">TSc</span>: <span class="ident">Clone</span>,
 	<span class="ident">TImpQu</span>: <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">ImportQueue</span><span class="op">&lt;</span><span class="ident">TBl</span><span class="op">&gt;</span>,
 	<span class="ident">TNetP</span>: <span class="ident">NetworkSpecialization</span><span class="op">&lt;</span><span class="ident">TBl</span><span class="op">&gt;</span>,
-	<span class="ident">TExPool</span>: <span class="ident">MaintainedTransactionPool</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">=</span><span class="ident">TBl</span>, <span class="ident">Hash</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">TBl</span> <span class="kw">as</span> <span class="ident">BlockT</span><span class="op">&gt;</span>::<span class="ident">Hash</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+	<span class="ident">TExPool</span>: <span class="ident">MaintainedTransactionPool</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">=</span><span class="ident">TBl</span>, <span class="ident">Hash</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">TBl</span> <span class="kw">as</span> <span class="ident">BlockT</span><span class="op">&gt;</span>::<span class="ident">Hash</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">MallocSizeOfWasm</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">TRpc</span>: <span class="ident">sc_rpc</span>::<span class="ident">RpcExtension</span><span class="op">&lt;</span><span class="ident">sc_rpc</span>::<span class="ident">Metadata</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Clone</span>,
 {
 
@@ -2201,6 +2207,10 @@
 				<span class="string">&quot;disk_read_per_sec&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">info</span>.<span class="ident">usage</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">usage</span><span class="op">|</span> <span class="ident">usage</span>.<span class="ident">io</span>.<span class="ident">bytes_read</span>).<span class="ident">unwrap_or</span>(<span class="number">0</span>),
 				<span class="string">&quot;disk_write_per_sec&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">info</span>.<span class="ident">usage</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">usage</span><span class="op">|</span> <span class="ident">usage</span>.<span class="ident">io</span>.<span class="ident">bytes_written</span>).<span class="ident">unwrap_or</span>(<span class="number">0</span>),
 			);
+			<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">target_os</span> <span class="op">=</span> <span class="string">&quot;unknown&quot;</span>))]</span>
+			<span class="kw">let</span> <span class="ident">memory_transaction_pool</span> <span class="op">=</span> <span class="ident">parity_util_mem</span>::<span class="ident">malloc_size</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">transaction_pool_</span>);
+			<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">target_os</span> <span class="op">=</span> <span class="string">&quot;unknown&quot;</span>)]</span>
+			<span class="kw">let</span> <span class="ident">memory_transaction_pool</span> <span class="op">=</span> <span class="number">0</span>;
 			<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="macro">record_metrics</span><span class="macro">!</span>(
 				<span class="string">&quot;peers&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">num_peers</span>,
 				<span class="string">&quot;height&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">best_number</span>,
@@ -2214,7 +2224,7 @@
 				<span class="string">&quot;used_db_cache_size&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">info</span>.<span class="ident">usage</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">usage</span><span class="op">|</span> <span class="ident">usage</span>.<span class="ident">memory</span>.<span class="ident">database_cache</span>).<span class="ident">unwrap_or</span>(<span class="number">0</span>),
 				<span class="string">&quot;disk_read_per_sec&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">info</span>.<span class="ident">usage</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">usage</span><span class="op">|</span> <span class="ident">usage</span>.<span class="ident">io</span>.<span class="ident">bytes_read</span>).<span class="ident">unwrap_or</span>(<span class="number">0</span>),
 				<span class="string">&quot;disk_write_per_sec&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">info</span>.<span class="ident">usage</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">usage</span><span class="op">|</span> <span class="ident">usage</span>.<span class="ident">io</span>.<span class="ident">bytes_written</span>).<span class="ident">unwrap_or</span>(<span class="number">0</span>),
-				<span class="string">&quot;memory_transaction_pool&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">parity_util_mem</span>::<span class="ident">malloc_size</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">transaction_pool_</span>),
+				<span class="string">&quot;memory_transaction_pool&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">memory_transaction_pool</span>,
 			);
 
 			<span class="ident">ready</span>(())

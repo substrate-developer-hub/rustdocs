@@ -653,6 +653,7 @@
 <span id="642">642</span>
 <span id="643">643</span>
 <span id="644">644</span>
+<span id="645">645</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -684,6 +685,7 @@
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">ConsensusEngineId</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">sc_network</span>::<span class="ident">message</span>::<span class="ident">generic</span>::{<span class="ident">Message</span>, <span class="ident">ConsensusMessage</span>};
 <span class="kw">use</span> <span class="ident">sc_network</span>::<span class="ident">config</span>::<span class="ident">Roles</span>;
+<span class="kw">use</span> <span class="ident">wasm_timer</span>::<span class="ident">Instant</span>;
 
 <span class="comment">// FIXME: Add additional spam/DoS attack protection: https://github.com/paritytech/substrate/issues/1115</span>
 <span class="kw">const</span> <span class="ident">KNOWN_MESSAGES_CACHE_SIZE</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">4096</span>;
@@ -821,7 +823,7 @@
 	<span class="ident">messages</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">MessageEntry</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">known_messages</span>: <span class="ident">LruCache</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Hash</span>, ()<span class="op">&gt;</span>,
 	<span class="ident">validators</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">ConsensusEngineId</span>, <span class="ident">Arc</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Validator</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-	<span class="ident">next_broadcast</span>: <span class="ident">time</span>::<span class="ident">Instant</span>,
+	<span class="ident">next_broadcast</span>: <span class="ident">Instant</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> <span class="ident">ConsensusGossip</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> {
@@ -833,7 +835,7 @@
 			<span class="ident">messages</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
 			<span class="ident">known_messages</span>: <span class="ident">LruCache</span>::<span class="ident">new</span>(<span class="ident">KNOWN_MESSAGES_CACHE_SIZE</span>),
 			<span class="ident">validators</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
-			<span class="ident">next_broadcast</span>: <span class="ident">time</span>::<span class="ident">Instant</span>::<span class="ident">now</span>() <span class="op">+</span> <span class="ident">REBROADCAST_INTERVAL</span>,
+			<span class="ident">next_broadcast</span>: <span class="ident">Instant</span>::<span class="ident">now</span>() <span class="op">+</span> <span class="ident">REBROADCAST_INTERVAL</span>,
 		}
 	}
 
@@ -916,9 +918,9 @@
 	<span class="doccomment">/// Perform periodic maintenance</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">tick</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">network</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">Network</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>) {
 		<span class="self">self</span>.<span class="ident">collect_garbage</span>();
-		<span class="kw">if</span> <span class="ident">time</span>::<span class="ident">Instant</span>::<span class="ident">now</span>() <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">next_broadcast</span> {
+		<span class="kw">if</span> <span class="ident">Instant</span>::<span class="ident">now</span>() <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">next_broadcast</span> {
 			<span class="self">self</span>.<span class="ident">rebroadcast</span>(<span class="ident">network</span>);
-			<span class="self">self</span>.<span class="ident">next_broadcast</span> <span class="op">=</span> <span class="ident">time</span>::<span class="ident">Instant</span>::<span class="ident">now</span>() <span class="op">+</span> <span class="ident">REBROADCAST_INTERVAL</span>;
+			<span class="self">self</span>.<span class="ident">next_broadcast</span> <span class="op">=</span> <span class="ident">Instant</span>::<span class="ident">now</span>() <span class="op">+</span> <span class="ident">REBROADCAST_INTERVAL</span>;
 		}
 	}
 

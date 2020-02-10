@@ -2036,6 +2036,7 @@
 <span id="2025">2025</span>
 <span id="2026">2026</span>
 <span id="2027">2027</span>
+<span id="2028">2028</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -2091,6 +2092,7 @@
 <span class="kw">use</span> <span class="ident">sc_client_api</span>::{<span class="ident">FetchChecker</span>, <span class="ident">ChangesProof</span>, <span class="ident">StorageProof</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">error</span>;
 <span class="kw">use</span> <span class="ident">util</span>::<span class="ident">LruHashSet</span>;
+<span class="kw">use</span> <span class="ident">wasm_timer</span>::<span class="ident">Instant</span>;
 
 <span class="kw">mod</span> <span class="ident">legacy_proto</span>;
 <span class="kw">mod</span> <span class="ident">util</span>;
@@ -2197,7 +2199,7 @@
 <span class="doccomment">/// A peer that we are connected to</span>
 <span class="doccomment">/// and from whom we have not yet received a Status message.</span>
 <span class="kw">struct</span> <span class="ident">HandshakingPeer</span> {
-	<span class="ident">timestamp</span>: <span class="ident">time</span>::<span class="ident">Instant</span>,
+	<span class="ident">timestamp</span>: <span class="ident">Instant</span>,
 }
 
 <span class="doccomment">/// Peer information</span>
@@ -2205,9 +2207,9 @@
 <span class="kw">struct</span> <span class="ident">Peer</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">H</span>: <span class="ident">ExHashT</span><span class="op">&gt;</span> {
 	<span class="ident">info</span>: <span class="ident">PeerInfo</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// Current block request, if any.</span>
-	<span class="ident">block_request</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">time</span>::<span class="ident">Instant</span>, <span class="ident">message</span>::<span class="ident">BlockRequest</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
+	<span class="ident">block_request</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">Instant</span>, <span class="ident">message</span>::<span class="ident">BlockRequest</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
 	<span class="doccomment">/// Requests we are no longer insterested in.</span>
-	<span class="ident">obsolete_requests</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">message</span>::<span class="ident">RequestId</span>, <span class="ident">time</span>::<span class="ident">Instant</span><span class="op">&gt;</span>,
+	<span class="ident">obsolete_requests</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">message</span>::<span class="ident">RequestId</span>, <span class="ident">Instant</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// Holds a set of transactions known to this peer.</span>
 	<span class="ident">known_extrinsics</span>: <span class="ident">LruHashSet</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// Holds a set of blocks known to this peer.</span>
@@ -2740,7 +2742,7 @@
 	<span class="doccomment">/// Called when a new peer is connected</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">on_peer_connected</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">who</span>: <span class="ident">PeerId</span>) {
 		<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Connecting {}&quot;</span>, <span class="ident">who</span>);
-		<span class="self">self</span>.<span class="ident">handshaking_peers</span>.<span class="ident">insert</span>(<span class="ident">who</span>.<span class="ident">clone</span>(), <span class="ident">HandshakingPeer</span> { <span class="ident">timestamp</span>: <span class="ident">time</span>::<span class="ident">Instant</span>::<span class="ident">now</span>() });
+		<span class="self">self</span>.<span class="ident">handshaking_peers</span>.<span class="ident">insert</span>(<span class="ident">who</span>.<span class="ident">clone</span>(), <span class="ident">HandshakingPeer</span> { <span class="ident">timestamp</span>: <span class="ident">Instant</span>::<span class="ident">now</span>() });
 		<span class="self">self</span>.<span class="ident">send_status</span>(<span class="ident">who</span>);
 	}
 
@@ -2929,7 +2931,7 @@
 	}
 
 	<span class="kw">fn</span> <span class="ident">maintain_peers</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
-		<span class="kw">let</span> <span class="ident">tick</span> <span class="op">=</span> <span class="ident">time</span>::<span class="ident">Instant</span>::<span class="ident">now</span>();
+		<span class="kw">let</span> <span class="ident">tick</span> <span class="op">=</span> <span class="ident">Instant</span>::<span class="ident">now</span>();
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">aborting</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
 		{
 			<span class="kw">for</span> (<span class="ident">who</span>, <span class="ident">peer</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">context_data</span>.<span class="ident">peers</span>.<span class="ident">iter</span>() {
@@ -3872,7 +3874,7 @@
 				<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sync&quot;</span>, <span class="string">&quot;Request {} for {} is now obsolete.&quot;</span>, <span class="ident">request</span>.<span class="ident">id</span>, <span class="ident">who</span>);
 				<span class="ident">peer</span>.<span class="ident">obsolete_requests</span>.<span class="ident">insert</span>(<span class="ident">request</span>.<span class="ident">id</span>, <span class="ident">timestamp</span>);
 			}
-			<span class="ident">peer</span>.<span class="ident">block_request</span> <span class="op">=</span> <span class="prelude-val">Some</span>((<span class="ident">time</span>::<span class="ident">Instant</span>::<span class="ident">now</span>(), <span class="ident">r</span>.<span class="ident">clone</span>()));
+			<span class="ident">peer</span>.<span class="ident">block_request</span> <span class="op">=</span> <span class="prelude-val">Some</span>((<span class="ident">Instant</span>::<span class="ident">now</span>(), <span class="ident">r</span>.<span class="ident">clone</span>()));
 		}
 	}
 	<span class="ident">send_message</span>::<span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>(<span class="ident">behaviour</span>, <span class="ident">stats</span>, <span class="ident">who</span>, <span class="ident">message</span>)
