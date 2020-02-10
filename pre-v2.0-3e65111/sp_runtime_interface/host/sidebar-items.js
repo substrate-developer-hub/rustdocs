@@ -1,0 +1,1 @@
+initSidebarItems({"trait":[["FromFFIValue","Something that can be created from a ffi value."],["IntoFFIValue","Something that can be converted into a ffi value."],["IntoPreallocatedFFIValue","Something that can be converted into a preallocated ffi value."]]});

@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["names","WebSocket header names"]],"struct":[["WebSocketAccept","Represents a Sec-WebSocket-Accept header"],["WebSocketKey","Represents a Sec-WebSocket-Key header."]]});

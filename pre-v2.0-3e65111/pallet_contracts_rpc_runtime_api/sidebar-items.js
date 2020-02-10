@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["ContractExecResult","A result of execution of a contract."],["GetStorageError","The possible errors that can happen querying the storage of a contract."]],"trait":[["ContractsApi","The API to interact with contracts without using executive."]],"type":[["GetStorageResult","A result type of the get storage call."]]});

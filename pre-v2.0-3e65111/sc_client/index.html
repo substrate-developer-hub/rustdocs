@@ -1,0 +1,92 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `sc_client` crate."><meta name="keywords" content="rust, rustlang, rust-lang, sc_client"><title>sc_client - Rust</title><link rel="stylesheet" type="text/css" href="../normalize.css"><link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../dark.css"><link rel="stylesheet" type="text/css" href="../light.css" id="themeStyle"><script src="../storage.js"></script><noscript><link rel="stylesheet" href="../noscript.css"></noscript><link rel="shortcut icon" href="../favicon.ico"><style type="text/css">#crate-search{background-image:url("../down-arrow.svg");}</style></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../sc_client/index.html'><div class='logo-container'><img src='../rust-logo.png' alt='logo'></div></a><p class='location'>Crate sc_client</p><div class="sidebar-elems"><a id='all-types' href='all.html'><p>See all sc_client's items</p></a><div class="block items"><ul><li><a href="#reexports">Re-exports</a></li><li><a href="#modules">Modules</a></li><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#traits">Traits</a></li><li><a href="#functions">Functions</a></li><li><a href="#types">Type Definitions</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'sc_client', ty: 'mod', relpath: '../'};</script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../theme.js"></script><nav class="sub"><form class="search-form js-only"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../settings.html"><img src="../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../src/sc_client/lib.rs.html#17-105' title='goto source code'>[src]</a></span><span class='in-band'>Crate <a class="mod" href=''>sc_client</a></span></h1><div class='docblock'><p>Substrate Client and associated logic.</p>
+<p>The [<code>Client</code>] is one of the most important components of Substrate. It mainly comprises two
+parts:</p>
+<ul>
+<li>A database containing the blocks and chain state, generally referred to as
+the <a href="backend::Backend"><code>Backend</code></a>.</li>
+<li>A runtime environment, generally referred to as the <a href="CallExecutor"><code>Executor</code></a>.</li>
+</ul>
+<h1 id="initialization" class="section-header"><a href="#initialization">Initialization</a></h1>
+<p>Creating a [<code>Client</code>] is done by calling the <code>new</code> method and passing to it a
+<a href="backend::Backend"><code>Backend</code></a> and an <a href="CallExecutor"><code>Executor</code></a>.</p>
+<p>The former is typically provided by the <code>sc-client-db</code> crate.</p>
+<p>The latter typically requires passing one of:</p>
+<ul>
+<li>A [<code>LocalCallExecutor</code>] running the runtime locally.</li>
+<li>A <a href="light::call_executor::RemoteCallExecutor"><code>RemoteCallExecutor</code></a> that will ask a
+third-party to perform the executions.</li>
+<li>A <a href="light::call_executor::RemoteOrLocalCallExecutor"><code>RemoteOrLocalCallExecutor</code></a>, combination
+of the two.</li>
+</ul>
+<p>Additionally, the fourth generic parameter of the <code>Client</code> is a marker type representing
+the ways in which the runtime can interface with the outside. Any code that builds a <code>Client</code>
+is responsible for putting the right marker.</p>
+<h2 id="example" class="section-header"><a href="#example">Example</a></h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
+<span class="kw">use</span> <span class="ident">sc_client</span>::{<span class="ident">Client</span>, <span class="ident">in_mem</span>::<span class="ident">Backend</span>, <span class="ident">LocalCallExecutor</span>};
+<span class="kw">use</span> <span class="ident">sp_core</span>::<span class="ident">Blake2Hasher</span>;
+<span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">Storage</span>;
+<span class="kw">use</span> <span class="ident">sc_executor</span>::{<span class="ident">NativeExecutor</span>, <span class="ident">WasmExecutionMethod</span>};
+
+<span class="comment">// In this example, we&#39;re using the `Block` and `RuntimeApi` types from the</span>
+<span class="comment">// `substrate-test-runtime-client` crate. These types are automatically generated when</span>
+<span class="comment">// compiling a runtime. In a typical use-case, these types would have been to be generated</span>
+<span class="comment">// from your runtime.</span>
+<span class="kw">use</span> <span class="ident">substrate_test_runtime_client</span>::{<span class="ident">LocalExecutor</span>, <span class="ident">runtime</span>::<span class="ident">Block</span>, <span class="ident">runtime</span>::<span class="ident">RuntimeApi</span>};
+
+<span class="kw">let</span> <span class="ident">backend</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Backend</span>::<span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Blake2Hasher</span><span class="op">&gt;</span>::<span class="ident">new</span>());
+<span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">Client</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">RuntimeApi</span><span class="op">&gt;</span>::<span class="ident">new</span>(
+	<span class="ident">backend</span>.<span class="ident">clone</span>(),
+	<span class="ident">LocalCallExecutor</span>::<span class="ident">new</span>(
+		<span class="ident">backend</span>.<span class="ident">clone</span>(),
+		<span class="ident">NativeExecutor</span>::<span class="op">&lt;</span><span class="ident">LocalExecutor</span><span class="op">&gt;</span>::<span class="ident">new</span>(<span class="ident">WasmExecutionMethod</span>::<span class="ident">Interpreted</span>, <span class="prelude-val">None</span>),
+	),
+	<span class="comment">// This parameter provides the storage for the chain genesis.</span>
+	<span class="op">&lt;</span><span class="ident">Storage</span><span class="op">&gt;</span>::<span class="ident">default</span>(),
+	<span class="ident">Default</span>::<span class="ident">default</span>(),
+	<span class="ident">Default</span>::<span class="ident">default</span>(),
+);</pre></div>
+</div><h2 id='reexports' class='section-header'><a href="#reexports">Re-exports</a></h2>
+<table><tr><td><code>pub use sc_client_api::<a class="mod" href="../sp_blockchain/index.html" title="mod sp_blockchain">blockchain</a>;</code></td></tr><tr><td><code>pub use crate::leaves::<a class="struct" href="../sc_client/leaves/struct.LeafSet.html" title="struct sc_client::leaves::LeafSet">LeafSet</a>;</code></td></tr></table><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
+<table><tr class='module-item'><td><a class="mod" href="cht/index.html" title='sc_client::cht mod'>cht</a></td><td class='docblock-short'><p>Canonical hash trie definitions and helper functions.</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="genesis/index.html" title='sc_client::genesis mod'>genesis</a></td><td class='docblock-short'><p>Tool for creating the genesis block.</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="in_mem/index.html" title='sc_client::in_mem mod'>in_mem</a></td><td class='docblock-short'><p>In memory client backend</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="leaves/index.html" title='sc_client::leaves mod'>leaves</a></td><td class='docblock-short'><p>Helper for managing the set of available leaves in the chain for DB implementations.</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="light/index.html" title='sc_client::light mod'>light</a></td><td class='docblock-short'><p>Light client components.</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="utils/index.html" title='sc_client::utils mod'>utils</a></td><td class='docblock-short'><p>Utility methods for the client.</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="well_known_cache_keys/index.html" title='sc_client::well_known_cache_keys mod'>well_known_cache_keys</a></td><td class='docblock-short'><p>A list of all well known keys in the blockchain cache.</p>
+</td></tr></table><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table><tr class='module-item'><td><a class="struct" href="struct.BlockImportNotification.html" title='sc_client::BlockImportNotification struct'>BlockImportNotification</a></td><td class='docblock-short'><p>Summary of an imported block</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.ChainInfo.html" title='sc_client::ChainInfo struct'>ChainInfo</a></td><td class='docblock-short'><p>Blockchain info</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.Client.html" title='sc_client::Client struct'>Client</a></td><td class='docblock-short'><p>Substrate Client</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.ClientInfo.html" title='sc_client::ClientInfo struct'>ClientInfo</a></td><td class='docblock-short'><p>Client info</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.ExecutionStrategies.html" title='sc_client::ExecutionStrategies struct'>ExecutionStrategies</a></td><td class='docblock-short'><p>Execution strategies settings.</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.FinalityNotification.html" title='sc_client::FinalityNotification struct'>FinalityNotification</a></td><td class='docblock-short'><p>Summary of a finalized block.</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.LocalCallExecutor.html" title='sc_client::LocalCallExecutor struct'>LocalCallExecutor</a></td><td class='docblock-short'><p>Call executor that executes methods locally, querying all required
+data from local backend.</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.LongestChain.html" title='sc_client::LongestChain struct'>LongestChain</a></td><td class='docblock-short'><p>Implement Longest Chain Select implementation
+where 'longest' is defined as the highest number of blocks</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.StorageChangeSet.html" title='sc_client::StorageChangeSet struct'>StorageChangeSet</a></td><td class='docblock-short'><p>Storage change set</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.StorageProof.html" title='sc_client::StorageProof struct'>StorageProof</a></td><td class='docblock-short'><p>A proof that some set of key-value pairs are included in the storage trie. The proof contains
+the storage values so that the partial storage backend can be reconstructed by a verifier that
+does not already have access to the key-value pairs.</p>
+</td></tr></table><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
+<table><tr class='module-item'><td><a class="enum" href="enum.ExecutionStrategy.html" title='sc_client::ExecutionStrategy enum'>ExecutionStrategy</a></td><td class='docblock-short'><p>Strategy for executing a call into the runtime.</p>
+</td></tr></table><h2 id='traits' class='section-header'><a href="#traits">Traits</a></h2>
+<table><tr class='module-item'><td><a class="trait" href="trait.BlockBody.html" title='sc_client::BlockBody trait'>BlockBody</a></td><td class='docblock-short'><p>Fetch block body by ID.</p>
+</td></tr><tr class='module-item'><td><a class="trait" href="trait.BlockOf.html" title='sc_client::BlockOf trait'>BlockOf</a></td><td class='docblock-short'><p>Figure out the block type for a given type (for now, just a <code>Client</code>).</p>
+</td></tr><tr class='module-item'><td><a class="trait" href="trait.BlockchainEvents.html" title='sc_client::BlockchainEvents trait'>BlockchainEvents</a></td><td class='docblock-short'><p>A source of blockchain events.</p>
+</td></tr><tr class='module-item'><td><a class="trait" href="trait.CallExecutor.html" title='sc_client::CallExecutor trait'>CallExecutor</a></td><td class='docblock-short'><p>Method call executor.</p>
+</td></tr><tr class='module-item'><td><a class="trait" href="trait.ProvideUncles.html" title='sc_client::ProvideUncles trait'>ProvideUncles</a></td><td class='docblock-short'><p>Provide a list of potential uncle headers for a given block.</p>
+</td></tr></table><h2 id='functions' class='section-header'><a href="#functions">Functions</a></h2>
+<table><tr class='module-item'><td><a class="fn" href="fn.apply_aux.html" title='sc_client::apply_aux fn'>apply_aux</a></td><td class='docblock-short'><p>Helper function to apply auxiliary data insertion into an operation.</p>
+</td></tr><tr class='module-item'><td><a class="fn" href="fn.new_in_mem.html" title='sc_client::new_in_mem fn'>new_in_mem</a></td><td class='docblock-short'><p>Create an instance of in-memory client.</p>
+</td></tr><tr class='module-item'><td><a class="fn" href="fn.new_with_backend.html" title='sc_client::new_with_backend fn'>new_with_backend</a></td><td class='docblock-short'><p>Create a client with the explicitly provided backend.
+This is useful for testing backend implementations.</p>
+</td></tr></table><h2 id='types' class='section-header'><a href="#types">Type Definitions</a></h2>
+<table><tr class='module-item'><td><a class="type" href="type.FinalityNotifications.html" title='sc_client::FinalityNotifications type'>FinalityNotifications</a></td><td class='docblock-short'><p>A stream of block finality notifications.</p>
+</td></tr><tr class='module-item'><td><a class="type" href="type.ForkBlocks.html" title='sc_client::ForkBlocks type'>ForkBlocks</a></td><td class='docblock-short'><p>Expected hashes of blocks at given heights.</p>
+</td></tr><tr class='module-item'><td><a class="type" href="type.ImportNotifications.html" title='sc_client::ImportNotifications type'>ImportNotifications</a></td><td class='docblock-short'><p>Type that implements <code>futures::Stream</code> of block import events.</p>
+</td></tr><tr class='module-item'><td><a class="type" href="type.StorageEventStream.html" title='sc_client::StorageEventStream type'>StorageEventStream</a></td><td class='docblock-short'><p>Type that implements <code>futures::Stream</code> of storage change events.</p>
+</td></tr></table></section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../";window.currentCrate = "sc_client";</script><script src="../aliases.js"></script><script src="../main.js"></script><script defer src="../search-index.js"></script></body></html>

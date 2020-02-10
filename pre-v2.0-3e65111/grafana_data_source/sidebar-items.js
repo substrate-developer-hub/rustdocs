@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Error","Error type that can be returned by either `record_metrics` or `run_server`."]],"fn":[["record_metrics_slice","Write metrics to `METRICS` as a slice. Intended to be only used via `record_metrics!`."],["run_server","Start the data source server."]],"macro":[["record_metrics","Write metrics to `METRICS`."]]});

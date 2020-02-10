@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["TracingReceiver","Used to configure how to receive the metrics"]],"struct":[["ProfilingSubscriber","Responsible for assigning ids to new spans, which are not re-used."]]});

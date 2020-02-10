@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["endian","Platform endianness."],["pointer_width","Width, in bits, of a pointer on this platform."],["triple","Platform triple."]]});

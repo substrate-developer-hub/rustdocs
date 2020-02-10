@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["author","Substrate block-author/full-node API."],["chain","Substrate blockchain API."],["state","Substrate state API."],["system","Substrate system API."]],"struct":[["Metadata","RPC Metadata."],["Subscriptions","Subscriptions manager."]],"trait":[["RpcExtension","A type that can augment `MetaIoHandler`."]]});
