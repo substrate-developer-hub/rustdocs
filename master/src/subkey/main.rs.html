@@ -782,6 +782,21 @@
 <span id="771">771</span>
 <span id="772">772</span>
 <span id="773">773</span>
+<span id="774">774</span>
+<span id="775">775</span>
+<span id="776">776</span>
+<span id="777">777</span>
+<span id="778">778</span>
+<span id="779">779</span>
+<span id="780">780</span>
+<span id="781">781</span>
+<span id="782">782</span>
+<span id="783">783</span>
+<span id="784">784</span>
+<span id="785">785</span>
+<span id="786">786</span>
+<span id="787">787</span>
+<span id="788">788</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -808,6 +823,7 @@
 <span class="kw">use</span> <span class="ident">codec</span>::{<span class="ident">Decode</span>, <span class="ident">Encode</span>};
 <span class="kw">use</span> <span class="ident">hex_literal</span>::<span class="ident">hex</span>;
 <span class="kw">use</span> <span class="ident">itertools</span>::<span class="ident">Itertools</span>;
+<span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">identity</span>::{<span class="ident">ed25519</span> <span class="kw">as</span> <span class="ident">libp2p_ed25519</span>, <span class="ident">PublicKey</span>};
 <span class="kw">use</span> <span class="ident">node_primitives</span>::{<span class="ident">Balance</span>, <span class="ident">Hash</span>, <span class="ident">Index</span>, <span class="ident">AccountId</span>, <span class="ident">Signature</span>};
 <span class="kw">use</span> <span class="ident">node_runtime</span>::{<span class="ident">BalancesCall</span>, <span class="ident">Call</span>, <span class="ident">Runtime</span>, <span class="ident">SignedPayload</span>, <span class="ident">UncheckedExtrinsic</span>, <span class="ident">VERSION</span>};
 <span class="kw">use</span> <span class="ident">serde_json</span>::<span class="ident">json</span>;
@@ -1033,6 +1049,9 @@
 						&#39;The number of words in the phrase to generate. One of 12 \
 						(default), 15, 18, 21 and 24.&#39;
 				&quot;</span>),
+			<span class="ident">SubCommand</span>::<span class="ident">with_name</span>(<span class="string">&quot;generate-node-key&quot;</span>)
+				.<span class="ident">about</span>(<span class="string">&quot;Generate a random node libp2p key, save it to file and print its peer ID&quot;</span>)
+				.<span class="ident">args_from_usage</span>(<span class="string">&quot;[file] &#39;Name of file to save secret key to&#39;&quot;</span>),
 			<span class="ident">SubCommand</span>::<span class="ident">with_name</span>(<span class="string">&quot;inspect&quot;</span>)
 				.<span class="ident">about</span>(<span class="string">&quot;Gets a public key and a SS58 address from the provided Secret URI&quot;</span>)
 				.<span class="ident">args_from_usage</span>(<span class="string">&quot;[uri] &#39;A Key URI to be inspected. May be a secret seed, \
@@ -1192,6 +1211,17 @@
 		(<span class="string">&quot;generate&quot;</span>, <span class="prelude-val">Some</span>(<span class="ident">matches</span>)) <span class="op">=</span><span class="op">&gt;</span> {
 			<span class="kw">let</span> <span class="ident">mnemonic</span> <span class="op">=</span> <span class="ident">generate_mnemonic</span>(<span class="ident">matches</span>)<span class="question-mark">?</span>;
 			<span class="ident">C</span>::<span class="ident">print_from_uri</span>(<span class="ident">mnemonic</span>.<span class="ident">phrase</span>(), <span class="ident">password</span>, <span class="ident">maybe_network</span>, <span class="ident">output</span>);
+		}
+		(<span class="string">&quot;generate-node-key&quot;</span>, <span class="prelude-val">Some</span>(<span class="ident">matches</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+			<span class="kw">let</span> <span class="ident">file</span> <span class="op">=</span> <span class="ident">matches</span>.<span class="ident">value_of</span>(<span class="string">&quot;file&quot;</span>).<span class="ident">ok_or</span>(<span class="ident">Error</span>::<span class="ident">Static</span>(<span class="string">&quot;Output file name is required&quot;</span>))<span class="question-mark">?</span>;
+
+			<span class="kw">let</span> <span class="ident">keypair</span> <span class="op">=</span> <span class="ident">libp2p_ed25519</span>::<span class="ident">Keypair</span>::<span class="ident">generate</span>();
+			<span class="kw">let</span> <span class="ident">secret</span> <span class="op">=</span> <span class="ident">keypair</span>.<span class="ident">secret</span>();
+			<span class="kw">let</span> <span class="ident">peer_id</span> <span class="op">=</span> <span class="ident">PublicKey</span>::<span class="ident">Ed25519</span>(<span class="ident">keypair</span>.<span class="ident">public</span>()).<span class="ident">into_peer_id</span>();
+
+			<span class="ident">fs</span>::<span class="ident">write</span>(<span class="ident">file</span>, <span class="ident">secret</span>.<span class="ident">as_ref</span>())<span class="question-mark">?</span>;
+
+			<span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">peer_id</span>);
 		}
 		(<span class="string">&quot;inspect&quot;</span>, <span class="prelude-val">Some</span>(<span class="ident">matches</span>)) <span class="op">=</span><span class="op">&gt;</span> {
 			<span class="ident">C</span>::<span class="ident">print_from_uri</span>(<span class="kw-2">&amp;</span><span class="ident">get_uri</span>(<span class="string">&quot;uri&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">matches</span>)<span class="question-mark">?</span>, <span class="ident">password</span>, <span class="ident">maybe_network</span>, <span class="ident">output</span>);
