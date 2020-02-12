@@ -144,6 +144,18 @@
 <span id="133">133</span>
 <span id="134">134</span>
 <span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -164,7 +176,7 @@
 <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">libp2p</span>::{
 	<span class="ident">InboundUpgradeExt</span>, <span class="ident">OutboundUpgradeExt</span>, <span class="ident">PeerId</span>, <span class="ident">Transport</span>,
-	<span class="ident">mplex</span>, <span class="ident">identity</span>, <span class="ident">yamux</span>, <span class="ident">bandwidth</span>, <span class="ident">wasm_ext</span>
+	<span class="ident">mplex</span>, <span class="ident">identity</span>, <span class="ident">bandwidth</span>, <span class="ident">wasm_ext</span>
 };
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">target_os</span> <span class="op">=</span> <span class="string">&quot;unknown&quot;</span>))]</span>
 <span class="kw">use</span> <span class="ident">libp2p</span>::{<span class="ident">tcp</span>, <span class="ident">dns</span>, <span class="ident">websocket</span>, <span class="ident">noise</span>};
@@ -183,7 +195,8 @@
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">build_transport</span>(
 	<span class="ident">keypair</span>: <span class="ident">identity</span>::<span class="ident">Keypair</span>,
 	<span class="ident">memory_only</span>: <span class="ident">bool</span>,
-	<span class="ident">wasm_external_transport</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">wasm_ext</span>::<span class="ident">ExtTransport</span><span class="op">&gt;</span>
+	<span class="ident">wasm_external_transport</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">wasm_ext</span>::<span class="ident">ExtTransport</span><span class="op">&gt;</span>,
+	<span class="ident">use_yamux_flow_control</span>: <span class="ident">bool</span>
 ) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">Boxed</span><span class="op">&lt;</span>(<span class="ident">PeerId</span>, <span class="ident">StreamMuxerBox</span>), <span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span>, <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">bandwidth</span>::<span class="ident">BandwidthSinks</span><span class="op">&gt;</span>) {
 	<span class="comment">// Build configuration objects for encryption mechanisms.</span>
 	<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">target_os</span> <span class="op">=</span> <span class="string">&quot;unknown&quot;</span>))]</span>
@@ -202,7 +215,18 @@
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mplex_config</span> <span class="op">=</span> <span class="ident">mplex</span>::<span class="ident">MplexConfig</span>::<span class="ident">new</span>();
 	<span class="ident">mplex_config</span>.<span class="ident">max_buffer_len_behaviour</span>(<span class="ident">mplex</span>::<span class="ident">MaxBufferBehaviour</span>::<span class="ident">Block</span>);
 	<span class="ident">mplex_config</span>.<span class="ident">max_buffer_len</span>(<span class="ident">usize</span>::<span class="ident">MAX</span>);
-	<span class="kw">let</span> <span class="ident">yamux_config</span> <span class="op">=</span> <span class="ident">yamux</span>::<span class="ident">Config</span>::<span class="ident">default</span>();
+
+	<span class="kw">let</span> <span class="ident">yamux_config</span> <span class="op">=</span> {
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">c</span> <span class="op">=</span> <span class="ident">yamux</span>::<span class="ident">Config</span>::<span class="ident">default</span>();
+		<span class="comment">// Only set SYN flag on first data frame sent to the remote.</span>
+		<span class="ident">c</span>.<span class="ident">set_lazy_open</span>(<span class="bool-val">true</span>);
+		<span class="kw">if</span> <span class="ident">use_yamux_flow_control</span> {
+			<span class="comment">// Enable proper flow-control: window updates are only sent when</span>
+			<span class="comment">// buffered data has been consumed.</span>
+			<span class="ident">c</span>.<span class="ident">set_window_update_mode</span>(<span class="ident">yamux</span>::<span class="ident">WindowUpdateMode</span>::<span class="ident">OnRead</span>);
+		}
+		<span class="ident">libp2p</span>::<span class="ident">yamux</span>::<span class="ident">Config</span>::<span class="ident">new</span>(<span class="ident">c</span>)
+	};
 
 	<span class="comment">// Build the base layer of the transport.</span>
 	<span class="kw">let</span> <span class="ident">transport</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">t</span>) <span class="op">=</span> <span class="ident">wasm_external_transport</span> {
