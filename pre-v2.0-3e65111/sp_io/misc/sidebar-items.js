@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["chain_id","The current relay chain identifier."],["print_hex","Print any `u8` slice as hex."],["print_num","Print a number."],["print_utf8","Print any valid `utf8` buffer."]],"struct":[["HostFunctions","Provides implementations for the extern host functions."]]});

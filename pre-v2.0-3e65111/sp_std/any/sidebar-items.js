@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["type_name","Returns the name of a type as a string slice."]],"struct":[["TypeId","A `TypeId` represents a globally unique identifier for a type."]],"trait":[["Any","A type to emulate dynamic typing."]]});
