@@ -1309,6 +1309,15 @@
 <span id="1298">1298</span>
 <span id="1299">1299</span>
 <span id="1300">1300</span>
+<span id="1301">1301</span>
+<span id="1302">1302</span>
+<span id="1303">1303</span>
+<span id="1304">1304</span>
+<span id="1305">1305</span>
+<span id="1306">1306</span>
+<span id="1307">1307</span>
+<span id="1308">1308</span>
+<span id="1309">1309</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1353,7 +1362,7 @@
 <span class="doccomment">/// Default request retry count.</span>
 <span class="kw">const</span> <span class="ident">RETRY_COUNT</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">1</span>;
 <span class="doccomment">/// Reputation change for a peer when a request timed out.</span>
-<span class="kw">const</span> <span class="ident">TIMEOUT_REPUTATION_CHANGE</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="op">-</span>(<span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">8</span>);
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="ident">TIMEOUT_REPUTATION_CHANGE</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="op">-</span>(<span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">8</span>);
 
 <span class="doccomment">/// Trait used by the `LightDispatch` service to communicate messages back to the network.</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">LightDispatchNetwork</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> {
@@ -2004,17 +2013,26 @@
 	<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">message</span>::{<span class="self">self</span>, <span class="ident">BlockAttributes</span>, <span class="ident">Direction</span>, <span class="ident">FromBlock</span>, <span class="ident">RequestId</span>};
 	<span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">PeerId</span>;
 	<span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">REQUEST_TIMEOUT</span>, <span class="ident">LightDispatch</span>, <span class="ident">LightDispatchNetwork</span>, <span class="ident">RequestData</span>, <span class="ident">StorageProof</span>};
-	<span class="kw">use</span> <span class="ident">sp_test_primitives</span>::{<span class="ident">Block</span>, <span class="ident">Extrinsic</span>, <span class="ident">Header</span>};
+	<span class="kw">use</span> <span class="ident">sp_test_primitives</span>::{<span class="ident">Block</span>, <span class="ident">Header</span>};
 
-	<span class="kw">struct</span> <span class="ident">DummyFetchChecker</span> { <span class="ident">ok</span>: <span class="ident">bool</span> }
+	<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">DummyFetchChecker</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> {
+		<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">ok</span>: <span class="ident">bool</span>,
+		<span class="ident">_mark</span>: <span class="ident">std</span>::<span class="ident">marker</span>::<span class="ident">PhantomData</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>
+	}
 
-	<span class="kw">impl</span> <span class="ident">FetchChecker</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">DummyFetchChecker</span> {
+	<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="ident">DummyFetchChecker</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> {
+		<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">ok</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+			<span class="ident">DummyFetchChecker</span> { <span class="ident">ok</span>, <span class="ident">_mark</span>: <span class="ident">std</span>::<span class="ident">marker</span>::<span class="ident">PhantomData</span> }
+		}
+	}
+
+	<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> <span class="ident">FetchChecker</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">DummyFetchChecker</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> {
 		<span class="kw">fn</span> <span class="ident">check_header_proof</span>(
 			<span class="kw-2">&amp;</span><span class="self">self</span>,
-			<span class="ident">_request</span>: <span class="kw-2">&amp;</span><span class="ident">RemoteHeaderRequest</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&gt;</span>,
-			<span class="ident">header</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&gt;</span>,
+			<span class="ident">_request</span>: <span class="kw-2">&amp;</span><span class="ident">RemoteHeaderRequest</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Header</span><span class="op">&gt;</span>,
+			<span class="ident">header</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Header</span><span class="op">&gt;</span>,
 			<span class="ident">_remote_proof</span>: <span class="ident">StorageProof</span>,
-		) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&gt;</span> {
+		) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Header</span><span class="op">&gt;</span> {
 			<span class="kw">match</span> <span class="self">self</span>.<span class="ident">ok</span> {
 				<span class="bool-val">true</span> <span class="kw">if</span> <span class="ident">header</span>.<span class="ident">is_some</span>() <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">header</span>.<span class="ident">unwrap</span>()),
 				<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">ClientError</span>::<span class="ident">Backend</span>(<span class="string">&quot;Test error&quot;</span>.<span class="ident">into</span>())),
@@ -2023,7 +2041,7 @@
 
 		<span class="kw">fn</span> <span class="ident">check_read_proof</span>(
 			<span class="kw-2">&amp;</span><span class="self">self</span>,
-			<span class="ident">request</span>: <span class="kw-2">&amp;</span><span class="ident">RemoteReadRequest</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&gt;</span>,
+			<span class="ident">request</span>: <span class="kw-2">&amp;</span><span class="ident">RemoteReadRequest</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Header</span><span class="op">&gt;</span>,
 			<span class="kw">_</span>: <span class="ident">StorageProof</span>,
 		) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 			<span class="kw">match</span> <span class="self">self</span>.<span class="ident">ok</span> {
@@ -2039,7 +2057,7 @@
 
 		<span class="kw">fn</span> <span class="ident">check_read_child_proof</span>(
 			<span class="kw-2">&amp;</span><span class="self">self</span>,
-			<span class="ident">request</span>: <span class="kw-2">&amp;</span><span class="ident">RemoteReadChildRequest</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&gt;</span>,
+			<span class="ident">request</span>: <span class="kw-2">&amp;</span><span class="ident">RemoteReadChildRequest</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Header</span><span class="op">&gt;</span>,
 			<span class="kw">_</span>: <span class="ident">StorageProof</span>,
 		) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 			<span class="kw">match</span> <span class="self">self</span>.<span class="ident">ok</span> {
@@ -2053,7 +2071,7 @@
 			}
 		}
 
-		<span class="kw">fn</span> <span class="ident">check_execution_proof</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="ident">RemoteCallRequest</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&gt;</span>, <span class="kw">_</span>: <span class="ident">StorageProof</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+		<span class="kw">fn</span> <span class="ident">check_execution_proof</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="ident">RemoteCallRequest</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Header</span><span class="op">&gt;</span>, <span class="kw">_</span>: <span class="ident">StorageProof</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 			<span class="kw">match</span> <span class="self">self</span>.<span class="ident">ok</span> {
 				<span class="bool-val">true</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="number">42</span>]),
 				<span class="bool-val">false</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">ClientError</span>::<span class="ident">Backend</span>(<span class="string">&quot;Test error&quot;</span>.<span class="ident">into</span>())),
@@ -2062,20 +2080,20 @@
 
 		<span class="kw">fn</span> <span class="ident">check_changes_proof</span>(
 			<span class="kw-2">&amp;</span><span class="self">self</span>,
-			<span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="ident">RemoteChangesRequest</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&gt;</span>,
-			<span class="kw">_</span>: <span class="ident">ChangesProof</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&gt;</span>
-		) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>, <span class="ident">u32</span>)<span class="op">&gt;</span><span class="op">&gt;</span> {
+			<span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="ident">RemoteChangesRequest</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Header</span><span class="op">&gt;</span>,
+			<span class="kw">_</span>: <span class="ident">ChangesProof</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Header</span><span class="op">&gt;</span>
+		) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">u32</span>)<span class="op">&gt;</span><span class="op">&gt;</span> {
 			<span class="kw">match</span> <span class="self">self</span>.<span class="ident">ok</span> {
-				<span class="bool-val">true</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="macro">vec</span><span class="macro">!</span>[(<span class="number">100</span>, <span class="number">2</span>)]),
+				<span class="bool-val">true</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="macro">vec</span><span class="macro">!</span>[(<span class="number">100</span>.<span class="ident">into</span>(), <span class="number">2</span>)]),
 				<span class="bool-val">false</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">ClientError</span>::<span class="ident">Backend</span>(<span class="string">&quot;Test error&quot;</span>.<span class="ident">into</span>())),
 			}
 		}
 
 		<span class="kw">fn</span> <span class="ident">check_body_proof</span>(
 			<span class="kw-2">&amp;</span><span class="self">self</span>,
-			<span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="ident">RemoteBodyRequest</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&gt;</span>,
-			<span class="ident">body</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Extrinsic</span><span class="op">&gt;</span>
-		) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Extrinsic</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+			<span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="ident">RemoteBodyRequest</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Header</span><span class="op">&gt;</span>,
+			<span class="ident">body</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Extrinsic</span><span class="op">&gt;</span>
+		) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ClientResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Extrinsic</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 			<span class="kw">match</span> <span class="self">self</span>.<span class="ident">ok</span> {
 				<span class="bool-val">true</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">body</span>),
 				<span class="bool-val">false</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">ClientError</span>::<span class="ident">Backend</span>(<span class="string">&quot;Test error&quot;</span>.<span class="ident">into</span>())),
@@ -2084,7 +2102,7 @@
 	}
 
 	<span class="kw">fn</span> <span class="ident">dummy</span>(<span class="ident">ok</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">LightDispatch</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> {
-		<span class="ident">LightDispatch</span>::<span class="ident">new</span>(<span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">DummyFetchChecker</span> { <span class="ident">ok</span> }))
+		<span class="ident">LightDispatch</span>::<span class="ident">new</span>(<span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">DummyFetchChecker</span>::<span class="ident">new</span>(<span class="ident">ok</span>)))
 	}
 
 	<span class="kw">fn</span> <span class="ident">total_peers</span>(<span class="ident">light_dispatch</span>: <span class="kw-2">&amp;</span><span class="ident">LightDispatch</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
@@ -2103,7 +2121,7 @@
 		});
 	}
 
-	<span class="kw">fn</span> <span class="ident">dummy_header</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Header</span> {
+	<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">dummy_header</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Header</span> {
 		<span class="ident">Header</span> {
 			<span class="ident">parent_hash</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
 			<span class="ident">number</span>: <span class="number">0</span>,
