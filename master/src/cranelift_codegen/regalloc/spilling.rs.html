@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/cranelift-codegen-0.50.0/src/regalloc/spilling.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>spilling.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/cranelift-codegen-0.58.0/src/regalloc/spilling.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>spilling.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -640,6 +640,11 @@
 <span id="629">629</span>
 <span id="630">630</span>
 <span id="631">631</span>
+<span id="632">632</span>
+<span id="633">633</span>
+<span id="634">634</span>
+<span id="635">635</span>
+<span id="636">636</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Spilling pass.</span>
 <span class="doccomment">//!</span>
@@ -660,7 +665,7 @@
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">cursor</span>::{<span class="ident">Cursor</span>, <span class="ident">EncCursor</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">dominator_tree</span>::<span class="ident">DominatorTree</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">ir</span>::{<span class="ident">ArgumentLoc</span>, <span class="ident">Ebb</span>, <span class="ident">Function</span>, <span class="ident">Inst</span>, <span class="ident">InstBuilder</span>, <span class="ident">SigRef</span>, <span class="ident">Value</span>, <span class="ident">ValueLoc</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">ir</span>::{<span class="ident">ArgumentLoc</span>, <span class="ident">Block</span>, <span class="ident">Function</span>, <span class="ident">Inst</span>, <span class="ident">InstBuilder</span>, <span class="ident">SigRef</span>, <span class="ident">Value</span>, <span class="ident">ValueLoc</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">isa</span>::<span class="ident">registers</span>::{<span class="ident">RegClass</span>, <span class="ident">RegClassIndex</span>, <span class="ident">RegClassMask</span>, <span class="ident">RegUnit</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">isa</span>::{<span class="ident">ConstraintKind</span>, <span class="ident">EncInfo</span>, <span class="ident">RecipeConstraints</span>, <span class="ident">RegInfo</span>, <span class="ident">TargetIsa</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">regalloc</span>::<span class="ident">affinity</span>::<span class="ident">Affinity</span>;
@@ -764,22 +769,22 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">tracker</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LiveValueTracker</span>) {
-        <span class="self">self</span>.<span class="ident">topo</span>.<span class="ident">reset</span>(<span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">func</span>.<span class="ident">layout</span>.<span class="ident">ebbs</span>());
-        <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">ebb</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">topo</span>.<span class="ident">next</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">func</span>.<span class="ident">layout</span>, <span class="self">self</span>.<span class="ident">domtree</span>) {
-            <span class="self">self</span>.<span class="ident">visit_ebb</span>(<span class="ident">ebb</span>, <span class="ident">tracker</span>);
+        <span class="self">self</span>.<span class="ident">topo</span>.<span class="ident">reset</span>(<span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">func</span>.<span class="ident">layout</span>.<span class="ident">blocks</span>());
+        <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">block</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">topo</span>.<span class="ident">next</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">func</span>.<span class="ident">layout</span>, <span class="self">self</span>.<span class="ident">domtree</span>) {
+            <span class="self">self</span>.<span class="ident">visit_block</span>(<span class="ident">block</span>, <span class="ident">tracker</span>);
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">visit_ebb</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">ebb</span>: <span class="ident">Ebb</span>, <span class="ident">tracker</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LiveValueTracker</span>) {
-        <span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;Spilling {}:&quot;</span>, <span class="ident">ebb</span>);
-        <span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">goto_top</span>(<span class="ident">ebb</span>);
-        <span class="self">self</span>.<span class="ident">visit_ebb_header</span>(<span class="ident">ebb</span>, <span class="ident">tracker</span>);
+    <span class="kw">fn</span> <span class="ident">visit_block</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">block</span>: <span class="ident">Block</span>, <span class="ident">tracker</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LiveValueTracker</span>) {
+        <span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;Spilling {}:&quot;</span>, <span class="ident">block</span>);
+        <span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">goto_top</span>(<span class="ident">block</span>);
+        <span class="self">self</span>.<span class="ident">visit_block_header</span>(<span class="ident">block</span>, <span class="ident">tracker</span>);
         <span class="ident">tracker</span>.<span class="ident">drop_dead_params</span>();
         <span class="self">self</span>.<span class="ident">process_spills</span>(<span class="ident">tracker</span>);
 
         <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">inst</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">next_inst</span>() {
             <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">func</span>.<span class="ident">dfg</span>[<span class="ident">inst</span>].<span class="ident">opcode</span>().<span class="ident">is_ghost</span>() {
-                <span class="self">self</span>.<span class="ident">visit_inst</span>(<span class="ident">inst</span>, <span class="ident">ebb</span>, <span class="ident">tracker</span>);
+                <span class="self">self</span>.<span class="ident">visit_inst</span>(<span class="ident">inst</span>, <span class="ident">block</span>, <span class="ident">tracker</span>);
             } <span class="kw">else</span> {
                 <span class="kw">let</span> (<span class="ident">_throughs</span>, <span class="ident">kills</span>) <span class="op">=</span> <span class="ident">tracker</span>.<span class="ident">process_ghost</span>(<span class="ident">inst</span>);
                 <span class="self">self</span>.<span class="ident">free_regs</span>(<span class="ident">kills</span>);
@@ -828,9 +833,9 @@
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">visit_ebb_header</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">ebb</span>: <span class="ident">Ebb</span>, <span class="ident">tracker</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LiveValueTracker</span>) {
-        <span class="kw">let</span> (<span class="ident">liveins</span>, <span class="ident">params</span>) <span class="op">=</span> <span class="ident">tracker</span>.<span class="ident">ebb_top</span>(
-            <span class="ident">ebb</span>,
+    <span class="kw">fn</span> <span class="ident">visit_block_header</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">block</span>: <span class="ident">Block</span>, <span class="ident">tracker</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LiveValueTracker</span>) {
+        <span class="kw">let</span> (<span class="ident">liveins</span>, <span class="ident">params</span>) <span class="op">=</span> <span class="ident">tracker</span>.<span class="ident">block_top</span>(
+            <span class="ident">block</span>,
             <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">func</span>.<span class="ident">dfg</span>,
             <span class="self">self</span>.<span class="ident">liveness</span>,
             <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">func</span>.<span class="ident">layout</span>,
@@ -842,26 +847,26 @@
         <span class="self">self</span>.<span class="ident">pressure</span>.<span class="ident">reset</span>();
         <span class="self">self</span>.<span class="ident">take_live_regs</span>(<span class="ident">liveins</span>);
 
-        <span class="comment">// An EBB can have an arbitrary (up to 2^16...) number of parameters, so they are not</span>
+        <span class="comment">// An block can have an arbitrary (up to 2^16...) number of parameters, so they are not</span>
         <span class="comment">// guaranteed to fit in registers.</span>
         <span class="kw">for</span> <span class="ident">lv</span> <span class="kw">in</span> <span class="ident">params</span> {
             <span class="kw">if</span> <span class="kw">let</span> <span class="ident">Affinity</span>::<span class="ident">Reg</span>(<span class="ident">rci</span>) <span class="op">=</span> <span class="ident">lv</span>.<span class="ident">affinity</span> {
                 <span class="kw">let</span> <span class="ident">rc</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">reginfo</span>.<span class="ident">rc</span>(<span class="ident">rci</span>);
                 <span class="lifetime">&#39;try_take</span>: <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">mask</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">pressure</span>.<span class="ident">take_transient</span>(<span class="ident">rc</span>) {
-                    <span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;Need {} reg for EBB param {}&quot;</span>, <span class="ident">rc</span>, <span class="ident">lv</span>.<span class="ident">value</span>);
+                    <span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;Need {} reg for block param {}&quot;</span>, <span class="ident">rc</span>, <span class="ident">lv</span>.<span class="ident">value</span>);
                     <span class="kw">match</span> <span class="self">self</span>.<span class="ident">spill_candidate</span>(<span class="ident">mask</span>, <span class="ident">liveins</span>) {
                         <span class="prelude-val">Some</span>(<span class="ident">cand</span>) <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="macro">debug</span><span class="macro">!</span>(
-                                <span class="string">&quot;Spilling live-in {} to make room for {} EBB param {}&quot;</span>,
+                                <span class="string">&quot;Spilling live-in {} to make room for {} block param {}&quot;</span>,
                                 <span class="ident">cand</span>, <span class="ident">rc</span>, <span class="ident">lv</span>.<span class="ident">value</span>
                             );
                             <span class="self">self</span>.<span class="ident">spill_reg</span>(<span class="ident">cand</span>);
                         }
                         <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="comment">// We can&#39;t spill any of the live-in registers, so we have to spill an</span>
-                            <span class="comment">// EBB argument. Since the current spill metric would consider all the</span>
-                            <span class="comment">// EBB arguments equal, just spill the present register.</span>
-                            <span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;Spilling {} EBB argument {}&quot;</span>, <span class="ident">rc</span>, <span class="ident">lv</span>.<span class="ident">value</span>);
+                            <span class="comment">// block argument. Since the current spill metric would consider all the</span>
+                            <span class="comment">// block arguments equal, just spill the present register.</span>
+                            <span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;Spilling {} block argument {}&quot;</span>, <span class="ident">rc</span>, <span class="ident">lv</span>.<span class="ident">value</span>);
 
                             <span class="comment">// Since `spill_reg` will free a register, add the current one here.</span>
                             <span class="self">self</span>.<span class="ident">pressure</span>.<span class="ident">take</span>(<span class="ident">rc</span>);
@@ -873,15 +878,15 @@
             }
         }
 
-        <span class="comment">// The transient pressure counts for the EBB arguments are accurate. Just preserve them.</span>
+        <span class="comment">// The transient pressure counts for the block arguments are accurate. Just preserve them.</span>
         <span class="self">self</span>.<span class="ident">pressure</span>.<span class="ident">preserve_transient</span>();
         <span class="self">self</span>.<span class="ident">free_dead_regs</span>(<span class="ident">params</span>);
     }
 
-    <span class="kw">fn</span> <span class="ident">visit_inst</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">inst</span>: <span class="ident">Inst</span>, <span class="ident">ebb</span>: <span class="ident">Ebb</span>, <span class="ident">tracker</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LiveValueTracker</span>) {
+    <span class="kw">fn</span> <span class="ident">visit_inst</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">inst</span>: <span class="ident">Inst</span>, <span class="ident">block</span>: <span class="ident">Block</span>, <span class="ident">tracker</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LiveValueTracker</span>) {
         <span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;Inst {}, {}&quot;</span>, <span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">display_inst</span>(<span class="ident">inst</span>), <span class="self">self</span>.<span class="ident">pressure</span>);
         <span class="macro">debug_assert_eq</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">current_inst</span>(), <span class="prelude-val">Some</span>(<span class="ident">inst</span>));
-        <span class="macro">debug_assert_eq</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">current_ebb</span>(), <span class="prelude-val">Some</span>(<span class="ident">ebb</span>));
+        <span class="macro">debug_assert_eq</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">current_block</span>(), <span class="prelude-val">Some</span>(<span class="ident">block</span>));
 
         <span class="kw">let</span> <span class="ident">constraints</span> <span class="op">=</span> <span class="self">self</span>
             .<span class="ident">encinfo</span>
@@ -889,7 +894,7 @@
 
         <span class="comment">// We may need to resolve register constraints if there are any noteworthy uses.</span>
         <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">reg_uses</span>.<span class="ident">is_empty</span>());
-        <span class="self">self</span>.<span class="ident">collect_reg_uses</span>(<span class="ident">inst</span>, <span class="ident">ebb</span>, <span class="ident">constraints</span>);
+        <span class="self">self</span>.<span class="ident">collect_reg_uses</span>(<span class="ident">inst</span>, <span class="ident">block</span>, <span class="ident">constraints</span>);
 
         <span class="comment">// Calls usually have fixed register uses.</span>
         <span class="kw">let</span> <span class="ident">call_sig</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">call_signature</span>(<span class="ident">inst</span>);
@@ -956,7 +961,12 @@
     <span class="comment">// We are assuming here that if a value is used both by a fixed register operand and a register</span>
     <span class="comment">// class operand, they two are compatible. We are also assuming that two register class</span>
     <span class="comment">// operands are always compatible.</span>
-    <span class="kw">fn</span> <span class="ident">collect_reg_uses</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">inst</span>: <span class="ident">Inst</span>, <span class="ident">ebb</span>: <span class="ident">Ebb</span>, <span class="ident">constraints</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">RecipeConstraints</span><span class="op">&gt;</span>) {
+    <span class="kw">fn</span> <span class="ident">collect_reg_uses</span>(
+        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="ident">inst</span>: <span class="ident">Inst</span>,
+        <span class="ident">block</span>: <span class="ident">Block</span>,
+        <span class="ident">constraints</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">RecipeConstraints</span><span class="op">&gt;</span>,
+    ) {
         <span class="kw">let</span> <span class="ident">args</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">inst_args</span>(<span class="ident">inst</span>);
         <span class="kw">let</span> <span class="ident">num_fixed_ins</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">constraints</span>) <span class="op">=</span> <span class="ident">constraints</span> {
             <span class="kw">for</span> (<span class="ident">idx</span>, (<span class="ident">op</span>, <span class="kw-2">&amp;</span><span class="ident">arg</span>)) <span class="kw">in</span> <span class="ident">constraints</span>.<span class="ident">ins</span>.<span class="ident">iter</span>().<span class="ident">zip</span>(<span class="ident">args</span>).<span class="ident">enumerate</span>() {
@@ -967,11 +977,11 @@
                     <span class="ident">ConstraintKind</span>::<span class="ident">FixedReg</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">reguse</span>.<span class="ident">fixed</span> <span class="op">=</span> <span class="bool-val">true</span>,
                     <span class="ident">ConstraintKind</span>::<span class="ident">Tied</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
                         <span class="comment">// A tied operand must kill the used value.</span>
-                        <span class="ident">reguse</span>.<span class="ident">tied</span> <span class="op">=</span> <span class="op">!</span><span class="ident">lr</span>.<span class="ident">killed_at</span>(<span class="ident">inst</span>, <span class="ident">ebb</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">func</span>.<span class="ident">layout</span>);
+                        <span class="ident">reguse</span>.<span class="ident">tied</span> <span class="op">=</span> <span class="op">!</span><span class="ident">lr</span>.<span class="ident">killed_at</span>(<span class="ident">inst</span>, <span class="ident">block</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">func</span>.<span class="ident">layout</span>);
                     }
                     <span class="ident">ConstraintKind</span>::<span class="ident">FixedTied</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
                         <span class="ident">reguse</span>.<span class="ident">fixed</span> <span class="op">=</span> <span class="bool-val">true</span>;
-                        <span class="ident">reguse</span>.<span class="ident">tied</span> <span class="op">=</span> <span class="op">!</span><span class="ident">lr</span>.<span class="ident">killed_at</span>(<span class="ident">inst</span>, <span class="ident">ebb</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">func</span>.<span class="ident">layout</span>);
+                        <span class="ident">reguse</span>.<span class="ident">tied</span> <span class="op">=</span> <span class="op">!</span><span class="ident">lr</span>.<span class="ident">killed_at</span>(<span class="ident">inst</span>, <span class="ident">block</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">func</span>.<span class="ident">layout</span>);
                     }
                     <span class="ident">ConstraintKind</span>::<span class="ident">Reg</span> <span class="op">=</span><span class="op">&gt;</span> {}
                 }
@@ -1093,10 +1103,10 @@
                     <span class="comment">// Spill a live register that is *not* used by the current instruction.</span>
                     <span class="comment">// Spilling a use wouldn&#39;t help.</span>
                     <span class="comment">//</span>
-                    <span class="comment">// Do allow spilling of EBB arguments on branches. This is safe since we spill</span>
-                    <span class="comment">// the whole virtual register which includes the matching EBB parameter value</span>
+                    <span class="comment">// Do allow spilling of block arguments on branches. This is safe since we spill</span>
+                    <span class="comment">// the whole virtual register which includes the matching block parameter value</span>
                     <span class="comment">// at the branch destination. It is also necessary since there can be</span>
-                    <span class="comment">// arbitrarily many EBB arguments.</span>
+                    <span class="comment">// arbitrarily many block arguments.</span>
                     <span class="kw">match</span> {
                         <span class="kw">let</span> <span class="ident">args</span> <span class="op">=</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">func</span>.<span class="ident">dfg</span>[<span class="ident">inst</span>].<span class="ident">opcode</span>().<span class="ident">is_branch</span>() {
                             <span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">inst_fixed_args</span>(<span class="ident">inst</span>)
@@ -1215,7 +1225,7 @@
         <span class="self">self</span>.<span class="ident">liveness</span>.<span class="ident">create_dead</span>(<span class="ident">copy</span>, <span class="ident">inst</span>, <span class="ident">Affinity</span>::<span class="ident">Reg</span>(<span class="ident">rci</span>));
         <span class="self">self</span>.<span class="ident">liveness</span>.<span class="ident">extend_locally</span>(
             <span class="ident">copy</span>,
-            <span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">func</span>.<span class="ident">layout</span>.<span class="ident">pp_ebb</span>(<span class="ident">inst</span>),
+            <span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">func</span>.<span class="ident">layout</span>.<span class="ident">pp_block</span>(<span class="ident">inst</span>),
             <span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">current_inst</span>().<span class="ident">expect</span>(<span class="string">&quot;must be at an instruction&quot;</span>),
             <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">cur</span>.<span class="ident">func</span>.<span class="ident">layout</span>,
         );

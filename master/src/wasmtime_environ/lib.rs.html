@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/wasmtime-environ-0.8.0/src/lib.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>lib.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/wasmtime-environ-0.11.0/src/lib.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>lib.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -79,6 +79,11 @@
 <span id="68">68</span>
 <span id="69">69</span>
 <span id="70">70</span>
+<span id="71">71</span>
+<span id="72">72</span>
+<span id="73">73</span>
+<span id="74">74</span>
+<span id="75">75</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Standalone environment for WebAssembly using Cranelift. Provides functions to translate</span>
 <span class="doccomment">//! `get_global`, `set_global`, `memory.size`, `memory.grow`, `call_indirect` that hardcode in</span>
@@ -108,6 +113,7 @@
 
 <span class="kw">mod</span> <span class="ident">address_map</span>;
 <span class="kw">mod</span> <span class="ident">compilation</span>;
+<span class="kw">mod</span> <span class="ident">data_structures</span>;
 <span class="kw">mod</span> <span class="ident">func_environ</span>;
 <span class="kw">mod</span> <span class="ident">module</span>;
 <span class="kw">mod</span> <span class="ident">module_environ</span>;
@@ -121,14 +127,18 @@
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">lightbeam</span>;
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">address_map</span>::{
-    <span class="ident">FunctionAddressMap</span>, <span class="ident">InstructionAddressMap</span>, <span class="ident">ModuleAddressMap</span>, <span class="ident">ModuleVmctxInfo</span>, <span class="ident">ValueLabelsRanges</span>,
+    <span class="ident">FunctionAddressMap</span>, <span class="ident">InstructionAddressMap</span>, <span class="ident">ModuleAddressMap</span>, <span class="ident">ModuleMemoryOffset</span>,
+    <span class="ident">ModuleVmctxInfo</span>, <span class="ident">ValueLabelsRanges</span>,
 };
-<span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">cache</span>::{<span class="ident">create_new_config</span> <span class="kw">as</span> <span class="ident">cache_create_new_config</span>, <span class="ident">init</span> <span class="kw">as</span> <span class="ident">cache_init</span>};
+<span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">cache</span>::<span class="ident">create_new_config</span> <span class="kw">as</span> <span class="ident">cache_create_new_config</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">cache</span>::<span class="ident">CacheConfig</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">compilation</span>::{
-    <span class="ident">Compilation</span>, <span class="ident">CompileError</span>, <span class="ident">CompiledFunction</span>, <span class="ident">Compiler</span>, <span class="ident">Relocation</span>, <span class="ident">RelocationTarget</span>,
-    <span class="ident">Relocations</span>, <span class="ident">TrapInformation</span>, <span class="ident">Traps</span>,
+    <span class="ident">Compilation</span>, <span class="ident">CompileError</span>, <span class="ident">CompiledFunction</span>, <span class="ident">CompiledFunctionUnwindInfo</span>,
+    <span class="ident">CompiledFunctionUnwindInfoReloc</span>, <span class="ident">Compiler</span>, <span class="ident">Relocation</span>, <span class="ident">RelocationTarget</span>, <span class="ident">Relocations</span>,
+    <span class="ident">TrapInformation</span>, <span class="ident">Traps</span>,
 };
 <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">cranelift</span>::<span class="ident">Cranelift</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">data_structures</span>::<span class="kw-2">*</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">func_environ</span>::<span class="ident">BuiltinFunctionIndex</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;lightbeam&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">lightbeam</span>::<span class="ident">Lightbeam</span>;

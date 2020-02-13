@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/wasmtime-environ-0.8.0/src/module.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>module.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/wasmtime-environ-0.11.0/src/module.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>module.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -313,6 +313,19 @@
 <span id="302">302</span>
 <span id="303">303</span>
 <span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Data structures for representing decoded wasm modules.</span>
 
@@ -326,7 +339,9 @@
 };
 <span class="kw">use</span> <span class="ident">indexmap</span>::<span class="ident">IndexMap</span>;
 <span class="kw">use</span> <span class="ident">more_asserts</span>::<span class="ident">assert_ge</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">hash</span>::{<span class="ident">Hash</span>, <span class="ident">Hasher</span>};
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">atomic</span>::{<span class="ident">AtomicUsize</span>, <span class="ident">Ordering</span>::<span class="ident">SeqCst</span>};
 
 <span class="doccomment">/// A WebAssembly table initializer.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Hash</span>)]</span>
@@ -449,20 +464,24 @@
 <span class="comment">// WARNING: when modifying, make sure that `hash_for_cache` is still valid!</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Module</span> {
+    <span class="doccomment">/// A unique identifier (within this process) for this module.</span>
+    <span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">usize</span>,
+
     <span class="doccomment">/// Unprocessed signatures exactly as provided by `declare_signature()`.</span>
     <span class="kw">pub</span> <span class="ident">signatures</span>: <span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">SignatureIndex</span>, <span class="ident">ir</span>::<span class="ident">Signature</span><span class="op">&gt;</span>,
 
-    <span class="doccomment">/// Names of imported functions.</span>
-    <span class="kw">pub</span> <span class="ident">imported_funcs</span>: <span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">FuncIndex</span>, (<span class="ident">String</span>, <span class="ident">String</span>)<span class="op">&gt;</span>,
+    <span class="doccomment">/// Names of imported functions, as well as the index of the import that</span>
+    <span class="doccomment">/// performed this import.</span>
+    <span class="kw">pub</span> <span class="ident">imported_funcs</span>: <span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">FuncIndex</span>, (<span class="ident">String</span>, <span class="ident">String</span>, <span class="ident">u32</span>)<span class="op">&gt;</span>,
 
     <span class="doccomment">/// Names of imported tables.</span>
-    <span class="kw">pub</span> <span class="ident">imported_tables</span>: <span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">TableIndex</span>, (<span class="ident">String</span>, <span class="ident">String</span>)<span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">imported_tables</span>: <span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">TableIndex</span>, (<span class="ident">String</span>, <span class="ident">String</span>, <span class="ident">u32</span>)<span class="op">&gt;</span>,
 
     <span class="doccomment">/// Names of imported memories.</span>
-    <span class="kw">pub</span> <span class="ident">imported_memories</span>: <span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">MemoryIndex</span>, (<span class="ident">String</span>, <span class="ident">String</span>)<span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">imported_memories</span>: <span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">MemoryIndex</span>, (<span class="ident">String</span>, <span class="ident">String</span>, <span class="ident">u32</span>)<span class="op">&gt;</span>,
 
     <span class="doccomment">/// Names of imported globals.</span>
-    <span class="kw">pub</span> <span class="ident">imported_globals</span>: <span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">GlobalIndex</span>, (<span class="ident">String</span>, <span class="ident">String</span>)<span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">imported_globals</span>: <span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">GlobalIndex</span>, (<span class="ident">String</span>, <span class="ident">String</span>, <span class="ident">u32</span>)<span class="op">&gt;</span>,
 
     <span class="doccomment">/// Types of functions, imported and local.</span>
     <span class="kw">pub</span> <span class="ident">functions</span>: <span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">FuncIndex</span>, <span class="ident">SignatureIndex</span><span class="op">&gt;</span>,
@@ -484,12 +503,18 @@
 
     <span class="doccomment">/// WebAssembly table initializers.</span>
     <span class="kw">pub</span> <span class="ident">table_elements</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">TableElements</span><span class="op">&gt;</span>,
+
+    <span class="doccomment">/// WebAssembly table initializers.</span>
+    <span class="kw">pub</span> <span class="ident">func_names</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">FuncIndex</span>, <span class="ident">String</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">Module</span> {
     <span class="doccomment">/// Allocates the module data structures.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+        <span class="kw">static</span> <span class="ident">NEXT_ID</span>: <span class="ident">AtomicUsize</span> <span class="op">=</span> <span class="ident">AtomicUsize</span>::<span class="ident">new</span>(<span class="number">0</span>);
+
         <span class="self">Self</span> {
+            <span class="ident">id</span>: <span class="ident">NEXT_ID</span>.<span class="ident">fetch_add</span>(<span class="number">1</span>, <span class="ident">SeqCst</span>),
             <span class="ident">signatures</span>: <span class="ident">PrimaryMap</span>::<span class="ident">new</span>(),
             <span class="ident">imported_funcs</span>: <span class="ident">PrimaryMap</span>::<span class="ident">new</span>(),
             <span class="ident">imported_tables</span>: <span class="ident">PrimaryMap</span>::<span class="ident">new</span>(),
@@ -502,6 +527,7 @@
             <span class="ident">exports</span>: <span class="ident">IndexMap</span>::<span class="ident">new</span>(),
             <span class="ident">start_func</span>: <span class="prelude-val">None</span>,
             <span class="ident">table_elements</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
+            <span class="ident">func_names</span>: <span class="ident">HashMap</span>::<span class="ident">new</span>(),
         }
     }
 

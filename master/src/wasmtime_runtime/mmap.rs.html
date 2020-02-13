@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/wasmtime-runtime-0.8.0/src/mmap.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mmap.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/wasmtime-runtime-0.11.0/src/mmap.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mmap.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -284,15 +284,26 @@
 <span id="273">273</span>
 <span id="274">274</span>
 <span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Low-level abstraction for allocating and managing zero-filled pages</span>
 <span class="doccomment">//! of memory.</span>
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">target_os</span> <span class="op">=</span> <span class="string">&quot;windows&quot;</span>))]</span>
-<span class="kw">use</span> <span class="ident">libc</span>;
 <span class="kw">use</span> <span class="ident">more_asserts</span>::<span class="ident">assert_le</span>;
 <span class="kw">use</span> <span class="ident">more_asserts</span>::<span class="ident">assert_lt</span>;
-<span class="kw">use</span> <span class="ident">region</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">io</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ptr</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">slice</span>;
@@ -306,7 +317,11 @@
 <span class="doccomment">/// and initially-zeroed memory and a length.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Mmap</span> {
-    <span class="ident">ptr</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
+    <span class="comment">// Note that this is stored as a `usize` instead of a `*const` or `*mut`</span>
+    <span class="comment">// pointer to allow this structure to be natively `Send` and `Sync` without</span>
+    <span class="comment">// `unsafe impl`. This type is sendable across threads and shareable since</span>
+    <span class="comment">// the coordination all happens at the OS layer.</span>
+    <span class="ident">ptr</span>: <span class="ident">usize</span>,
     <span class="ident">len</span>: <span class="ident">usize</span>,
 }
 
@@ -316,8 +331,9 @@
         <span class="comment">// Rust&#39;s slices require non-null pointers, even when empty. `Vec`</span>
         <span class="comment">// contains code to create a non-null dangling pointer value when</span>
         <span class="comment">// constructed empty, so we reuse that here.</span>
+        <span class="kw">let</span> <span class="ident">empty</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>::<span class="ident">new</span>();
         <span class="self">Self</span> {
-            <span class="ident">ptr</span>: <span class="ident">Vec</span>::<span class="ident">new</span>().<span class="ident">as_mut_ptr</span>(),
+            <span class="ident">ptr</span>: <span class="ident">empty</span>.<span class="ident">as_ptr</span>() <span class="kw">as</span> <span class="ident">usize</span>,
             <span class="ident">len</span>: <span class="number">0</span>,
         }
     }
@@ -365,7 +381,7 @@
             }
 
             <span class="self">Self</span> {
-                <span class="ident">ptr</span>: <span class="ident">ptr</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
+                <span class="ident">ptr</span>: <span class="ident">ptr</span> <span class="kw">as</span> <span class="ident">usize</span>,
                 <span class="ident">len</span>: <span class="ident">mapping_size</span>,
             }
         } <span class="kw">else</span> {
@@ -385,7 +401,7 @@
             }
 
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="self">Self</span> {
-                <span class="ident">ptr</span>: <span class="ident">ptr</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
+                <span class="ident">ptr</span>: <span class="ident">ptr</span> <span class="kw">as</span> <span class="ident">usize</span>,
                 <span class="ident">len</span>: <span class="ident">mapping_size</span>,
             };
 
@@ -429,7 +445,7 @@
             }
 
             <span class="self">Self</span> {
-                <span class="ident">ptr</span>: <span class="ident">ptr</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
+                <span class="ident">ptr</span>: <span class="ident">ptr</span> <span class="kw">as</span> <span class="ident">usize</span>,
                 <span class="ident">len</span>: <span class="ident">mapping_size</span>,
             }
         } <span class="kw">else</span> {
@@ -441,7 +457,7 @@
             }
 
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="self">Self</span> {
-                <span class="ident">ptr</span>: <span class="ident">ptr</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
+                <span class="ident">ptr</span>: <span class="ident">ptr</span> <span class="kw">as</span> <span class="ident">usize</span>,
                 <span class="ident">len</span>: <span class="ident">mapping_size</span>,
             };
 
@@ -466,7 +482,8 @@
         <span class="macro">assert_lt</span><span class="macro">!</span>(<span class="ident">start</span>, <span class="self">self</span>.<span class="ident">len</span> <span class="op">-</span> <span class="ident">len</span>);
 
         <span class="comment">// Commit the accessible size.</span>
-        <span class="kw">unsafe</span> { <span class="ident">region</span>::<span class="ident">protect</span>(<span class="self">self</span>.<span class="ident">ptr</span>.<span class="ident">add</span>(<span class="ident">start</span>), <span class="ident">len</span>, <span class="ident">region</span>::<span class="ident">Protection</span>::<span class="ident">ReadWrite</span>) }
+        <span class="kw">let</span> <span class="ident">ptr</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">ptr</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>;
+        <span class="kw">unsafe</span> { <span class="ident">region</span>::<span class="ident">protect</span>(<span class="ident">ptr</span>.<span class="ident">add</span>(<span class="ident">start</span>), <span class="ident">len</span>, <span class="ident">region</span>::<span class="ident">Protection</span>::<span class="ident">ReadWrite</span>) }
             .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">to_string</span>())
     }
 
@@ -485,9 +502,10 @@
         <span class="macro">assert_lt</span><span class="macro">!</span>(<span class="ident">start</span>, <span class="self">self</span>.<span class="ident">len</span> <span class="op">-</span> <span class="ident">len</span>);
 
         <span class="comment">// Commit the accessible size.</span>
+        <span class="kw">let</span> <span class="ident">ptr</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">ptr</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>;
         <span class="kw">if</span> <span class="kw">unsafe</span> {
             <span class="ident">VirtualAlloc</span>(
-                <span class="self">self</span>.<span class="ident">ptr</span>.<span class="ident">add</span>(<span class="ident">start</span>) <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">c_void</span>,
+                <span class="ident">ptr</span>.<span class="ident">add</span>(<span class="ident">start</span>) <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">c_void</span>,
                 <span class="ident">len</span>,
                 <span class="ident">MEM_COMMIT</span>,
                 <span class="ident">PAGE_READWRITE</span>,
@@ -503,27 +521,32 @@
 
     <span class="doccomment">/// Return the allocated memory as a slice of u8.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">as_slice</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] {
-        <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="self">self</span>.<span class="ident">ptr</span>, <span class="self">self</span>.<span class="ident">len</span>) }
+        <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="self">self</span>.<span class="ident">ptr</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>, <span class="self">self</span>.<span class="ident">len</span>) }
     }
 
     <span class="doccomment">/// Return the allocated memory as a mutable slice of u8.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">as_mut_slice</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] {
-        <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(<span class="self">self</span>.<span class="ident">ptr</span>, <span class="self">self</span>.<span class="ident">len</span>) }
+        <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(<span class="self">self</span>.<span class="ident">ptr</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>, <span class="self">self</span>.<span class="ident">len</span>) }
     }
 
     <span class="doccomment">/// Return the allocated memory as a pointer to u8.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">as_ptr</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span> {
-        <span class="self">self</span>.<span class="ident">ptr</span>
+        <span class="self">self</span>.<span class="ident">ptr</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>
     }
 
     <span class="doccomment">/// Return the allocated memory as a mutable pointer to u8.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">as_mut_ptr</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span> {
-        <span class="self">self</span>.<span class="ident">ptr</span>
+        <span class="self">self</span>.<span class="ident">ptr</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>
     }
 
     <span class="doccomment">/// Return the length of the allocated memory.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
         <span class="self">self</span>.<span class="ident">len</span>
+    }
+
+    <span class="doccomment">/// Return whether any memory has been allocated.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_empty</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">len</span>() <span class="op">=</span><span class="op">=</span> <span class="number">0</span>
     }
 }
 
@@ -542,10 +565,15 @@
             <span class="kw">use</span> <span class="ident">winapi</span>::<span class="ident">ctypes</span>::<span class="ident">c_void</span>;
             <span class="kw">use</span> <span class="ident">winapi</span>::<span class="ident">um</span>::<span class="ident">memoryapi</span>::<span class="ident">VirtualFree</span>;
             <span class="kw">use</span> <span class="ident">winapi</span>::<span class="ident">um</span>::<span class="ident">winnt</span>::<span class="ident">MEM_RELEASE</span>;
-            <span class="kw">let</span> <span class="ident">r</span> <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">VirtualFree</span>(<span class="self">self</span>.<span class="ident">ptr</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">c_void</span>, <span class="self">self</span>.<span class="ident">len</span>, <span class="ident">MEM_RELEASE</span>) };
-            <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">r</span>, <span class="number">0</span>);
+            <span class="kw">let</span> <span class="ident">r</span> <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">VirtualFree</span>(<span class="self">self</span>.<span class="ident">ptr</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">c_void</span>, <span class="number">0</span>, <span class="ident">MEM_RELEASE</span>) };
+            <span class="macro">assert_ne</span><span class="macro">!</span>(<span class="ident">r</span>, <span class="number">0</span>);
         }
     }
+}
+
+<span class="kw">fn</span> <span class="ident">_assert</span>() {
+    <span class="kw">fn</span> <span class="ident">_assert_send_sync</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span><span class="op">&gt;</span>() {}
+    <span class="ident">_assert_send_sync</span>::<span class="op">&lt;</span><span class="ident">Mmap</span><span class="op">&gt;</span>();
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>

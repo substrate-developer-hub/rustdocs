@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/cranelift-codegen-0.50.0/src/context.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>context.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/cranelift-codegen-0.58.0/src/context.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>context.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -395,6 +395,13 @@
 <span id="384">384</span>
 <span id="385">385</span>
 <span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Cranelift compilation context and main entry point.</span>
 <span class="doccomment">//!</span>
@@ -408,8 +415,8 @@
 <span class="doccomment">//! single ISA instance.</span>
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">binemit</span>::{
-    <span class="ident">relax_branches</span>, <span class="ident">shrink_instructions</span>, <span class="ident">CodeInfo</span>, <span class="ident">MemoryCodeSink</span>, <span class="ident">RelocSink</span>, <span class="ident">StackmapSink</span>,
-    <span class="ident">TrapSink</span>,
+    <span class="ident">relax_branches</span>, <span class="ident">shrink_instructions</span>, <span class="ident">CodeInfo</span>, <span class="ident">FrameUnwindKind</span>, <span class="ident">FrameUnwindSink</span>,
+    <span class="ident">MemoryCodeSink</span>, <span class="ident">RelocSink</span>, <span class="ident">StackmapSink</span>, <span class="ident">TrapSink</span>,
 };
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">dce</span>::<span class="ident">do_dce</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">dominator_tree</span>::<span class="ident">DominatorTree</span>;
@@ -573,6 +580,8 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// The machine code is not relocated. Instead, any relocations are emitted into `relocs`.</span>
     <span class="doccomment">///</span>
+    <span class="doccomment">/// # Safety</span>
+    <span class="doccomment">///</span>
     <span class="doccomment">/// This function is unsafe since it does not perform bounds checking on the memory buffer,</span>
     <span class="doccomment">/// and it can&#39;t guarantee that the `mem` pointer is valid.</span>
     <span class="doccomment">///</span>
@@ -597,8 +606,13 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// Only some calling conventions (e.g. Windows fastcall) will have unwind information.</span>
     <span class="doccomment">/// This is a no-op if the function has no unwind information.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">emit_unwind_info</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">isa</span>: <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">TargetIsa</span>, <span class="ident">mem</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) {
-        <span class="ident">isa</span>.<span class="ident">emit_unwind_info</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">func</span>, <span class="ident">mem</span>);
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">emit_unwind_info</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">isa</span>: <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">TargetIsa</span>,
+        <span class="ident">kind</span>: <span class="ident">FrameUnwindKind</span>,
+        <span class="ident">sink</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">FrameUnwindSink</span>,
+    ) {
+        <span class="ident">isa</span>.<span class="ident">emit_unwind_info</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">func</span>, <span class="ident">kind</span>, <span class="ident">sink</span>);
     }
 
     <span class="doccomment">/// Run the verifier on the function.</span>

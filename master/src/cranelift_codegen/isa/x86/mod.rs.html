@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/cranelift-codegen-0.50.0/src/isa/x86/mod.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mod.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../../light.css" id="themeStyle"><script src="../../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/cranelift-codegen-0.58.0/src/isa/x86/mod.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mod.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../../light.css" id="themeStyle"><script src="../../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -178,20 +178,35 @@
 <span id="167">167</span>
 <span id="168">168</span>
 <span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! x86 Instruction Set Architectures.</span>
 
 <span class="kw">mod</span> <span class="ident">abi</span>;
 <span class="kw">mod</span> <span class="ident">binemit</span>;
 <span class="kw">mod</span> <span class="ident">enc_tables</span>;
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;unwind&quot;</span>)]</span>
+<span class="kw">mod</span> <span class="ident">fde</span>;
 <span class="kw">mod</span> <span class="ident">registers</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">settings</span>;
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;unwind&quot;</span>)]</span>
 <span class="kw">mod</span> <span class="ident">unwind</span>;
 
 <span class="kw">use</span> <span class="kw">super</span>::<span class="kw">super</span>::<span class="ident">settings</span> <span class="kw">as</span> <span class="ident">shared_settings</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;testing_hooks&quot;</span>)]</span>
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">binemit</span>::<span class="ident">CodeSink</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">binemit</span>::{<span class="ident">emit_function</span>, <span class="ident">MemoryCodeSink</span>};
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;unwind&quot;</span>)]</span>
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">binemit</span>::{<span class="ident">FrameUnwindKind</span>, <span class="ident">FrameUnwindSink</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">ir</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">isa</span>::<span class="ident">enc_tables</span>::{<span class="self">self</span> <span class="kw">as</span> <span class="ident">shared_enc_tables</span>, <span class="ident">lookup_enclist</span>, <span class="ident">Encodings</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">isa</span>::<span class="ident">Builder</span> <span class="kw">as</span> <span class="ident">IsaBuilder</span>;
@@ -201,7 +216,6 @@
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">timing</span>;
 <span class="kw">use</span> <span class="ident">alloc</span>::<span class="ident">borrow</span>::<span class="ident">Cow</span>;
 <span class="kw">use</span> <span class="ident">alloc</span>::<span class="ident">boxed</span>::<span class="ident">Box</span>;
-<span class="kw">use</span> <span class="ident">alloc</span>::<span class="ident">vec</span>::<span class="ident">Vec</span>;
 <span class="kw">use</span> <span class="ident">core</span>::<span class="ident">fmt</span>;
 <span class="kw">use</span> <span class="ident">target_lexicon</span>::{<span class="ident">PointerWidth</span>, <span class="ident">Triple</span>};
 
@@ -338,8 +352,14 @@
     <span class="doccomment">/// Emit unwind information for the given function.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// Only some calling conventions (e.g. Windows fastcall) will have unwind information.</span>
-    <span class="kw">fn</span> <span class="ident">emit_unwind_info</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">func</span>: <span class="kw-2">&amp;</span><span class="ident">ir</span>::<span class="ident">Function</span>, <span class="ident">mem</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) {
-        <span class="ident">abi</span>::<span class="ident">emit_unwind_info</span>(<span class="ident">func</span>, <span class="self">self</span>, <span class="ident">mem</span>);
+    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;unwind&quot;</span>)]</span>
+    <span class="kw">fn</span> <span class="ident">emit_unwind_info</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">func</span>: <span class="kw-2">&amp;</span><span class="ident">ir</span>::<span class="ident">Function</span>,
+        <span class="ident">kind</span>: <span class="ident">FrameUnwindKind</span>,
+        <span class="ident">sink</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">FrameUnwindSink</span>,
+    ) {
+        <span class="ident">abi</span>::<span class="ident">emit_unwind_info</span>(<span class="ident">func</span>, <span class="self">self</span>, <span class="ident">kind</span>, <span class="ident">sink</span>);
     }
 }
 

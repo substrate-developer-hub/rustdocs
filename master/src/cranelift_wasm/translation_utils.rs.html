@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/cranelift-wasm-0.50.0/src/translation_utils.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>translation_utils.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/cranelift-wasm-0.58.0/src/translation_utils.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>translation_utils.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -230,9 +230,30 @@
 <span id="219">219</span>
 <span id="220">220</span>
 <span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Helper functions and structures for the translation.</span>
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">environ</span>::<span class="ident">WasmResult</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">environ</span>::{<span class="ident">TargetEnvironment</span>, <span class="ident">WasmResult</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">state</span>::<span class="ident">ModuleTranslationState</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">wasm_unsupported</span>;
 <span class="kw">use</span> <span class="ident">core</span>::<span class="ident">u32</span>;
@@ -314,8 +335,12 @@
     <span class="ident">F64Const</span>(<span class="ident">u64</span>),
     <span class="doccomment">/// A `vconst`.</span>
     <span class="ident">V128Const</span>(<span class="ident">V128Imm</span>),
-    <span class="doccomment">/// A `get_global` of another global.</span>
+    <span class="doccomment">/// A `global.get` of another global.</span>
     <span class="ident">GetGlobal</span>(<span class="ident">GlobalIndex</span>),
+    <span class="doccomment">/// A `ref.null`.</span>
+    <span class="ident">RefNullConst</span>,
+    <span class="doccomment">/// A `ref.func &lt;index&gt;`.</span>
+    <span class="ident">RefFunc</span>(<span class="ident">FuncIndex</span>),
     <span class="doccomment">///&lt; The global is imported from, and thus initialized by, a different module.</span>
     <span class="ident">Import</span>,
 }
@@ -352,26 +377,36 @@
 }
 
 <span class="doccomment">/// Helper function translating wasmparser types to Cranelift types when possible.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">type_to_type</span>(<span class="ident">ty</span>: <span class="ident">wasmparser</span>::<span class="ident">Type</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">WasmResult</span><span class="op">&lt;</span><span class="ident">ir</span>::<span class="ident">Type</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">type_to_type</span><span class="op">&lt;</span><span class="ident">PE</span>: <span class="ident">TargetEnvironment</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span><span class="op">&gt;</span>(
+    <span class="ident">ty</span>: <span class="ident">wasmparser</span>::<span class="ident">Type</span>,
+    <span class="ident">environ</span>: <span class="kw-2">&amp;</span><span class="ident">PE</span>,
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">WasmResult</span><span class="op">&lt;</span><span class="ident">ir</span>::<span class="ident">Type</span><span class="op">&gt;</span> {
     <span class="kw">match</span> <span class="ident">ty</span> {
         <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">I32</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">ir</span>::<span class="ident">types</span>::<span class="ident">I32</span>),
         <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">I64</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">ir</span>::<span class="ident">types</span>::<span class="ident">I64</span>),
         <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">F32</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">ir</span>::<span class="ident">types</span>::<span class="ident">F32</span>),
         <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">F64</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">ir</span>::<span class="ident">types</span>::<span class="ident">F64</span>),
         <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">V128</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">ir</span>::<span class="ident">types</span>::<span class="ident">I8X16</span>),
+        <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">AnyRef</span> <span class="op">|</span> <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">AnyFunc</span> <span class="op">|</span> <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">NullRef</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="prelude-val">Ok</span>(<span class="ident">environ</span>.<span class="ident">reference_type</span>())
+        }
         <span class="ident">ty</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="macro">wasm_unsupported</span><span class="macro">!</span>(<span class="string">&quot;type_to_type: wasm type {:?}&quot;</span>, <span class="ident">ty</span>)),
     }
 }
 
 <span class="doccomment">/// Helper function translating wasmparser possible table types to Cranelift types when possible,</span>
 <span class="doccomment">/// or None for Func tables.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">tabletype_to_type</span>(<span class="ident">ty</span>: <span class="ident">wasmparser</span>::<span class="ident">Type</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">WasmResult</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ir</span>::<span class="ident">Type</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">tabletype_to_type</span><span class="op">&lt;</span><span class="ident">PE</span>: <span class="ident">TargetEnvironment</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span><span class="op">&gt;</span>(
+    <span class="ident">ty</span>: <span class="ident">wasmparser</span>::<span class="ident">Type</span>,
+    <span class="ident">environ</span>: <span class="kw-2">&amp;</span><span class="ident">PE</span>,
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">WasmResult</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ir</span>::<span class="ident">Type</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="kw">match</span> <span class="ident">ty</span> {
         <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">I32</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">ir</span>::<span class="ident">types</span>::<span class="ident">I32</span>)),
         <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">I64</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">ir</span>::<span class="ident">types</span>::<span class="ident">I64</span>)),
         <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">F32</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">ir</span>::<span class="ident">types</span>::<span class="ident">F32</span>)),
         <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">F64</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">ir</span>::<span class="ident">types</span>::<span class="ident">F64</span>)),
         <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">V128</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">ir</span>::<span class="ident">types</span>::<span class="ident">I8X16</span>)),
+        <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">AnyRef</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">environ</span>.<span class="ident">reference_type</span>())),
         <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">AnyFunc</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>),
         <span class="ident">ty</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="macro">wasm_unsupported</span><span class="macro">!</span>(
             <span class="string">&quot;tabletype_to_type: table wasm type {:?}&quot;</span>,
@@ -392,6 +427,9 @@
             <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">F32</span> <span class="op">=</span><span class="op">&gt;</span> (<span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[<span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">F32</span>]),
             <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">F64</span> <span class="op">=</span><span class="op">&gt;</span> (<span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[<span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">F64</span>]),
             <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">V128</span> <span class="op">=</span><span class="op">&gt;</span> (<span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[<span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">V128</span>]),
+            <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">AnyRef</span> <span class="op">=</span><span class="op">&gt;</span> (<span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[<span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">AnyRef</span>]),
+            <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">AnyFunc</span> <span class="op">=</span><span class="op">&gt;</span> (<span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[<span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">AnyFunc</span>]),
+            <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">NullRef</span> <span class="op">=</span><span class="op">&gt;</span> (<span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[<span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">NullRef</span>]),
             <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">EmptyBlockType</span> <span class="op">=</span><span class="op">&gt;</span> (<span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[]),
             <span class="ident">ty</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro">wasm_unsupported</span><span class="macro">!</span>(<span class="string">&quot;blocktype_params_results: type {:?}&quot;</span>, <span class="ident">ty</span>)),
         },
@@ -403,38 +441,42 @@
     })
 }
 
-<span class="doccomment">/// Create an `Ebb` with the given Wasm parameters.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">ebb_with_params</span>(
+<span class="doccomment">/// Create a `Block` with the given Wasm parameters.</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">block_with_params</span><span class="op">&lt;</span><span class="ident">PE</span>: <span class="ident">TargetEnvironment</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span><span class="op">&gt;</span>(
     <span class="ident">builder</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FunctionBuilder</span>,
     <span class="ident">params</span>: <span class="kw-2">&amp;</span>[<span class="ident">wasmparser</span>::<span class="ident">Type</span>],
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">WasmResult</span><span class="op">&lt;</span><span class="ident">ir</span>::<span class="ident">Ebb</span><span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="ident">ebb</span> <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">create_ebb</span>();
+    <span class="ident">environ</span>: <span class="kw-2">&amp;</span><span class="ident">PE</span>,
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">WasmResult</span><span class="op">&lt;</span><span class="ident">ir</span>::<span class="ident">Block</span><span class="op">&gt;</span> {
+    <span class="kw">let</span> <span class="ident">block</span> <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">create_block</span>();
     <span class="kw">for</span> <span class="ident">ty</span> <span class="kw">in</span> <span class="ident">params</span>.<span class="ident">iter</span>() {
         <span class="kw">match</span> <span class="ident">ty</span> {
             <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">I32</span> <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="ident">builder</span>.<span class="ident">append_ebb_param</span>(<span class="ident">ebb</span>, <span class="ident">ir</span>::<span class="ident">types</span>::<span class="ident">I32</span>);
+                <span class="ident">builder</span>.<span class="ident">append_block_param</span>(<span class="ident">block</span>, <span class="ident">ir</span>::<span class="ident">types</span>::<span class="ident">I32</span>);
             }
             <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">I64</span> <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="ident">builder</span>.<span class="ident">append_ebb_param</span>(<span class="ident">ebb</span>, <span class="ident">ir</span>::<span class="ident">types</span>::<span class="ident">I64</span>);
+                <span class="ident">builder</span>.<span class="ident">append_block_param</span>(<span class="ident">block</span>, <span class="ident">ir</span>::<span class="ident">types</span>::<span class="ident">I64</span>);
             }
             <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">F32</span> <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="ident">builder</span>.<span class="ident">append_ebb_param</span>(<span class="ident">ebb</span>, <span class="ident">ir</span>::<span class="ident">types</span>::<span class="ident">F32</span>);
+                <span class="ident">builder</span>.<span class="ident">append_block_param</span>(<span class="ident">block</span>, <span class="ident">ir</span>::<span class="ident">types</span>::<span class="ident">F32</span>);
             }
             <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">F64</span> <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="ident">builder</span>.<span class="ident">append_ebb_param</span>(<span class="ident">ebb</span>, <span class="ident">ir</span>::<span class="ident">types</span>::<span class="ident">F64</span>);
+                <span class="ident">builder</span>.<span class="ident">append_block_param</span>(<span class="ident">block</span>, <span class="ident">ir</span>::<span class="ident">types</span>::<span class="ident">F64</span>);
+            }
+            <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">AnyRef</span> <span class="op">|</span> <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">AnyFunc</span> <span class="op">|</span> <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">NullRef</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">builder</span>.<span class="ident">append_block_param</span>(<span class="ident">block</span>, <span class="ident">environ</span>.<span class="ident">reference_type</span>());
             }
             <span class="ident">wasmparser</span>::<span class="ident">Type</span>::<span class="ident">V128</span> <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="ident">builder</span>.<span class="ident">append_ebb_param</span>(<span class="ident">ebb</span>, <span class="ident">ir</span>::<span class="ident">types</span>::<span class="ident">I8X16</span>);
+                <span class="ident">builder</span>.<span class="ident">append_block_param</span>(<span class="ident">block</span>, <span class="ident">ir</span>::<span class="ident">types</span>::<span class="ident">I8X16</span>);
             }
             <span class="ident">ty</span> <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro">wasm_unsupported</span><span class="macro">!</span>(
-                    <span class="string">&quot;ebb_with_params: type {:?} in multi-value block&#39;s signature&quot;</span>,
+                    <span class="string">&quot;block_with_params: type {:?} in multi-value block&#39;s signature&quot;</span>,
                     <span class="ident">ty</span>
                 ))
             }
         }
     }
-    <span class="prelude-val">Ok</span>(<span class="ident">ebb</span>)
+    <span class="prelude-val">Ok</span>(<span class="ident">block</span>)
 }
 
 <span class="doccomment">/// Turns a `wasmparser` `f32` into a `Cranelift` one.</span>

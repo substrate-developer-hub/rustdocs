@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/cranelift-codegen-0.50.0/src/write.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>write.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/cranelift-codegen-0.58.0/src/write.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>write.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -861,8 +861,8 @@
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">entity</span>::<span class="ident">SecondaryMap</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">ir</span>::<span class="ident">entities</span>::<span class="ident">AnyEntity</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">ir</span>::{
-    <span class="ident">DataFlowGraph</span>, <span class="ident">DisplayFunctionAnnotations</span>, <span class="ident">Ebb</span>, <span class="ident">Function</span>, <span class="ident">Inst</span>, <span class="ident">SigRef</span>, <span class="ident">Type</span>, <span class="ident">Value</span>, <span class="ident">ValueDef</span>,
-    <span class="ident">ValueLoc</span>,
+    <span class="ident">Block</span>, <span class="ident">DataFlowGraph</span>, <span class="ident">DisplayFunctionAnnotations</span>, <span class="ident">Function</span>, <span class="ident">Inst</span>, <span class="ident">SigRef</span>, <span class="ident">Type</span>, <span class="ident">Value</span>,
+    <span class="ident">ValueDef</span>, <span class="ident">ValueLoc</span>,
 };
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">isa</span>::{<span class="ident">RegInfo</span>, <span class="ident">TargetIsa</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">packed_option</span>::<span class="ident">ReservedValue</span>;
@@ -874,13 +874,13 @@
 
 <span class="doccomment">/// A `FuncWriter` used to decorate functions during printing.</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">FuncWriter</span> {
-    <span class="doccomment">/// Write the extended basic block header for the current function.</span>
-    <span class="kw">fn</span> <span class="ident">write_ebb_header</span>(
+    <span class="doccomment">/// Write the basic block header for the current function.</span>
+    <span class="kw">fn</span> <span class="ident">write_block_header</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">w</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">Write</span>,
         <span class="ident">func</span>: <span class="kw-2">&amp;</span><span class="ident">Function</span>,
         <span class="ident">isa</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">TargetIsa</span><span class="op">&gt;</span>,
-        <span class="ident">ebb</span>: <span class="ident">Ebb</span>,
+        <span class="ident">block</span>: <span class="ident">Block</span>,
         <span class="ident">indent</span>: <span class="ident">usize</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span>;
 
@@ -1000,15 +1000,15 @@
         <span class="ident">write_instruction</span>(<span class="ident">w</span>, <span class="ident">func</span>, <span class="ident">aliases</span>, <span class="ident">isa</span>, <span class="ident">inst</span>, <span class="ident">indent</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">write_ebb_header</span>(
+    <span class="kw">fn</span> <span class="ident">write_block_header</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">w</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">Write</span>,
         <span class="ident">func</span>: <span class="kw-2">&amp;</span><span class="ident">Function</span>,
         <span class="ident">isa</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">TargetIsa</span><span class="op">&gt;</span>,
-        <span class="ident">ebb</span>: <span class="ident">Ebb</span>,
+        <span class="ident">block</span>: <span class="ident">Block</span>,
         <span class="ident">indent</span>: <span class="ident">usize</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
-        <span class="ident">write_ebb_header</span>(<span class="ident">w</span>, <span class="ident">func</span>, <span class="ident">isa</span>, <span class="ident">ebb</span>, <span class="ident">indent</span>)
+        <span class="ident">write_block_header</span>(<span class="ident">w</span>, <span class="ident">func</span>, <span class="ident">isa</span>, <span class="ident">block</span>, <span class="ident">indent</span>)
     }
 }
 
@@ -1051,11 +1051,11 @@
     <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">w</span>, <span class="string">&quot; {{&quot;</span>)<span class="question-mark">?</span>;
     <span class="kw">let</span> <span class="ident">aliases</span> <span class="op">=</span> <span class="ident">alias_map</span>(<span class="ident">func</span>);
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">any</span> <span class="op">=</span> <span class="ident">func_w</span>.<span class="ident">write_preamble</span>(<span class="ident">w</span>, <span class="ident">func</span>, <span class="ident">regs</span>)<span class="question-mark">?</span>;
-    <span class="kw">for</span> <span class="ident">ebb</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">func</span>.<span class="ident">layout</span> {
+    <span class="kw">for</span> <span class="ident">block</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">func</span>.<span class="ident">layout</span> {
         <span class="kw">if</span> <span class="ident">any</span> {
             <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">w</span>)<span class="question-mark">?</span>;
         }
-        <span class="ident">decorate_ebb</span>(<span class="ident">func_w</span>, <span class="ident">w</span>, <span class="ident">func</span>, <span class="kw-2">&amp;</span><span class="ident">aliases</span>, <span class="ident">annotations</span>, <span class="ident">ebb</span>)<span class="question-mark">?</span>;
+        <span class="ident">decorate_block</span>(<span class="ident">func_w</span>, <span class="ident">w</span>, <span class="ident">func</span>, <span class="kw-2">&amp;</span><span class="ident">aliases</span>, <span class="ident">annotations</span>, <span class="ident">block</span>)<span class="question-mark">?</span>;
         <span class="ident">any</span> <span class="op">=</span> <span class="bool-val">true</span>;
     }
     <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">w</span>, <span class="string">&quot;}}&quot;</span>)
@@ -1090,24 +1090,24 @@
 
 <span class="doccomment">/// Write out the basic block header, outdented:</span>
 <span class="doccomment">///</span>
-<span class="doccomment">///    ebb1:</span>
-<span class="doccomment">///    ebb1(v1: i32):</span>
-<span class="doccomment">///    ebb10(v4: f64, v5: b1):</span>
+<span class="doccomment">///    block1:</span>
+<span class="doccomment">///    block1(v1: i32):</span>
+<span class="doccomment">///    block10(v4: f64, v5: b1):</span>
 <span class="doccomment">///</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">write_ebb_header</span>(
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">write_block_header</span>(
     <span class="ident">w</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">Write</span>,
     <span class="ident">func</span>: <span class="kw-2">&amp;</span><span class="ident">Function</span>,
     <span class="ident">isa</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">TargetIsa</span><span class="op">&gt;</span>,
-    <span class="ident">ebb</span>: <span class="ident">Ebb</span>,
+    <span class="ident">block</span>: <span class="ident">Block</span>,
     <span class="ident">indent</span>: <span class="ident">usize</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
-    <span class="comment">// The `indent` is the instruction indentation. EBB headers are 4 spaces out from that.</span>
-    <span class="macro">write</span><span class="macro">!</span>(<span class="ident">w</span>, <span class="string">&quot;{1:0$}{2}&quot;</span>, <span class="ident">indent</span> <span class="op">-</span> <span class="number">4</span>, <span class="string">&quot;&quot;</span>, <span class="ident">ebb</span>)<span class="question-mark">?</span>;
+    <span class="comment">// The `indent` is the instruction indentation. block headers are 4 spaces out from that.</span>
+    <span class="macro">write</span><span class="macro">!</span>(<span class="ident">w</span>, <span class="string">&quot;{1:0$}{2}&quot;</span>, <span class="ident">indent</span> <span class="op">-</span> <span class="number">4</span>, <span class="string">&quot;&quot;</span>, <span class="ident">block</span>)<span class="question-mark">?</span>;
 
     <span class="kw">let</span> <span class="ident">regs</span> <span class="op">=</span> <span class="ident">isa</span>.<span class="ident">map</span>(<span class="ident">TargetIsa</span>::<span class="ident">register_info</span>);
     <span class="kw">let</span> <span class="ident">regs</span> <span class="op">=</span> <span class="ident">regs</span>.<span class="ident">as_ref</span>();
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">args</span> <span class="op">=</span> <span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">ebb_params</span>(<span class="ident">ebb</span>).<span class="ident">iter</span>().<span class="ident">cloned</span>();
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">args</span> <span class="op">=</span> <span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">block_params</span>(<span class="ident">block</span>).<span class="ident">iter</span>().<span class="ident">cloned</span>();
     <span class="kw">match</span> <span class="ident">args</span>.<span class="ident">next</span>() {
         <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">w</span>, <span class="string">&quot;:&quot;</span>),
         <span class="prelude-val">Some</span>(<span class="ident">arg</span>) <span class="op">=</span><span class="op">&gt;</span> {
@@ -1164,13 +1164,13 @@
     <span class="prelude-val">Ok</span>(())
 }
 
-<span class="kw">fn</span> <span class="ident">decorate_ebb</span><span class="op">&lt;</span><span class="ident">FW</span>: <span class="ident">FuncWriter</span><span class="op">&gt;</span>(
+<span class="kw">fn</span> <span class="ident">decorate_block</span><span class="op">&lt;</span><span class="ident">FW</span>: <span class="ident">FuncWriter</span><span class="op">&gt;</span>(
     <span class="ident">func_w</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FW</span>,
     <span class="ident">w</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">Write</span>,
     <span class="ident">func</span>: <span class="kw-2">&amp;</span><span class="ident">Function</span>,
     <span class="ident">aliases</span>: <span class="kw-2">&amp;</span><span class="ident">SecondaryMap</span><span class="op">&lt;</span><span class="ident">Value</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Value</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">annotations</span>: <span class="kw-2">&amp;</span><span class="ident">DisplayFunctionAnnotations</span>,
-    <span class="ident">ebb</span>: <span class="ident">Ebb</span>,
+    <span class="ident">block</span>: <span class="ident">Block</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
     <span class="comment">// Indent all instructions if any encodings are present.</span>
     <span class="kw">let</span> <span class="ident">indent</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">func</span>.<span class="ident">encodings</span>.<span class="ident">is_empty</span>() <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">func</span>.<span class="ident">srclocs</span>.<span class="ident">is_empty</span>() {
@@ -1180,8 +1180,8 @@
     };
     <span class="kw">let</span> <span class="ident">isa</span> <span class="op">=</span> <span class="ident">annotations</span>.<span class="ident">isa</span>;
 
-    <span class="ident">func_w</span>.<span class="ident">write_ebb_header</span>(<span class="ident">w</span>, <span class="ident">func</span>, <span class="ident">isa</span>, <span class="ident">ebb</span>, <span class="ident">indent</span>)<span class="question-mark">?</span>;
-    <span class="kw">for</span> <span class="ident">a</span> <span class="kw">in</span> <span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">ebb_params</span>(<span class="ident">ebb</span>).<span class="ident">iter</span>().<span class="ident">cloned</span>() {
+    <span class="ident">func_w</span>.<span class="ident">write_block_header</span>(<span class="ident">w</span>, <span class="ident">func</span>, <span class="ident">isa</span>, <span class="ident">block</span>, <span class="ident">indent</span>)<span class="question-mark">?</span>;
+    <span class="kw">for</span> <span class="ident">a</span> <span class="kw">in</span> <span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">block_params</span>(<span class="ident">block</span>).<span class="ident">iter</span>().<span class="ident">cloned</span>() {
         <span class="ident">write_value_aliases</span>(<span class="ident">w</span>, <span class="ident">aliases</span>, <span class="ident">a</span>, <span class="ident">indent</span>)<span class="question-mark">?</span>;
     }
 
@@ -1189,7 +1189,7 @@
         <span class="kw">if</span> <span class="op">!</span><span class="ident">func</span>.<span class="ident">offsets</span>.<span class="ident">is_empty</span>() {
             <span class="kw">let</span> <span class="ident">encinfo</span> <span class="op">=</span> <span class="ident">isa</span>.<span class="ident">encoding_info</span>();
             <span class="kw">let</span> <span class="ident">regs</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">isa</span>.<span class="ident">register_info</span>();
-            <span class="kw">for</span> (<span class="ident">offset</span>, <span class="ident">inst</span>, <span class="ident">size</span>) <span class="kw">in</span> <span class="ident">func</span>.<span class="ident">inst_offsets</span>(<span class="ident">ebb</span>, <span class="kw-2">&amp;</span><span class="ident">encinfo</span>) {
+            <span class="kw">for</span> (<span class="ident">offset</span>, <span class="ident">inst</span>, <span class="ident">size</span>) <span class="kw">in</span> <span class="ident">func</span>.<span class="ident">inst_offsets</span>(<span class="ident">block</span>, <span class="kw-2">&amp;</span><span class="ident">encinfo</span>) {
                 <span class="ident">func_w</span>.<span class="ident">write_instruction</span>(<span class="ident">w</span>, <span class="ident">func</span>, <span class="ident">aliases</span>, <span class="prelude-val">Some</span>(<span class="ident">isa</span>), <span class="ident">inst</span>, <span class="ident">indent</span>)<span class="question-mark">?</span>;
                 <span class="kw">if</span> <span class="ident">size</span> <span class="op">&gt;</span> <span class="number">0</span> {
                     <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">val_ranges</span>) <span class="op">=</span> <span class="ident">annotations</span>.<span class="ident">value_ranges</span> {
@@ -1201,7 +1201,7 @@
         }
     }
 
-    <span class="kw">for</span> <span class="ident">inst</span> <span class="kw">in</span> <span class="ident">func</span>.<span class="ident">layout</span>.<span class="ident">ebb_insts</span>(<span class="ident">ebb</span>) {
+    <span class="kw">for</span> <span class="ident">inst</span> <span class="kw">in</span> <span class="ident">func</span>.<span class="ident">layout</span>.<span class="ident">block_insts</span>(<span class="ident">block</span>) {
         <span class="ident">func_w</span>.<span class="ident">write_instruction</span>(<span class="ident">w</span>, <span class="ident">func</span>, <span class="ident">aliases</span>, <span class="ident">isa</span>, <span class="ident">inst</span>, <span class="ident">indent</span>)<span class="question-mark">?</span>;
     }
 
@@ -1229,11 +1229,11 @@
     <span class="comment">// operand, we don&#39;t need the type suffix.</span>
     <span class="kw">if</span> <span class="ident">constraints</span>.<span class="ident">use_typevar_operand</span>() {
         <span class="kw">let</span> <span class="ident">ctrl_var</span> <span class="op">=</span> <span class="ident">inst_data</span>.<span class="ident">typevar_operand</span>(<span class="kw-2">&amp;</span><span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">value_lists</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">def_ebb</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">value_def</span>(<span class="ident">ctrl_var</span>) {
-            <span class="ident">ValueDef</span>::<span class="prelude-ty">Result</span>(<span class="ident">instr</span>, <span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">func</span>.<span class="ident">layout</span>.<span class="ident">inst_ebb</span>(<span class="ident">instr</span>),
-            <span class="ident">ValueDef</span>::<span class="ident">Param</span>(<span class="ident">ebb</span>, <span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">ebb</span>),
+        <span class="kw">let</span> <span class="ident">def_block</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">value_def</span>(<span class="ident">ctrl_var</span>) {
+            <span class="ident">ValueDef</span>::<span class="prelude-ty">Result</span>(<span class="ident">instr</span>, <span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">func</span>.<span class="ident">layout</span>.<span class="ident">inst_block</span>(<span class="ident">instr</span>),
+            <span class="ident">ValueDef</span>::<span class="ident">Param</span>(<span class="ident">block</span>, <span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">block</span>),
         };
-        <span class="kw">if</span> <span class="ident">def_ebb</span>.<span class="ident">is_some</span>() <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">def_ebb</span> <span class="op">=</span><span class="op">=</span> <span class="ident">func</span>.<span class="ident">layout</span>.<span class="ident">inst_ebb</span>(<span class="ident">inst</span>) {
+        <span class="kw">if</span> <span class="ident">def_block</span>.<span class="ident">is_some</span>() <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">def_block</span> <span class="op">=</span><span class="op">=</span> <span class="ident">func</span>.<span class="ident">layout</span>.<span class="ident">inst_block</span>(<span class="ident">inst</span>) {
             <span class="kw">return</span> <span class="prelude-val">None</span>;
         }
     }
@@ -1388,7 +1388,7 @@
             ..
         } <span class="op">=</span><span class="op">&gt;</span> {
             <span class="macro">write</span><span class="macro">!</span>(<span class="ident">w</span>, <span class="string">&quot; {}&quot;</span>, <span class="ident">destination</span>)<span class="question-mark">?</span>;
-            <span class="ident">write_ebb_args</span>(<span class="ident">w</span>, <span class="ident">args</span>.<span class="ident">as_slice</span>(<span class="ident">pool</span>))
+            <span class="ident">write_block_args</span>(<span class="ident">w</span>, <span class="ident">args</span>.<span class="ident">as_slice</span>(<span class="ident">pool</span>))
         }
         <span class="ident">Branch</span> {
             <span class="ident">destination</span>,
@@ -1397,7 +1397,7 @@
         } <span class="op">=</span><span class="op">&gt;</span> {
             <span class="kw">let</span> <span class="ident">args</span> <span class="op">=</span> <span class="ident">args</span>.<span class="ident">as_slice</span>(<span class="ident">pool</span>);
             <span class="macro">write</span><span class="macro">!</span>(<span class="ident">w</span>, <span class="string">&quot; {}, {}&quot;</span>, <span class="ident">args</span>[<span class="number">0</span>], <span class="ident">destination</span>)<span class="question-mark">?</span>;
-            <span class="ident">write_ebb_args</span>(<span class="ident">w</span>, <span class="kw-2">&amp;</span><span class="ident">args</span>[<span class="number">1</span>..])
+            <span class="ident">write_block_args</span>(<span class="ident">w</span>, <span class="kw-2">&amp;</span><span class="ident">args</span>[<span class="number">1</span>..])
         }
         <span class="ident">BranchInt</span> {
             <span class="ident">cond</span>,
@@ -1407,7 +1407,7 @@
         } <span class="op">=</span><span class="op">&gt;</span> {
             <span class="kw">let</span> <span class="ident">args</span> <span class="op">=</span> <span class="ident">args</span>.<span class="ident">as_slice</span>(<span class="ident">pool</span>);
             <span class="macro">write</span><span class="macro">!</span>(<span class="ident">w</span>, <span class="string">&quot; {} {}, {}&quot;</span>, <span class="ident">cond</span>, <span class="ident">args</span>[<span class="number">0</span>], <span class="ident">destination</span>)<span class="question-mark">?</span>;
-            <span class="ident">write_ebb_args</span>(<span class="ident">w</span>, <span class="kw-2">&amp;</span><span class="ident">args</span>[<span class="number">1</span>..])
+            <span class="ident">write_block_args</span>(<span class="ident">w</span>, <span class="kw-2">&amp;</span><span class="ident">args</span>[<span class="number">1</span>..])
         }
         <span class="ident">BranchFloat</span> {
             <span class="ident">cond</span>,
@@ -1417,7 +1417,7 @@
         } <span class="op">=</span><span class="op">&gt;</span> {
             <span class="kw">let</span> <span class="ident">args</span> <span class="op">=</span> <span class="ident">args</span>.<span class="ident">as_slice</span>(<span class="ident">pool</span>);
             <span class="macro">write</span><span class="macro">!</span>(<span class="ident">w</span>, <span class="string">&quot; {} {}, {}&quot;</span>, <span class="ident">cond</span>, <span class="ident">args</span>[<span class="number">0</span>], <span class="ident">destination</span>)<span class="question-mark">?</span>;
-            <span class="ident">write_ebb_args</span>(<span class="ident">w</span>, <span class="kw-2">&amp;</span><span class="ident">args</span>[<span class="number">1</span>..])
+            <span class="ident">write_block_args</span>(<span class="ident">w</span>, <span class="kw-2">&amp;</span><span class="ident">args</span>[<span class="number">1</span>..])
         }
         <span class="ident">BranchIcmp</span> {
             <span class="ident">cond</span>,
@@ -1427,7 +1427,7 @@
         } <span class="op">=</span><span class="op">&gt;</span> {
             <span class="kw">let</span> <span class="ident">args</span> <span class="op">=</span> <span class="ident">args</span>.<span class="ident">as_slice</span>(<span class="ident">pool</span>);
             <span class="macro">write</span><span class="macro">!</span>(<span class="ident">w</span>, <span class="string">&quot; {} {}, {}, {}&quot;</span>, <span class="ident">cond</span>, <span class="ident">args</span>[<span class="number">0</span>], <span class="ident">args</span>[<span class="number">1</span>], <span class="ident">destination</span>)<span class="question-mark">?</span>;
-            <span class="ident">write_ebb_args</span>(<span class="ident">w</span>, <span class="kw-2">&amp;</span><span class="ident">args</span>[<span class="number">2</span>..])
+            <span class="ident">write_block_args</span>(<span class="ident">w</span>, <span class="kw-2">&amp;</span><span class="ident">args</span>[<span class="number">2</span>..])
         }
         <span class="ident">BranchTable</span> {
             <span class="ident">arg</span>,
@@ -1569,8 +1569,8 @@
     }
 }
 
-<span class="doccomment">/// Write EBB args using optional parantheses.</span>
-<span class="kw">fn</span> <span class="ident">write_ebb_args</span>(<span class="ident">w</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">Write</span>, <span class="ident">args</span>: <span class="kw-2">&amp;</span>[<span class="ident">Value</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
+<span class="doccomment">/// Write block args using optional parantheses.</span>
+<span class="kw">fn</span> <span class="ident">write_block_args</span>(<span class="ident">w</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">Write</span>, <span class="ident">args</span>: <span class="kw-2">&amp;</span>[<span class="ident">Value</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
     <span class="kw">if</span> <span class="ident">args</span>.<span class="ident">is_empty</span>() {
         <span class="prelude-val">Ok</span>(())
     } <span class="kw">else</span> {
@@ -1630,33 +1630,33 @@
             <span class="string">&quot;function %foo() fast {\n    ss0 = explicit_slot 4\n}\n&quot;</span>
         );
 
-        <span class="kw">let</span> <span class="ident">ebb</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">dfg</span>.<span class="ident">make_ebb</span>();
-        <span class="ident">f</span>.<span class="ident">layout</span>.<span class="ident">append_ebb</span>(<span class="ident">ebb</span>);
+        <span class="kw">let</span> <span class="ident">block</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">dfg</span>.<span class="ident">make_block</span>();
+        <span class="ident">f</span>.<span class="ident">layout</span>.<span class="ident">append_block</span>(<span class="ident">block</span>);
         <span class="macro">assert_eq</span><span class="macro">!</span>(
             <span class="ident">f</span>.<span class="ident">to_string</span>(),
-            <span class="string">&quot;function %foo() fast {\n    ss0 = explicit_slot 4\n\nebb0:\n}\n&quot;</span>
+            <span class="string">&quot;function %foo() fast {\n    ss0 = explicit_slot 4\n\nblock0:\n}\n&quot;</span>
         );
 
-        <span class="ident">f</span>.<span class="ident">dfg</span>.<span class="ident">append_ebb_param</span>(<span class="ident">ebb</span>, <span class="ident">types</span>::<span class="ident">I8</span>);
+        <span class="ident">f</span>.<span class="ident">dfg</span>.<span class="ident">append_block_param</span>(<span class="ident">block</span>, <span class="ident">types</span>::<span class="ident">I8</span>);
         <span class="macro">assert_eq</span><span class="macro">!</span>(
             <span class="ident">f</span>.<span class="ident">to_string</span>(),
-            <span class="string">&quot;function %foo() fast {\n    ss0 = explicit_slot 4\n\nebb0(v0: i8):\n}\n&quot;</span>
+            <span class="string">&quot;function %foo() fast {\n    ss0 = explicit_slot 4\n\nblock0(v0: i8):\n}\n&quot;</span>
         );
 
-        <span class="ident">f</span>.<span class="ident">dfg</span>.<span class="ident">append_ebb_param</span>(<span class="ident">ebb</span>, <span class="ident">types</span>::<span class="ident">F32</span>.<span class="ident">by</span>(<span class="number">4</span>).<span class="ident">unwrap</span>());
+        <span class="ident">f</span>.<span class="ident">dfg</span>.<span class="ident">append_block_param</span>(<span class="ident">block</span>, <span class="ident">types</span>::<span class="ident">F32</span>.<span class="ident">by</span>(<span class="number">4</span>).<span class="ident">unwrap</span>());
         <span class="macro">assert_eq</span><span class="macro">!</span>(
             <span class="ident">f</span>.<span class="ident">to_string</span>(),
-            <span class="string">&quot;function %foo() fast {\n    ss0 = explicit_slot 4\n\nebb0(v0: i8, v1: f32x4):\n}\n&quot;</span>
+            <span class="string">&quot;function %foo() fast {\n    ss0 = explicit_slot 4\n\nblock0(v0: i8, v1: f32x4):\n}\n&quot;</span>
         );
 
         {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cursor</span> <span class="op">=</span> <span class="ident">FuncCursor</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">f</span>);
-            <span class="ident">cursor</span>.<span class="ident">set_position</span>(<span class="ident">CursorPosition</span>::<span class="ident">After</span>(<span class="ident">ebb</span>));
+            <span class="ident">cursor</span>.<span class="ident">set_position</span>(<span class="ident">CursorPosition</span>::<span class="ident">After</span>(<span class="ident">block</span>));
             <span class="ident">cursor</span>.<span class="ident">ins</span>().<span class="ident">return_</span>(<span class="kw-2">&amp;</span>[])
         };
         <span class="macro">assert_eq</span><span class="macro">!</span>(
             <span class="ident">f</span>.<span class="ident">to_string</span>(),
-            <span class="string">&quot;function %foo() fast {\n    ss0 = explicit_slot 4\n\nebb0(v0: i8, v1: f32x4):\n    return\n}\n&quot;</span>
+            <span class="string">&quot;function %foo() fast {\n    ss0 = explicit_slot 4\n\nblock0(v0: i8, v1: f32x4):\n    return\n}\n&quot;</span>
         );
     }
 
@@ -1666,18 +1666,18 @@
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">func</span> <span class="op">=</span> <span class="ident">Function</span>::<span class="ident">new</span>();
         {
-            <span class="kw">let</span> <span class="ident">ebb0</span> <span class="op">=</span> <span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">make_ebb</span>();
+            <span class="kw">let</span> <span class="ident">block0</span> <span class="op">=</span> <span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">make_block</span>();
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pos</span> <span class="op">=</span> <span class="ident">FuncCursor</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">func</span>);
-            <span class="ident">pos</span>.<span class="ident">insert_ebb</span>(<span class="ident">ebb0</span>);
+            <span class="ident">pos</span>.<span class="ident">insert_block</span>(<span class="ident">block0</span>);
 
             <span class="comment">// make some detached values for change_to_alias</span>
-            <span class="kw">let</span> <span class="ident">v0</span> <span class="op">=</span> <span class="ident">pos</span>.<span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">append_ebb_param</span>(<span class="ident">ebb0</span>, <span class="ident">types</span>::<span class="ident">I32</span>);
-            <span class="kw">let</span> <span class="ident">v1</span> <span class="op">=</span> <span class="ident">pos</span>.<span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">append_ebb_param</span>(<span class="ident">ebb0</span>, <span class="ident">types</span>::<span class="ident">I32</span>);
-            <span class="kw">let</span> <span class="ident">v2</span> <span class="op">=</span> <span class="ident">pos</span>.<span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">append_ebb_param</span>(<span class="ident">ebb0</span>, <span class="ident">types</span>::<span class="ident">I32</span>);
-            <span class="ident">pos</span>.<span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">detach_ebb_params</span>(<span class="ident">ebb0</span>);
+            <span class="kw">let</span> <span class="ident">v0</span> <span class="op">=</span> <span class="ident">pos</span>.<span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">append_block_param</span>(<span class="ident">block0</span>, <span class="ident">types</span>::<span class="ident">I32</span>);
+            <span class="kw">let</span> <span class="ident">v1</span> <span class="op">=</span> <span class="ident">pos</span>.<span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">append_block_param</span>(<span class="ident">block0</span>, <span class="ident">types</span>::<span class="ident">I32</span>);
+            <span class="kw">let</span> <span class="ident">v2</span> <span class="op">=</span> <span class="ident">pos</span>.<span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">append_block_param</span>(<span class="ident">block0</span>, <span class="ident">types</span>::<span class="ident">I32</span>);
+            <span class="ident">pos</span>.<span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">detach_block_params</span>(<span class="ident">block0</span>);
 
-            <span class="comment">// alias to a param--will be printed at beginning of ebb defining param</span>
-            <span class="kw">let</span> <span class="ident">v3</span> <span class="op">=</span> <span class="ident">pos</span>.<span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">append_ebb_param</span>(<span class="ident">ebb0</span>, <span class="ident">types</span>::<span class="ident">I32</span>);
+            <span class="comment">// alias to a param--will be printed at beginning of block defining param</span>
+            <span class="kw">let</span> <span class="ident">v3</span> <span class="op">=</span> <span class="ident">pos</span>.<span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">append_block_param</span>(<span class="ident">block0</span>, <span class="ident">types</span>::<span class="ident">I32</span>);
             <span class="ident">pos</span>.<span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">change_to_alias</span>(<span class="ident">v0</span>, <span class="ident">v3</span>);
 
             <span class="comment">// alias to an alias--should print attached to alias, not ultimate target</span>
@@ -1692,7 +1692,7 @@
         }
         <span class="macro">assert_eq</span><span class="macro">!</span>(
             <span class="ident">func</span>.<span class="ident">to_string</span>(),
-            <span class="string">&quot;function u0:0() fast {\nebb0(v3: i32):\n    v0 -&gt; v3\n    v2 -&gt; v0\n    v4 = iconst.i32 42\n    v5 = iadd v0, v0\n    v1 -&gt; v5\n    v6 = iconst.i32 23\n    v7 = iadd v1, v1\n}\n&quot;</span>
+            <span class="string">&quot;function u0:0() fast {\nblock0(v3: i32):\n    v0 -&gt; v3\n    v2 -&gt; v0\n    v4 = iconst.i32 42\n    v5 = iadd v0, v0\n    v1 -&gt; v5\n    v6 = iconst.i32 23\n    v7 = iadd v1, v1\n}\n&quot;</span>
         );
     }
 }

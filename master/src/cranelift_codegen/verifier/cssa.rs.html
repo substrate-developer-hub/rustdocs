@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/cranelift-codegen-0.50.0/src/verifier/cssa.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>cssa.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/cranelift-codegen-0.58.0/src/verifier/cssa.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>cssa.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -178,12 +178,15 @@
 <span id="167">167</span>
 <span id="168">168</span>
 <span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Verify conventional SSA form.</span>
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">dbg</span>::<span class="ident">DisplayList</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">dominator_tree</span>::{<span class="ident">DominatorTree</span>, <span class="ident">DominatorTreePreorder</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">flowgraph</span>::{<span class="ident">BasicBlock</span>, <span class="ident">ControlFlowGraph</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">flowgraph</span>::{<span class="ident">BlockPredecessor</span>, <span class="ident">ControlFlowGraph</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">ir</span>::{<span class="ident">ExpandedProgramPoint</span>, <span class="ident">Function</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">regalloc</span>::<span class="ident">liveness</span>::<span class="ident">Liveness</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">regalloc</span>::<span class="ident">virtregs</span>::<span class="ident">VirtRegs</span>;
@@ -194,7 +197,7 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// Conventional SSA form is represented in Cranelift with the help of virtual registers:</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// - Two values are said to be *PHI-related* if one is an EBB argument and the other is passed as</span>
+<span class="doccomment">/// - Two values are said to be *PHI-related* if one is an block argument and the other is passed as</span>
 <span class="doccomment">///   a branch argument in a location that matches the first value.</span>
 <span class="doccomment">/// - PHI-related values must belong to the same virtual register.</span>
 <span class="doccomment">/// - Two values in the same virtual register must not have overlapping live ranges.</span>
@@ -246,46 +249,48 @@
 
             <span class="kw">for</span> (<span class="ident">idx</span>, <span class="kw-2">&amp;</span><span class="ident">val</span>) <span class="kw">in</span> <span class="ident">values</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
                 <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">value_is_valid</span>(<span class="ident">val</span>) {
-                    <span class="kw">return</span> <span class="macro">fatal</span><span class="macro">!</span>(<span class="ident">errors</span>, <span class="ident">val</span>, <span class="string">&quot;Invalid value in {}&quot;</span>, <span class="ident">vreg</span>);
+                    <span class="kw">return</span> <span class="ident">errors</span>.<span class="ident">fatal</span>((<span class="ident">val</span>, <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Invalid value in {}&quot;</span>, <span class="ident">vreg</span>)));
                 }
                 <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">value_is_attached</span>(<span class="ident">val</span>) {
-                    <span class="kw">return</span> <span class="macro">fatal</span><span class="macro">!</span>(<span class="ident">errors</span>, <span class="ident">val</span>, <span class="string">&quot;Detached value in {}&quot;</span>, <span class="ident">vreg</span>);
+                    <span class="kw">return</span> <span class="ident">errors</span>.<span class="ident">fatal</span>((<span class="ident">val</span>, <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Detached value in {}&quot;</span>, <span class="ident">vreg</span>)));
                 }
                 <span class="kw">if</span> <span class="self">self</span>.<span class="ident">liveness</span>.<span class="ident">get</span>(<span class="ident">val</span>).<span class="ident">is_none</span>() {
-                    <span class="kw">return</span> <span class="macro">fatal</span><span class="macro">!</span>(<span class="ident">errors</span>, <span class="ident">val</span>, <span class="string">&quot;Value in {} has no live range&quot;</span>, <span class="ident">vreg</span>);
+                    <span class="kw">return</span> <span class="ident">errors</span>.<span class="ident">fatal</span>((<span class="ident">val</span>, <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Value in {} has no live range&quot;</span>, <span class="ident">vreg</span>)));
                 };
 
                 <span class="comment">// Check topological ordering with the previous values in the virtual register.</span>
                 <span class="kw">let</span> <span class="ident">def</span>: <span class="ident">ExpandedProgramPoint</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">value_def</span>(<span class="ident">val</span>).<span class="ident">into</span>();
-                <span class="kw">let</span> <span class="ident">def_ebb</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">func</span>.<span class="ident">layout</span>.<span class="ident">pp_ebb</span>(<span class="ident">def</span>);
+                <span class="kw">let</span> <span class="ident">def_block</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">func</span>.<span class="ident">layout</span>.<span class="ident">pp_block</span>(<span class="ident">def</span>);
                 <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="ident">prev_val</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">values</span>[<span class="number">0</span>..<span class="ident">idx</span>] {
                     <span class="kw">let</span> <span class="ident">prev_def</span>: <span class="ident">ExpandedProgramPoint</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">value_def</span>(<span class="ident">prev_val</span>).<span class="ident">into</span>();
-                    <span class="kw">let</span> <span class="ident">prev_ebb</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">func</span>.<span class="ident">layout</span>.<span class="ident">pp_ebb</span>(<span class="ident">prev_def</span>);
+                    <span class="kw">let</span> <span class="ident">prev_block</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">func</span>.<span class="ident">layout</span>.<span class="ident">pp_block</span>(<span class="ident">prev_def</span>);
 
                     <span class="kw">if</span> <span class="ident">prev_def</span> <span class="op">=</span><span class="op">=</span> <span class="ident">def</span> {
-                        <span class="kw">return</span> <span class="macro">fatal</span><span class="macro">!</span>(
-                            <span class="ident">errors</span>,
+                        <span class="kw">return</span> <span class="ident">errors</span>.<span class="ident">fatal</span>((
                             <span class="ident">val</span>,
-                            <span class="string">&quot;Values {} and {} in {} = {} defined at the same program point&quot;</span>,
-                            <span class="ident">prev_val</span>,
-                            <span class="ident">val</span>,
-                            <span class="ident">vreg</span>,
-                            <span class="ident">DisplayList</span>(<span class="ident">values</span>)
-                        );
+                            <span class="macro">format</span><span class="macro">!</span>(
+                                <span class="string">&quot;Values {} and {} in {} = {} defined at the same program point&quot;</span>,
+                                <span class="ident">prev_val</span>,
+                                <span class="ident">val</span>,
+                                <span class="ident">vreg</span>,
+                                <span class="ident">DisplayList</span>(<span class="ident">values</span>)
+                            ),
+                        ));
                     }
 
                     <span class="comment">// Enforce topological ordering of defs in the virtual register.</span>
-                    <span class="kw">if</span> <span class="self">self</span>.<span class="ident">preorder</span>.<span class="ident">dominates</span>(<span class="ident">def_ebb</span>, <span class="ident">prev_ebb</span>)
+                    <span class="kw">if</span> <span class="self">self</span>.<span class="ident">preorder</span>.<span class="ident">dominates</span>(<span class="ident">def_block</span>, <span class="ident">prev_block</span>)
                         <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="self">self</span>.<span class="ident">domtree</span>.<span class="ident">dominates</span>(<span class="ident">def</span>, <span class="ident">prev_def</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">func</span>.<span class="ident">layout</span>)
                     {
-                        <span class="kw">return</span> <span class="macro">fatal</span><span class="macro">!</span>(
-                            <span class="ident">errors</span>,
+                        <span class="kw">return</span> <span class="ident">errors</span>.<span class="ident">fatal</span>((
                             <span class="ident">val</span>,
-                            <span class="string">&quot;Value in {} = {} def dominates previous {}&quot;</span>,
-                            <span class="ident">vreg</span>,
-                            <span class="ident">DisplayList</span>(<span class="ident">values</span>),
-                            <span class="ident">prev_val</span>
-                        );
+                            <span class="macro">format</span><span class="macro">!</span>(
+                                <span class="string">&quot;Value in {} = {} def dominates previous {}&quot;</span>,
+                                <span class="ident">vreg</span>,
+                                <span class="ident">DisplayList</span>(<span class="ident">values</span>),
+                                <span class="ident">prev_val</span>
+                            ),
+                        ));
                     }
                 }
 
@@ -294,20 +299,21 @@
                 <span class="comment">// We only have to check against the nearest dominating value.</span>
                 <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="ident">prev_val</span> <span class="kw">in</span> <span class="ident">values</span>[<span class="number">0</span>..<span class="ident">idx</span>].<span class="ident">iter</span>().<span class="ident">rev</span>() {
                     <span class="kw">let</span> <span class="ident">prev_def</span>: <span class="ident">ExpandedProgramPoint</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">value_def</span>(<span class="ident">prev_val</span>).<span class="ident">into</span>();
-                    <span class="kw">let</span> <span class="ident">prev_ebb</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">func</span>.<span class="ident">layout</span>.<span class="ident">pp_ebb</span>(<span class="ident">prev_def</span>);
+                    <span class="kw">let</span> <span class="ident">prev_block</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">func</span>.<span class="ident">layout</span>.<span class="ident">pp_block</span>(<span class="ident">prev_def</span>);
 
-                    <span class="kw">if</span> <span class="self">self</span>.<span class="ident">preorder</span>.<span class="ident">dominates</span>(<span class="ident">prev_ebb</span>, <span class="ident">def_ebb</span>)
+                    <span class="kw">if</span> <span class="self">self</span>.<span class="ident">preorder</span>.<span class="ident">dominates</span>(<span class="ident">prev_block</span>, <span class="ident">def_block</span>)
                         <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="self">self</span>.<span class="ident">domtree</span>.<span class="ident">dominates</span>(<span class="ident">prev_def</span>, <span class="ident">def</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">func</span>.<span class="ident">layout</span>)
                     {
-                        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">liveness</span>[<span class="ident">prev_val</span>].<span class="ident">overlaps_def</span>(<span class="ident">def</span>, <span class="ident">def_ebb</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">func</span>.<span class="ident">layout</span>) {
-                            <span class="kw">return</span> <span class="macro">fatal</span><span class="macro">!</span>(
-                                <span class="ident">errors</span>,
+                        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">liveness</span>[<span class="ident">prev_val</span>].<span class="ident">overlaps_def</span>(<span class="ident">def</span>, <span class="ident">def_block</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">func</span>.<span class="ident">layout</span>) {
+                            <span class="kw">return</span> <span class="ident">errors</span>.<span class="ident">fatal</span>((
                                 <span class="ident">val</span>,
-                                <span class="string">&quot;Value def in {} = {} interferes with {}&quot;</span>,
-                                <span class="ident">vreg</span>,
-                                <span class="ident">DisplayList</span>(<span class="ident">values</span>),
-                                <span class="ident">prev_val</span>
-                            );
+                                <span class="macro">format</span><span class="macro">!</span>(
+                                    <span class="string">&quot;Value def in {} = {} interferes with {}&quot;</span>,
+                                    <span class="ident">vreg</span>,
+                                    <span class="ident">DisplayList</span>(<span class="ident">values</span>),
+                                    <span class="ident">prev_val</span>
+                                ),
+                            ));
                         } <span class="kw">else</span> {
                             <span class="kw">break</span>;
                         }
@@ -320,26 +326,26 @@
     }
 
     <span class="kw">fn</span> <span class="ident">check_cssa</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">errors</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">VerifierErrors</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">VerifierStepResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="kw">for</span> <span class="ident">ebb</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">func</span>.<span class="ident">layout</span>.<span class="ident">ebbs</span>() {
-            <span class="kw">let</span> <span class="ident">ebb_params</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">ebb_params</span>(<span class="ident">ebb</span>);
-            <span class="kw">for</span> <span class="ident">BasicBlock</span> { <span class="ident">inst</span>: <span class="ident">pred</span>, .. } <span class="kw">in</span> <span class="self">self</span>.<span class="ident">cfg</span>.<span class="ident">pred_iter</span>(<span class="ident">ebb</span>) {
+        <span class="kw">for</span> <span class="ident">block</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">func</span>.<span class="ident">layout</span>.<span class="ident">blocks</span>() {
+            <span class="kw">let</span> <span class="ident">block_params</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">block_params</span>(<span class="ident">block</span>);
+            <span class="kw">for</span> <span class="ident">BlockPredecessor</span> { <span class="ident">inst</span>: <span class="ident">pred</span>, .. } <span class="kw">in</span> <span class="self">self</span>.<span class="ident">cfg</span>.<span class="ident">pred_iter</span>(<span class="ident">block</span>) {
                 <span class="kw">let</span> <span class="ident">pred_args</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">inst_variable_args</span>(<span class="ident">pred</span>);
                 <span class="comment">// This should have been caught by an earlier verifier pass.</span>
                 <span class="macro">assert_eq</span><span class="macro">!</span>(
-                    <span class="ident">ebb_params</span>.<span class="ident">len</span>(),
+                    <span class="ident">block_params</span>.<span class="ident">len</span>(),
                     <span class="ident">pred_args</span>.<span class="ident">len</span>(),
                     <span class="string">&quot;Wrong arguments on branch.&quot;</span>
                 );
 
-                <span class="kw">for</span> (<span class="kw-2">&amp;</span><span class="ident">ebb_param</span>, <span class="kw-2">&amp;</span><span class="ident">pred_arg</span>) <span class="kw">in</span> <span class="ident">ebb_params</span>.<span class="ident">iter</span>().<span class="ident">zip</span>(<span class="ident">pred_args</span>) {
-                    <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">virtregs</span>.<span class="ident">same_class</span>(<span class="ident">ebb_param</span>, <span class="ident">pred_arg</span>) {
-                        <span class="kw">return</span> <span class="macro">fatal</span><span class="macro">!</span>(
-                            <span class="ident">errors</span>,
+                <span class="kw">for</span> (<span class="kw-2">&amp;</span><span class="ident">block_param</span>, <span class="kw-2">&amp;</span><span class="ident">pred_arg</span>) <span class="kw">in</span> <span class="ident">block_params</span>.<span class="ident">iter</span>().<span class="ident">zip</span>(<span class="ident">pred_args</span>) {
+                    <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">virtregs</span>.<span class="ident">same_class</span>(<span class="ident">block_param</span>, <span class="ident">pred_arg</span>) {
+                        <span class="kw">return</span> <span class="ident">errors</span>.<span class="ident">fatal</span>((
                             <span class="ident">pred</span>,
-                            <span class="string">&quot;{} and {} must be in the same virtual register&quot;</span>,
-                            <span class="ident">ebb_param</span>,
-                            <span class="ident">pred_arg</span>
-                        );
+                            <span class="macro">format</span><span class="macro">!</span>(
+                                <span class="string">&quot;{} and {} must be in the same virtual register&quot;</span>,
+                                <span class="ident">block_param</span>, <span class="ident">pred_arg</span>
+                            ),
+                        ));
                     }
                 }
             }

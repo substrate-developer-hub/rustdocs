@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/cranelift-codegen-0.50.0/src/stack_layout.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>stack_layout.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/cranelift-codegen-0.58.0/src/stack_layout.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>stack_layout.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -242,11 +242,19 @@
 <span id="231">231</span>
 <span id="232">232</span>
 <span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Computing stack layout.</span>
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">ir</span>::<span class="ident">stackslot</span>::{<span class="ident">StackOffset</span>, <span class="ident">StackSize</span>, <span class="ident">StackSlotKind</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">ir</span>::<span class="ident">StackSlots</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">ir</span>::{<span class="ident">StackLayoutInfo</span>, <span class="ident">StackSlots</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">result</span>::{<span class="ident">CodegenError</span>, <span class="ident">CodegenResult</span>};
 <span class="kw">use</span> <span class="ident">core</span>::<span class="ident">cmp</span>::{<span class="ident">max</span>, <span class="ident">min</span>};
 
@@ -289,6 +297,7 @@
     <span class="comment">// require the stack to be aligned.</span>
 
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">incoming_min</span> <span class="op">=</span> <span class="number">0</span>;
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">incoming_max</span> <span class="op">=</span> <span class="number">0</span>;
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">outgoing_max</span> <span class="op">=</span> <span class="number">0</span>;
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">min_align</span> <span class="op">=</span> <span class="ident">alignment</span>;
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">must_align</span> <span class="op">=</span> <span class="ident">is_leaf</span>;
@@ -301,6 +310,7 @@
         <span class="kw">match</span> <span class="ident">slot</span>.<span class="ident">kind</span> {
             <span class="ident">StackSlotKind</span>::<span class="ident">IncomingArg</span> <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="ident">incoming_min</span> <span class="op">=</span> <span class="ident">min</span>(<span class="ident">incoming_min</span>, <span class="ident">slot</span>.<span class="ident">offset</span>.<span class="ident">unwrap</span>());
+                <span class="ident">incoming_max</span> <span class="op">=</span> <span class="ident">max</span>(<span class="ident">incoming_max</span>, <span class="ident">slot</span>.<span class="ident">offset</span>.<span class="ident">unwrap</span>() <span class="op">+</span> <span class="ident">slot</span>.<span class="ident">size</span> <span class="kw">as</span> <span class="ident">i32</span>);
             }
             <span class="ident">StackSlotKind</span>::<span class="ident">OutgoingArg</span> <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">let</span> <span class="ident">offset</span> <span class="op">=</span> <span class="ident">slot</span>
@@ -364,8 +374,14 @@
         <span class="ident">offset</span> <span class="kw-2">&amp;</span><span class="op">=</span> <span class="op">-</span>(<span class="ident">alignment</span> <span class="kw">as</span> <span class="ident">StackOffset</span>);
     }
 
+    <span class="comment">// Set the computed layout information for the frame</span>
     <span class="kw">let</span> <span class="ident">frame_size</span> <span class="op">=</span> (<span class="ident">offset</span> <span class="kw">as</span> <span class="ident">StackSize</span>).<span class="ident">wrapping_neg</span>();
-    <span class="ident">frame</span>.<span class="ident">frame_size</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">frame_size</span>);
+    <span class="kw">let</span> <span class="ident">inbound_args_size</span> <span class="op">=</span> <span class="ident">incoming_max</span> <span class="kw">as</span> <span class="ident">u32</span>;
+    <span class="ident">frame</span>.<span class="ident">layout_info</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">StackLayoutInfo</span> {
+        <span class="ident">frame_size</span>,
+        <span class="ident">inbound_args_size</span>,
+    });
+
     <span class="prelude-val">Ok</span>(<span class="ident">frame_size</span>)
 }
 

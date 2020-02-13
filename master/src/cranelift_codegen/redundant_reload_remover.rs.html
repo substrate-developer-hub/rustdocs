@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/cranelift-codegen-0.50.0/src/redundant_reload_remover.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>redundant_reload_remover.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/cranelift-codegen-0.58.0/src/redundant_reload_remover.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>redundant_reload_remover.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -908,6 +908,7 @@
 <span id="897">897</span>
 <span id="898">898</span>
 <span id="899">899</span>
+<span id="900">900</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! This module implements a late-stage redundant-reload remover, which runs after registers have</span>
 <span class="doccomment">//! been allocated and stack slots have been given specific offsets.</span>
@@ -919,7 +920,8 @@
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">ir</span>::<span class="ident">instructions</span>::<span class="ident">BranchInfo</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">ir</span>::<span class="ident">stackslot</span>::{<span class="ident">StackSlotKind</span>, <span class="ident">StackSlots</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">ir</span>::{
-    <span class="ident">Ebb</span>, <span class="ident">Function</span>, <span class="ident">Inst</span>, <span class="ident">InstBuilder</span>, <span class="ident">InstructionData</span>, <span class="ident">Opcode</span>, <span class="ident">StackSlotData</span>, <span class="ident">Type</span>, <span class="ident">Value</span>, <span class="ident">ValueLoc</span>,
+    <span class="ident">Block</span>, <span class="ident">Function</span>, <span class="ident">Inst</span>, <span class="ident">InstBuilder</span>, <span class="ident">InstructionData</span>, <span class="ident">Opcode</span>, <span class="ident">StackSlotData</span>, <span class="ident">Type</span>, <span class="ident">Value</span>,
+    <span class="ident">ValueLoc</span>,
 };
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">isa</span>::{<span class="ident">RegInfo</span>, <span class="ident">RegUnit</span>, <span class="ident">TargetIsa</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">regalloc</span>::<span class="ident">RegDiversions</span>;
@@ -931,7 +933,7 @@
 <span class="comment">// A description of the redundant-fill-removal algorithm</span>
 <span class="comment">//</span>
 <span class="comment">//</span>
-<span class="comment">// The algorithm works forwards through each Ebb.  It carries along and updates a table,</span>
+<span class="comment">// The algorithm works forwards through each Block.  It carries along and updates a table,</span>
 <span class="comment">// AvailEnv, with which it tracks registers that are known to have the same value as some stack</span>
 <span class="comment">// slot.  The actions on encountering an instruction depend on the instruction, as follows:</span>
 <span class="comment">//</span>
@@ -979,19 +981,19 @@
 <span class="comment">//</span>
 <span class="comment">// The overall algorithm, for a function, starts like this:</span>
 <span class="comment">//</span>
-<span class="comment">// * (once per function): finds Ebbs that have two or more predecessors, since they will be the</span>
-<span class="comment">//   roots of Ebb trees.  Also, the entry node for the function is considered to be a root.</span>
+<span class="comment">// * (once per function): finds Blocks that have two or more predecessors, since they will be the</span>
+<span class="comment">//   roots of Block trees.  Also, the entry node for the function is considered to be a root.</span>
 <span class="comment">//</span>
-<span class="comment">// It then continues with a loop that first finds a tree of Ebbs (&quot;discovery&quot;) and then removes</span>
+<span class="comment">// It then continues with a loop that first finds a tree of Blocks (&quot;discovery&quot;) and then removes</span>
 <span class="comment">// redundant fills as described above (&quot;processing&quot;):</span>
 <span class="comment">//</span>
-<span class="comment">// * (discovery; once per tree): for each root, performs a depth first search to find all the Ebbs</span>
+<span class="comment">// * (discovery; once per tree): for each root, performs a depth first search to find all the Blocks</span>
 <span class="comment">//   in the tree, guided by RedundantReloadRemover::discovery_stack.</span>
 <span class="comment">//</span>
 <span class="comment">// * (processing; once per tree): the just-discovered tree is then processed as described above,</span>
 <span class="comment">//   guided by RedundantReloadRemover::processing_stack.</span>
 <span class="comment">//</span>
-<span class="comment">// In this way, all Ebbs reachable from the function&#39;s entry point are eventually processed.  Note</span>
+<span class="comment">// In this way, all Blocks reachable from the function&#39;s entry point are eventually processed.  Note</span>
 <span class="comment">// that each tree is processed as soon as it has been discovered, so the algorithm never creates a</span>
 <span class="comment">// list of trees for the function.</span>
 <span class="comment">//</span>
@@ -999,7 +1001,7 @@
 <span class="comment">// reused for multiple functions so as to minimise heap turnover.  The fields are, roughly:</span>
 <span class="comment">//</span>
 <span class="comment">//   num_regunits -- constant for the whole function; used by the tree processing phase</span>
-<span class="comment">//   num_preds_per_ebb -- constant for the whole function; used by the tree discovery process</span>
+<span class="comment">//   num_preds_per_block -- constant for the whole function; used by the tree discovery process</span>
 <span class="comment">//</span>
 <span class="comment">//   discovery_stack -- used to guide the tree discovery process</span>
 <span class="comment">//   nodes_in_tree -- the discovered nodes are recorded here</span>
@@ -1032,8 +1034,8 @@
 <span class="comment">// =============================================================================================</span>
 <span class="comment">// Data structures used for discovery of trees</span>
 
-<span class="comment">// `ZeroOneOrMany` is used to record the number of predecessors an Ebb block has.  The `Zero` case</span>
-<span class="comment">// is included so as to cleanly handle the case where the incoming graph has unreachable Ebbs.</span>
+<span class="comment">// `ZeroOneOrMany` is used to record the number of predecessors an Block block has.  The `Zero` case</span>
+<span class="comment">// is included so as to cleanly handle the case where the incoming graph has unreachable Blocks.</span>
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">PartialEq</span>)]</span>
 <span class="kw">enum</span> <span class="ident">ZeroOneOrMany</span> {
@@ -1094,23 +1096,23 @@
 }
 
 <span class="comment">// `ProcessingStackElem` combines AvailEnv with contextual information needed to &quot;navigate&quot; within</span>
-<span class="comment">// an Ebb.</span>
+<span class="comment">// an Block.</span>
 <span class="comment">//</span>
-<span class="comment">// A ProcessingStackElem conceptually has the lifetime of exactly one Ebb: once the current Ebb is</span>
+<span class="comment">// A ProcessingStackElem conceptually has the lifetime of exactly one Block: once the current Block is</span>
 <span class="comment">// completed, the ProcessingStackElem will be abandoned.  In practice the top level state,</span>
 <span class="comment">// RedundantReloadRemover, caches them, so as to avoid heap turnover.</span>
 <span class="comment">//</span>
 <span class="comment">// Note that ProcessingStackElem must contain a CursorPosition.  The CursorPosition, which</span>
-<span class="comment">// indicates where we are in the current Ebb, cannot be implicitly maintained by looping over all</span>
-<span class="comment">// the instructions in an Ebb in turn, because we may choose to suspend processing the current Ebb</span>
+<span class="comment">// indicates where we are in the current Block, cannot be implicitly maintained by looping over all</span>
+<span class="comment">// the instructions in an Block in turn, because we may choose to suspend processing the current Block</span>
 <span class="comment">// at a side exit, continue by processing the subtree reached via the side exit, and only later</span>
-<span class="comment">// resume the current Ebb.</span>
+<span class="comment">// resume the current Block.</span>
 
 <span class="kw">struct</span> <span class="ident">ProcessingStackElem</span> {
-    <span class="doccomment">/// Indicates the AvailEnv at the current point in the Ebb.</span>
+    <span class="doccomment">/// Indicates the AvailEnv at the current point in the Block.</span>
     <span class="ident">avail_env</span>: <span class="ident">AvailEnv</span>,
 
-    <span class="doccomment">/// Shows where we currently are inside the Ebb.</span>
+    <span class="doccomment">/// Shows where we currently are inside the Block.</span>
     <span class="ident">cursor</span>: <span class="ident">CursorPosition</span>,
 
     <span class="doccomment">/// Indicates the currently active register diversions at the current point.</span>
@@ -1123,7 +1125,7 @@
 <span class="comment">// `RedundantReloadRemover` contains data structures for the two passes: discovery of tree shaped</span>
 <span class="comment">// regions, and processing of them.  These are allocated once and stay alive for the entire</span>
 <span class="comment">// function, even though they are cleared out for each new tree shaped region.  It also caches</span>
-<span class="comment">// `num_regunits` and `num_preds_per_ebb`, which are computed at the start of each function and</span>
+<span class="comment">// `num_regunits` and `num_preds_per_block`, which are computed at the start of each function and</span>
 <span class="comment">// then remain constant.</span>
 
 <span class="doccomment">/// The redundant reload remover&#39;s state.</span>
@@ -1133,22 +1135,22 @@
     <span class="doccomment">/// function.</span>
     <span class="ident">num_regunits</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">u16</span><span class="op">&gt;</span>,
 
-    <span class="doccomment">/// This stores, for each Ebb, a characterisation of the number of predecessors it has.</span>
-    <span class="ident">num_preds_per_ebb</span>: <span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">Ebb</span>, <span class="ident">ZeroOneOrMany</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// This stores, for each Block, a characterisation of the number of predecessors it has.</span>
+    <span class="ident">num_preds_per_block</span>: <span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">ZeroOneOrMany</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// The stack used for the first phase (discovery).  There is one element on the discovery</span>
-    <span class="doccomment">/// stack for each currently unexplored Ebb in the tree being searched.</span>
-    <span class="ident">discovery_stack</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Ebb</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// stack for each currently unexplored Block in the tree being searched.</span>
+    <span class="ident">discovery_stack</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// The nodes in the discovered tree are inserted here.</span>
-    <span class="ident">nodes_in_tree</span>: <span class="ident">EntitySet</span><span class="op">&lt;</span><span class="ident">Ebb</span><span class="op">&gt;</span>,
+    <span class="ident">nodes_in_tree</span>: <span class="ident">EntitySet</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// The stack used during the second phase (transformation).  There is one element on the</span>
     <span class="doccomment">/// processing stack for each currently-open node in the tree being transformed.</span>
     <span class="ident">processing_stack</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">ProcessingStackElem</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// Used in the second phase to avoid visiting nodes more than once.</span>
-    <span class="ident">nodes_already_visited</span>: <span class="ident">EntitySet</span><span class="op">&lt;</span><span class="ident">Ebb</span><span class="op">&gt;</span>,
+    <span class="ident">nodes_already_visited</span>: <span class="ident">EntitySet</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 }
 
 <span class="comment">// =============================================================================================</span>
@@ -1212,17 +1214,17 @@
 
 <span class="kw">impl</span> <span class="ident">RedundantReloadRemover</span> {
     <span class="comment">// A helper for `add_nodes_to_tree` below.</span>
-    <span class="kw">fn</span> <span class="ident">discovery_stack_push_successors_of</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cfg</span>: <span class="kw-2">&amp;</span><span class="ident">ControlFlowGraph</span>, <span class="ident">node</span>: <span class="ident">Ebb</span>) {
+    <span class="kw">fn</span> <span class="ident">discovery_stack_push_successors_of</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cfg</span>: <span class="kw-2">&amp;</span><span class="ident">ControlFlowGraph</span>, <span class="ident">node</span>: <span class="ident">Block</span>) {
         <span class="kw">for</span> <span class="ident">successor</span> <span class="kw">in</span> <span class="ident">cfg</span>.<span class="ident">succ_iter</span>(<span class="ident">node</span>) {
             <span class="self">self</span>.<span class="ident">discovery_stack</span>.<span class="ident">push</span>(<span class="ident">successor</span>);
         }
     }
 
-    <span class="comment">// Visit the tree of Ebbs rooted at `starting_point` and add them to `self.nodes_in_tree`.</span>
-    <span class="comment">// `self.num_preds_per_ebb` guides the process, ensuring we don&#39;t leave the tree-ish region</span>
+    <span class="comment">// Visit the tree of Blocks rooted at `starting_point` and add them to `self.nodes_in_tree`.</span>
+    <span class="comment">// `self.num_preds_per_block` guides the process, ensuring we don&#39;t leave the tree-ish region</span>
     <span class="comment">// and indirectly ensuring that the process will terminate in the presence of cycles in the</span>
     <span class="comment">// graph.  `self.discovery_stack` holds the search state in this function.</span>
-    <span class="kw">fn</span> <span class="ident">add_nodes_to_tree</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cfg</span>: <span class="kw-2">&amp;</span><span class="ident">ControlFlowGraph</span>, <span class="ident">starting_point</span>: <span class="ident">Ebb</span>) {
+    <span class="kw">fn</span> <span class="ident">add_nodes_to_tree</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cfg</span>: <span class="kw-2">&amp;</span><span class="ident">ControlFlowGraph</span>, <span class="ident">starting_point</span>: <span class="ident">Block</span>) {
         <span class="comment">// One might well ask why this doesn&#39;t loop forever when it encounters cycles in the</span>
         <span class="comment">// control flow graph.  The reason is that any cycle in the graph that is reachable from</span>
         <span class="comment">// anywhere outside the cycle -- in particular, that is reachable from the function&#39;s</span>
@@ -1236,7 +1238,7 @@
         <span class="self">self</span>.<span class="ident">discovery_stack_push_successors_of</span>(<span class="ident">cfg</span>, <span class="ident">starting_point</span>);
 
         <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">node</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">discovery_stack</span>.<span class="ident">pop</span>() {
-            <span class="kw">match</span> <span class="self">self</span>.<span class="ident">num_preds_per_ebb</span>[<span class="ident">node</span>] {
+            <span class="kw">match</span> <span class="self">self</span>.<span class="ident">num_preds_per_block</span>[<span class="ident">node</span>] {
                 <span class="comment">// We arrived at a node with multiple predecessors, so it&#39;s a new root.  Ignore it.</span>
                 <span class="ident">ZeroOneOrMany</span>::<span class="ident">Many</span> <span class="op">=</span><span class="op">&gt;</span> {}
                 <span class="comment">// This node has just one predecessor, so we should incorporate it in the tree and</span>
@@ -1563,8 +1565,8 @@
 
 <span class="kw">impl</span> <span class="ident">RedundantReloadRemover</span> {
     <span class="comment">// Push a clone of the top-of-stack ProcessingStackElem.  This will be used to process exactly</span>
-    <span class="comment">// one Ebb.  The diversions are created new, rather than cloned, to reflect the fact</span>
-    <span class="comment">// that diversions are local to each Ebb.</span>
+    <span class="comment">// one Block.  The diversions are created new, rather than cloned, to reflect the fact</span>
+    <span class="comment">// that diversions are local to each Block.</span>
     <span class="kw">fn</span> <span class="ident">processing_stack_push</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cursor</span>: <span class="ident">CursorPosition</span>) {
         <span class="kw">let</span> <span class="ident">avail_env</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">stack_top</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">processing_stack</span>.<span class="ident">last</span>() {
             <span class="ident">stack_top</span>.<span class="ident">avail_env</span>.<span class="ident">clone</span>()
@@ -1585,7 +1587,7 @@
     <span class="comment">// This pushes the node `dst` onto the processing stack, and sets up the new</span>
     <span class="comment">// ProcessingStackElem accordingly.  But it does all that only if `dst` is part of the current</span>
     <span class="comment">// tree *and* we haven&#39;t yet visited it.</span>
-    <span class="kw">fn</span> <span class="ident">processing_stack_maybe_push</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">dst</span>: <span class="ident">Ebb</span>) {
+    <span class="kw">fn</span> <span class="ident">processing_stack_maybe_push</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">dst</span>: <span class="ident">Block</span>) {
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">nodes_in_tree</span>.<span class="ident">contains</span>(<span class="ident">dst</span>) <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">nodes_already_visited</span>.<span class="ident">contains</span>(<span class="ident">dst</span>) {
             <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">processing_stack</span>.<span class="ident">is_empty</span>() {
                 <span class="comment">// If this isn&#39;t the outermost node in the tree (that is, the root), then it must</span>
@@ -1593,7 +1595,7 @@
                 <span class="comment">// incorporated in any tree.  Nodes with two or more predecessors are the root of</span>
                 <span class="comment">// some other tree, and visiting them as if they were part of the current tree</span>
                 <span class="comment">// would be a serious error.</span>
-                <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">num_preds_per_ebb</span>[<span class="ident">dst</span>] <span class="op">=</span><span class="op">=</span> <span class="ident">ZeroOneOrMany</span>::<span class="ident">One</span>);
+                <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">num_preds_per_block</span>[<span class="ident">dst</span>] <span class="op">=</span><span class="op">=</span> <span class="ident">ZeroOneOrMany</span>::<span class="ident">One</span>);
             }
             <span class="self">self</span>.<span class="ident">processing_stack_push</span>(<span class="ident">CursorPosition</span>::<span class="ident">Before</span>(<span class="ident">dst</span>));
             <span class="self">self</span>.<span class="ident">nodes_already_visited</span>.<span class="ident">insert</span>(<span class="ident">dst</span>);
@@ -1608,7 +1610,7 @@
         <span class="ident">func</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Function</span>,
         <span class="ident">reginfo</span>: <span class="kw-2">&amp;</span><span class="ident">RegInfo</span>,
         <span class="ident">isa</span>: <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">TargetIsa</span>,
-        <span class="ident">root</span>: <span class="ident">Ebb</span>,
+        <span class="ident">root</span>: <span class="ident">Block</span>,
     ) {
         <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">nodes_in_tree</span>.<span class="ident">contains</span>(<span class="ident">root</span>));
         <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">processing_stack</span>.<span class="ident">is_empty</span>());
@@ -1639,10 +1641,10 @@
                 <span class="comment">// Update diversions after the insn.</span>
                 <span class="self">self</span>.<span class="ident">processing_stack</span>[<span class="ident">tos</span>].<span class="ident">diversions</span>.<span class="ident">apply</span>(<span class="kw-2">&amp;</span><span class="ident">func</span>.<span class="ident">dfg</span>[<span class="ident">inst</span>]);
 
-                <span class="comment">// If the insn can branch outside this Ebb, push work items on the stack for all</span>
-                <span class="comment">// target Ebbs that are part of the same tree and that we haven&#39;t yet visited.</span>
+                <span class="comment">// If the insn can branch outside this Block, push work items on the stack for all</span>
+                <span class="comment">// target Blocks that are part of the same tree and that we haven&#39;t yet visited.</span>
                 <span class="comment">// The next iteration of this instruction-processing loop will immediately start</span>
-                <span class="comment">// work on the most recently pushed Ebb, and will eventually continue in this Ebb</span>
+                <span class="comment">// work on the most recently pushed Block, and will eventually continue in this Block</span>
                 <span class="comment">// when those new items have been removed from the stack.</span>
                 <span class="kw">match</span> <span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">analyze_branch</span>(<span class="ident">inst</span>) {
                     <span class="ident">BranchInfo</span>::<span class="ident">NotABranch</span> <span class="op">=</span><span class="op">&gt;</span> (),
@@ -1659,7 +1661,7 @@
                     }
                 }
             } <span class="kw">else</span> {
-                <span class="comment">// We&#39;ve come to the end of the current work-item (Ebb).  We&#39;ll already have</span>
+                <span class="comment">// We&#39;ve come to the end of the current work-item (Block).  We&#39;ll already have</span>
                 <span class="comment">// processed the fallthrough/continuation/whatever for it using the logic above.</span>
                 <span class="comment">// Pop it off the stack and resume work on its parent.</span>
                 <span class="self">self</span>.<span class="ident">processing_stack</span>.<span class="ident">pop</span>();
@@ -1676,11 +1678,11 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">num_regunits</span>: <span class="prelude-val">None</span>,
-            <span class="ident">num_preds_per_ebb</span>: <span class="ident">PrimaryMap</span>::<span class="op">&lt;</span><span class="ident">Ebb</span>, <span class="ident">ZeroOneOrMany</span><span class="op">&gt;</span>::<span class="ident">with_capacity</span>(<span class="number">8</span>),
-            <span class="ident">discovery_stack</span>: <span class="ident">Vec</span>::<span class="op">&lt;</span><span class="ident">Ebb</span><span class="op">&gt;</span>::<span class="ident">with_capacity</span>(<span class="number">16</span>),
-            <span class="ident">nodes_in_tree</span>: <span class="ident">EntitySet</span>::<span class="op">&lt;</span><span class="ident">Ebb</span><span class="op">&gt;</span>::<span class="ident">new</span>(),
+            <span class="ident">num_preds_per_block</span>: <span class="ident">PrimaryMap</span>::<span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">ZeroOneOrMany</span><span class="op">&gt;</span>::<span class="ident">with_capacity</span>(<span class="number">8</span>),
+            <span class="ident">discovery_stack</span>: <span class="ident">Vec</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>::<span class="ident">with_capacity</span>(<span class="number">16</span>),
+            <span class="ident">nodes_in_tree</span>: <span class="ident">EntitySet</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>::<span class="ident">new</span>(),
             <span class="ident">processing_stack</span>: <span class="ident">Vec</span>::<span class="op">&lt;</span><span class="ident">ProcessingStackElem</span><span class="op">&gt;</span>::<span class="ident">with_capacity</span>(<span class="number">8</span>),
-            <span class="ident">nodes_already_visited</span>: <span class="ident">EntitySet</span>::<span class="op">&lt;</span><span class="ident">Ebb</span><span class="op">&gt;</span>::<span class="ident">new</span>(),
+            <span class="ident">nodes_already_visited</span>: <span class="ident">EntitySet</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>::<span class="ident">new</span>(),
         }
     }
 
@@ -1690,7 +1692,7 @@
     }
 
     <span class="kw">fn</span> <span class="ident">clear_for_new_function</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
-        <span class="self">self</span>.<span class="ident">num_preds_per_ebb</span>.<span class="ident">clear</span>();
+        <span class="self">self</span>.<span class="ident">num_preds_per_block</span>.<span class="ident">clear</span>();
         <span class="self">self</span>.<span class="ident">clear_for_new_tree</span>();
     }
 
@@ -1709,19 +1711,19 @@
         <span class="ident">isa</span>: <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">TargetIsa</span>,
         <span class="ident">cfg</span>: <span class="kw-2">&amp;</span><span class="ident">ControlFlowGraph</span>,
     ) {
-        <span class="comment">// Fail in an obvious way if there are more than (2^32)-1 Ebbs in this function.</span>
-        <span class="kw">let</span> <span class="ident">num_ebbs</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">num_ebbs</span>().<span class="ident">try_into</span>().<span class="ident">unwrap</span>();
+        <span class="comment">// Fail in an obvious way if there are more than (2^32)-1 Blocks in this function.</span>
+        <span class="kw">let</span> <span class="ident">num_blocks</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">func</span>.<span class="ident">dfg</span>.<span class="ident">num_blocks</span>().<span class="ident">try_into</span>().<span class="ident">unwrap</span>();
 
         <span class="comment">// Clear out per-tree state.</span>
         <span class="self">self</span>.<span class="ident">clear_for_new_function</span>();
 
         <span class="comment">// Create a PrimaryMap that summarises the number of predecessors for each block, as 0, 1</span>
         <span class="comment">// or &quot;many&quot;, and that also claims the entry block as having &quot;many&quot; predecessors.</span>
-        <span class="self">self</span>.<span class="ident">num_preds_per_ebb</span>.<span class="ident">clear</span>();
-        <span class="self">self</span>.<span class="ident">num_preds_per_ebb</span>.<span class="ident">reserve</span>(<span class="ident">num_ebbs</span> <span class="kw">as</span> <span class="ident">usize</span>);
+        <span class="self">self</span>.<span class="ident">num_preds_per_block</span>.<span class="ident">clear</span>();
+        <span class="self">self</span>.<span class="ident">num_preds_per_block</span>.<span class="ident">reserve</span>(<span class="ident">num_blocks</span> <span class="kw">as</span> <span class="ident">usize</span>);
 
-        <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_ebbs</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pi</span> <span class="op">=</span> <span class="ident">cfg</span>.<span class="ident">pred_iter</span>(<span class="ident">Ebb</span>::<span class="ident">from_u32</span>(<span class="ident">i</span>));
+        <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_blocks</span> {
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pi</span> <span class="op">=</span> <span class="ident">cfg</span>.<span class="ident">pred_iter</span>(<span class="ident">Block</span>::<span class="ident">from_u32</span>(<span class="ident">i</span>));
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">n_pi</span> <span class="op">=</span> <span class="ident">ZeroOneOrMany</span>::<span class="ident">Zero</span>;
             <span class="kw">if</span> <span class="ident">pi</span>.<span class="ident">next</span>().<span class="ident">is_some</span>() {
                 <span class="ident">n_pi</span> <span class="op">=</span> <span class="ident">ZeroOneOrMany</span>::<span class="ident">One</span>;
@@ -1730,24 +1732,24 @@
                     <span class="comment">// We don&#39;t care if there are more than two preds, so stop counting now.</span>
                 }
             }
-            <span class="self">self</span>.<span class="ident">num_preds_per_ebb</span>.<span class="ident">push</span>(<span class="ident">n_pi</span>);
+            <span class="self">self</span>.<span class="ident">num_preds_per_block</span>.<span class="ident">push</span>(<span class="ident">n_pi</span>);
         }
-        <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">num_preds_per_ebb</span>.<span class="ident">len</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">num_ebbs</span> <span class="kw">as</span> <span class="ident">usize</span>);
+        <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">num_preds_per_block</span>.<span class="ident">len</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">num_blocks</span> <span class="kw">as</span> <span class="ident">usize</span>);
 
         <span class="comment">// The entry block must be the root of some tree, so set up the state to reflect that.</span>
-        <span class="kw">let</span> <span class="ident">entry_ebb</span> <span class="op">=</span> <span class="ident">func</span>
+        <span class="kw">let</span> <span class="ident">entry_block</span> <span class="op">=</span> <span class="ident">func</span>
             .<span class="ident">layout</span>
             .<span class="ident">entry_block</span>()
-            .<span class="ident">expect</span>(<span class="string">&quot;do_redundant_fill_removal_on_function: entry ebb unknown&quot;</span>);
-        <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">num_preds_per_ebb</span>[<span class="ident">entry_ebb</span>] <span class="op">=</span><span class="op">=</span> <span class="ident">ZeroOneOrMany</span>::<span class="ident">Zero</span>);
-        <span class="self">self</span>.<span class="ident">num_preds_per_ebb</span>[<span class="ident">entry_ebb</span>] <span class="op">=</span> <span class="ident">ZeroOneOrMany</span>::<span class="ident">Many</span>;
+            .<span class="ident">expect</span>(<span class="string">&quot;do_redundant_fill_removal_on_function: entry block unknown&quot;</span>);
+        <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">num_preds_per_block</span>[<span class="ident">entry_block</span>] <span class="op">=</span><span class="op">=</span> <span class="ident">ZeroOneOrMany</span>::<span class="ident">Zero</span>);
+        <span class="self">self</span>.<span class="ident">num_preds_per_block</span>[<span class="ident">entry_block</span>] <span class="op">=</span> <span class="ident">ZeroOneOrMany</span>::<span class="ident">Many</span>;
 
         <span class="comment">// Now build and process trees.</span>
-        <span class="kw">for</span> <span class="ident">root_ix</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">num_preds_per_ebb</span>.<span class="ident">len</span>() {
-            <span class="kw">let</span> <span class="ident">root</span> <span class="op">=</span> <span class="ident">Ebb</span>::<span class="ident">from_u32</span>(<span class="ident">root_ix</span> <span class="kw">as</span> <span class="ident">u32</span>);
+        <span class="kw">for</span> <span class="ident">root_ix</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">num_preds_per_block</span>.<span class="ident">len</span>() {
+            <span class="kw">let</span> <span class="ident">root</span> <span class="op">=</span> <span class="ident">Block</span>::<span class="ident">from_u32</span>(<span class="ident">root_ix</span> <span class="kw">as</span> <span class="ident">u32</span>);
 
             <span class="comment">// Build a tree for each node that has two or more preds, and ignore all other nodes.</span>
-            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">num_preds_per_ebb</span>[<span class="ident">root</span>] <span class="op">!</span><span class="op">=</span> <span class="ident">ZeroOneOrMany</span>::<span class="ident">Many</span> {
+            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">num_preds_per_block</span>[<span class="ident">root</span>] <span class="op">!</span><span class="op">=</span> <span class="ident">ZeroOneOrMany</span>::<span class="ident">Many</span> {
                 <span class="kw">continue</span>;
             }
 
@@ -1757,7 +1759,7 @@
             <span class="comment">// Discovery phase: build the tree, as `root` and `self.nodes_in_tree`.</span>
             <span class="self">self</span>.<span class="ident">add_nodes_to_tree</span>(<span class="ident">cfg</span>, <span class="ident">root</span>);
             <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">nodes_in_tree</span>.<span class="ident">cardinality</span>() <span class="op">&gt;</span> <span class="number">0</span>);
-            <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">num_preds_per_ebb</span>[<span class="ident">root</span>] <span class="op">=</span><span class="op">=</span> <span class="ident">ZeroOneOrMany</span>::<span class="ident">Many</span>);
+            <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">num_preds_per_block</span>[<span class="ident">root</span>] <span class="op">=</span><span class="op">=</span> <span class="ident">ZeroOneOrMany</span>::<span class="ident">Many</span>);
 
             <span class="comment">// Processing phase: do redundant-reload-removal.</span>
             <span class="self">self</span>.<span class="ident">process_tree</span>(<span class="ident">func</span>, <span class="ident">reginfo</span>, <span class="ident">isa</span>, <span class="ident">root</span>);
