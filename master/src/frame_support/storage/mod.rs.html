@@ -564,6 +564,24 @@
 <span id="553">553</span>
 <span id="554">554</span>
 <span id="555">555</span>
+<span id="556">556</span>
+<span id="557">557</span>
+<span id="558">558</span>
+<span id="559">559</span>
+<span id="560">560</span>
+<span id="561">561</span>
+<span id="562">562</span>
+<span id="563">563</span>
+<span id="564">564</span>
+<span id="565">565</span>
+<span id="566">566</span>
+<span id="567">567</span>
+<span id="568">568</span>
+<span id="569">569</span>
+<span id="570">570</span>
+<span id="571">571</span>
+<span id="572">572</span>
+<span id="573">573</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -592,6 +610,7 @@
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">child</span>;
 <span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">generator</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">migration</span>;
 
 <span class="doccomment">/// A trait for working with macro-generated storage values under the substrate storage API.</span>
 <span class="doccomment">///</span>
@@ -609,6 +628,10 @@
 
 	<span class="doccomment">/// Load the value from the provided storage instance.</span>
 	<span class="kw">fn</span> <span class="ident">get</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>::<span class="ident">Query</span>;
+
+	<span class="doccomment">/// Try to get the underlying value from the provided storage instance; `Ok` if it exists,</span>
+	<span class="doccomment">/// `Err` if not.</span>
+	<span class="kw">fn</span> <span class="ident">try_get</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, ()<span class="op">&gt;</span>;
 
 	<span class="doccomment">/// Translate a value from some previous type (`O`) to the current type.</span>
 	<span class="doccomment">///</span>
@@ -710,14 +733,28 @@
 	<span class="doccomment">/// Mutate the value under a key.</span>
 	<span class="kw">fn</span> <span class="ident">mutate</span><span class="op">&lt;</span><span class="ident">KeyArg</span>: <span class="ident">EncodeLike</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span>, <span class="ident">R</span>, <span class="ident">F</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span>::<span class="ident">Query</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">R</span><span class="op">&gt;</span>(<span class="ident">key</span>: <span class="ident">KeyArg</span>, <span class="ident">f</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">R</span>;
 
+	<span class="doccomment">/// Mutate the item, only if an `Ok` value is returned.</span>
+	<span class="kw">fn</span> <span class="ident">try_mutate</span><span class="op">&lt;</span><span class="ident">KeyArg</span>: <span class="ident">EncodeLike</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span>, <span class="ident">R</span>, <span class="ident">E</span>, <span class="ident">F</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span>::<span class="ident">Query</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span>(
+		<span class="ident">key</span>: <span class="ident">KeyArg</span>,
+		<span class="ident">f</span>: <span class="ident">F</span>,
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">E</span><span class="op">&gt;</span>;
+
+	<span class="doccomment">/// Mutate the value under a key. Deletes the item if mutated to a `None`.</span>
+	<span class="kw">fn</span> <span class="ident">mutate_exists</span><span class="op">&lt;</span><span class="ident">KeyArg</span>: <span class="ident">EncodeLike</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span>, <span class="ident">R</span>, <span class="ident">F</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">V</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">R</span><span class="op">&gt;</span>(<span class="ident">key</span>: <span class="ident">KeyArg</span>, <span class="ident">f</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">R</span>;
+
+	<span class="doccomment">/// Mutate the item, only if an `Ok` value is returned. Deletes the item if mutated to a `None`.</span>
+	<span class="kw">fn</span> <span class="ident">try_mutate_exists</span><span class="op">&lt;</span><span class="ident">KeyArg</span>: <span class="ident">EncodeLike</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span>, <span class="ident">R</span>, <span class="ident">E</span>, <span class="ident">F</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">V</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span>(
+		<span class="ident">key</span>: <span class="ident">KeyArg</span>,
+		<span class="ident">f</span>: <span class="ident">F</span>,
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">E</span><span class="op">&gt;</span>;
+
 	<span class="doccomment">/// Take the value under a key.</span>
 	<span class="kw">fn</span> <span class="ident">take</span><span class="op">&lt;</span><span class="ident">KeyArg</span>: <span class="ident">EncodeLike</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="ident">key</span>: <span class="ident">KeyArg</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>::<span class="ident">Query</span>;
 
 	<span class="doccomment">/// Append the given items to the value in the storage.</span>
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// `V` is required to implement `codec::EncodeAppend`.</span>
-	<span class="kw">fn</span> <span class="ident">append</span><span class="op">&lt;</span><span class="ident">Items</span>, <span class="ident">Item</span>, <span class="ident">EncodeLikeItem</span>, <span class="ident">KeyArg</span><span class="op">&gt;</span>(<span class="ident">key</span>: <span class="ident">KeyArg</span>, <span class="ident">items</span>: <span class="ident">Items</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span>
-	<span class="kw">where</span>
+	<span class="kw">fn</span> <span class="ident">append</span><span class="op">&lt;</span><span class="ident">Items</span>, <span class="ident">Item</span>, <span class="ident">EncodeLikeItem</span>, <span class="ident">KeyArg</span><span class="op">&gt;</span>(<span class="ident">key</span>: <span class="ident">KeyArg</span>, <span class="ident">items</span>: <span class="ident">Items</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span> <span class="kw">where</span>
 		<span class="ident">KeyArg</span>: <span class="ident">EncodeLike</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span>,
 		<span class="ident">Item</span>: <span class="ident">Encode</span>,
 		<span class="ident">EncodeLikeItem</span>: <span class="ident">EncodeLike</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">&gt;</span>,
@@ -729,8 +766,7 @@
 	<span class="doccomment">/// old (presumably corrupt) value is replaced with the given `items`.</span>
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// `V` is required to implement `codec::EncodeAppend`.</span>
-	<span class="kw">fn</span> <span class="ident">append_or_insert</span><span class="op">&lt;</span><span class="ident">Items</span>, <span class="ident">Item</span>, <span class="ident">EncodeLikeItem</span>, <span class="ident">KeyArg</span><span class="op">&gt;</span>(<span class="ident">key</span>: <span class="ident">KeyArg</span>, <span class="ident">items</span>: <span class="ident">Items</span>)
-	<span class="kw">where</span>
+	<span class="kw">fn</span> <span class="ident">append_or_insert</span><span class="op">&lt;</span><span class="ident">Items</span>, <span class="ident">Item</span>, <span class="ident">EncodeLikeItem</span>, <span class="ident">KeyArg</span><span class="op">&gt;</span>(<span class="ident">key</span>: <span class="ident">KeyArg</span>, <span class="ident">items</span>: <span class="ident">Items</span>) <span class="kw">where</span>
 		<span class="ident">KeyArg</span>: <span class="ident">EncodeLike</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span>,
 		<span class="ident">Item</span>: <span class="ident">Encode</span>,
 		<span class="ident">EncodeLikeItem</span>: <span class="ident">EncodeLike</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">&gt;</span>,
