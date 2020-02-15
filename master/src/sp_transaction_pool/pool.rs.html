@@ -275,6 +275,44 @@
 <span id="264">264</span>
 <span id="265">265</span>
 <span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -349,12 +387,18 @@
 <span class="doccomment">///		- `Invalid`</span>
 <span class="doccomment">///		- `Usurped`</span>
 <span class="doccomment">///		- `Dropped`</span>
+<span class="doccomment">///	4. Re-entering the pool:</span>
+<span class="doccomment">///		- `Retracted`</span>
+<span class="doccomment">///	5. Block finalized:</span>
+<span class="doccomment">///		- `Finalized`</span>
+<span class="doccomment">///		- `FinalityTimeout`</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// The events will always be received in the order described above, however</span>
 <span class="doccomment">/// there might be cases where transactions alternate between `Future` and `Ready`</span>
 <span class="doccomment">/// pool, and are `Broadcast` in the meantime.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// There is also only single event causing the transaction to leave the pool.</span>
+<span class="doccomment">/// I.e. only one of the listed ones should be triggered.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// Note that there are conditions that may cause transactions to reappear in the pool.</span>
 <span class="doccomment">/// 1. Due to possible forks, the transaction that ends up being in included</span>
@@ -364,8 +408,15 @@
 <span class="doccomment">/// 3. `Invalid` transaction may become valid at some point in the future.</span>
 <span class="doccomment">/// (Note that runtimes are encouraged to use `UnknownValidity` to inform the pool about</span>
 <span class="doccomment">/// such case).</span>
+<span class="doccomment">/// 4. `Retracted` transactions might be included in some next block.</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// However the user needs to re-subscribe to receive such notifications.</span>
+<span class="doccomment">/// The stream is considered finished only when either `Finalized` or `FinalityTimeout`</span>
+<span class="doccomment">/// event is triggered. You are however free to unsubscribe from notifications at any point.</span>
+<span class="doccomment">/// The first one will be emitted when the block, in which transaction was included gets</span>
+<span class="doccomment">/// finalized. The `FinalityTimeout` event will be emitted when the block did not reach finality</span>
+<span class="doccomment">/// within 512 blocks. This either indicates that finality is not available for your chain,</span>
+<span class="doccomment">/// or that finality gadget is lagging behind. If you choose to wait for finality longer, you can</span>
+<span class="doccomment">/// re-subscribe for a particular transaction hash manually again.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
 <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">rename_all</span> <span class="op">=</span> <span class="string">&quot;camelCase&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">TransactionStatus</span><span class="op">&lt;</span><span class="ident">Hash</span>, <span class="ident">BlockHash</span><span class="op">&gt;</span> {
@@ -376,8 +427,14 @@
 	<span class="doccomment">/// The transaction has been broadcast to the given peers.</span>
 	<span class="ident">Broadcast</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>),
 	<span class="doccomment">/// Transaction has been included in block with given hash.</span>
-	<span class="attribute">#[<span class="ident">serde</span>(<span class="ident">rename</span> <span class="op">=</span> <span class="string">&quot;finalized&quot;</span>)]</span> <span class="comment">// See #4438</span>
 	<span class="ident">InBlock</span>(<span class="ident">BlockHash</span>),
+	<span class="doccomment">/// The block this transaction was included in has been retracted.</span>
+	<span class="ident">Retracted</span>(<span class="ident">BlockHash</span>),
+	<span class="doccomment">/// Maximum number of finality watchers has been reached,</span>
+	<span class="doccomment">/// old watchers are being removed.</span>
+	<span class="ident">FinalityTimeout</span>(<span class="ident">BlockHash</span>),
+	<span class="doccomment">/// Transaction has been finalized by a finality-gadget, e.g GRANDPA</span>
+	<span class="ident">Finalized</span>(<span class="ident">BlockHash</span>),
 	<span class="doccomment">/// Transaction has been replaced in the pool, by another transaction</span>
 	<span class="doccomment">/// that provides the same tags. (e.g. same (sender, nonce)).</span>
 	<span class="ident">Usurped</span>(<span class="ident">Hash</span>),
@@ -495,11 +552,30 @@
 	<span class="kw">fn</span> <span class="ident">ready_transaction</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">hash</span>: <span class="kw-2">&amp;</span><span class="ident">TxHash</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">InPoolTransaction</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 }
 
+<span class="doccomment">/// Events that the transaction pool listens for.</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">ChainEvent</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> {
+	<span class="doccomment">/// New blocks have been added to the chain</span>
+	<span class="ident">NewBlock</span> {
+		<span class="doccomment">/// Is this the new best block.</span>
+		<span class="ident">is_new_best</span>: <span class="ident">bool</span>,
+		<span class="doccomment">/// Id of the just imported block.</span>
+		<span class="ident">id</span>: <span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+		<span class="doccomment">/// Header of the just imported block</span>
+		<span class="ident">header</span>: <span class="ident">B</span>::<span class="ident">Header</span>,
+		<span class="doccomment">/// List of retracted blocks ordered by block number.</span>
+		<span class="ident">retracted</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Hash</span><span class="op">&gt;</span>,
+	},
+	<span class="doccomment">/// An existing block has been finalzied.</span>
+	<span class="ident">Finalized</span> {
+		<span class="doccomment">/// Hash of just finalized block</span>
+		<span class="ident">hash</span>: <span class="ident">B</span>::<span class="ident">Hash</span>,
+	},
+}
+
 <span class="doccomment">/// Trait for transaction pool maintenance.</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">MaintainedTransactionPool</span> : <span class="ident">TransactionPool</span> {
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">MaintainedTransactionPool</span>: <span class="ident">TransactionPool</span> {
 	<span class="doccomment">/// Perform maintenance</span>
-	<span class="kw">fn</span> <span class="ident">maintain</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block</span>: <span class="kw-2">&amp;</span><span class="ident">BlockId</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Block</span><span class="op">&gt;</span>, <span class="ident">retracted</span>: <span class="kw-2">&amp;</span>[<span class="ident">BlockHash</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>])
-		<span class="op">-</span><span class="op">&gt;</span> <span class="ident">Pin</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span><span class="op">=</span>()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+	<span class="kw">fn</span> <span class="ident">maintain</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">event</span>: <span class="ident">ChainEvent</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Block</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Pin</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span><span class="op">=</span>()<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 }
 
 <span class="doccomment">/// An abstraction for transaction pool.</span>
