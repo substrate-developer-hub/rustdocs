@@ -382,6 +382,7 @@ ALIASES["sc_client_api"] = {};
 ALIASES["sc_client_db"] = {};
 ALIASES["sc_consensus_aura"] = {};
 ALIASES["sc_consensus_babe"] = {};
+ALIASES["sc_consensus_babe_rpc"] = {};
 ALIASES["sc_consensus_epochs"] = {};
 ALIASES["sc_consensus_manual_seal"] = {};
 ALIASES["sc_consensus_pow"] = {};
