@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-core-0.15.0/src/nodes/network.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>network.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-core-0.16.0/src/nodes/network.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>network.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -1869,6 +1869,10 @@
 <span id="1858">1858</span>
 <span id="1859">1859</span>
 <span id="1860">1860</span>
+<span id="1861">1861</span>
+<span id="1862">1862</span>
+<span id="1863">1863</span>
+<span id="1864">1864</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018 Parity Technologies (UK) Ltd.</span>
 <span class="comment">//</span>
@@ -2043,14 +2047,17 @@
     <span class="ident">ListenerClosed</span> {
         <span class="doccomment">/// The listener ID that closed.</span>
         <span class="ident">listener_id</span>: <span class="ident">ListenerId</span>,
+        <span class="doccomment">/// Reason for the closure. Contains `Ok(())` if the stream produced `None`, or `Err`</span>
+        <span class="doccomment">/// if the stream produced an error.</span>
+        <span class="ident">reason</span>: <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">TTrans</span>::<span class="ident">Error</span><span class="op">&gt;</span>,
     },
 
-    <span class="doccomment">/// One of the listeners errored.</span>
+    <span class="doccomment">/// One of the listeners reported a non-fatal errored.</span>
     <span class="ident">ListenerError</span> {
         <span class="doccomment">/// The listener that errored.</span>
         <span class="ident">listener_id</span>: <span class="ident">ListenerId</span>,
         <span class="doccomment">/// The listener error.</span>
-        <span class="ident">error</span>: <span class="op">&lt;</span><span class="ident">TTrans</span>::<span class="ident">Listener</span> <span class="kw">as</span> <span class="ident">TryStream</span><span class="op">&gt;</span>::<span class="ident">Error</span>
+        <span class="ident">error</span>: <span class="ident">TTrans</span>::<span class="ident">Error</span>
     },
 
     <span class="doccomment">/// One of the listeners is now listening on an additional address.</span>
@@ -2179,9 +2186,10 @@
                     .<span class="ident">field</span>(<span class="string">&quot;listen_addr&quot;</span>, <span class="ident">listen_addr</span>)
                     .<span class="ident">finish</span>()
             }
-            <span class="ident">NetworkEvent</span>::<span class="ident">ListenerClosed</span> { <span class="ident">listener_id</span> } <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">NetworkEvent</span>::<span class="ident">ListenerClosed</span> { <span class="ident">listener_id</span>, <span class="ident">reason</span> } <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="ident">f</span>.<span class="ident">debug_struct</span>(<span class="string">&quot;ListenerClosed&quot;</span>)
                     .<span class="ident">field</span>(<span class="string">&quot;listener_id&quot;</span>, <span class="ident">listener_id</span>)
+                    .<span class="ident">field</span>(<span class="string">&quot;reason&quot;</span>, <span class="ident">reason</span>)
                     .<span class="ident">finish</span>()
             }
             <span class="ident">NetworkEvent</span>::<span class="ident">ListenerError</span> { <span class="ident">listener_id</span>, <span class="ident">error</span> } <span class="op">=</span><span class="op">&gt;</span> {
@@ -2892,8 +2900,8 @@
                     <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ListenersEvent</span>::<span class="ident">AddressExpired</span> { <span class="ident">listener_id</span>, <span class="ident">listen_addr</span> }) <span class="op">=</span><span class="op">&gt;</span> {
                         <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">NetworkEvent</span>::<span class="ident">ExpiredListenerAddress</span> { <span class="ident">listener_id</span>, <span class="ident">listen_addr</span> })
                     }
-                    <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ListenersEvent</span>::<span class="ident">Closed</span> { <span class="ident">listener_id</span> }) <span class="op">=</span><span class="op">&gt;</span> {
-                        <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">NetworkEvent</span>::<span class="ident">ListenerClosed</span> { <span class="ident">listener_id</span> })
+                    <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ListenersEvent</span>::<span class="ident">Closed</span> { <span class="ident">listener_id</span>, <span class="ident">reason</span> }) <span class="op">=</span><span class="op">&gt;</span> {
+                        <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">NetworkEvent</span>::<span class="ident">ListenerClosed</span> { <span class="ident">listener_id</span>, <span class="ident">reason</span> })
                     }
                     <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ListenersEvent</span>::<span class="ident">Error</span> { <span class="ident">listener_id</span>, <span class="ident">error</span> }) <span class="op">=</span><span class="op">&gt;</span> {
                         <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">NetworkEvent</span>::<span class="ident">ListenerError</span> { <span class="ident">listener_id</span>, <span class="ident">error</span> })

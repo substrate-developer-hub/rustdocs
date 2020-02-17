@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-swarm-0.5.0/src/protocols_handler/node_handler.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>node_handler.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-swarm-0.16.0/src/protocols_handler/node_handler.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>node_handler.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -341,6 +341,11 @@
 <span id="330">330</span>
 <span id="331">331</span>
 <span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018 Parity Technologies (UK) Ltd.</span>
 <span class="comment">//</span>
@@ -362,6 +367,7 @@
 <span class="comment">// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER</span>
 <span class="comment">// DEALINGS IN THE SOFTWARE.</span>
 
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">upgrade</span>::<span class="ident">SendWrapper</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">protocols_handler</span>::{
     <span class="ident">KeepAlive</span>,
     <span class="ident">ProtocolsHandler</span>,
@@ -369,10 +375,13 @@
     <span class="ident">ProtocolsHandlerEvent</span>,
     <span class="ident">ProtocolsHandlerUpgrErr</span>
 };
+
 <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">libp2p_core</span>::{
     <span class="ident">ConnectedPoint</span>,
     <span class="ident">PeerId</span>,
+    <span class="ident">muxing</span>::<span class="ident">StreamMuxerBox</span>,
+    <span class="ident">nodes</span>::<span class="ident">Substream</span>,
     <span class="ident">nodes</span>::<span class="ident">collection</span>::<span class="ident">ConnectionInfo</span>,
     <span class="ident">nodes</span>::<span class="ident">handled_node</span>::{<span class="ident">IntoNodeHandler</span>, <span class="ident">NodeHandler</span>, <span class="ident">NodeHandlerEndpoint</span>, <span class="ident">NodeHandlerEvent</span>},
     <span class="ident">upgrade</span>::{<span class="self">self</span>, <span class="ident">InboundUpgradeApply</span>, <span class="ident">OutboundUpgradeApply</span>}
@@ -446,17 +455,17 @@
     <span class="ident">handler</span>: <span class="ident">TProtoHandler</span>,
     <span class="doccomment">/// Futures that upgrade incoming substreams.</span>
     <span class="ident">negotiating_in</span>:
-        <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">InboundUpgradeApply</span><span class="op">&lt;</span><span class="ident">TProtoHandler</span>::<span class="ident">Substream</span>, <span class="ident">TProtoHandler</span>::<span class="ident">InboundProtocol</span><span class="op">&gt;</span>, <span class="ident">Delay</span>)<span class="op">&gt;</span>,
+        <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">InboundUpgradeApply</span><span class="op">&lt;</span><span class="ident">Substream</span><span class="op">&lt;</span><span class="ident">StreamMuxerBox</span><span class="op">&gt;</span>, <span class="ident">SendWrapper</span><span class="op">&lt;</span><span class="ident">TProtoHandler</span>::<span class="ident">InboundProtocol</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">Delay</span>)<span class="op">&gt;</span>,
     <span class="doccomment">/// Futures that upgrade outgoing substreams. The first element of the tuple is the userdata</span>
     <span class="doccomment">/// to pass back once successfully opened.</span>
     <span class="ident">negotiating_out</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(
         <span class="ident">TProtoHandler</span>::<span class="ident">OutboundOpenInfo</span>,
-        <span class="ident">OutboundUpgradeApply</span><span class="op">&lt;</span><span class="ident">TProtoHandler</span>::<span class="ident">Substream</span>, <span class="ident">TProtoHandler</span>::<span class="ident">OutboundProtocol</span><span class="op">&gt;</span>,
+        <span class="ident">OutboundUpgradeApply</span><span class="op">&lt;</span><span class="ident">Substream</span><span class="op">&lt;</span><span class="ident">StreamMuxerBox</span><span class="op">&gt;</span>, <span class="ident">SendWrapper</span><span class="op">&lt;</span><span class="ident">TProtoHandler</span>::<span class="ident">OutboundProtocol</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">Delay</span>,
     )<span class="op">&gt;</span>,
     <span class="doccomment">/// For each outbound substream request, how to upgrade it. The first element of the tuple</span>
     <span class="doccomment">/// is the unique identifier (see `unique_dial_upgrade_id`).</span>
-    <span class="ident">queued_dial_upgrades</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u64</span>, (<span class="ident">upgrade</span>::<span class="ident">Version</span>, <span class="ident">TProtoHandler</span>::<span class="ident">OutboundProtocol</span>))<span class="op">&gt;</span>,
+    <span class="ident">queued_dial_upgrades</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u64</span>, (<span class="ident">upgrade</span>::<span class="ident">Version</span>, <span class="ident">SendWrapper</span><span class="op">&lt;</span><span class="ident">TProtoHandler</span>::<span class="ident">OutboundProtocol</span><span class="op">&gt;</span>))<span class="op">&gt;</span>,
     <span class="doccomment">/// Unique identifier assigned to each queued dial upgrade.</span>
     <span class="ident">unique_dial_upgrade_id</span>: <span class="ident">u64</span>,
     <span class="doccomment">/// The currently planned connection &amp; handler shutdown.</span>
@@ -528,7 +537,7 @@
     <span class="kw">type</span> <span class="ident">InEvent</span> <span class="op">=</span> <span class="ident">TProtoHandler</span>::<span class="ident">InEvent</span>;
     <span class="kw">type</span> <span class="ident">OutEvent</span> <span class="op">=</span> <span class="ident">TProtoHandler</span>::<span class="ident">OutEvent</span>;
     <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">NodeHandlerWrapperError</span><span class="op">&lt;</span><span class="ident">TProtoHandler</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
-    <span class="kw">type</span> <span class="ident">Substream</span> <span class="op">=</span> <span class="ident">TProtoHandler</span>::<span class="ident">Substream</span>;
+    <span class="kw">type</span> <span class="ident">Substream</span> <span class="op">=</span> <span class="ident">Substream</span><span class="op">&lt;</span><span class="ident">StreamMuxerBox</span><span class="op">&gt;</span>;
     <span class="comment">// The first element of the tuple is the unique upgrade identifier</span>
     <span class="comment">// (see `unique_dial_upgrade_id`).</span>
     <span class="kw">type</span> <span class="ident">OutboundOpenInfo</span> <span class="op">=</span> (<span class="ident">u64</span>, <span class="ident">TProtoHandler</span>::<span class="ident">OutboundOpenInfo</span>, <span class="ident">Duration</span>);
@@ -542,7 +551,7 @@
             <span class="ident">NodeHandlerEndpoint</span>::<span class="ident">Listener</span> <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">let</span> <span class="ident">protocol</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">handler</span>.<span class="ident">listen_protocol</span>();
                 <span class="kw">let</span> <span class="ident">timeout</span> <span class="op">=</span> <span class="ident">protocol</span>.<span class="ident">timeout</span>().<span class="ident">clone</span>();
-                <span class="kw">let</span> <span class="ident">upgrade</span> <span class="op">=</span> <span class="ident">upgrade</span>::<span class="ident">apply_inbound</span>(<span class="ident">substream</span>, <span class="ident">protocol</span>.<span class="ident">into_upgrade</span>().<span class="number">1</span>);
+                <span class="kw">let</span> <span class="ident">upgrade</span> <span class="op">=</span> <span class="ident">upgrade</span>::<span class="ident">apply_inbound</span>(<span class="ident">substream</span>, <span class="ident">SendWrapper</span>(<span class="ident">protocol</span>.<span class="ident">into_upgrade</span>().<span class="number">1</span>));
                 <span class="kw">let</span> <span class="ident">timeout</span> <span class="op">=</span> <span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">timeout</span>);
                 <span class="self">self</span>.<span class="ident">negotiating_in</span>.<span class="ident">push</span>((<span class="ident">upgrade</span>, <span class="ident">timeout</span>));
             }
@@ -649,7 +658,8 @@
                 <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">unique_dial_upgrade_id</span>;
                 <span class="kw">let</span> <span class="ident">timeout</span> <span class="op">=</span> <span class="ident">protocol</span>.<span class="ident">timeout</span>().<span class="ident">clone</span>();
                 <span class="self">self</span>.<span class="ident">unique_dial_upgrade_id</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
-                <span class="self">self</span>.<span class="ident">queued_dial_upgrades</span>.<span class="ident">push</span>((<span class="ident">id</span>, <span class="ident">protocol</span>.<span class="ident">into_upgrade</span>()));
+                <span class="kw">let</span> (<span class="ident">version</span>, <span class="ident">upgrade</span>) <span class="op">=</span> <span class="ident">protocol</span>.<span class="ident">into_upgrade</span>();
+                <span class="self">self</span>.<span class="ident">queued_dial_upgrades</span>.<span class="ident">push</span>((<span class="ident">id</span>, (<span class="ident">version</span>, <span class="ident">SendWrapper</span>(<span class="ident">upgrade</span>))));
                 <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Ok</span>(
                     <span class="ident">NodeHandlerEvent</span>::<span class="ident">OutboundSubstreamRequest</span>((<span class="ident">id</span>, <span class="ident">info</span>, <span class="ident">timeout</span>)),
                 ));

@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["compatability_v3","Definitions for supporting the older version of API: v3"]],"trait":[["BlockBuilder","The `BlockBuilder` api trait that provides the required functionality for building a block."]]});
+initSidebarItems({"mod":[["compatibility_v3","Definitions for supporting the older version of API: v3"]],"trait":[["BlockBuilder","The `BlockBuilder` api trait that provides the required functionality for building a block."]]});

@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["client","Utilites to build a `TestClient` for `node-runtime`."],["genesis","Genesis Configuration."],["keyring","Test accounts."]]});
+initSidebarItems({"mod":[["client","Utilities to build a `TestClient` for `node-runtime`."],["genesis","Genesis Configuration."],["keyring","Test accounts."]]});

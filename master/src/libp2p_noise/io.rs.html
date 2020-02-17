@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-noise-0.13.0/src/io.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>io.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-noise-0.16.0/src/io.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>io.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -476,35 +476,6 @@
 <span id="465">465</span>
 <span id="466">466</span>
 <span id="467">467</span>
-<span id="468">468</span>
-<span id="469">469</span>
-<span id="470">470</span>
-<span id="471">471</span>
-<span id="472">472</span>
-<span id="473">473</span>
-<span id="474">474</span>
-<span id="475">475</span>
-<span id="476">476</span>
-<span id="477">477</span>
-<span id="478">478</span>
-<span id="479">479</span>
-<span id="480">480</span>
-<span id="481">481</span>
-<span id="482">482</span>
-<span id="483">483</span>
-<span id="484">484</span>
-<span id="485">485</span>
-<span id="486">486</span>
-<span id="487">487</span>
-<span id="488">488</span>
-<span id="489">489</span>
-<span id="490">490</span>
-<span id="491">491</span>
-<span id="492">492</span>
-<span id="493">493</span>
-<span id="494">494</span>
-<span id="495">495</span>
-<span id="496">496</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">//</span>
@@ -534,33 +505,17 @@
 <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">debug</span>, <span class="ident">trace</span>};
 <span class="kw">use</span> <span class="ident">snow</span>;
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">fmt</span>, <span class="ident">io</span>, <span class="ident">pin</span>::<span class="ident">Pin</span>, <span class="ident">ops</span>::<span class="ident">DerefMut</span>, <span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>}};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">cmp</span>::<span class="ident">min</span>, <span class="ident">fmt</span>, <span class="ident">io</span>, <span class="ident">pin</span>::<span class="ident">Pin</span>, <span class="ident">ops</span>::<span class="ident">DerefMut</span>, <span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>}};
 
+<span class="doccomment">/// Max. size of a noise package.</span>
 <span class="kw">const</span> <span class="ident">MAX_NOISE_PKG_LEN</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">65535</span>;
-<span class="kw">const</span> <span class="ident">MAX_WRITE_BUF_LEN</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">16384</span>;
-<span class="kw">const</span> <span class="ident">TOTAL_BUFFER_LEN</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">2</span> <span class="op">*</span> <span class="ident">MAX_NOISE_PKG_LEN</span> <span class="op">+</span> <span class="number">3</span> <span class="op">*</span> <span class="ident">MAX_WRITE_BUF_LEN</span>;
+<span class="doccomment">/// Extra space given to the encryption buffer to hold key material.</span>
+<span class="kw">const</span> <span class="ident">EXTRA_ENCRYPT_SPACE</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">1024</span>;
+<span class="doccomment">/// Max. output buffer size before forcing a flush.</span>
+<span class="kw">const</span> <span class="ident">MAX_WRITE_BUF_LEN</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="ident">MAX_NOISE_PKG_LEN</span> <span class="op">-</span> <span class="ident">EXTRA_ENCRYPT_SPACE</span>;
 
-<span class="doccomment">/// A single `Buffer` contains multiple non-overlapping byte buffers.</span>
-<span class="kw">struct</span> <span class="ident">Buffer</span> {
-    <span class="ident">inner</span>: <span class="ident">Box</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="ident">TOTAL_BUFFER_LEN</span>]<span class="op">&gt;</span>
-}
-
-<span class="doccomment">/// A mutable borrow of all byte buffers, backed by `Buffer`.</span>
-<span class="kw">struct</span> <span class="ident">BufferBorrow</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
-    <span class="ident">read</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> [<span class="ident">u8</span>],
-    <span class="ident">read_crypto</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> [<span class="ident">u8</span>],
-    <span class="ident">write</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> [<span class="ident">u8</span>],
-    <span class="ident">write_crypto</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> [<span class="ident">u8</span>]
-}
-
-<span class="kw">impl</span> <span class="ident">Buffer</span> {
-    <span class="doccomment">/// Create a mutable borrow by splitting the buffer slice.</span>
-    <span class="kw">fn</span> <span class="ident">borrow_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">BufferBorrow</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> (<span class="ident">r</span>, <span class="ident">w</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">split_at_mut</span>(<span class="number">2</span> <span class="op">*</span> <span class="ident">MAX_NOISE_PKG_LEN</span>);
-        <span class="kw">let</span> (<span class="ident">read</span>, <span class="ident">read_crypto</span>) <span class="op">=</span> <span class="ident">r</span>.<span class="ident">split_at_mut</span>(<span class="ident">MAX_NOISE_PKG_LEN</span>);
-        <span class="kw">let</span> (<span class="ident">write</span>, <span class="ident">write_crypto</span>) <span class="op">=</span> <span class="ident">w</span>.<span class="ident">split_at_mut</span>(<span class="ident">MAX_WRITE_BUF_LEN</span>);
-        <span class="ident">BufferBorrow</span> { <span class="ident">read</span>, <span class="ident">read_crypto</span>, <span class="ident">write</span>, <span class="ident">write_crypto</span> }
-    }
+<span class="ident">static_assertions</span>::<span class="macro">const_assert</span><span class="macro">!</span> {
+    <span class="ident">MAX_WRITE_BUF_LEN</span> <span class="op">+</span> <span class="ident">EXTRA_ENCRYPT_SPACE</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">MAX_NOISE_PKG_LEN</span>
 }
 
 <span class="doccomment">/// A passthrough enum for the two kinds of state machines in `snow`</span>
@@ -605,9 +560,12 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">NoiseOutput</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="ident">io</span>: <span class="ident">T</span>,
     <span class="ident">session</span>: <span class="ident">SnowState</span>,
-    <span class="ident">buffer</span>: <span class="ident">Buffer</span>,
     <span class="ident">read_state</span>: <span class="ident">ReadState</span>,
-    <span class="ident">write_state</span>: <span class="ident">WriteState</span>
+    <span class="ident">write_state</span>: <span class="ident">WriteState</span>,
+    <span class="ident">read_buffer</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
+    <span class="ident">write_buffer</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
+    <span class="ident">decrypt_buffer</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
+    <span class="ident">encrypt_buffer</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">NoiseOutput</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
@@ -624,9 +582,12 @@
         <span class="ident">NoiseOutput</span> {
             <span class="ident">io</span>,
             <span class="ident">session</span>,
-            <span class="ident">buffer</span>: <span class="ident">Buffer</span> { <span class="ident">inner</span>: <span class="ident">Box</span>::<span class="ident">new</span>([<span class="number">0</span>; <span class="ident">TOTAL_BUFFER_LEN</span>]) },
             <span class="ident">read_state</span>: <span class="ident">ReadState</span>::<span class="ident">Init</span>,
-            <span class="ident">write_state</span>: <span class="ident">WriteState</span>::<span class="ident">Init</span>
+            <span class="ident">write_state</span>: <span class="ident">WriteState</span>::<span class="ident">Init</span>,
+            <span class="ident">read_buffer</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
+            <span class="ident">write_buffer</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
+            <span class="ident">decrypt_buffer</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
+            <span class="ident">encrypt_buffer</span>: <span class="ident">Vec</span>::<span class="ident">new</span>()
         }
     }
 }
@@ -667,15 +628,8 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">Unpin</span><span class="op">&gt;</span> <span class="ident">AsyncRead</span> <span class="kw">for</span> <span class="ident">NoiseOutput</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">poll_read</span>(
-        <span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>,
-        <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>,
-        <span class="ident">buf</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">usize</span>, <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">poll_read</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>, <span class="ident">buf</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">this</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">deref_mut</span>();
-
-        <span class="kw">let</span> <span class="ident">buffer</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">buffer</span>.<span class="ident">borrow_mut</span>();
-
         <span class="kw">loop</span> {
             <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;read state: {:?}&quot;</span>, <span class="ident">this</span>.<span class="ident">read_state</span>);
             <span class="kw">match</span> <span class="ident">this</span>.<span class="ident">read_state</span> {
@@ -695,7 +649,6 @@
                         }
                         <span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="ident">this</span>.<span class="ident">read_state</span> <span class="op">=</span> <span class="ident">ReadState</span>::<span class="ident">ReadLen</span> { <span class="ident">buf</span>, <span class="ident">off</span> };
-
                             <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Pending</span>;
                         }
                     };
@@ -705,30 +658,28 @@
                         <span class="ident">this</span>.<span class="ident">read_state</span> <span class="op">=</span> <span class="ident">ReadState</span>::<span class="ident">Init</span>;
                         <span class="kw">continue</span>
                     }
+                    <span class="ident">this</span>.<span class="ident">read_buffer</span>.<span class="ident">resize</span>(<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">n</span>), <span class="number">0u8</span>);
                     <span class="ident">this</span>.<span class="ident">read_state</span> <span class="op">=</span> <span class="ident">ReadState</span>::<span class="ident">ReadData</span> { <span class="ident">len</span>: <span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">n</span>), <span class="ident">off</span>: <span class="number">0</span> }
                 }
                 <span class="ident">ReadState</span>::<span class="ident">ReadData</span> { <span class="ident">len</span>, <span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">off</span> } <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> <span class="kw">match</span> <span class="macro">ready</span><span class="macro">!</span>(
-                        <span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">this</span>.<span class="ident">io</span>).<span class="ident">poll_read</span>(<span class="ident">cx</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">buffer</span>.<span class="ident">read</span>[<span class="kw-2">*</span><span class="ident">off</span> ..<span class="ident">len</span>])
-                    ) {
-                        <span class="prelude-val">Ok</span>(<span class="ident">n</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">n</span>,
-                        <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">e</span>)),
+                    <span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> {
+                        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">this</span>.<span class="ident">io</span>).<span class="ident">poll_read</span>(<span class="ident">cx</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">this</span>.<span class="ident">read_buffer</span>[<span class="kw-2">*</span><span class="ident">off</span> .. <span class="ident">len</span>]);
+                        <span class="kw">match</span> <span class="macro">ready</span><span class="macro">!</span>(<span class="ident">f</span>) {
+                            <span class="prelude-val">Ok</span>(<span class="ident">n</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">n</span>,
+                            <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">e</span>)),
+                        }
                     };
-
                     <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;read: read {}/{} bytes&quot;</span>, <span class="kw-2">*</span><span class="ident">off</span> <span class="op">+</span> <span class="ident">n</span>, <span class="ident">len</span>);
                     <span class="kw">if</span> <span class="ident">n</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
                         <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;read: eof&quot;</span>);
                         <span class="ident">this</span>.<span class="ident">read_state</span> <span class="op">=</span> <span class="ident">ReadState</span>::<span class="ident">Eof</span>(<span class="prelude-val">Err</span>(()));
                         <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">io</span>::<span class="ident">ErrorKind</span>::<span class="ident">UnexpectedEof</span>.<span class="ident">into</span>()))
                     }
-
                     <span class="kw-2">*</span><span class="ident">off</span> <span class="op">+</span><span class="op">=</span> <span class="ident">n</span>;
                     <span class="kw">if</span> <span class="ident">len</span> <span class="op">=</span><span class="op">=</span> <span class="kw-2">*</span><span class="ident">off</span> {
                         <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;read: decrypting {} bytes&quot;</span>, <span class="ident">len</span>);
-                        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">n</span>) <span class="op">=</span> <span class="ident">this</span>.<span class="ident">session</span>.<span class="ident">read_message</span>(
-                            <span class="kw-2">&amp;</span><span class="ident">buffer</span>.<span class="ident">read</span>[.. <span class="ident">len</span>],
-                            <span class="ident">buffer</span>.<span class="ident">read_crypto</span>
-                        ){
+                        <span class="ident">this</span>.<span class="ident">decrypt_buffer</span>.<span class="ident">resize</span>(<span class="ident">len</span>, <span class="number">0u8</span>);
+                        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">n</span>) <span class="op">=</span> <span class="ident">this</span>.<span class="ident">session</span>.<span class="ident">read_message</span>(<span class="kw-2">&amp;</span><span class="ident">this</span>.<span class="ident">read_buffer</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">this</span>.<span class="ident">decrypt_buffer</span>) {
                             <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;read: payload len = {} bytes&quot;</span>, <span class="ident">n</span>);
                             <span class="ident">this</span>.<span class="ident">read_state</span> <span class="op">=</span> <span class="ident">ReadState</span>::<span class="ident">CopyData</span> { <span class="ident">len</span>: <span class="ident">n</span>, <span class="ident">off</span>: <span class="number">0</span> }
                         } <span class="kw">else</span> {
@@ -739,8 +690,8 @@
                     }
                 }
                 <span class="ident">ReadState</span>::<span class="ident">CopyData</span> { <span class="ident">len</span>, <span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">off</span> } <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">cmp</span>::<span class="ident">min</span>(<span class="ident">len</span> <span class="op">-</span> <span class="kw-2">*</span><span class="ident">off</span>, <span class="ident">buf</span>.<span class="ident">len</span>());
-                    <span class="ident">buf</span>[.. <span class="ident">n</span>].<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">buffer</span>.<span class="ident">read_crypto</span>[<span class="kw-2">*</span><span class="ident">off</span> .. <span class="kw-2">*</span><span class="ident">off</span> <span class="op">+</span> <span class="ident">n</span>]);
+                    <span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> <span class="ident">min</span>(<span class="ident">len</span> <span class="op">-</span> <span class="kw-2">*</span><span class="ident">off</span>, <span class="ident">buf</span>.<span class="ident">len</span>());
+                    <span class="ident">buf</span>[.. <span class="ident">n</span>].<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">this</span>.<span class="ident">decrypt_buffer</span>[<span class="kw-2">*</span><span class="ident">off</span> .. <span class="kw-2">*</span><span class="ident">off</span> <span class="op">+</span> <span class="ident">n</span>]);
                     <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;read: copied {}/{} bytes&quot;</span>, <span class="kw-2">*</span><span class="ident">off</span> <span class="op">+</span> <span class="ident">n</span>, <span class="ident">len</span>);
                     <span class="kw-2">*</span><span class="ident">off</span> <span class="op">+</span><span class="op">=</span> <span class="ident">n</span>;
                     <span class="kw">if</span> <span class="ident">len</span> <span class="op">=</span><span class="op">=</span> <span class="kw-2">*</span><span class="ident">off</span> {
@@ -763,15 +714,8 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span><span class="op">&gt;</span> <span class="ident">AsyncWrite</span> <span class="kw">for</span> <span class="ident">NoiseOutput</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">poll_write</span>(
-        <span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>,
-        <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>,
-        <span class="ident">buf</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">usize</span>, <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>{
+    <span class="kw">fn</span> <span class="ident">poll_write</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>, <span class="ident">buf</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">this</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">deref_mut</span>();
-
-        <span class="kw">let</span> <span class="ident">buffer</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">buffer</span>.<span class="ident">borrow_mut</span>();
-
         <span class="kw">loop</span> {
             <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;write state: {:?}&quot;</span>, <span class="ident">this</span>.<span class="ident">write_state</span>);
             <span class="kw">match</span> <span class="ident">this</span>.<span class="ident">write_state</span> {
@@ -779,13 +723,16 @@
                     <span class="ident">this</span>.<span class="ident">write_state</span> <span class="op">=</span> <span class="ident">WriteState</span>::<span class="ident">BufferData</span> { <span class="ident">off</span>: <span class="number">0</span> }
                 }
                 <span class="ident">WriteState</span>::<span class="ident">BufferData</span> { <span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">off</span> } <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">cmp</span>::<span class="ident">min</span>(<span class="ident">MAX_WRITE_BUF_LEN</span> <span class="op">-</span> <span class="kw-2">*</span><span class="ident">off</span>, <span class="ident">buf</span>.<span class="ident">len</span>());
-                    <span class="ident">buffer</span>.<span class="ident">write</span>[<span class="kw-2">*</span><span class="ident">off</span> .. <span class="kw-2">*</span><span class="ident">off</span> <span class="op">+</span> <span class="ident">n</span>].<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">buf</span>[.. <span class="ident">n</span>]);
+                    <span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> <span class="ident">min</span>(<span class="ident">MAX_WRITE_BUF_LEN</span>, <span class="ident">off</span>.<span class="ident">saturating_add</span>(<span class="ident">buf</span>.<span class="ident">len</span>()));
+                    <span class="ident">this</span>.<span class="ident">write_buffer</span>.<span class="ident">resize</span>(<span class="ident">n</span>, <span class="number">0u8</span>);
+                    <span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> <span class="ident">min</span>(<span class="ident">MAX_WRITE_BUF_LEN</span> <span class="op">-</span> <span class="kw-2">*</span><span class="ident">off</span>, <span class="ident">buf</span>.<span class="ident">len</span>());
+                    <span class="ident">this</span>.<span class="ident">write_buffer</span>[<span class="kw-2">*</span><span class="ident">off</span> .. <span class="kw-2">*</span><span class="ident">off</span> <span class="op">+</span> <span class="ident">n</span>].<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">buf</span>[.. <span class="ident">n</span>]);
                     <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;write: buffered {} bytes&quot;</span>, <span class="kw-2">*</span><span class="ident">off</span> <span class="op">+</span> <span class="ident">n</span>);
                     <span class="kw-2">*</span><span class="ident">off</span> <span class="op">+</span><span class="op">=</span> <span class="ident">n</span>;
                     <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">off</span> <span class="op">=</span><span class="op">=</span> <span class="ident">MAX_WRITE_BUF_LEN</span> {
                         <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;write: encrypting {} bytes&quot;</span>, <span class="kw-2">*</span><span class="ident">off</span>);
-                        <span class="kw">match</span> <span class="ident">this</span>.<span class="ident">session</span>.<span class="ident">write_message</span>(<span class="ident">buffer</span>.<span class="ident">write</span>, <span class="ident">buffer</span>.<span class="ident">write_crypto</span>) {
+                        <span class="ident">this</span>.<span class="ident">encrypt_buffer</span>.<span class="ident">resize</span>(<span class="ident">MAX_WRITE_BUF_LEN</span> <span class="op">+</span> <span class="ident">EXTRA_ENCRYPT_SPACE</span>, <span class="number">0u8</span>);
+                        <span class="kw">match</span> <span class="ident">this</span>.<span class="ident">session</span>.<span class="ident">write_message</span>(<span class="kw-2">&amp;</span><span class="ident">this</span>.<span class="ident">write_buffer</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">this</span>.<span class="ident">encrypt_buffer</span>) {
                             <span class="prelude-val">Ok</span>(<span class="ident">n</span>) <span class="op">=</span><span class="op">&gt;</span> {
                                 <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;write: cipher text len = {} bytes&quot;</span>, <span class="ident">n</span>);
                                 <span class="ident">this</span>.<span class="ident">write_state</span> <span class="op">=</span> <span class="ident">WriteState</span>::<span class="ident">WriteLen</span> {
@@ -824,11 +771,12 @@
                     <span class="ident">this</span>.<span class="ident">write_state</span> <span class="op">=</span> <span class="ident">WriteState</span>::<span class="ident">WriteData</span> { <span class="ident">len</span>, <span class="ident">off</span>: <span class="number">0</span> }
                 }
                 <span class="ident">WriteState</span>::<span class="ident">WriteData</span> { <span class="ident">len</span>, <span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">off</span> } <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> <span class="kw">match</span> <span class="macro">ready</span><span class="macro">!</span>(
-                        <span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">this</span>.<span class="ident">io</span>).<span class="ident">poll_write</span>(<span class="ident">cx</span>, <span class="kw-2">&amp;</span><span class="ident">buffer</span>.<span class="ident">write_crypto</span>[<span class="kw-2">*</span><span class="ident">off</span> .. <span class="ident">len</span>])
-                    ) {
-                        <span class="prelude-val">Ok</span>(<span class="ident">n</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">n</span>,
-                        <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">e</span>)),
+                    <span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> {
+                        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">this</span>.<span class="ident">io</span>).<span class="ident">poll_write</span>(<span class="ident">cx</span>, <span class="kw-2">&amp;</span><span class="ident">this</span>.<span class="ident">encrypt_buffer</span>[<span class="kw-2">*</span><span class="ident">off</span> .. <span class="ident">len</span>]);
+                        <span class="kw">match</span> <span class="macro">ready</span><span class="macro">!</span>(<span class="ident">f</span>) {
+                            <span class="prelude-val">Ok</span>(<span class="ident">n</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">n</span>,
+                            <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">e</span>))
+                        }
                     };
                     <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;write: wrote {}/{} bytes&quot;</span>, <span class="kw-2">*</span><span class="ident">off</span> <span class="op">+</span> <span class="ident">n</span>, <span class="ident">len</span>);
                     <span class="kw">if</span> <span class="ident">n</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
@@ -851,20 +799,17 @@
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">poll_flush</span>(
-        <span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>,
-        <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">poll_flush</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">this</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">deref_mut</span>();
-
-        <span class="kw">let</span> <span class="ident">buffer</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">buffer</span>.<span class="ident">borrow_mut</span>();
-
         <span class="kw">loop</span> {
             <span class="kw">match</span> <span class="ident">this</span>.<span class="ident">write_state</span> {
-                <span class="ident">WriteState</span>::<span class="ident">Init</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">this</span>.<span class="ident">io</span>).<span class="ident">poll_flush</span>(<span class="ident">cx</span>),
+                <span class="ident">WriteState</span>::<span class="ident">Init</span> <span class="op">=</span><span class="op">&gt;</span> {
+                    <span class="kw">return</span> <span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">this</span>.<span class="ident">io</span>).<span class="ident">poll_flush</span>(<span class="ident">cx</span>)
+                }
                 <span class="ident">WriteState</span>::<span class="ident">BufferData</span> { <span class="ident">off</span> } <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;flush: encrypting {} bytes&quot;</span>, <span class="ident">off</span>);
-                    <span class="kw">match</span> <span class="ident">this</span>.<span class="ident">session</span>.<span class="ident">write_message</span>(<span class="kw-2">&amp;</span><span class="ident">buffer</span>.<span class="ident">write</span>[.. <span class="ident">off</span>], <span class="ident">buffer</span>.<span class="ident">write_crypto</span>) {
+                    <span class="ident">this</span>.<span class="ident">encrypt_buffer</span>.<span class="ident">resize</span>(<span class="ident">off</span> <span class="op">+</span> <span class="ident">EXTRA_ENCRYPT_SPACE</span>, <span class="number">0u8</span>);
+                    <span class="kw">match</span> <span class="ident">this</span>.<span class="ident">session</span>.<span class="ident">write_message</span>(<span class="kw-2">&amp;</span><span class="ident">this</span>.<span class="ident">write_buffer</span>[.. <span class="ident">off</span>], <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">this</span>.<span class="ident">encrypt_buffer</span>) {
                         <span class="prelude-val">Ok</span>(<span class="ident">n</span>) <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;flush: cipher text len = {} bytes&quot;</span>, <span class="ident">n</span>);
                             <span class="ident">this</span>.<span class="ident">write_state</span> <span class="op">=</span> <span class="ident">WriteState</span>::<span class="ident">WriteLen</span> {
@@ -894,18 +839,18 @@
                         }
                         <span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="ident">this</span>.<span class="ident">write_state</span> <span class="op">=</span> <span class="ident">WriteState</span>::<span class="ident">WriteLen</span> { <span class="ident">len</span>, <span class="ident">buf</span>, <span class="ident">off</span> };
-
                             <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Pending</span>
                         }
                     }
                     <span class="ident">this</span>.<span class="ident">write_state</span> <span class="op">=</span> <span class="ident">WriteState</span>::<span class="ident">WriteData</span> { <span class="ident">len</span>, <span class="ident">off</span>: <span class="number">0</span> }
                 }
                 <span class="ident">WriteState</span>::<span class="ident">WriteData</span> { <span class="ident">len</span>, <span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">off</span> } <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> <span class="kw">match</span> <span class="macro">ready</span><span class="macro">!</span>(
-                        <span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">this</span>.<span class="ident">io</span>).<span class="ident">poll_write</span>(<span class="ident">cx</span>, <span class="kw-2">&amp;</span><span class="ident">buffer</span>.<span class="ident">write_crypto</span>[<span class="kw-2">*</span><span class="ident">off</span> .. <span class="ident">len</span>])
-                    ) {
-                        <span class="prelude-val">Ok</span>(<span class="ident">n</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">n</span>,
-                        <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">e</span>)),
+                    <span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> {
+                        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">this</span>.<span class="ident">io</span>).<span class="ident">poll_write</span>(<span class="ident">cx</span>, <span class="kw-2">&amp;</span><span class="ident">this</span>.<span class="ident">encrypt_buffer</span>[<span class="kw-2">*</span><span class="ident">off</span> .. <span class="ident">len</span>]);
+                        <span class="kw">match</span> <span class="macro">ready</span><span class="macro">!</span>(<span class="ident">f</span>) {
+                            <span class="prelude-val">Ok</span>(<span class="ident">n</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">n</span>,
+                            <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Err</span>(<span class="ident">e</span>)),
+                        }
                     };
                     <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;flush: wrote {}/{} bytes&quot;</span>, <span class="kw-2">*</span><span class="ident">off</span> <span class="op">+</span> <span class="ident">n</span>, <span class="ident">len</span>);
                     <span class="kw">if</span> <span class="ident">n</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
@@ -928,10 +873,7 @@
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">poll_close</span>(
-        <span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>,
-        <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>{
+    <span class="kw">fn</span> <span class="ident">poll_close</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span>{
         <span class="macro">ready</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">as_mut</span>().<span class="ident">poll_flush</span>(<span class="ident">cx</span>))<span class="question-mark">?</span>;
         <span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">io</span>).<span class="ident">poll_close</span>(<span class="ident">cx</span>)
     }
@@ -951,7 +893,7 @@
     <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>,
     <span class="ident">buf</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>; <span class="number">2</span>],
     <span class="ident">off</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">usize</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">u16</span><span class="op">&gt;</span>, <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">u16</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="kw">loop</span> {
         <span class="kw">match</span> <span class="macro">ready</span><span class="macro">!</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">io</span>).<span class="ident">poll_read</span>(<span class="ident">cx</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">buf</span>[<span class="kw-2">*</span><span class="ident">off</span> ..])) {
             <span class="prelude-val">Ok</span>(<span class="ident">n</span>) <span class="op">=</span><span class="op">&gt;</span> {
@@ -984,7 +926,7 @@
     <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>,
     <span class="ident">buf</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>; <span class="number">2</span>],
     <span class="ident">off</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">usize</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span>, <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="kw">loop</span> {
         <span class="kw">match</span> <span class="macro">ready</span><span class="macro">!</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">io</span>).<span class="ident">poll_write</span>(<span class="ident">cx</span>, <span class="kw-2">&amp;</span><span class="ident">buf</span>[<span class="kw-2">*</span><span class="ident">off</span> ..])) {
             <span class="prelude-val">Ok</span>(<span class="ident">n</span>) <span class="op">=</span><span class="op">&gt;</span> {

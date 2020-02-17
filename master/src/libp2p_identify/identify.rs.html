@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-identify-0.15.0/src/identify.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>identify.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/libp2p-identify-0.16.0/src/identify.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>identify.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -358,8 +358,6 @@
 <span id="347">347</span>
 <span id="348">348</span>
 <span id="349">349</span>
-<span id="350">350</span>
-<span id="351">351</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018 Parity Technologies (UK) Ltd.</span>
 <span class="comment">//</span>
@@ -389,9 +387,10 @@
     <span class="ident">Multiaddr</span>,
     <span class="ident">PeerId</span>,
     <span class="ident">PublicKey</span>,
-    <span class="ident">upgrade</span>::{<span class="ident">Negotiated</span>, <span class="ident">ReadOneError</span>, <span class="ident">UpgradeError</span>}
+    <span class="ident">upgrade</span>::{<span class="ident">ReadOneError</span>, <span class="ident">UpgradeError</span>}
 };
 <span class="kw">use</span> <span class="ident">libp2p_swarm</span>::{
+    <span class="ident">NegotiatedSubstream</span>,
     <span class="ident">NetworkBehaviour</span>,
     <span class="ident">NetworkBehaviourAction</span>,
     <span class="ident">PollParameters</span>,
@@ -402,7 +401,7 @@
 
 <span class="doccomment">/// Network behaviour that automatically identifies nodes periodically, returns information</span>
 <span class="doccomment">/// about them, and answers identify queries from other nodes.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Identify</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Identify</span> {
     <span class="doccomment">/// Protocol version to send back to remotes.</span>
     <span class="ident">protocol_version</span>: <span class="ident">String</span>,
     <span class="doccomment">/// Agent version to send back to remotes.</span>
@@ -412,17 +411,17 @@
     <span class="doccomment">/// For each peer we&#39;re connected to, the observed address to send back to it.</span>
     <span class="ident">observed_addresses</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">PeerId</span>, <span class="ident">Multiaddr</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Pending replies to send.</span>
-    <span class="ident">pending_replies</span>: <span class="ident">VecDeque</span><span class="op">&lt;</span><span class="ident">Reply</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">pending_replies</span>: <span class="ident">VecDeque</span><span class="op">&lt;</span><span class="ident">Reply</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Pending events to be emitted when polled.</span>
     <span class="ident">events</span>: <span class="ident">VecDeque</span><span class="op">&lt;</span><span class="ident">NetworkBehaviourAction</span><span class="op">&lt;</span>(), <span class="ident">IdentifyEvent</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
 <span class="doccomment">/// A pending reply to an inbound identification request.</span>
-<span class="kw">enum</span> <span class="ident">Reply</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span> {
+<span class="kw">enum</span> <span class="ident">Reply</span> {
     <span class="doccomment">/// The reply is queued for sending.</span>
     <span class="ident">Queued</span> {
         <span class="ident">peer</span>: <span class="ident">PeerId</span>,
-        <span class="ident">io</span>: <span class="ident">ReplySubstream</span><span class="op">&lt;</span><span class="ident">Negotiated</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">io</span>: <span class="ident">ReplySubstream</span><span class="op">&lt;</span><span class="ident">NegotiatedSubstream</span><span class="op">&gt;</span>,
         <span class="ident">observed</span>: <span class="ident">Multiaddr</span>
     },
     <span class="doccomment">/// The reply is being sent.</span>
@@ -432,7 +431,7 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span> <span class="ident">Identify</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span> {
+<span class="kw">impl</span> <span class="ident">Identify</span> {
     <span class="doccomment">/// Creates a new `Identify` network behaviour.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">protocol_version</span>: <span class="ident">String</span>, <span class="ident">agent_version</span>: <span class="ident">String</span>, <span class="ident">local_public_key</span>: <span class="ident">PublicKey</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="ident">Identify</span> {
@@ -446,11 +445,8 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span> <span class="ident">NetworkBehaviour</span> <span class="kw">for</span> <span class="ident">Identify</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">TSubstream</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-{
-    <span class="kw">type</span> <span class="ident">ProtocolsHandler</span> <span class="op">=</span> <span class="ident">IdentifyHandler</span><span class="op">&lt;</span><span class="ident">TSubstream</span><span class="op">&gt;</span>;
+<span class="kw">impl</span> <span class="ident">NetworkBehaviour</span> <span class="kw">for</span> <span class="ident">Identify</span> {
+    <span class="kw">type</span> <span class="ident">ProtocolsHandler</span> <span class="op">=</span> <span class="ident">IdentifyHandler</span>;
     <span class="kw">type</span> <span class="ident">OutEvent</span> <span class="op">=</span> <span class="ident">IdentifyEvent</span>;
 
     <span class="kw">fn</span> <span class="ident">new_handler</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>::<span class="ident">ProtocolsHandler</span> {
