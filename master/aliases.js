@@ -242,6 +242,7 @@ ALIASES["native_tls"] = {};
 ALIASES["net2"] = {};
 ALIASES["node_cli"] = {};
 ALIASES["node_executor"] = {};
+ALIASES["node_inspect"] = {};
 ALIASES["node_primitives"] = {};
 ALIASES["node_rpc"] = {};
 ALIASES["node_rpc_client"] = {};

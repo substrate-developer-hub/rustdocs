@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["BlockAddress","A block to retrieve."],["ExtrinsicAddress","An extrinsic address to decode and print out."],["InspectSubCmd","A possible inspect sub-commands."]],"struct":[["InspectCmd","The `inspect` command used to print decoded chain data."]]});
