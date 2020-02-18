@@ -984,6 +984,7 @@
 <span id="973">973</span>
 <span id="974">974</span>
 <span id="975">975</span>
+<span id="976">976</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1013,9 +1014,9 @@
 <span class="doccomment">//! actively calling any function.</span>
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">api</span>::<span class="ident">timestamp</span>;
-<span class="kw">use</span> <span class="ident">bytes</span>::<span class="ident">Buf</span> <span class="kw">as</span> <span class="kw">_</span>;
+<span class="kw">use</span> <span class="ident">bytes</span>::<span class="ident">buf</span>::<span class="ident">ext</span>::{<span class="ident">Reader</span>, <span class="ident">BufExt</span>};
 <span class="kw">use</span> <span class="ident">fnv</span>::<span class="ident">FnvHashMap</span>;
-<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">channel</span>::<span class="ident">mpsc</span>, <span class="ident">compat</span>::<span class="ident">Compat01As03</span>};
+<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">future</span>, <span class="ident">channel</span>::<span class="ident">mpsc</span>};
 <span class="kw">use</span> <span class="ident">log</span>::<span class="ident">error</span>;
 <span class="kw">use</span> <span class="ident">sp_core</span>::<span class="ident">offchain</span>::{<span class="ident">HttpRequestId</span>, <span class="ident">Timestamp</span>, <span class="ident">HttpRequestStatus</span>, <span class="ident">HttpError</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">fmt</span>, <span class="ident">io</span>::<span class="ident">Read</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">mem</span>, <span class="ident">pin</span>::<span class="ident">Pin</span>, <span class="ident">task</span>::<span class="ident">Context</span>, <span class="ident">task</span>::<span class="ident">Poll</span>};
@@ -1037,7 +1038,7 @@
 	<span class="kw">let</span> <span class="ident">engine</span> <span class="op">=</span> <span class="ident">HttpWorker</span> {
 		<span class="ident">to_api</span>,
 		<span class="ident">from_api</span>,
-		<span class="ident">http_client</span>: <span class="ident">hyper</span>::<span class="ident">Client</span>::<span class="ident">builder</span>().<span class="ident">build</span>(<span class="ident">hyper_rustls</span>::<span class="ident">HttpsConnector</span>::<span class="ident">new</span>(<span class="number">1</span>)),
+		<span class="ident">http_client</span>: <span class="ident">hyper</span>::<span class="ident">Client</span>::<span class="ident">builder</span>().<span class="ident">build</span>(<span class="ident">hyper_rustls</span>::<span class="ident">HttpsConnector</span>::<span class="ident">new</span>()),
 		<span class="ident">requests</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
 	};
 
@@ -1090,10 +1091,10 @@
 	<span class="doccomment">/// Elements extracted from the channel are first put into `current_read_chunk`.</span>
 	<span class="doccomment">/// If the channel produces an error, then that is translated into an `IoError` and the request</span>
 	<span class="doccomment">/// is removed from the list.</span>
-	<span class="ident">body</span>: <span class="ident">stream</span>::<span class="ident">Fuse</span><span class="op">&lt;</span><span class="ident">mpsc</span>::<span class="ident">Receiver</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">hyper</span>::<span class="ident">Chunk</span>, <span class="ident">hyper</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">body</span>: <span class="ident">stream</span>::<span class="ident">Fuse</span><span class="op">&lt;</span><span class="ident">mpsc</span>::<span class="ident">Receiver</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">hyper</span>::<span class="ident">body</span>::<span class="ident">Bytes</span>, <span class="ident">hyper</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// Chunk that has been extracted from the channel and that is currently being read.</span>
 	<span class="doccomment">/// Reading data from the response should read from this field in priority.</span>
-	<span class="ident">current_read_chunk</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">bytes</span>::<span class="ident">Reader</span><span class="op">&lt;</span><span class="ident">hyper</span>::<span class="ident">Chunk</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">current_read_chunk</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Reader</span><span class="op">&lt;</span><span class="ident">hyper</span>::<span class="ident">body</span>::<span class="ident">Bytes</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">HttpApi</span> {
@@ -1109,7 +1110,7 @@
 		<span class="kw">let</span> (<span class="ident">body_sender</span>, <span class="ident">body</span>) <span class="op">=</span> <span class="ident">hyper</span>::<span class="ident">Body</span>::<span class="ident">channel</span>();
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">request</span> <span class="op">=</span> <span class="ident">hyper</span>::<span class="ident">Request</span>::<span class="ident">new</span>(<span class="ident">body</span>);
 		<span class="kw-2">*</span><span class="ident">request</span>.<span class="ident">method_mut</span>() <span class="op">=</span> <span class="ident">hyper</span>::<span class="ident">Method</span>::<span class="ident">from_bytes</span>(<span class="ident">method</span>.<span class="ident">as_bytes</span>()).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())<span class="question-mark">?</span>;
-		<span class="kw-2">*</span><span class="ident">request</span>.<span class="ident">uri_mut</span>() <span class="op">=</span> <span class="ident">hyper</span>::<span class="ident">Uri</span>::<span class="ident">from_shared</span>(<span class="ident">From</span>::<span class="ident">from</span>(<span class="ident">uri</span>)).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())<span class="question-mark">?</span>;
+		<span class="kw-2">*</span><span class="ident">request</span>.<span class="ident">uri_mut</span>() <span class="op">=</span> <span class="ident">hyper</span>::<span class="ident">Uri</span>::<span class="ident">from_maybe_shared</span>(<span class="ident">uri</span>.<span class="ident">to_owned</span>()).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())<span class="question-mark">?</span>;
 
 		<span class="kw">let</span> <span class="ident">new_id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">next_id</span>;
 		<span class="macro">debug_assert</span><span class="macro">!</span>(<span class="op">!</span><span class="self">self</span>.<span class="ident">requests</span>.<span class="ident">contains_key</span>(<span class="kw-2">&amp;</span><span class="ident">new_id</span>));
@@ -1164,9 +1165,7 @@
 		<span class="comment">// (if the body has been written), or `DeadlineReached`, or `IoError`.</span>
 		<span class="comment">// If `IoError` is returned, don&#39;t forget to remove the request from the list.</span>
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">poll_sender</span> <span class="op">=</span> <span class="kw">move</span> <span class="op">|</span><span class="ident">sender</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">hyper</span>::<span class="ident">body</span>::<span class="ident">Sender</span><span class="op">|</span> <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">HttpError</span><span class="op">&gt;</span> {
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">when_ready</span> <span class="op">=</span> <span class="ident">future</span>::<span class="ident">maybe_done</span>(<span class="ident">Compat01As03</span>::<span class="ident">new</span>(
-				<span class="ident">futures01</span>::<span class="ident">future</span>::<span class="ident">poll_fn</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">sender</span>.<span class="ident">poll_ready</span>())
-			));
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">when_ready</span> <span class="op">=</span> <span class="ident">future</span>::<span class="ident">maybe_done</span>(<span class="ident">future</span>::<span class="ident">poll_fn</span>(<span class="op">|</span><span class="ident">cx</span><span class="op">|</span> <span class="ident">sender</span>.<span class="ident">poll_ready</span>(<span class="ident">cx</span>)));
 			<span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on</span>(<span class="ident">future</span>::<span class="ident">select</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">when_ready</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">deadline</span>));
 			<span class="kw">match</span> <span class="ident">when_ready</span> {
 				<span class="ident">future</span>::<span class="ident">MaybeDone</span>::<span class="ident">Done</span>(<span class="prelude-val">Ok</span>(())) <span class="op">=</span><span class="op">&gt;</span> {}
@@ -1178,13 +1177,11 @@
 				}
 			};
 
-			<span class="kw">match</span> <span class="ident">sender</span>.<span class="ident">send_data</span>(<span class="ident">hyper</span>::<span class="ident">Chunk</span>::<span class="ident">from</span>(<span class="ident">chunk</span>.<span class="ident">to_owned</span>())) {
-				<span class="prelude-val">Ok</span>(()) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
-				<span class="prelude-val">Err</span>(<span class="ident">_chunk</span>) <span class="op">=</span><span class="op">&gt;</span> {
+			<span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on</span>(<span class="ident">sender</span>.<span class="ident">send_data</span>(<span class="ident">hyper</span>::<span class="ident">body</span>::<span class="ident">Bytes</span>::<span class="ident">from</span>(<span class="ident">chunk</span>.<span class="ident">to_owned</span>())))
+				.<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
 					<span class="macro">error</span><span class="macro">!</span>(<span class="string">&quot;HTTP sender refused data despite being ready&quot;</span>);
-					<span class="prelude-val">Err</span>(<span class="ident">HttpError</span>::<span class="ident">IoError</span>)
-				},
-			}
+					<span class="ident">HttpError</span>::<span class="ident">IoError</span>
+				})
 		};
 
 		<span class="kw">loop</span> {
@@ -1525,7 +1522,7 @@
 		<span class="doccomment">/// the next item.</span>
 		<span class="doccomment">/// Can also be used to send an error, in case an error happend on the HTTP socket. After</span>
 		<span class="doccomment">/// an error is sent, the channel will close.</span>
-		<span class="ident">body</span>: <span class="ident">mpsc</span>::<span class="ident">Receiver</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">hyper</span>::<span class="ident">Chunk</span>, <span class="ident">hyper</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+		<span class="ident">body</span>: <span class="ident">mpsc</span>::<span class="ident">Receiver</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">hyper</span>::<span class="ident">body</span>::<span class="ident">Bytes</span>, <span class="ident">hyper</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	},
 	<span class="doccomment">/// A request has failed because of an error. The request is then no longer valid.</span>
 	<span class="ident">Fail</span> {
@@ -1551,13 +1548,13 @@
 <span class="doccomment">/// HTTP request being processed by the worker.</span>
 <span class="kw">enum</span> <span class="ident">HttpWorkerRequest</span> {
 	<span class="doccomment">/// Request has been dispatched and is waiting for a response from the Internet.</span>
-	<span class="ident">Dispatched</span>(<span class="ident">Compat01As03</span><span class="op">&lt;</span><span class="ident">hyper</span>::<span class="ident">client</span>::<span class="ident">ResponseFuture</span><span class="op">&gt;</span>),
+	<span class="ident">Dispatched</span>(<span class="ident">hyper</span>::<span class="ident">client</span>::<span class="ident">ResponseFuture</span>),
 	<span class="doccomment">/// Progressively reading the body of the response and sending it to the channel.</span>
 	<span class="ident">ReadBody</span> {
 		<span class="doccomment">/// Body to read `Chunk`s from. Only used if the channel is ready to accept data.</span>
-		<span class="ident">body</span>: <span class="ident">Compat01As03</span><span class="op">&lt;</span><span class="ident">hyper</span>::<span class="ident">Body</span><span class="op">&gt;</span>,
+		<span class="ident">body</span>: <span class="ident">hyper</span>::<span class="ident">Body</span>,
 		<span class="doccomment">/// Channel to the [`HttpApi`] where we send the chunks to.</span>
-		<span class="ident">tx</span>: <span class="ident">mpsc</span>::<span class="ident">Sender</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">hyper</span>::<span class="ident">Chunk</span>, <span class="ident">hyper</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+		<span class="ident">tx</span>: <span class="ident">mpsc</span>::<span class="ident">Sender</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">hyper</span>::<span class="ident">body</span>::<span class="ident">Bytes</span>, <span class="ident">hyper</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	},
 }
 
@@ -1595,7 +1592,7 @@
 					<span class="comment">// We received a response! Decompose it into its parts.</span>
 					<span class="kw">let</span> <span class="ident">status_code</span> <span class="op">=</span> <span class="ident">response</span>.<span class="ident">status</span>();
 					<span class="kw">let</span> <span class="ident">headers</span> <span class="op">=</span> <span class="ident">mem</span>::<span class="ident">replace</span>(<span class="ident">response</span>.<span class="ident">headers_mut</span>(), <span class="ident">hyper</span>::<span class="ident">HeaderMap</span>::<span class="ident">new</span>());
-					<span class="kw">let</span> <span class="ident">body</span> <span class="op">=</span> <span class="ident">Compat01As03</span>::<span class="ident">new</span>(<span class="ident">response</span>.<span class="ident">into_body</span>());
+					<span class="kw">let</span> <span class="ident">body</span> <span class="op">=</span> <span class="ident">response</span>.<span class="ident">into_body</span>();
 
 					<span class="kw">let</span> (<span class="ident">body_tx</span>, <span class="ident">body_rx</span>) <span class="op">=</span> <span class="ident">mpsc</span>::<span class="ident">channel</span>(<span class="number">3</span>);
 					<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">me</span>.<span class="ident">to_api</span>.<span class="ident">unbounded_send</span>(<span class="ident">WorkerToApi</span>::<span class="ident">Response</span> {
@@ -1647,7 +1644,7 @@
 			<span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> {},
 			<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(()),	<span class="comment">// stops the worker</span>
 			<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">ApiToWorker</span>::<span class="ident">Dispatch</span> { <span class="ident">id</span>, <span class="ident">request</span> })) <span class="op">=</span><span class="op">&gt;</span> {
-				<span class="kw">let</span> <span class="ident">future</span> <span class="op">=</span> <span class="ident">Compat01As03</span>::<span class="ident">new</span>(<span class="ident">me</span>.<span class="ident">http_client</span>.<span class="ident">request</span>(<span class="ident">request</span>));
+				<span class="kw">let</span> <span class="ident">future</span> <span class="op">=</span> <span class="ident">me</span>.<span class="ident">http_client</span>.<span class="ident">request</span>(<span class="ident">request</span>);
 				<span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">me</span>.<span class="ident">requests</span>.<span class="ident">iter</span>().<span class="ident">all</span>(<span class="op">|</span>(<span class="ident">i</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="kw-2">*</span><span class="ident">i</span> <span class="op">!</span><span class="op">=</span> <span class="ident">id</span>));
 				<span class="ident">me</span>.<span class="ident">requests</span>.<span class="ident">push</span>((<span class="ident">id</span>, <span class="ident">HttpWorkerRequest</span>::<span class="ident">Dispatched</span>(<span class="ident">future</span>)));
 				<span class="ident">cx</span>.<span class="ident">waker</span>().<span class="ident">wake_by_ref</span>();	<span class="comment">// reschedule the task to poll the request</span>
@@ -1679,31 +1676,36 @@
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span> {
+	<span class="kw">use</span> <span class="ident">core</span>::<span class="ident">convert</span>::<span class="ident">Infallible</span>;
 	<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">api</span>::<span class="ident">timestamp</span>;
 	<span class="kw">use</span> <span class="kw">super</span>::<span class="ident">http</span>;
-	<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
-	<span class="kw">use</span> <span class="ident">futures01</span>::<span class="ident">Future</span> <span class="kw">as</span> <span class="kw">_</span>;
 	<span class="kw">use</span> <span class="ident">sp_core</span>::<span class="ident">offchain</span>::{<span class="ident">HttpError</span>, <span class="ident">HttpRequestId</span>, <span class="ident">HttpRequestStatus</span>, <span class="ident">Duration</span>};
 
 	<span class="comment">// Returns an `HttpApi` whose worker is ran in the background, and a `SocketAddr` to an HTTP</span>
 	<span class="comment">// server that runs in the background as well.</span>
 	<span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">build_api_server</span> {
 		() <span class="op">=</span><span class="op">&gt;</span> {{
+			<span class="kw">fn</span> <span class="ident">tokio_run</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="ident">future</span>: <span class="kw">impl</span> <span class="ident">std</span>::<span class="ident">future</span>::<span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> <span class="ident">T</span><span class="op">&gt;</span>) {
+				<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">tokio</span>::<span class="ident">runtime</span>::<span class="ident">Runtime</span>::<span class="ident">new</span>().<span class="ident">unwrap</span>().<span class="ident">block_on</span>(<span class="ident">future</span>);
+			}
+
 			<span class="kw">let</span> (<span class="ident">api</span>, <span class="ident">worker</span>) <span class="op">=</span> <span class="ident">http</span>();
-			<span class="comment">// Note: we have to use tokio because hyper still uses old futures.</span>
-			<span class="ident">std</span>::<span class="ident">thread</span>::<span class="ident">spawn</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
-				<span class="ident">tokio</span>::<span class="ident">run</span>(<span class="ident">futures</span>::<span class="ident">compat</span>::<span class="ident">Compat</span>::<span class="ident">new</span>(<span class="ident">worker</span>.<span class="ident">map</span>(<span class="op">|</span>()<span class="op">|</span> <span class="prelude-val">Ok</span>::<span class="op">&lt;</span>(), ()<span class="op">&gt;</span>(()))))
-			});
+			<span class="ident">std</span>::<span class="ident">thread</span>::<span class="ident">spawn</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> <span class="ident">tokio_run</span>(<span class="ident">worker</span>));
+
 			<span class="kw">let</span> (<span class="ident">addr_tx</span>, <span class="ident">addr_rx</span>) <span class="op">=</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">mpsc</span>::<span class="ident">channel</span>();
 			<span class="ident">std</span>::<span class="ident">thread</span>::<span class="ident">spawn</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
-				<span class="kw">let</span> <span class="ident">server</span> <span class="op">=</span> <span class="ident">hyper</span>::<span class="ident">Server</span>::<span class="ident">bind</span>(<span class="kw-2">&amp;</span><span class="string">&quot;127.0.0.1:0&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>())
-					.<span class="ident">serve</span>(<span class="op">|</span><span class="op">|</span> {
-						<span class="ident">hyper</span>::<span class="ident">service</span>::<span class="ident">service_fn_ok</span>(<span class="kw">move</span> <span class="op">|</span><span class="kw">_</span>: <span class="ident">hyper</span>::<span class="ident">Request</span><span class="op">&lt;</span><span class="ident">hyper</span>::<span class="ident">Body</span><span class="op">&gt;</span><span class="op">|</span> {
-							<span class="ident">hyper</span>::<span class="ident">Response</span>::<span class="ident">new</span>(<span class="ident">hyper</span>::<span class="ident">Body</span>::<span class="ident">from</span>(<span class="string">&quot;Hello World!&quot;</span>))
-						})
-					});
-				<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">addr_tx</span>.<span class="ident">send</span>(<span class="ident">server</span>.<span class="ident">local_addr</span>());
-				<span class="ident">hyper</span>::<span class="ident">rt</span>::<span class="ident">run</span>(<span class="ident">server</span>.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">e</span>)));
+				<span class="ident">tokio_run</span>(<span class="kw">async</span> <span class="kw">move</span> {
+					<span class="kw">let</span> <span class="ident">server</span> <span class="op">=</span> <span class="ident">hyper</span>::<span class="ident">Server</span>::<span class="ident">bind</span>(<span class="kw-2">&amp;</span><span class="string">&quot;127.0.0.1:0&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>())
+						.<span class="ident">serve</span>(<span class="ident">hyper</span>::<span class="ident">service</span>::<span class="ident">make_service_fn</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> { <span class="kw">async</span> <span class="kw">move</span> {
+							<span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">Infallible</span><span class="op">&gt;</span>(<span class="ident">hyper</span>::<span class="ident">service</span>::<span class="ident">service_fn</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">_req</span><span class="op">|</span> <span class="kw">async</span> <span class="kw">move</span> {
+								<span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">Infallible</span><span class="op">&gt;</span>(
+									<span class="ident">hyper</span>::<span class="ident">Response</span>::<span class="ident">new</span>(<span class="ident">hyper</span>::<span class="ident">Body</span>::<span class="ident">from</span>(<span class="string">&quot;Hello World!&quot;</span>))
+								)
+							}))
+						}}));
+					<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">addr_tx</span>.<span class="ident">send</span>(<span class="ident">server</span>.<span class="ident">local_addr</span>());
+					<span class="ident">server</span>.<span class="kw">await</span>
+				});
 			});
 			(<span class="ident">api</span>, <span class="ident">addr_rx</span>.<span class="ident">recv</span>().<span class="ident">unwrap</span>())
 		}};
