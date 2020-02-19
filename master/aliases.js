@@ -109,6 +109,8 @@ ALIASES["fnv"] = {};
 ALIASES["foreign_types"] = {};
 ALIASES["foreign_types_shared"] = {};
 ALIASES["fork_tree"] = {};
+ALIASES["frame_benchmarking"] = {};
+ALIASES["frame_benchmarking_cli"] = {};
 ALIASES["frame_executive"] = {};
 ALIASES["frame_metadata"] = {};
 ALIASES["frame_support"] = {"!=":[{'crate':'frame_support','ty':8,'name':'Eq','desc':'Trait for equality comparisons which are equivalence…','p':'frame_support::dispatch'},{'crate':'frame_support','ty':8,'name':'PartialEq','desc':'Trait for equality comparisons which are partial…','p':'frame_support::dispatch'}],"{}":[{'crate':'frame_support','ty':8,'name':'Display','desc':'Format trait for an empty format, `{}`.','p':'frame_support::dispatch::fmt'}],"{:?}":[{'crate':'frame_support','ty':8,'name':'Debug','desc':'`?` formatting.','p':'frame_support::dispatch::fmt'}],"==":[{'crate':'frame_support','ty':8,'name':'Eq','desc':'Trait for equality comparisons which are equivalence…','p':'frame_support::dispatch'},{'crate':'frame_support','ty':8,'name':'PartialEq','desc':'Trait for equality comparisons which are partial…','p':'frame_support::dispatch'}],};
