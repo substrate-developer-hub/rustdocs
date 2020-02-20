@@ -280,6 +280,7 @@ ALIASES["pallet_elections"] = {};
 ALIASES["pallet_elections_phragmen"] = {};
 ALIASES["pallet_evm"] = {};
 ALIASES["pallet_example"] = {};
+ALIASES["pallet_example_offchain_worker"] = {};
 ALIASES["pallet_finality_tracker"] = {};
 ALIASES["pallet_generic_asset"] = {};
 ALIASES["pallet_grandpa"] = {};

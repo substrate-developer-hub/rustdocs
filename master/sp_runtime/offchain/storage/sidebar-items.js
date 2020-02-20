@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["StorageValueRef","An abstraction over local storage value."]],"type":[["StorageValue","A storage value with a static key."]]});
+initSidebarItems({"struct":[["InMemOffchainStorage","In-memory storage for offchain workers."]]});
