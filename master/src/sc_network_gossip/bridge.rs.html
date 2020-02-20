@@ -235,7 +235,6 @@
 <span id="224">224</span>
 <span id="225">225</span>
 <span id="226">226</span>
-<span id="227">227</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -259,8 +258,7 @@
 <span class="kw">use</span> <span class="ident">sc_network</span>::<span class="ident">message</span>::<span class="ident">generic</span>::<span class="ident">ConsensusMessage</span>;
 <span class="kw">use</span> <span class="ident">sc_network</span>::{<span class="ident">Event</span>, <span class="ident">ReputationChange</span>};
 
-<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">channel</span>::<span class="ident">mpsc</span>, <span class="ident">compat</span>::<span class="ident">Compat01As03</span>};
-<span class="kw">use</span> <span class="ident">futures01</span>::<span class="ident">stream</span>::<span class="ident">Stream</span> <span class="kw">as</span> <span class="ident">Stream01</span>;
+<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">channel</span>::<span class="ident">mpsc</span>};
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">PeerId</span>;
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">Mutex</span>;
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::{<span class="ident">traits</span>::<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">ConsensusEngineId</span>};
@@ -277,7 +275,7 @@
 	<span class="ident">state_machine</span>: <span class="ident">ConsensusGossip</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 	<span class="ident">network</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Network</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span>,
 	<span class="ident">periodic_maintenance_interval</span>: <span class="ident">futures_timer</span>::<span class="ident">Delay</span>,
-	<span class="ident">network_event_stream</span>: <span class="ident">Compat01As03</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Stream01</span><span class="op">&lt;</span><span class="ident">Error</span> <span class="op">=</span> (), <span class="ident">Item</span> <span class="op">=</span> <span class="ident">Event</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">network_event_stream</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">Event</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">engine_id</span>: <span class="ident">ConsensusEngineId</span>,
 }
 
@@ -303,7 +301,7 @@
 			<span class="ident">state_machine</span>,
 			<span class="ident">network</span>: <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">network</span>),
 			<span class="ident">periodic_maintenance_interval</span>: <span class="ident">futures_timer</span>::<span class="ident">Delay</span>::<span class="ident">new</span>(<span class="ident">PERIODIC_MAINTENANCE_INTERVAL</span>),
-			<span class="ident">network_event_stream</span>: <span class="ident">Compat01As03</span>::<span class="ident">new</span>(<span class="ident">network_event_stream</span>),
+			<span class="ident">network_event_stream</span>,
 			<span class="ident">engine_id</span>,
 		}));
 
@@ -417,7 +415,7 @@
 	<span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Output</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">this</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="self">self</span>;
 
-		<span class="kw">while</span> <span class="kw">let</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">event</span>))) <span class="op">=</span> <span class="ident">this</span>.<span class="ident">network_event_stream</span>.<span class="ident">poll_next_unpin</span>(<span class="ident">cx</span>) {
+		<span class="kw">while</span> <span class="kw">let</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">event</span>)) <span class="op">=</span> <span class="ident">this</span>.<span class="ident">network_event_stream</span>.<span class="ident">poll_next_unpin</span>(<span class="ident">cx</span>) {
 			<span class="kw">match</span> <span class="ident">event</span> {
 				<span class="ident">Event</span>::<span class="ident">NotificationStreamOpened</span> { <span class="ident">remote</span>, <span class="ident">engine_id</span>: <span class="ident">msg_engine_id</span>, <span class="ident">roles</span> } <span class="op">=</span><span class="op">&gt;</span> {
 					<span class="kw">if</span> <span class="ident">msg_engine_id</span> <span class="op">!</span><span class="op">=</span> <span class="ident">this</span>.<span class="ident">engine_id</span> {

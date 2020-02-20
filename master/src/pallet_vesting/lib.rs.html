@@ -865,13 +865,13 @@
 	<span class="kw">type</span> <span class="ident">Currency</span> <span class="op">=</span> <span class="ident">T</span>::<span class="ident">Currency</span>;
 
 	<span class="doccomment">/// Get the amount that is currently being vested and cannot be transferred out of this account.</span>
-	<span class="kw">fn</span> <span class="ident">vesting_balance</span>(<span class="ident">who</span>: <span class="kw-2">&amp;</span><span class="ident">T</span>::<span class="ident">AccountId</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">BalanceOf</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">vesting_balance</span>(<span class="ident">who</span>: <span class="kw-2">&amp;</span><span class="ident">T</span>::<span class="ident">AccountId</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">BalanceOf</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">v</span>) <span class="op">=</span> <span class="self">Self</span>::<span class="ident">vesting</span>(<span class="ident">who</span>) {
 			<span class="kw">let</span> <span class="ident">now</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">frame_system</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">block_number</span>();
 			<span class="kw">let</span> <span class="ident">locked_now</span> <span class="op">=</span> <span class="ident">v</span>.<span class="ident">locked_at</span>::<span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">BlockNumberToBalance</span><span class="op">&gt;</span>(<span class="ident">now</span>);
-			<span class="ident">T</span>::<span class="ident">Currency</span>::<span class="ident">free_balance</span>(<span class="ident">who</span>).<span class="ident">min</span>(<span class="ident">locked_now</span>)
+			<span class="prelude-val">Some</span>(<span class="ident">T</span>::<span class="ident">Currency</span>::<span class="ident">free_balance</span>(<span class="ident">who</span>).<span class="ident">min</span>(<span class="ident">locked_now</span>))
 		} <span class="kw">else</span> {
-			<span class="ident">Zero</span>::<span class="ident">zero</span>()
+			<span class="prelude-val">None</span>
 		}
 	}
 
@@ -1112,28 +1112,28 @@
 				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting</span>(<span class="kw-2">&amp;</span><span class="number">12</span>), <span class="prelude-val">Some</span>(<span class="ident">user12_vesting_schedule</span>)); <span class="comment">// Account 12 has a vesting schedule</span>
 
 				<span class="comment">// Account 1 has only 128 units vested from their illiquid 256 * 5 units at block 1</span>
-				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">1</span>), <span class="number">128</span> <span class="op">*</span> <span class="number">9</span>);
+				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">1</span>), <span class="prelude-val">Some</span>(<span class="number">128</span> <span class="op">*</span> <span class="number">9</span>));
 				<span class="comment">// Account 2 has their full balance locked</span>
-				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">2</span>), <span class="ident">user2_free_balance</span>);
+				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">2</span>), <span class="prelude-val">Some</span>(<span class="ident">user2_free_balance</span>));
 				<span class="comment">// Account 12 has only their illiquid funds locked</span>
-				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">12</span>), <span class="ident">user12_free_balance</span> <span class="op">-</span> <span class="number">256</span> <span class="op">*</span> <span class="number">5</span>);
+				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">12</span>), <span class="prelude-val">Some</span>(<span class="ident">user12_free_balance</span> <span class="op">-</span> <span class="number">256</span> <span class="op">*</span> <span class="number">5</span>));
 
 				<span class="ident">System</span>::<span class="ident">set_block_number</span>(<span class="number">10</span>);
 				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">System</span>::<span class="ident">block_number</span>(), <span class="number">10</span>);
 
 				<span class="comment">// Account 1 has fully vested by block 10</span>
-				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">1</span>), <span class="number">0</span>);
+				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">1</span>), <span class="prelude-val">Some</span>(<span class="number">0</span>));
 				<span class="comment">// Account 2 has started vesting by block 10</span>
-				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">2</span>), <span class="ident">user2_free_balance</span>);
+				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">2</span>), <span class="prelude-val">Some</span>(<span class="ident">user2_free_balance</span>));
 				<span class="comment">// Account 12 has started vesting by block 10</span>
-				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">12</span>), <span class="ident">user12_free_balance</span> <span class="op">-</span> <span class="number">256</span> <span class="op">*</span> <span class="number">5</span>);
+				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">12</span>), <span class="prelude-val">Some</span>(<span class="ident">user12_free_balance</span> <span class="op">-</span> <span class="number">256</span> <span class="op">*</span> <span class="number">5</span>));
 
 				<span class="ident">System</span>::<span class="ident">set_block_number</span>(<span class="number">30</span>);
 				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">System</span>::<span class="ident">block_number</span>(), <span class="number">30</span>);
 
-				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">1</span>), <span class="number">0</span>); <span class="comment">// Account 1 is still fully vested, and not negative</span>
-				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">2</span>), <span class="number">0</span>); <span class="comment">// Account 2 has fully vested by block 30</span>
-				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">12</span>), <span class="number">0</span>); <span class="comment">// Account 2 has fully vested by block 30</span>
+				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">1</span>), <span class="prelude-val">Some</span>(<span class="number">0</span>)); <span class="comment">// Account 1 is still fully vested, and not negative</span>
+				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">2</span>), <span class="prelude-val">Some</span>(<span class="number">0</span>)); <span class="comment">// Account 2 has fully vested by block 30</span>
+				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">12</span>), <span class="prelude-val">Some</span>(<span class="number">0</span>)); <span class="comment">// Account 2 has fully vested by block 30</span>
 
 			});
 	}
@@ -1148,7 +1148,7 @@
 				<span class="kw">let</span> <span class="ident">user1_free_balance</span> <span class="op">=</span> <span class="ident">Balances</span>::<span class="ident">free_balance</span>(<span class="kw-2">&amp;</span><span class="number">1</span>);
 				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">user1_free_balance</span>, <span class="number">100</span>); <span class="comment">// Account 1 has free balance</span>
 				<span class="comment">// Account 1 has only 5 units vested at block 1 (plus 50 unvested)</span>
-				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">1</span>), <span class="number">45</span>);
+				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">1</span>), <span class="prelude-val">Some</span>(<span class="number">45</span>));
 				<span class="macro">assert_noop</span><span class="macro">!</span>(
 					<span class="ident">Balances</span>::<span class="ident">transfer</span>(<span class="prelude-val">Some</span>(<span class="number">1</span>).<span class="ident">into</span>(), <span class="number">2</span>, <span class="number">56</span>),
 					<span class="ident">pallet_balances</span>::<span class="ident">Error</span>::<span class="op">&lt;</span><span class="ident">Test</span>, <span class="kw">_</span><span class="op">&gt;</span>::<span class="ident">LiquidityRestrictions</span>,
@@ -1166,7 +1166,7 @@
 				<span class="kw">let</span> <span class="ident">user1_free_balance</span> <span class="op">=</span> <span class="ident">Balances</span>::<span class="ident">free_balance</span>(<span class="kw-2">&amp;</span><span class="number">1</span>);
 				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">user1_free_balance</span>, <span class="number">100</span>); <span class="comment">// Account 1 has free balance</span>
 				<span class="comment">// Account 1 has only 5 units vested at block 1 (plus 50 unvested)</span>
-				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">1</span>), <span class="number">45</span>);
+				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">1</span>), <span class="prelude-val">Some</span>(<span class="number">45</span>));
 				<span class="macro">assert_ok</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vest</span>(<span class="prelude-val">Some</span>(<span class="number">1</span>).<span class="ident">into</span>()));
 				<span class="macro">assert_ok</span><span class="macro">!</span>(<span class="ident">Balances</span>::<span class="ident">transfer</span>(<span class="prelude-val">Some</span>(<span class="number">1</span>).<span class="ident">into</span>(), <span class="number">2</span>, <span class="number">55</span>));
 			});
@@ -1182,7 +1182,7 @@
 				<span class="kw">let</span> <span class="ident">user1_free_balance</span> <span class="op">=</span> <span class="ident">Balances</span>::<span class="ident">free_balance</span>(<span class="kw-2">&amp;</span><span class="number">1</span>);
 				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">user1_free_balance</span>, <span class="number">100</span>); <span class="comment">// Account 1 has free balance</span>
 				<span class="comment">// Account 1 has only 5 units vested at block 1 (plus 50 unvested)</span>
-				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">1</span>), <span class="number">45</span>);
+				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">1</span>), <span class="prelude-val">Some</span>(<span class="number">45</span>));
 				<span class="macro">assert_ok</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vest_other</span>(<span class="prelude-val">Some</span>(<span class="number">2</span>).<span class="ident">into</span>(), <span class="number">1</span>));
 				<span class="macro">assert_ok</span><span class="macro">!</span>(<span class="ident">Balances</span>::<span class="ident">transfer</span>(<span class="prelude-val">Some</span>(<span class="number">1</span>).<span class="ident">into</span>(), <span class="number">2</span>, <span class="number">55</span>));
 			});
@@ -1205,12 +1205,12 @@
 				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">user2_free_balance</span>, <span class="number">300</span>); <span class="comment">// Account 2 has 100 more free balance than normal</span>
 
 				<span class="comment">// Account 1 has only 5 units vested at block 1 (plus 150 unvested)</span>
-				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">1</span>), <span class="number">45</span>);
+				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">1</span>), <span class="prelude-val">Some</span>(<span class="number">45</span>));
 				<span class="macro">assert_ok</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vest</span>(<span class="prelude-val">Some</span>(<span class="number">1</span>).<span class="ident">into</span>()));
 				<span class="macro">assert_ok</span><span class="macro">!</span>(<span class="ident">Balances</span>::<span class="ident">transfer</span>(<span class="prelude-val">Some</span>(<span class="number">1</span>).<span class="ident">into</span>(), <span class="number">3</span>, <span class="number">155</span>)); <span class="comment">// Account 1 can send extra units gained</span>
 
 				<span class="comment">// Account 2 has no units vested at block 1, but gained 100</span>
-				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">2</span>), <span class="number">200</span>);
+				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">2</span>), <span class="prelude-val">Some</span>(<span class="number">200</span>));
 				<span class="macro">assert_ok</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vest</span>(<span class="prelude-val">Some</span>(<span class="number">2</span>).<span class="ident">into</span>()));
 				<span class="macro">assert_ok</span><span class="macro">!</span>(<span class="ident">Balances</span>::<span class="ident">transfer</span>(<span class="prelude-val">Some</span>(<span class="number">2</span>).<span class="ident">into</span>(), <span class="number">3</span>, <span class="number">100</span>)); <span class="comment">// Account 2 can send extra units gained</span>
 			});
@@ -1227,7 +1227,7 @@
 
 				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">user12_free_balance</span>, <span class="number">2560</span>); <span class="comment">// Account 12 has free balance</span>
 				<span class="comment">// Account 12 has liquid funds</span>
-				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">12</span>), <span class="ident">user12_free_balance</span> <span class="op">-</span> <span class="number">256</span> <span class="op">*</span> <span class="number">5</span>);
+				<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vesting</span>::<span class="ident">vesting_balance</span>(<span class="kw-2">&amp;</span><span class="number">12</span>), <span class="prelude-val">Some</span>(<span class="ident">user12_free_balance</span> <span class="op">-</span> <span class="number">256</span> <span class="op">*</span> <span class="number">5</span>));
 
 				<span class="comment">// Account 12 has delayed vesting</span>
 				<span class="kw">let</span> <span class="ident">user12_vesting_schedule</span> <span class="op">=</span> <span class="ident">VestingInfo</span> {
