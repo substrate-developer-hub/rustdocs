@@ -1,1 +1,1 @@
-initSidebarItems({"fn":[["main",""]],"mod":[["chain_spec",""],["cli",""],["command",""],["error","Initialization errors."],["service","Service and ServiceFactory implementation. Specialized wrapper over substrate service."]],"struct":[["VersionInfo","Executable version. Used to pass version information from the root crate."]]});
+initSidebarItems({"fn":[["main",""]],"mod":[["chain_spec",""],["cli",""],["command",""],["service","Service and ServiceFactory implementation. Specialized wrapper over substrate service."]]});
