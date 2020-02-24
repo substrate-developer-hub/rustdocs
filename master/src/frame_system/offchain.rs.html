@@ -373,6 +373,7 @@
 <span id="362">362</span>
 <span id="363">363</span>
 <span id="364">364</span>
+<span id="365">365</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -504,19 +505,20 @@
 	<span class="kw">fn</span> <span class="ident">sign_and_submit</span>(<span class="ident">call</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">Call</span><span class="op">&gt;</span>, <span class="ident">public</span>: <span class="ident">PublicOf</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">Call</span>, <span class="self">Self</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), ()<span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">call</span> <span class="op">=</span> <span class="ident">call</span>.<span class="ident">into</span>();
 		<span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="ident">public</span>.<span class="ident">clone</span>().<span class="ident">into_account</span>();
-		<span class="kw">let</span> (<span class="ident">expected_nonce</span>, <span class="ident">extra</span>) <span class="op">=</span> <span class="kw">super</span>::<span class="ident">Account</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>::<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>);
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">account</span> <span class="op">=</span> <span class="kw">super</span>::<span class="ident">Account</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>::<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>);
 		<span class="ident">debug</span>::<span class="ident">native</span>::<span class="macro">debug</span><span class="macro">!</span>(
 			<span class="ident">target</span>: <span class="string">&quot;offchain&quot;</span>,
 			<span class="string">&quot;Creating signed transaction from account: {:?} (nonce: {:?})&quot;</span>,
 			<span class="ident">id</span>,
-			<span class="ident">expected_nonce</span>,
+			<span class="ident">account</span>.<span class="ident">nonce</span>,
 		);
 		<span class="kw">let</span> (<span class="ident">call</span>, <span class="ident">signature_data</span>) <span class="op">=</span> <span class="self">Self</span>::<span class="ident">CreateTransaction</span>
-			::<span class="ident">create_transaction</span>::<span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Signer</span><span class="op">&gt;</span>(<span class="ident">call</span>, <span class="ident">public</span>, <span class="ident">id</span>.<span class="ident">clone</span>(), <span class="ident">expected_nonce</span>)
+			::<span class="ident">create_transaction</span>::<span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Signer</span><span class="op">&gt;</span>(<span class="ident">call</span>, <span class="ident">public</span>, <span class="ident">id</span>.<span class="ident">clone</span>(), <span class="ident">account</span>.<span class="ident">nonce</span>)
 			.<span class="ident">ok_or</span>(())<span class="question-mark">?</span>;
 		<span class="comment">// increment the nonce. This is fine, since the code should always</span>
 		<span class="comment">// be running in off-chain context, so we NEVER persists data.</span>
-		<span class="kw">super</span>::<span class="ident">Account</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>::<span class="ident">insert</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>, (<span class="ident">expected_nonce</span> <span class="op">+</span> <span class="ident">One</span>::<span class="ident">one</span>(), <span class="ident">extra</span>));
+		<span class="ident">account</span>.<span class="ident">nonce</span> <span class="op">+</span><span class="op">=</span> <span class="ident">One</span>::<span class="ident">one</span>();
+		<span class="kw">super</span>::<span class="ident">Account</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>::<span class="ident">insert</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>, <span class="ident">account</span>);
 
 		<span class="kw">let</span> <span class="ident">xt</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">Extrinsic</span>::<span class="ident">new</span>(<span class="ident">call</span>, <span class="prelude-val">Some</span>(<span class="ident">signature_data</span>)).<span class="ident">ok_or</span>(())<span class="question-mark">?</span>;
 		<span class="ident">sp_io</span>::<span class="ident">offchain</span>::<span class="ident">submit_transaction</span>(<span class="ident">xt</span>.<span class="ident">encode</span>())
