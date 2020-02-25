@@ -519,7 +519,6 @@ ALIASES["sysinfo"] = {};
 ALIASES["take_mut"] = {};
 ALIASES["target_info"] = {};
 ALIASES["target_lexicon"] = {};
-ALIASES["tempdir"] = {};
 ALIASES["tempfile"] = {};
 ALIASES["termcolor"] = {};
 ALIASES["textwrap"] = {};
