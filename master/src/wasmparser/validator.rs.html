@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/wasmparser-0.48.2/src/validator.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>validator.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/wasmparser-0.51.1/src/validator.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>validator.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -955,6 +955,26 @@
 <span id="944">944</span>
 <span id="945">945</span>
 <span id="946">946</span>
+<span id="947">947</span>
+<span id="948">948</span>
+<span id="949">949</span>
+<span id="950">950</span>
+<span id="951">951</span>
+<span id="952">952</span>
+<span id="953">953</span>
+<span id="954">954</span>
+<span id="955">955</span>
+<span id="956">956</span>
+<span id="957">957</span>
+<span id="958">958</span>
+<span id="959">959</span>
+<span id="960">960</span>
+<span id="961">961</span>
+<span id="962">962</span>
+<span id="963">963</span>
+<span id="964">964</span>
+<span id="965">965</span>
+<span id="966">966</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">/* Copyright 2018 Mozilla Foundation
  *
@@ -988,8 +1008,8 @@
 };
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">operators_validator</span>::{
-    <span class="ident">is_subtype_supertype</span>, <span class="ident">FunctionEnd</span>, <span class="ident">OperatorValidator</span>, <span class="ident">OperatorValidatorConfig</span>,
-    <span class="ident">DEFAULT_OPERATOR_VALIDATOR_CONFIG</span>,
+    <span class="ident">check_value_type</span>, <span class="ident">is_subtype_supertype</span>, <span class="ident">FunctionEnd</span>, <span class="ident">OperatorValidator</span>,
+    <span class="ident">OperatorValidatorConfig</span>, <span class="ident">OperatorValidatorError</span>, <span class="ident">DEFAULT_OPERATOR_VALIDATOR_CONFIG</span>,
 };
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">parser</span>::{<span class="ident">Parser</span>, <span class="ident">ParserInput</span>, <span class="ident">ParserState</span>, <span class="ident">WasmDecoder</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">ElemSectionEntryTable</span>, <span class="ident">ElementItem</span>};
@@ -1149,37 +1169,30 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">resources</span>
     }
 
-    <span class="kw">fn</span> <span class="ident">set_validation_error</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>) {
-        <span class="self">self</span>.<span class="ident">validation_error</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">ParserState</span>::<span class="ident">Error</span>(<span class="ident">BinaryReaderError</span> {
+    <span class="kw">fn</span> <span class="ident">set_validation_error</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">message</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>) {
+        <span class="self">self</span>.<span class="ident">validation_error</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">ParserState</span>::<span class="ident">Error</span>(<span class="ident">BinaryReaderError</span>::<span class="ident">new</span>(
             <span class="ident">message</span>,
-            <span class="ident">offset</span>: <span class="self">self</span>.<span class="ident">read_position</span>.<span class="ident">unwrap</span>(),
-        }))
+            <span class="self">self</span>.<span class="ident">read_position</span>.<span class="ident">unwrap</span>(),
+        )))
     }
 
-    <span class="kw">fn</span> <span class="ident">create_error</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ValidatorResult</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Err</span>(<span class="ident">ParserState</span>::<span class="ident">Error</span>(<span class="ident">BinaryReaderError</span> {
+    <span class="kw">fn</span> <span class="ident">set_operator_validation_error</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">e</span>: <span class="ident">OperatorValidatorError</span>) {
+        <span class="kw">let</span> <span class="ident">offset</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">read_position</span>.<span class="ident">unwrap</span>();
+        <span class="self">self</span>.<span class="ident">validation_error</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">ParserState</span>::<span class="ident">Error</span>(<span class="ident">e</span>.<span class="ident">set_offset</span>(<span class="ident">offset</span>)));
+    }
+
+    <span class="kw">fn</span> <span class="ident">create_error</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">message</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ValidatorResult</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span> {
+        <span class="prelude-val">Err</span>(<span class="ident">ParserState</span>::<span class="ident">Error</span>(<span class="ident">BinaryReaderError</span>::<span class="ident">new</span>(
             <span class="ident">message</span>,
-            <span class="ident">offset</span>: <span class="self">self</span>.<span class="ident">read_position</span>.<span class="ident">unwrap</span>(),
-        }))
+            <span class="self">self</span>.<span class="ident">read_position</span>.<span class="ident">unwrap</span>(),
+        )))
     }
 
     <span class="kw">fn</span> <span class="ident">check_value_type</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">ty</span>: <span class="ident">Type</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ValidatorResult</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, ()<span class="op">&gt;</span> {
-        <span class="kw">match</span> <span class="ident">ty</span> {
-            <span class="ident">Type</span>::<span class="ident">I32</span> <span class="op">|</span> <span class="ident">Type</span>::<span class="ident">I64</span> <span class="op">|</span> <span class="ident">Type</span>::<span class="ident">F32</span> <span class="op">|</span> <span class="ident">Type</span>::<span class="ident">F64</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
-            <span class="ident">Type</span>::<span class="ident">NullRef</span> <span class="op">|</span> <span class="ident">Type</span>::<span class="ident">AnyFunc</span> <span class="op">|</span> <span class="ident">Type</span>::<span class="ident">AnyRef</span> <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">config</span>.<span class="ident">operator_config</span>.<span class="ident">enable_reference_types</span> {
-                    <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;reference types support is not enabled&quot;</span>);
-                }
-                <span class="prelude-val">Ok</span>(())
-            }
-            <span class="ident">Type</span>::<span class="ident">V128</span> <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">config</span>.<span class="ident">operator_config</span>.<span class="ident">enable_simd</span> {
-                    <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;SIMD support is not enabled&quot;</span>);
-                }
-                <span class="prelude-val">Ok</span>(())
-            }
-            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;invalid value type&quot;</span>),
-        }
+        <span class="ident">check_value_type</span>(<span class="ident">ty</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">config</span>.<span class="ident">operator_config</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
+            <span class="kw">let</span> <span class="ident">offset</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">read_position</span>.<span class="ident">unwrap</span>();
+            <span class="ident">ParserState</span>::<span class="ident">Error</span>(<span class="ident">e</span>.<span class="ident">set_offset</span>(<span class="ident">offset</span>))
+        })
     }
 
     <span class="kw">fn</span> <span class="ident">check_value_types</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">types</span>: <span class="kw-2">&amp;</span>[<span class="ident">Type</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ValidatorResult</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, ()<span class="op">&gt;</span> {
@@ -1191,7 +1204,7 @@
 
     <span class="kw">fn</span> <span class="ident">check_limits</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">limits</span>: <span class="kw-2">&amp;</span><span class="ident">ResizableLimits</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ValidatorResult</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, ()<span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">limits</span>.<span class="ident">maximum</span>.<span class="ident">is_some</span>() <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">limits</span>.<span class="ident">initial</span> <span class="op">&gt;</span> <span class="ident">limits</span>.<span class="ident">maximum</span>.<span class="ident">unwrap</span>() {
-            <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;maximum limits less than initial&quot;</span>);
+            <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;size minimum must not be greater than maximum&quot;</span>);
         }
         <span class="prelude-val">Ok</span>(())
     }
@@ -1201,7 +1214,7 @@
             <span class="self">self</span>.<span class="ident">check_value_types</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">func_type</span>.<span class="ident">params</span>)<span class="question-mark">?</span>;
             <span class="self">self</span>.<span class="ident">check_value_types</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">func_type</span>.<span class="ident">returns</span>)<span class="question-mark">?</span>;
             <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">config</span>.<span class="ident">operator_config</span>.<span class="ident">enable_multi_value</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">func_type</span>.<span class="ident">returns</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="number">1</span> {
-                <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;func type returns multiple values&quot;</span>)
+                <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;invalid result arity: func type returns multiple values&quot;</span>)
             } <span class="kw">else</span> {
                 <span class="prelude-val">Ok</span>(())
             }
@@ -1226,11 +1239,11 @@
         <span class="self">self</span>.<span class="ident">check_limits</span>(<span class="kw-2">&amp;</span><span class="ident">memory_type</span>.<span class="ident">limits</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">initial</span> <span class="op">=</span> <span class="ident">memory_type</span>.<span class="ident">limits</span>.<span class="ident">initial</span>;
         <span class="kw">if</span> <span class="ident">initial</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">&gt;</span> <span class="ident">MAX_WASM_MEMORY_PAGES</span> {
-            <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;memory initial value exceeds limit&quot;</span>);
+            <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;memory size must be at most 65536 pages (4GiB)&quot;</span>);
         }
         <span class="kw">let</span> <span class="ident">maximum</span> <span class="op">=</span> <span class="ident">memory_type</span>.<span class="ident">limits</span>.<span class="ident">maximum</span>;
         <span class="kw">if</span> <span class="ident">maximum</span>.<span class="ident">is_some</span>() <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">maximum</span>.<span class="ident">unwrap</span>() <span class="kw">as</span> <span class="ident">usize</span> <span class="op">&gt;</span> <span class="ident">MAX_WASM_MEMORY_PAGES</span> {
-            <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;memory maximum value exceeds limit&quot;</span>);
+            <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;memory size must be at most 65536 pages (4GiB)&quot;</span>);
         }
         <span class="prelude-val">Ok</span>(())
     }
@@ -1246,7 +1259,7 @@
                     <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;functions count out of bounds&quot;</span>);
                 }
                 <span class="kw">if</span> <span class="ident">type_index</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">resources</span>.<span class="ident">types</span>.<span class="ident">len</span>() {
-                    <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;type index out of bounds&quot;</span>);
+                    <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;unknown type: type index out of bounds&quot;</span>);
                 }
                 <span class="prelude-val">Ok</span>(())
             }
@@ -1254,13 +1267,13 @@
                 <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">config</span>.<span class="ident">operator_config</span>.<span class="ident">enable_reference_types</span>
                     <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="self">self</span>.<span class="ident">resources</span>.<span class="ident">tables</span>.<span class="ident">len</span>() <span class="op">&gt;</span><span class="op">=</span> <span class="ident">MAX_WASM_TABLES</span>
                 {
-                    <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;tables count must be at most 1&quot;</span>);
+                    <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;multiple tables: tables count must be at most 1&quot;</span>);
                 }
                 <span class="self">self</span>.<span class="ident">check_table_type</span>(<span class="ident">table_type</span>)
             }
             <span class="ident">ImportSectionEntryType</span>::<span class="ident">Memory</span>(<span class="kw-2">ref</span> <span class="ident">memory_type</span>) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">if</span> <span class="self">self</span>.<span class="ident">resources</span>.<span class="ident">memories</span>.<span class="ident">len</span>() <span class="op">&gt;</span><span class="op">=</span> <span class="ident">MAX_WASM_MEMORIES</span> {
-                    <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;memory count must be at most 1&quot;</span>);
+                    <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;multiple memories: memory count must be at most 1&quot;</span>);
                 }
                 <span class="self">self</span>.<span class="ident">check_memory_type</span>(<span class="ident">memory_type</span>)
             }
@@ -1276,7 +1289,9 @@
     <span class="kw">fn</span> <span class="ident">check_init_expression_operator</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">operator</span>: <span class="kw-2">&amp;</span><span class="ident">Operator</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ValidatorResult</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, ()<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">state</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">init_expression_state</span>.<span class="ident">as_ref</span>().<span class="ident">unwrap</span>();
         <span class="kw">if</span> <span class="ident">state</span>.<span class="ident">validated</span> {
-            <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;only one init_expr operator is expected&quot;</span>);
+            <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(
+                <span class="string">&quot;constant expression required: type mismatch: only one init_expr operator is expected&quot;</span>,
+            );
         }
         <span class="kw">let</span> <span class="ident">ty</span> <span class="op">=</span> <span class="kw">match</span> <span class="kw-2">*</span><span class="ident">operator</span> {
             <span class="ident">Operator</span>::<span class="ident">I32Const</span> { .. } <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Type</span>::<span class="ident">I32</span>,
@@ -1297,20 +1312,27 @@
             }
             <span class="ident">Operator</span>::<span class="ident">GlobalGet</span> { <span class="ident">global_index</span> } <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">if</span> <span class="ident">global_index</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">state</span>.<span class="ident">global_count</span> {
-                    <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;init_expr global index out of bounds&quot;</span>);
+                    <span class="kw">return</span> <span class="self">self</span>
+                        .<span class="ident">create_error</span>(<span class="string">&quot;unknown global: init_expr global index out of bounds&quot;</span>);
                 }
                 <span class="self">self</span>.<span class="ident">resources</span>.<span class="ident">globals</span>[<span class="ident">global_index</span> <span class="kw">as</span> <span class="ident">usize</span>].<span class="ident">content_type</span>
             }
             <span class="ident">Operator</span>::<span class="ident">RefFunc</span> { <span class="ident">function_index</span> } <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">if</span> <span class="ident">function_index</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">state</span>.<span class="ident">function_count</span> {
-                    <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;init_expr function index out of bounds&quot;</span>);
+                    <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="macro">format</span><span class="macro">!</span>(
+                        <span class="string">&quot;unknown function {}: init_expr function index out of bounds&quot;</span>,
+                        <span class="ident">function_index</span>
+                    ));
                 }
                 <span class="ident">Type</span>::<span class="ident">AnyFunc</span>
             }
-            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;invalid init_expr operator&quot;</span>),
+            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="kw">return</span> <span class="self">self</span>
+                    .<span class="ident">create_error</span>(<span class="string">&quot;constant expression required: invalid init_expr operator&quot;</span>)
+            }
         };
         <span class="kw">if</span> <span class="op">!</span><span class="ident">is_subtype_supertype</span>(<span class="ident">ty</span>, <span class="ident">state</span>.<span class="ident">ty</span>) {
-            <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;invalid init_expr type&quot;</span>);
+            <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;type mismatch: invalid init_expr type&quot;</span>);
         }
         <span class="prelude-val">Ok</span>(())
     }
@@ -1322,27 +1344,30 @@
         <span class="ident">index</span>: <span class="ident">u32</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ValidatorResult</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, ()<span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">exported_names</span>.<span class="ident">contains</span>(<span class="ident">field</span>) {
-            <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;non-unique export name&quot;</span>);
+            <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;duplicate export name&quot;</span>);
         }
         <span class="kw">match</span> <span class="ident">kind</span> {
             <span class="ident">ExternalKind</span>::<span class="ident">Function</span> <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">if</span> <span class="ident">index</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">resources</span>.<span class="ident">func_type_indices</span>.<span class="ident">len</span>() {
-                    <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;exported function index out of bounds&quot;</span>);
+                    <span class="kw">return</span> <span class="self">self</span>
+                        .<span class="ident">create_error</span>(<span class="string">&quot;unknown function: exported function index out of bounds&quot;</span>);
                 }
             }
             <span class="ident">ExternalKind</span>::<span class="ident">Table</span> <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">if</span> <span class="ident">index</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">resources</span>.<span class="ident">tables</span>.<span class="ident">len</span>() {
-                    <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;exported table index out of bounds&quot;</span>);
+                    <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;unknown table: exported table index out of bounds&quot;</span>);
                 }
             }
             <span class="ident">ExternalKind</span>::<span class="ident">Memory</span> <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">if</span> <span class="ident">index</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">resources</span>.<span class="ident">memories</span>.<span class="ident">len</span>() {
-                    <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;exported memory index out of bounds&quot;</span>);
+                    <span class="kw">return</span> <span class="self">self</span>
+                        .<span class="ident">create_error</span>(<span class="string">&quot;unknown memory: exported memory index out of bounds&quot;</span>);
                 }
             }
             <span class="ident">ExternalKind</span>::<span class="ident">Global</span> <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">if</span> <span class="ident">index</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">resources</span>.<span class="ident">globals</span>.<span class="ident">len</span>() {
-                    <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;exported global index out of bounds&quot;</span>);
+                    <span class="kw">return</span> <span class="self">self</span>
+                        .<span class="ident">create_error</span>(<span class="string">&quot;unknown global: exported global index out of bounds&quot;</span>);
                 }
             }
         };
@@ -1351,7 +1376,7 @@
 
     <span class="kw">fn</span> <span class="ident">check_start</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">func_index</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ValidatorResult</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, ()<span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">func_index</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">resources</span>.<span class="ident">func_type_indices</span>.<span class="ident">len</span>() {
-            <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;start function index out of bounds&quot;</span>);
+            <span class="kw">return</span> <span class="self">self</span>.<span class="ident">create_error</span>(<span class="string">&quot;unknown function: start function index out of bounds&quot;</span>);
         }
         <span class="kw">let</span> <span class="ident">type_index</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">resources</span>.<span class="ident">func_type_indices</span>[<span class="ident">func_index</span> <span class="kw">as</span> <span class="ident">usize</span>];
         <span class="kw">let</span> <span class="ident">ty</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">resources</span>.<span class="ident">types</span>[<span class="ident">type_index</span> <span class="kw">as</span> <span class="ident">usize</span>];
@@ -1430,7 +1455,7 @@
             }
             <span class="ident">ParserState</span>::<span class="ident">FunctionSectionEntry</span>(<span class="ident">type_index</span>) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">if</span> <span class="ident">type_index</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">resources</span>.<span class="ident">types</span>.<span class="ident">len</span>() {
-                    <span class="self">self</span>.<span class="ident">set_validation_error</span>(<span class="string">&quot;func type index out of bounds&quot;</span>);
+                    <span class="self">self</span>.<span class="ident">set_validation_error</span>(<span class="string">&quot;unknown type: func type index out of bounds&quot;</span>);
                 } <span class="kw">else</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">resources</span>.<span class="ident">func_type_indices</span>.<span class="ident">len</span>() <span class="op">&gt;</span><span class="op">=</span> <span class="ident">MAX_WASM_FUNCTIONS</span> {
                     <span class="self">self</span>.<span class="ident">set_validation_error</span>(<span class="string">&quot;functions count out of bounds&quot;</span>);
                 } <span class="kw">else</span> {
@@ -1441,7 +1466,7 @@
                 <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">config</span>.<span class="ident">operator_config</span>.<span class="ident">enable_reference_types</span>
                     <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="self">self</span>.<span class="ident">resources</span>.<span class="ident">tables</span>.<span class="ident">len</span>() <span class="op">&gt;</span><span class="op">=</span> <span class="ident">MAX_WASM_TABLES</span>
                 {
-                    <span class="self">self</span>.<span class="ident">set_validation_error</span>(<span class="string">&quot;tables count must be at most 1&quot;</span>);
+                    <span class="self">self</span>.<span class="ident">set_validation_error</span>(<span class="string">&quot;multiple tables: tables count must be at most 1&quot;</span>);
                 } <span class="kw">else</span> {
                     <span class="self">self</span>.<span class="ident">validation_error</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">check_table_type</span>(<span class="ident">table_type</span>).<span class="ident">err</span>();
                     <span class="self">self</span>.<span class="ident">resources</span>.<span class="ident">tables</span>.<span class="ident">push</span>(<span class="ident">table_type</span>.<span class="ident">clone</span>());
@@ -1449,7 +1474,9 @@
             }
             <span class="ident">ParserState</span>::<span class="ident">MemorySectionEntry</span>(<span class="kw-2">ref</span> <span class="ident">memory_type</span>) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">if</span> <span class="self">self</span>.<span class="ident">resources</span>.<span class="ident">memories</span>.<span class="ident">len</span>() <span class="op">&gt;</span><span class="op">=</span> <span class="ident">MAX_WASM_MEMORIES</span> {
-                    <span class="self">self</span>.<span class="ident">set_validation_error</span>(<span class="string">&quot;memories count must be at most 1&quot;</span>);
+                    <span class="self">self</span>.<span class="ident">set_validation_error</span>(
+                        <span class="string">&quot;multiple memories: memories count must be at most 1&quot;</span>,
+                    );
                 } <span class="kw">else</span> {
                     <span class="self">self</span>.<span class="ident">validation_error</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">check_memory_type</span>(<span class="ident">memory_type</span>).<span class="ident">err</span>();
                     <span class="self">self</span>.<span class="ident">resources</span>.<span class="ident">memories</span>.<span class="ident">push</span>(<span class="ident">memory_type</span>.<span class="ident">clone</span>());
@@ -1478,7 +1505,7 @@
             }
             <span class="ident">ParserState</span>::<span class="ident">EndInitExpressionBody</span> <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">init_expression_state</span>.<span class="ident">as_ref</span>().<span class="ident">unwrap</span>().<span class="ident">validated</span> {
-                    <span class="self">self</span>.<span class="ident">set_validation_error</span>(<span class="string">&quot;init_expr is empty&quot;</span>);
+                    <span class="self">self</span>.<span class="ident">set_validation_error</span>(<span class="string">&quot;type mismatch: init_expr is empty&quot;</span>);
                 }
                 <span class="self">self</span>.<span class="ident">init_expression_state</span> <span class="op">=</span> <span class="prelude-val">None</span>;
             }
@@ -1498,7 +1525,9 @@
                     <span class="kw">let</span> <span class="ident">table</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>.<span class="ident">resources</span>.<span class="ident">tables</span>.<span class="ident">get</span>(<span class="ident">table_index</span> <span class="kw">as</span> <span class="ident">usize</span>) {
                         <span class="prelude-val">Some</span>(<span class="ident">t</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">t</span>,
                         <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> {
-                            <span class="self">self</span>.<span class="ident">set_validation_error</span>(<span class="string">&quot;element section table index out of bounds&quot;</span>);
+                            <span class="self">self</span>.<span class="ident">set_validation_error</span>(
+                                <span class="string">&quot;unknown table: element section table index out of bounds&quot;</span>,
+                            );
                             <span class="kw">return</span>;
                         }
                     };
@@ -1522,7 +1551,9 @@
                 <span class="kw">for</span> <span class="ident">item</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">indices</span> {
                     <span class="kw">if</span> <span class="kw">let</span> <span class="ident">ElementItem</span>::<span class="ident">Func</span>(<span class="ident">func_index</span>) <span class="op">=</span> <span class="ident">item</span> {
                         <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">func_index</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">resources</span>.<span class="ident">func_type_indices</span>.<span class="ident">len</span>() {
-                            <span class="self">self</span>.<span class="ident">set_validation_error</span>(<span class="string">&quot;element func index out of bounds&quot;</span>);
+                            <span class="self">self</span>.<span class="ident">set_validation_error</span>(
+                                <span class="string">&quot;unknown function: element func index out of bounds&quot;</span>,
+                            );
                             <span class="kw">break</span>;
                         }
                     }
@@ -1539,8 +1570,14 @@
                 <span class="kw">let</span> <span class="ident">func_type</span> <span class="op">=</span>
                     <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">resources</span>.<span class="ident">types</span>[<span class="self">self</span>.<span class="ident">resources</span>.<span class="ident">func_type_indices</span>[<span class="ident">index</span>] <span class="kw">as</span> <span class="ident">usize</span>];
                 <span class="kw">let</span> <span class="ident">operator_config</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">operator_config</span>;
-                <span class="self">self</span>.<span class="ident">current_operator_validator</span> <span class="op">=</span>
-                    <span class="prelude-val">Some</span>(<span class="ident">OperatorValidator</span>::<span class="ident">new</span>(<span class="ident">func_type</span>, <span class="ident">locals</span>, <span class="ident">operator_config</span>));
+                <span class="kw">match</span> <span class="ident">OperatorValidator</span>::<span class="ident">new</span>(<span class="ident">func_type</span>, <span class="ident">locals</span>, <span class="ident">operator_config</span>) {
+                    <span class="prelude-val">Ok</span>(<span class="ident">validator</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">current_operator_validator</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">validator</span>),
+                    <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                        <span class="self">self</span>.<span class="ident">validation_error</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">ParserState</span>::<span class="ident">Error</span>(
+                            <span class="ident">err</span>.<span class="ident">set_offset</span>(<span class="self">self</span>.<span class="ident">read_position</span>.<span class="ident">unwrap</span>()),
+                        ));
+                    }
+                }
             }
             <span class="ident">ParserState</span>::<span class="ident">CodeOperator</span>(<span class="kw-2">ref</span> <span class="ident">operator</span>) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">let</span> <span class="ident">check</span> <span class="op">=</span> <span class="self">self</span>
@@ -1550,7 +1587,7 @@
                     .<span class="ident">process_operator</span>(<span class="ident">operator</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">resources</span>);
 
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="ident">check</span> {
-                    <span class="self">self</span>.<span class="ident">set_validation_error</span>(<span class="ident">err</span>);
+                    <span class="self">self</span>.<span class="ident">set_operator_validation_error</span>(<span class="ident">err</span>);
                 }
             }
             <span class="ident">ParserState</span>::<span class="ident">EndFunctionBody</span> <span class="op">=</span><span class="op">&gt;</span> {
@@ -1560,7 +1597,7 @@
                     .<span class="ident">unwrap</span>()
                     .<span class="ident">process_end_function</span>();
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="ident">check</span> {
-                    <span class="self">self</span>.<span class="ident">set_validation_error</span>(<span class="ident">err</span>);
+                    <span class="self">self</span>.<span class="ident">set_operator_validation_error</span>(<span class="ident">err</span>);
                 }
                 <span class="self">self</span>.<span class="ident">current_func_index</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
                 <span class="self">self</span>.<span class="ident">current_operator_validator</span> <span class="op">=</span> <span class="prelude-val">None</span>;
@@ -1570,7 +1607,9 @@
             }
             <span class="ident">ParserState</span>::<span class="ident">BeginActiveDataSectionEntry</span>(<span class="ident">memory_index</span>) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">if</span> <span class="ident">memory_index</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">resources</span>.<span class="ident">memories</span>.<span class="ident">len</span>() {
-                    <span class="self">self</span>.<span class="ident">set_validation_error</span>(<span class="string">&quot;data section memory index out of bounds&quot;</span>);
+                    <span class="self">self</span>.<span class="ident">set_validation_error</span>(
+                        <span class="string">&quot;unknown memory: data section memory index out of bounds&quot;</span>,
+                    );
                 } <span class="kw">else</span> {
                     <span class="self">self</span>.<span class="ident">init_expression_state</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">InitExpressionState</span> {
                         <span class="ident">ty</span>: <span class="ident">Type</span>::<span class="ident">I32</span>,
@@ -1598,7 +1637,9 @@
         };
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">create_validating_operator_parser</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ValidatingOperatorParser</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">create_validating_operator_parser</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span>(
+        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ValidatorResult</span><span class="op">&lt;</span><span class="ident">ValidatingOperatorParser</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="lifetime">&#39;a</span>: <span class="lifetime">&#39;b</span>,
     {
@@ -1614,11 +1655,16 @@
                     <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">resources</span>.<span class="ident">types</span>[<span class="self">self</span>.<span class="ident">resources</span>.<span class="ident">func_type_indices</span>[<span class="ident">index</span>] <span class="kw">as</span> <span class="ident">usize</span>];
                 <span class="kw">let</span> <span class="ident">operator_config</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">operator_config</span>;
                 <span class="ident">OperatorValidator</span>::<span class="ident">new</span>(<span class="ident">func_type</span>, <span class="ident">locals</span>, <span class="ident">operator_config</span>)
+                    .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">ParserState</span>::<span class="ident">Error</span>(<span class="ident">e</span>.<span class="ident">set_offset</span>(<span class="self">self</span>.<span class="ident">read_position</span>.<span class="ident">unwrap</span>())))<span class="question-mark">?</span>
             }
             <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Invalid reader state&quot;</span>),
         };
         <span class="kw">let</span> <span class="ident">reader</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">create_binary_reader</span>();
-        <span class="ident">ValidatingOperatorParser</span>::<span class="ident">new</span>(<span class="ident">operator_validator</span>, <span class="ident">reader</span>, <span class="ident">func_body_offset</span>)
+        <span class="prelude-val">Ok</span>(<span class="ident">ValidatingOperatorParser</span>::<span class="ident">new</span>(
+            <span class="ident">operator_validator</span>,
+            <span class="ident">reader</span>,
+            <span class="ident">func_body_offset</span>,
+        ))
     }
 }
 
@@ -1728,7 +1774,9 @@
     <span class="doccomment">///             _ =&gt; continue</span>
     <span class="doccomment">///         }</span>
     <span class="doccomment">///     }</span>
-    <span class="doccomment">///     let mut reader = parser.create_validating_operator_parser();</span>
+    <span class="doccomment">///     let mut reader = parser</span>
+    <span class="doccomment">///         .create_validating_operator_parser()</span>
+    <span class="doccomment">///         .expect(&quot;validating parser&quot;);</span>
     <span class="doccomment">///     println!(&quot;Function {}&quot;, i);</span>
     <span class="doccomment">///     i += 1;</span>
     <span class="doccomment">///     while !reader.eof() {</span>
@@ -1756,18 +1804,16 @@
         <span class="kw">let</span> <span class="ident">op</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">reader</span>.<span class="ident">read_operator</span>()<span class="question-mark">?</span>;
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">operator_validator</span>.<span class="ident">process_operator</span>(<span class="kw-2">&amp;</span><span class="ident">op</span>, <span class="ident">resources</span>) {
             <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">BinaryReaderError</span> {
-                    <span class="ident">message</span>: <span class="ident">err</span>,
-                    <span class="ident">offset</span>: <span class="self">self</span>.<span class="ident">func_body_offset</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">reader</span>.<span class="ident">current_position</span>(),
-                });
+                <span class="kw">let</span> <span class="ident">offset</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">func_body_offset</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">reader</span>.<span class="ident">current_position</span>();
+                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>.<span class="ident">set_offset</span>(<span class="ident">offset</span>));
             }
             <span class="prelude-val">Ok</span>(<span class="ident">FunctionEnd</span>::<span class="ident">Yes</span>) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="self">self</span>.<span class="ident">end_function</span> <span class="op">=</span> <span class="bool-val">true</span>;
                 <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">reader</span>.<span class="ident">eof</span>() {
-                    <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">BinaryReaderError</span> {
-                        <span class="ident">message</span>: <span class="string">&quot;unexpected end of function&quot;</span>,
-                        <span class="ident">offset</span>: <span class="self">self</span>.<span class="ident">func_body_offset</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">reader</span>.<span class="ident">current_position</span>(),
-                    });
+                    <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">BinaryReaderError</span>::<span class="ident">new</span>(
+                        <span class="string">&quot;unexpected end of function&quot;</span>,
+                        <span class="self">self</span>.<span class="ident">func_body_offset</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">reader</span>.<span class="ident">current_position</span>(),
+                    ));
                 }
             }
             <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> (),
@@ -1800,27 +1846,23 @@
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">locals_reader</span> <span class="op">=</span> <span class="ident">function_body</span>.<span class="ident">get_locals_reader</span>()<span class="question-mark">?</span>;
     <span class="kw">let</span> <span class="ident">local_count</span> <span class="op">=</span> <span class="ident">locals_reader</span>.<span class="ident">get_count</span>() <span class="kw">as</span> <span class="ident">usize</span>;
     <span class="kw">if</span> <span class="ident">local_count</span> <span class="op">&gt;</span> <span class="ident">MAX_WASM_FUNCTION_LOCALS</span> {
-        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">BinaryReaderError</span> {
-            <span class="ident">message</span>: <span class="string">&quot;locals exceed maximum&quot;</span>,
-            <span class="ident">offset</span>: <span class="ident">locals_reader</span>.<span class="ident">original_position</span>(),
-        });
+        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">BinaryReaderError</span>::<span class="ident">new</span>(
+            <span class="string">&quot;locals exceed maximum&quot;</span>,
+            <span class="ident">locals_reader</span>.<span class="ident">original_position</span>(),
+        ));
     }
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">locals</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">Type</span>)<span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">local_count</span>);
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">locals_total</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">0</span>;
     <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">local_count</span> {
         <span class="kw">let</span> (<span class="ident">count</span>, <span class="ident">ty</span>) <span class="op">=</span> <span class="ident">locals_reader</span>.<span class="ident">read</span>()<span class="question-mark">?</span>;
-        <span class="ident">locals_total</span> <span class="op">=</span>
-            <span class="ident">locals_total</span>
-                .<span class="ident">checked_add</span>(<span class="ident">count</span> <span class="kw">as</span> <span class="ident">usize</span>)
-                .<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">BinaryReaderError</span> {
-                    <span class="ident">message</span>: <span class="string">&quot;locals overflow&quot;</span>,
-                    <span class="ident">offset</span>: <span class="ident">locals_reader</span>.<span class="ident">original_position</span>(),
-                })<span class="question-mark">?</span>;
+        <span class="ident">locals_total</span> <span class="op">=</span> <span class="ident">locals_total</span>.<span class="ident">checked_add</span>(<span class="ident">count</span> <span class="kw">as</span> <span class="ident">usize</span>).<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> {
+            <span class="ident">BinaryReaderError</span>::<span class="ident">new</span>(<span class="string">&quot;locals overflow&quot;</span>, <span class="ident">locals_reader</span>.<span class="ident">original_position</span>())
+        })<span class="question-mark">?</span>;
         <span class="kw">if</span> <span class="ident">locals_total</span> <span class="op">&gt;</span> <span class="ident">MAX_WASM_FUNCTION_LOCALS</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">BinaryReaderError</span> {
-                <span class="ident">message</span>: <span class="string">&quot;locals exceed maximum&quot;</span>,
-                <span class="ident">offset</span>: <span class="ident">locals_reader</span>.<span class="ident">original_position</span>(),
-            });
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">BinaryReaderError</span>::<span class="ident">new</span>(
+                <span class="string">&quot;locals exceed maximum&quot;</span>,
+                <span class="ident">locals_reader</span>.<span class="ident">original_position</span>(),
+            ));
         }
         <span class="ident">locals</span>.<span class="ident">push</span>((<span class="ident">count</span>, <span class="ident">ty</span>));
     }
@@ -1837,14 +1879,15 @@
         <span class="comment">// so I assumed it is considered a bug to access a non-existing function</span>
         <span class="comment">// id here and went with panicking instead of returning a proper error.</span>
         .<span class="ident">expect</span>(<span class="string">&quot;the function type indexof the validated function itself is out of bounds&quot;</span>);
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">operator_validator</span> <span class="op">=</span> <span class="ident">OperatorValidator</span>::<span class="ident">new</span>(<span class="ident">func_type</span>, <span class="kw-2">&amp;</span><span class="ident">locals</span>, <span class="ident">operator_config</span>);
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">operator_validator</span> <span class="op">=</span> <span class="ident">OperatorValidator</span>::<span class="ident">new</span>(<span class="ident">func_type</span>, <span class="kw-2">&amp;</span><span class="ident">locals</span>, <span class="ident">operator_config</span>)
+        .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">set_offset</span>(<span class="ident">offset</span>))<span class="question-mark">?</span>;
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">eof_found</span> <span class="op">=</span> <span class="bool-val">false</span>;
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">last_op</span> <span class="op">=</span> <span class="number">0</span>;
     <span class="kw">for</span> <span class="ident">item</span> <span class="kw">in</span> <span class="ident">operators_reader</span>.<span class="ident">into_iter_with_offsets</span>() {
         <span class="kw">let</span> (<span class="kw-2">ref</span> <span class="ident">op</span>, <span class="ident">offset</span>) <span class="op">=</span> <span class="ident">item</span><span class="question-mark">?</span>;
         <span class="kw">match</span> <span class="ident">operator_validator</span>
             .<span class="ident">process_operator</span>(<span class="ident">op</span>, <span class="ident">resources</span>)
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">message</span><span class="op">|</span> <span class="ident">BinaryReaderError</span> { <span class="ident">message</span>, <span class="ident">offset</span> })<span class="question-mark">?</span>
+            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">set_offset</span>(<span class="ident">offset</span>))<span class="question-mark">?</span>
         {
             <span class="ident">FunctionEnd</span>::<span class="ident">Yes</span> <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="ident">eof_found</span> <span class="op">=</span> <span class="bool-val">true</span>;
@@ -1855,10 +1898,7 @@
         }
     }
     <span class="kw">if</span> <span class="op">!</span><span class="ident">eof_found</span> {
-        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">BinaryReaderError</span> {
-            <span class="ident">message</span>: <span class="string">&quot;end of function not found&quot;</span>,
-            <span class="ident">offset</span>: <span class="ident">last_op</span>,
-        });
+        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">BinaryReaderError</span>::<span class="ident">new</span>(<span class="string">&quot;end of function not found&quot;</span>, <span class="ident">last_op</span>));
     }
     <span class="prelude-val">Ok</span>(())
 }
@@ -1874,7 +1914,7 @@
         <span class="kw">let</span> <span class="ident">state</span> <span class="op">=</span> <span class="ident">parser</span>.<span class="ident">read_with_input</span>(<span class="ident">next_input</span>);
         <span class="kw">match</span> <span class="kw-2">*</span><span class="ident">state</span> {
             <span class="ident">ParserState</span>::<span class="ident">EndWasm</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">break</span>,
-            <span class="ident">ParserState</span>::<span class="ident">Error</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>),
+            <span class="ident">ParserState</span>::<span class="ident">Error</span>(<span class="kw-2">ref</span> <span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>.<span class="ident">clone</span>()),
             <span class="ident">ParserState</span>::<span class="ident">BeginFunctionBody</span> { <span class="ident">range</span> } <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="ident">parser_input</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">ParserInput</span>::<span class="ident">SkipFunctionBody</span>);
                 <span class="ident">func_ranges</span>.<span class="ident">push</span>(<span class="ident">range</span>);
