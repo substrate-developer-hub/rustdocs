@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Error","An error that occurred when working with IndexedDB."]],"struct":[["Database","Database backed by both IndexedDB and in memory implementation."]],"trait":[["KeyValueDB","Generic key-value database."]]});
