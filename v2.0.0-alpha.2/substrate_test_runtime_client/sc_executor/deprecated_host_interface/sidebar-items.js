@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["SubstrateExternals","The old and deprecated Substrate externals. These are still required for backwards compatibility reasons."]]});

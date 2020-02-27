@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["RuntimeDispatchInfo","Some information related to a dispatchable that can be queried from the runtime."]],"trait":[["TransactionPaymentApi",""]]});
