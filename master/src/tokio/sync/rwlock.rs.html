@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.11/src/sync/rwlock.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>rwlock.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.13/src/sync/rwlock.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>rwlock.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -280,6 +280,16 @@
 <span id="269">269</span>
 <span id="270">270</span>
 <span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">future</span>::<span class="ident">poll_fn</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sync</span>::<span class="ident">semaphore_ll</span>::{<span class="ident">AcquireError</span>, <span class="ident">Permit</span>, <span class="ident">Semaphore</span>};
@@ -301,13 +311,18 @@
 <span class="doccomment">/// typically allows for read-only access (shared access).</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// In comparison, a [`Mutex`] does not distinguish between readers or writers</span>
-<span class="doccomment">/// that acquire the lock, therefore blocking any tasks waiting for the lock to</span>
-<span class="doccomment">/// become available. An `RwLock` will allow any number of readers to acquire the</span>
-<span class="doccomment">/// lock as long as a writer is not holding the lock.</span>
+<span class="doccomment">/// that acquire the lock, therefore causing any tasks waiting for the lock to</span>
+<span class="doccomment">/// become available to yield. An `RwLock` will allow any number of readers to</span>
+<span class="doccomment">/// acquire the lock as long as a writer is not holding the lock.</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// The priority policy of the lock is dependent on the underlying operating</span>
-<span class="doccomment">/// system&#39;s implementation, and this type does not guarantee that any</span>
-<span class="doccomment">/// particular policy will be used.</span>
+<span class="doccomment">/// The priority policy of Tokio&#39;s read-write lock is _fair_ (or</span>
+<span class="doccomment">/// [_write-preferring_]), in order to ensure that readers cannot starve</span>
+<span class="doccomment">/// writers. Fairness is ensured using a first-in, first-out queue for the tasks</span>
+<span class="doccomment">/// awaiting the lock; if a task that wishes to acquire the write lock is at the</span>
+<span class="doccomment">/// head of the queue, read locks will not be given out until the write lock has</span>
+<span class="doccomment">/// been released. This is in contrast to the Rust standard library&#39;s</span>
+<span class="doccomment">/// `std::sync::RwLock`, where the priority policy is dependent on the</span>
+<span class="doccomment">/// operating system&#39;s implementation.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// The type parameter `T` represents the data that this lock protects. It is</span>
 <span class="doccomment">/// required that `T` satisfies [`Send`] to be shared across threads. The RAII guards</span>
@@ -324,7 +339,7 @@
 <span class="doccomment">/// async fn main() {</span>
 <span class="doccomment">///     let lock = RwLock::new(5);</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// // many reader locks can be held at once</span>
+<span class="doccomment">///     // many reader locks can be held at once</span>
 <span class="doccomment">///     {</span>
 <span class="doccomment">///         let r1 = lock.read().await;</span>
 <span class="doccomment">///         let r2 = lock.read().await;</span>
@@ -332,7 +347,7 @@
 <span class="doccomment">///         assert_eq!(*r2, 5);</span>
 <span class="doccomment">///     } // read locks are dropped at this point</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// // only one write lock may be held, however</span>
+<span class="doccomment">///     // only one write lock may be held, however</span>
 <span class="doccomment">///     {</span>
 <span class="doccomment">///         let mut w = lock.write().await;</span>
 <span class="doccomment">///         *w += 1;</span>
@@ -346,6 +361,7 @@
 <span class="doccomment">/// [`RwLockReadGuard`]: struct.RwLockReadGuard.html</span>
 <span class="doccomment">/// [`RwLockWriteGuard`]: struct.RwLockWriteGuard.html</span>
 <span class="doccomment">/// [`Send`]: https://doc.rust-lang.org/std/marker/trait.Send.html</span>
+<span class="doccomment">/// [_write-preferring_]: https://en.wikipedia.org/wiki/Readers%E2%80%93writer_lock#Priority_policies</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">RwLock</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="comment">//semaphore to coordinate read and write access to T</span>
@@ -431,10 +447,10 @@
         }
     }
 
-    <span class="doccomment">/// Locks this rwlock with shared read access, blocking the current task</span>
-    <span class="doccomment">/// until it can be acquired.</span>
+    <span class="doccomment">/// Locks this rwlock with shared read access, causing the current task</span>
+    <span class="doccomment">/// to yield until the lock has been acquired.</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// The calling task will be blocked until there are no more writers which</span>
+    <span class="doccomment">/// The calling task will yield until there are no more writers which</span>
     <span class="doccomment">/// hold the lock. There may be other readers currently inside the lock when</span>
     <span class="doccomment">/// this method returns.</span>
     <span class="doccomment">///</span>
@@ -453,9 +469,13 @@
     <span class="doccomment">///     assert_eq!(*n, 1);</span>
     <span class="doccomment">///</span>
     <span class="doccomment">///     tokio::spawn(async move {</span>
+    <span class="doccomment">///         // While main has an active read lock, we acquire one too.</span>
     <span class="doccomment">///         let r = c_lock.read().await;</span>
     <span class="doccomment">///         assert_eq!(*r, 1);</span>
-    <span class="doccomment">///     });</span>
+    <span class="doccomment">///     }).await.expect(&quot;The spawned task has paniced&quot;);</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">///     // Drop the guard after the spawned task finishes.</span>
+    <span class="doccomment">///     drop(n);</span>
     <span class="doccomment">///}</span>
     <span class="doccomment">/// ```</span>
     <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">read</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">RwLockReadGuard</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">T</span><span class="op">&gt;</span> {
@@ -475,8 +495,8 @@
         <span class="ident">RwLockReadGuard</span> { <span class="ident">lock</span>: <span class="self">self</span>, <span class="ident">permit</span> }
     }
 
-    <span class="doccomment">/// Locks this rwlock with exclusive write access, blocking the current</span>
-    <span class="doccomment">/// task until it can be acquired.</span>
+    <span class="doccomment">/// Locks this rwlock with exclusive write access, causing the current task</span>
+    <span class="doccomment">/// to yield until the lock has been acquired.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This function will not return while other writers or other readers</span>
     <span class="doccomment">/// currently have access to the lock.</span>

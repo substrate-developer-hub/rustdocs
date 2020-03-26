@@ -729,6 +729,72 @@
 <span id="718">718</span>
 <span id="719">719</span>
 <span id="720">720</span>
+<span id="721">721</span>
+<span id="722">722</span>
+<span id="723">723</span>
+<span id="724">724</span>
+<span id="725">725</span>
+<span id="726">726</span>
+<span id="727">727</span>
+<span id="728">728</span>
+<span id="729">729</span>
+<span id="730">730</span>
+<span id="731">731</span>
+<span id="732">732</span>
+<span id="733">733</span>
+<span id="734">734</span>
+<span id="735">735</span>
+<span id="736">736</span>
+<span id="737">737</span>
+<span id="738">738</span>
+<span id="739">739</span>
+<span id="740">740</span>
+<span id="741">741</span>
+<span id="742">742</span>
+<span id="743">743</span>
+<span id="744">744</span>
+<span id="745">745</span>
+<span id="746">746</span>
+<span id="747">747</span>
+<span id="748">748</span>
+<span id="749">749</span>
+<span id="750">750</span>
+<span id="751">751</span>
+<span id="752">752</span>
+<span id="753">753</span>
+<span id="754">754</span>
+<span id="755">755</span>
+<span id="756">756</span>
+<span id="757">757</span>
+<span id="758">758</span>
+<span id="759">759</span>
+<span id="760">760</span>
+<span id="761">761</span>
+<span id="762">762</span>
+<span id="763">763</span>
+<span id="764">764</span>
+<span id="765">765</span>
+<span id="766">766</span>
+<span id="767">767</span>
+<span id="768">768</span>
+<span id="769">769</span>
+<span id="770">770</span>
+<span id="771">771</span>
+<span id="772">772</span>
+<span id="773">773</span>
+<span id="774">774</span>
+<span id="775">775</span>
+<span id="776">776</span>
+<span id="777">777</span>
+<span id="778">778</span>
+<span id="779">779</span>
+<span id="780">780</span>
+<span id="781">781</span>
+<span id="782">782</span>
+<span id="783">783</span>
+<span id="784">784</span>
+<span id="785">785</span>
+<span id="786">786</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -749,8 +815,9 @@
 <span class="doccomment">//! Contains the state storage behind the peerset.</span>
 
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">PeerId</span>;
+<span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">error</span>, <span class="ident">warn</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">borrow</span>::<span class="ident">Cow</span>, <span class="ident">collections</span>::{<span class="ident">HashSet</span>, <span class="ident">HashMap</span>}};
-<span class="kw">use</span> <span class="ident">log</span>::<span class="ident">warn</span>;
+<span class="kw">use</span> <span class="ident">wasm_timer</span>::<span class="ident">Instant</span>;
 
 <span class="doccomment">/// State storage behind the peerset.</span>
 <span class="doccomment">///</span>
@@ -801,7 +868,9 @@
 <span class="kw">impl</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">Node</span> {
 	<span class="kw">fn</span> <span class="ident">default</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Node</span> {
 		<span class="ident">Node</span> {
-			<span class="ident">connection_state</span>: <span class="ident">ConnectionState</span>::<span class="ident">NotConnected</span>,
+			<span class="ident">connection_state</span>: <span class="ident">ConnectionState</span>::<span class="ident">NotConnected</span> {
+				<span class="ident">last_connected</span>: <span class="ident">Instant</span>::<span class="ident">now</span>(),
+			},
 			<span class="ident">reputation</span>: <span class="number">0</span>,
 		}
 	}
@@ -815,7 +884,11 @@
 	<span class="doccomment">/// We are connected through an outgoing connection.</span>
 	<span class="ident">Out</span>,
 	<span class="doccomment">/// We are not connected to this node.</span>
-	<span class="ident">NotConnected</span>,
+	<span class="ident">NotConnected</span> {
+		<span class="doccomment">/// When we were last connected to the node, or if we were never connected when we</span>
+		<span class="doccomment">/// discovered it.</span>
+		<span class="ident">last_connected</span>: <span class="ident">Instant</span>,
+	},
 }
 
 <span class="kw">impl</span> <span class="ident">ConnectionState</span> {
@@ -824,7 +897,7 @@
 		<span class="kw">match</span> <span class="self">self</span> {
 			<span class="ident">ConnectionState</span>::<span class="ident">In</span> <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">true</span>,
 			<span class="ident">ConnectionState</span>::<span class="ident">Out</span> <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">true</span>,
-			<span class="ident">ConnectionState</span>::<span class="ident">NotConnected</span> <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">false</span>,
+			<span class="ident">ConnectionState</span>::<span class="ident">NotConnected</span> { .. } <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">false</span>,
 		}
 	}
 }
@@ -869,7 +942,7 @@
 	<span class="doccomment">/// Returns the list of all the peers we know of.</span>
 	<span class="comment">// Note: this method could theoretically return a `Peer`, but implementing that</span>
 	<span class="comment">// isn&#39;t simple.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">peers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">PeerId</span><span class="op">&gt;</span> {
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">peers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">ExactSizeIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">PeerId</span><span class="op">&gt;</span> {
 		<span class="self">self</span>.<span class="ident">nodes</span>.<span class="ident">keys</span>()
 	}
 
@@ -944,11 +1017,13 @@
 				<span class="kw">match</span> <span class="ident">node</span>.<span class="ident">connection_state</span> {
 					<span class="ident">ConnectionState</span>::<span class="ident">In</span> <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">num_in</span> <span class="op">-</span><span class="op">=</span> <span class="number">1</span>,
 					<span class="ident">ConnectionState</span>::<span class="ident">Out</span> <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">num_out</span> <span class="op">-</span><span class="op">=</span> <span class="number">1</span>,
-					<span class="ident">ConnectionState</span>::<span class="ident">NotConnected</span> <span class="op">=</span><span class="op">&gt;</span>
+					<span class="ident">ConnectionState</span>::<span class="ident">NotConnected</span> { .. } <span class="op">=</span><span class="op">&gt;</span>
 						<span class="macro">debug_assert</span><span class="macro">!</span>(<span class="bool-val">false</span>, <span class="string">&quot;State inconsistency: disconnecting a disconnected node&quot;</span>)
 				}
 			}
-			<span class="ident">node</span>.<span class="ident">connection_state</span> <span class="op">=</span> <span class="ident">ConnectionState</span>::<span class="ident">NotConnected</span>;
+			<span class="ident">node</span>.<span class="ident">connection_state</span> <span class="op">=</span> <span class="ident">ConnectionState</span>::<span class="ident">NotConnected</span> {
+				<span class="ident">last_connected</span>: <span class="ident">Instant</span>::<span class="ident">now</span>(),
+			};
 		} <span class="kw">else</span> {
 			<span class="macro">warn</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;peerset&quot;</span>, <span class="string">&quot;Attempting to disconnect unknown peer {}&quot;</span>, <span class="ident">peer_id</span>);
 		}
@@ -1024,7 +1099,7 @@
 					<span class="kw">match</span> <span class="ident">peer</span>.<span class="ident">connection_state</span> {
 						<span class="ident">ConnectionState</span>::<span class="ident">In</span> <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">num_in</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>,
 						<span class="ident">ConnectionState</span>::<span class="ident">Out</span> <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">num_out</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>,
-						<span class="ident">ConnectionState</span>::<span class="ident">NotConnected</span> <span class="op">=</span><span class="op">&gt;</span> {},
+						<span class="ident">ConnectionState</span>::<span class="ident">NotConnected</span> { .. } <span class="op">=</span><span class="op">&gt;</span> {},
 					}
 				}
 			}
@@ -1037,7 +1112,7 @@
 				<span class="kw">match</span> <span class="ident">peer</span>.<span class="ident">connection_state</span> {
 					<span class="ident">ConnectionState</span>::<span class="ident">In</span> <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">num_in</span> <span class="op">-</span><span class="op">=</span> <span class="number">1</span>,
 					<span class="ident">ConnectionState</span>::<span class="ident">Out</span> <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">num_out</span> <span class="op">-</span><span class="op">=</span> <span class="number">1</span>,
-					<span class="ident">ConnectionState</span>::<span class="ident">NotConnected</span> <span class="op">=</span><span class="op">&gt;</span> {},
+					<span class="ident">ConnectionState</span>::<span class="ident">NotConnected</span> { .. } <span class="op">=</span><span class="op">&gt;</span> {},
 				}
 			}
 		}
@@ -1199,6 +1274,45 @@
 		<span class="self">self</span>.<span class="ident">peer_id</span>.<span class="ident">into_owned</span>()
 	}
 
+	<span class="doccomment">/// Bumps the value that `last_connected_or_discovered` would return to now, even if we</span>
+	<span class="doccomment">/// didn&#39;t connect or disconnect.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">bump_last_connected_or_discovered</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
+		<span class="kw">let</span> <span class="ident">state</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>.<span class="ident">state</span>.<span class="ident">nodes</span>.<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">peer_id</span>) {
+			<span class="prelude-val">Some</span>(<span class="ident">s</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">s</span>,
+			<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span>,
+		};
+
+		<span class="kw">if</span> <span class="kw">let</span> <span class="ident">ConnectionState</span>::<span class="ident">NotConnected</span> { <span class="ident">last_connected</span> } <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">state</span>.<span class="ident">connection_state</span> {
+			<span class="kw-2">*</span><span class="ident">last_connected</span> <span class="op">=</span> <span class="ident">Instant</span>::<span class="ident">now</span>();
+		}
+	}
+
+	<span class="doccomment">/// Returns when we were last connected to this peer, or when we discovered it if we were</span>
+	<span class="doccomment">/// never connected.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// Guaranteed to be earlier than calling `Instant::now()` after the function returns.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">last_connected_or_discovered</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Instant</span> {
+		<span class="kw">let</span> <span class="ident">state</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>.<span class="ident">state</span>.<span class="ident">nodes</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">peer_id</span>) {
+			<span class="prelude-val">Some</span>(<span class="ident">s</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">s</span>,
+			<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> {
+				<span class="macro">error</span><span class="macro">!</span>(
+					<span class="ident">target</span>: <span class="string">&quot;peerset&quot;</span>,
+					<span class="string">&quot;State inconsistency with {}; not connected after borrow&quot;</span>,
+					<span class="self">self</span>.<span class="ident">peer_id</span>
+				);
+				<span class="kw">return</span> <span class="ident">Instant</span>::<span class="ident">now</span>();
+			}
+		};
+
+		<span class="kw">match</span> <span class="ident">state</span>.<span class="ident">connection_state</span> {
+			<span class="ident">ConnectionState</span>::<span class="ident">NotConnected</span> { <span class="ident">last_connected</span> } <span class="op">=</span><span class="op">&gt;</span> <span class="ident">last_connected</span>,
+			<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> {
+				<span class="macro">error</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;peerset&quot;</span>, <span class="string">&quot;State inconsistency with {}&quot;</span>, <span class="self">self</span>.<span class="ident">peer_id</span>);
+				<span class="ident">Instant</span>::<span class="ident">now</span>()
+			}
+		}
+	}
+
 	<span class="doccomment">/// Tries to set the peer as connected as an outgoing connection.</span>
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// If there are enough slots available, switches the node to &quot;connected&quot; and returns `Ok`. If</span>
@@ -1250,6 +1364,22 @@
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_reputation</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">modifier</span>: <span class="ident">i32</span>) {
 		<span class="self">self</span>.<span class="ident">state</span>.<span class="ident">add_reputation</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">peer_id</span>, <span class="ident">modifier</span>)
 	}
+
+	<span class="doccomment">/// Un-discovers the peer. Removes it from the list.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">forget_peer</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">UnknownPeer</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
+		<span class="kw">if</span> <span class="self">self</span>.<span class="ident">state</span>.<span class="ident">nodes</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">peer_id</span>).<span class="ident">is_none</span>() {
+			<span class="macro">error</span><span class="macro">!</span>(
+				<span class="ident">target</span>: <span class="string">&quot;peerset&quot;</span>,
+				<span class="string">&quot;State inconsistency with {} when forgetting peer&quot;</span>,
+				<span class="self">self</span>.<span class="ident">peer_id</span>
+			);
+		}
+
+		<span class="ident">UnknownPeer</span> {
+			<span class="ident">parent</span>: <span class="self">self</span>.<span class="ident">state</span>,
+			<span class="ident">peer_id</span>: <span class="self">self</span>.<span class="ident">peer_id</span>,
+		}
+	}
 }
 
 <span class="doccomment">/// A peer that we have never heard of.</span>
@@ -1265,7 +1395,9 @@
 	<span class="doccomment">/// values using the `NotConnectedPeer` that this method returns.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">discover</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">NotConnectedPeer</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
 		<span class="self">self</span>.<span class="ident">parent</span>.<span class="ident">nodes</span>.<span class="ident">insert</span>(<span class="self">self</span>.<span class="ident">peer_id</span>.<span class="ident">clone</span>().<span class="ident">into_owned</span>(), <span class="ident">Node</span> {
-			<span class="ident">connection_state</span>: <span class="ident">ConnectionState</span>::<span class="ident">NotConnected</span>,
+			<span class="ident">connection_state</span>: <span class="ident">ConnectionState</span>::<span class="ident">NotConnected</span> {
+				<span class="ident">last_connected</span>: <span class="ident">Instant</span>::<span class="ident">now</span>(),
+			},
 			<span class="ident">reputation</span>: <span class="number">0</span>,
 		});
 

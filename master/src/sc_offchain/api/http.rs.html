@@ -985,6 +985,10 @@
 <span id="974">974</span>
 <span id="975">975</span>
 <span id="976">976</span>
+<span id="977">977</span>
+<span id="978">978</span>
+<span id="979">979</span>
+<span id="980">980</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1292,7 +1296,7 @@
 				<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">output</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">ids</span>.<span class="ident">len</span>());
 				<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">must_wait_more</span> <span class="op">=</span> <span class="bool-val">false</span>;
 				<span class="kw">for</span> <span class="ident">id</span> <span class="kw">in</span> <span class="ident">ids</span> {
-					<span class="ident">output</span>.<span class="ident">push</span>(<span class="kw">match</span> <span class="self">self</span>.<span class="ident">requests</span>.<span class="ident">get_mut</span>(<span class="ident">id</span>) {
+					<span class="ident">output</span>.<span class="ident">push</span>(<span class="kw">match</span> <span class="self">self</span>.<span class="ident">requests</span>.<span class="ident">get</span>(<span class="ident">id</span>) {
 						<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">HttpRequestStatus</span>::<span class="ident">Invalid</span>,
 						<span class="prelude-val">Some</span>(<span class="ident">HttpApiRequest</span>::<span class="ident">NotDispatched</span>(<span class="kw">_</span>, <span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span>
 							<span class="macro">unreachable</span><span class="macro">!</span>(<span class="string">&quot;we replaced all the NotDispatched with Dispatched earlier; qed&quot;</span>),
@@ -1310,10 +1314,8 @@
 				<span class="comment">// Are we ready to call `return`?</span>
 				<span class="kw">let</span> <span class="ident">is_done</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="ident">future</span>::<span class="ident">MaybeDone</span>::<span class="ident">Done</span>(<span class="kw">_</span>) <span class="op">=</span> <span class="ident">deadline</span> {
 					<span class="bool-val">true</span>
-				} <span class="kw">else</span> <span class="kw">if</span> <span class="op">!</span><span class="ident">must_wait_more</span> {
-					<span class="bool-val">true</span>
 				} <span class="kw">else</span> {
-					<span class="bool-val">false</span>
+					<span class="op">!</span><span class="ident">must_wait_more</span>
 				};
 
 				<span class="kw">if</span> <span class="ident">is_done</span> {
@@ -1688,6 +1690,12 @@
 			<span class="kw">fn</span> <span class="ident">tokio_run</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="ident">future</span>: <span class="kw">impl</span> <span class="ident">std</span>::<span class="ident">future</span>::<span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> <span class="ident">T</span><span class="op">&gt;</span>) {
 				<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">tokio</span>::<span class="ident">runtime</span>::<span class="ident">Runtime</span>::<span class="ident">new</span>().<span class="ident">unwrap</span>().<span class="ident">block_on</span>(<span class="ident">future</span>);
 			}
+
+			<span class="comment">// We spawn quite a bit of HTTP servers here due to how async API</span>
+			<span class="comment">// works for offchain workers, so be sure to raise the FD limit</span>
+			<span class="comment">// (particularly useful for macOS where the default soft limit may</span>
+			<span class="comment">// not be enough).</span>
+			<span class="ident">fdlimit</span>::<span class="ident">raise_fd_limit</span>();
 
 			<span class="kw">let</span> (<span class="ident">api</span>, <span class="ident">worker</span>) <span class="op">=</span> <span class="ident">http</span>();
 			<span class="ident">std</span>::<span class="ident">thread</span>::<span class="ident">spawn</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> <span class="ident">tokio_run</span>(<span class="ident">worker</span>));

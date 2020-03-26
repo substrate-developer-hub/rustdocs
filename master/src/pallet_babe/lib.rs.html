@@ -565,6 +565,29 @@
 <span id="554">554</span>
 <span id="555">555</span>
 <span id="556">556</span>
+<span id="557">557</span>
+<span id="558">558</span>
+<span id="559">559</span>
+<span id="560">560</span>
+<span id="561">561</span>
+<span id="562">562</span>
+<span id="563">563</span>
+<span id="564">564</span>
+<span id="565">565</span>
+<span id="566">566</span>
+<span id="567">567</span>
+<span id="568">568</span>
+<span id="569">569</span>
+<span id="570">570</span>
+<span id="571">571</span>
+<span id="572">572</span>
+<span id="573">573</span>
+<span id="574">574</span>
+<span id="575">575</span>
+<span id="576">576</span>
+<span id="577">577</span>
+<span id="578">578</span>
+<span id="579">579</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -587,14 +610,17 @@
 
 <span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>), <span class="ident">no_std</span>)]</span>
 <span class="attribute">#![<span class="ident">forbid</span>(<span class="ident">unused_must_use</span>, <span class="ident">unsafe_code</span>, <span class="ident">unused_variables</span>, <span class="ident">unused_must_use</span>)]</span>
-<span class="attribute">#![<span class="ident">deny</span>(<span class="ident">unused_imports</span>)]</span>
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">pallet_timestamp</span>;
+
+<span class="kw">use</span> <span class="ident">pallet_timestamp</span>;
 
 <span class="kw">use</span> <span class="ident">sp_std</span>::{<span class="ident">result</span>, <span class="ident">prelude</span>::<span class="kw-2">*</span>};
-<span class="kw">use</span> <span class="ident">frame_support</span>::{<span class="ident">decl_storage</span>, <span class="ident">decl_module</span>, <span class="ident">traits</span>::{<span class="ident">FindAuthor</span>, <span class="ident">Get</span>, <span class="ident">Randomness</span> <span class="kw">as</span> <span class="ident">RandomnessT</span>}};
+<span class="kw">use</span> <span class="ident">frame_support</span>::{
+	<span class="ident">decl_storage</span>, <span class="ident">decl_module</span>, <span class="ident">traits</span>::{<span class="ident">FindAuthor</span>, <span class="ident">Get</span>, <span class="ident">Randomness</span> <span class="kw">as</span> <span class="ident">RandomnessT</span>},
+	<span class="ident">weights</span>::{<span class="ident">Weight</span>, <span class="ident">SimpleDispatchInfo</span>, <span class="ident">WeighData</span>},
+};
 <span class="kw">use</span> <span class="ident">sp_timestamp</span>::<span class="ident">OnTimestampSet</span>;
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::{<span class="ident">generic</span>::<span class="ident">DigestItem</span>, <span class="ident">ConsensusEngineId</span>, <span class="ident">Perbill</span>, <span class="ident">PerThing</span>};
-<span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">traits</span>::{<span class="ident">IsMember</span>, <span class="ident">SaturatedConversion</span>, <span class="ident">Saturating</span>, <span class="ident">Hash</span>};
+<span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">traits</span>::{<span class="ident">IsMember</span>, <span class="ident">SaturatedConversion</span>, <span class="ident">Saturating</span>, <span class="ident">Hash</span>, <span class="ident">One</span>};
 <span class="kw">use</span> <span class="ident">sp_staking</span>::{
 	<span class="ident">SessionIndex</span>,
 	<span class="ident">offence</span>::{<span class="ident">Offence</span>, <span class="ident">Kind</span>},
@@ -607,7 +633,8 @@
 	<span class="ident">inherents</span>::{<span class="ident">INHERENT_IDENTIFIER</span>, <span class="ident">BabeInherentData</span>},
 	<span class="ident">digests</span>::{<span class="ident">NextEpochDescriptor</span>, <span class="ident">RawPreDigest</span>},
 };
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">sp_consensus_babe</span>::{<span class="ident">AuthorityId</span>, <span class="ident">VRF_OUTPUT_LENGTH</span>, <span class="ident">PUBLIC_KEY_LENGTH</span>};
+<span class="kw">use</span> <span class="ident">sp_consensus_vrf</span>::<span class="ident">schnorrkel</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">sp_consensus_babe</span>::{<span class="ident">AuthorityId</span>, <span class="ident">VRF_OUTPUT_LENGTH</span>, <span class="ident">RANDOMNESS_LENGTH</span>, <span class="ident">PUBLIC_KEY_LENGTH</span>};
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">all</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>, <span class="ident">test</span>))]</span>
 <span class="kw">mod</span> <span class="ident">tests</span>;
@@ -664,12 +691,9 @@
 	}
 }
 
-<span class="doccomment">/// The length of the BABE randomness</span>
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">RANDOMNESS_LENGTH</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">32</span>;
-
 <span class="kw">const</span> <span class="ident">UNDER_CONSTRUCTION_SEGMENT_LENGTH</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">256</span>;
 
-<span class="kw">type</span> <span class="ident">MaybeVrf</span> <span class="op">=</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="number">32</span> <span class="comment">/* VRF_OUTPUT_LENGTH */</span>]<span class="op">&gt;</span>;
+<span class="kw">type</span> <span class="ident">MaybeVrf</span> <span class="op">=</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">schnorrkel</span>::<span class="ident">RawVRFOutput</span><span class="op">&gt;</span>;
 
 <span class="macro">decl_storage</span><span class="macro">!</span> {
 	<span class="kw">trait</span> <span class="ident">Store</span> <span class="kw">for</span> <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Trait</span><span class="op">&gt;</span> <span class="kw">as</span> <span class="ident">Babe</span> {
@@ -699,10 +723,10 @@
 		<span class="comment">// NOTE: the following fields don&#39;t use the constants to define the</span>
 		<span class="comment">// array size because the metadata API currently doesn&#39;t resolve the</span>
 		<span class="comment">// variable to its underlying value.</span>
-		<span class="kw">pub</span> <span class="ident">Randomness</span> <span class="ident">get</span>(<span class="kw">fn</span> <span class="ident">randomness</span>): [<span class="ident">u8</span>; <span class="number">32</span> <span class="comment">/* RANDOMNESS_LENGTH */</span>];
+		<span class="kw">pub</span> <span class="ident">Randomness</span> <span class="ident">get</span>(<span class="kw">fn</span> <span class="ident">randomness</span>): <span class="ident">schnorrkel</span>::<span class="ident">Randomness</span>;
 
 		<span class="doccomment">/// Next epoch randomness.</span>
-		<span class="ident">NextRandomness</span>: [<span class="ident">u8</span>; <span class="number">32</span> <span class="comment">/* RANDOMNESS_LENGTH */</span>];
+		<span class="ident">NextRandomness</span>: <span class="ident">schnorrkel</span>::<span class="ident">Randomness</span>;
 
 		<span class="doccomment">/// Randomness under construction.</span>
 		<span class="doccomment">///</span>
@@ -714,7 +738,7 @@
 		<span class="doccomment">/// We reset all segments and return to `0` at the beginning of every</span>
 		<span class="doccomment">/// epoch.</span>
 		<span class="ident">SegmentIndex</span> <span class="ident">build</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="number">0</span>): <span class="ident">u32</span>;
-		<span class="ident">UnderConstruction</span>: <span class="ident">map</span> <span class="ident">hasher</span>(<span class="ident">blake2_256</span>) <span class="ident">u32</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="number">32</span> <span class="comment">/* VRF_OUTPUT_LENGTH */</span>]<span class="op">&gt;</span>;
+		<span class="ident">UnderConstruction</span>: <span class="ident">map</span> <span class="ident">hasher</span>(<span class="ident">twox_64_concat</span>) <span class="ident">u32</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">schnorrkel</span>::<span class="ident">RawVRFOutput</span><span class="op">&gt;</span>;
 
 		<span class="doccomment">/// Temporary value (cleared at block finalization) which is `Some`</span>
 		<span class="doccomment">/// if per-block initialization has already been called for current block.</span>
@@ -741,8 +765,10 @@
 		<span class="kw">const</span> <span class="ident">ExpectedBlockTime</span>: <span class="ident">T</span>::<span class="ident">Moment</span> <span class="op">=</span> <span class="ident">T</span>::<span class="ident">ExpectedBlockTime</span>::<span class="ident">get</span>();
 
 		<span class="doccomment">/// Initialization</span>
-		<span class="kw">fn</span> <span class="ident">on_initialize</span>(<span class="ident">now</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>) {
+		<span class="kw">fn</span> <span class="ident">on_initialize</span>(<span class="ident">now</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Weight</span> {
 			<span class="self">Self</span>::<span class="ident">do_initialize</span>(<span class="ident">now</span>);
+
+			<span class="ident">SimpleDispatchInfo</span>::<span class="ident">default</span>().<span class="ident">weigh_data</span>(())
 		}
 
 		<span class="doccomment">/// Block finalization</span>
@@ -778,13 +804,8 @@
 	{
 		<span class="kw">for</span> (<span class="ident">id</span>, <span class="kw-2">mut</span> <span class="ident">data</span>) <span class="kw">in</span> <span class="ident">digests</span>.<span class="ident">into_iter</span>() {
 			<span class="kw">if</span> <span class="ident">id</span> <span class="op">=</span><span class="op">=</span> <span class="ident">BABE_ENGINE_ID</span> {
-				<span class="kw">let</span> <span class="ident">pre_digest</span> <span class="op">=</span> <span class="ident">RawPreDigest</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">data</span>).<span class="ident">ok</span>()<span class="question-mark">?</span>;
-				<span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="kw">match</span> <span class="ident">pre_digest</span> {
-					<span class="ident">RawPreDigest</span>::<span class="ident">Primary</span> { <span class="ident">authority_index</span>, .. } <span class="op">=</span><span class="op">&gt;</span>
-						<span class="ident">authority_index</span>,
-					<span class="ident">RawPreDigest</span>::<span class="ident">Secondary</span> { <span class="ident">authority_index</span>, .. } <span class="op">=</span><span class="op">&gt;</span>
-						<span class="ident">authority_index</span>,
-				});
+				<span class="kw">let</span> <span class="ident">pre_digest</span>: <span class="ident">RawPreDigest</span> <span class="op">=</span> <span class="ident">RawPreDigest</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">data</span>).<span class="ident">ok</span>()<span class="question-mark">?</span>;
+				<span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="ident">pre_digest</span>.<span class="ident">authority_index</span>())
 			}
 		}
 
@@ -877,10 +898,32 @@
 		<span class="comment">// epoch 0 as having started at the slot of block 1. We want to use</span>
 		<span class="comment">// the same randomness and validator set as signalled in the genesis,</span>
 		<span class="comment">// so we don&#39;t rotate the epoch.</span>
-		<span class="ident">now</span> <span class="op">!</span><span class="op">=</span> <span class="ident">sp_runtime</span>::<span class="ident">traits</span>::<span class="ident">One</span>::<span class="ident">one</span>() <span class="kw-2">&amp;</span><span class="op">&amp;</span> {
+		<span class="ident">now</span> <span class="op">!</span><span class="op">=</span> <span class="ident">One</span>::<span class="ident">one</span>() <span class="kw-2">&amp;</span><span class="op">&amp;</span> {
 			<span class="kw">let</span> <span class="ident">diff</span> <span class="op">=</span> <span class="ident">CurrentSlot</span>::<span class="ident">get</span>().<span class="ident">saturating_sub</span>(<span class="self">Self</span>::<span class="ident">current_epoch_start</span>());
 			<span class="ident">diff</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">T</span>::<span class="ident">EpochDuration</span>::<span class="ident">get</span>()
 		}
+	}
+
+	<span class="doccomment">/// Return the _best guess_ block number, at which the next epoch change is predicted to happen.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// Returns None if the prediction is in the past; This implies an error internally in the Babe</span>
+	<span class="doccomment">/// and should not happen under normal circumstances.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// In other word, this is only accurate if no slots are missed. Given missed slots, the slot</span>
+	<span class="doccomment">/// number will grow while the block number will not. Hence, the result can be interpreted as an</span>
+	<span class="doccomment">/// upper bound.</span>
+	<span class="comment">// -------------- IMPORTANT NOTE --------------</span>
+	<span class="comment">// This implementation is linked to how [`should_epoch_change`] is working. This might need to</span>
+	<span class="comment">// be updated accordingly, if the underlying mechanics of slot and epochs change.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">next_expected_epoch_change</span>(<span class="ident">now</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">BlockNumber</span><span class="op">&gt;</span> {
+		<span class="kw">let</span> <span class="ident">next_slot</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">current_epoch_start</span>().<span class="ident">saturating_add</span>(<span class="ident">T</span>::<span class="ident">EpochDuration</span>::<span class="ident">get</span>());
+		<span class="ident">next_slot</span>
+			.<span class="ident">checked_sub</span>(<span class="ident">CurrentSlot</span>::<span class="ident">get</span>())
+			.<span class="ident">map</span>(<span class="op">|</span><span class="ident">slots_remaining</span><span class="op">|</span> {
+				<span class="comment">// This is a best effort guess. Drifts in the slot/block ratio will cause errors here.</span>
+				<span class="kw">let</span> <span class="ident">blocks_remaining</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span> <span class="op">=</span> <span class="ident">slots_remaining</span>.<span class="ident">saturated_into</span>();
+				<span class="ident">now</span>.<span class="ident">saturating_add</span>(<span class="ident">blocks_remaining</span>)
+			})
 	}
 
 	<span class="doccomment">/// DANGEROUS: Enact an epoch change. Should be done on every block where `should_epoch_change` has returned `true`,</span>
@@ -894,10 +937,7 @@
 	) {
 		<span class="comment">// PRECONDITION: caller has done initialization and is guaranteed</span>
 		<span class="comment">// by the session module to be called before this.</span>
-		<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">debug_assertions</span>)]</span>
-		{
-			<span class="macro">assert</span><span class="macro">!</span>(<span class="self">Self</span>::<span class="ident">initialized</span>().<span class="ident">is_some</span>())
-		}
+		<span class="macro">debug_assert</span><span class="macro">!</span>(<span class="self">Self</span>::<span class="ident">initialized</span>().<span class="ident">is_some</span>());
 
 		<span class="comment">// Update epoch index</span>
 		<span class="kw">let</span> <span class="ident">epoch_index</span> <span class="op">=</span> <span class="ident">EpochIndex</span>::<span class="ident">get</span>()
@@ -941,7 +981,7 @@
 		<span class="op">&lt;</span><span class="ident">frame_system</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">deposit_log</span>(<span class="ident">log</span>.<span class="ident">into</span>())
 	}
 
-	<span class="kw">fn</span> <span class="ident">deposit_vrf_output</span>(<span class="ident">vrf_output</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>; <span class="ident">VRF_OUTPUT_LENGTH</span>]) {
+	<span class="kw">fn</span> <span class="ident">deposit_vrf_output</span>(<span class="ident">vrf_output</span>: <span class="kw-2">&amp;</span><span class="ident">schnorrkel</span>::<span class="ident">RawVRFOutput</span>) {
 		<span class="kw">let</span> <span class="ident">segment_idx</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">SegmentIndex</span><span class="op">&gt;</span>::<span class="ident">get</span>();
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">segment</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">UnderConstruction</span><span class="op">&gt;</span>::<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">segment_idx</span>);
 		<span class="kw">if</span> <span class="ident">segment</span>.<span class="ident">len</span>() <span class="op">&lt;</span> <span class="ident">UNDER_CONSTRUCTION_SEGMENT_LENGTH</span> {
@@ -951,7 +991,7 @@
 		} <span class="kw">else</span> {
 			<span class="comment">// move onto the next segment and update the index.</span>
 			<span class="kw">let</span> <span class="ident">segment_idx</span> <span class="op">=</span> <span class="ident">segment_idx</span> <span class="op">+</span> <span class="number">1</span>;
-			<span class="op">&lt;</span><span class="ident">UnderConstruction</span><span class="op">&gt;</span>::<span class="ident">insert</span>(<span class="kw-2">&amp;</span><span class="ident">segment_idx</span>, <span class="kw-2">&amp;</span><span class="macro">vec</span><span class="macro">!</span>[<span class="kw-2">*</span><span class="ident">vrf_output</span>]);
+			<span class="op">&lt;</span><span class="ident">UnderConstruction</span><span class="op">&gt;</span>::<span class="ident">insert</span>(<span class="kw-2">&amp;</span><span class="ident">segment_idx</span>, <span class="kw-2">&amp;</span><span class="macro">vec</span><span class="macro">!</span>[<span class="ident">vrf_output</span>.<span class="ident">clone</span>()]);
 			<span class="op">&lt;</span><span class="ident">SegmentIndex</span><span class="op">&gt;</span>::<span class="ident">put</span>(<span class="kw-2">&amp;</span><span class="ident">segment_idx</span>);
 		}
 	}
@@ -964,7 +1004,7 @@
 			<span class="kw">return</span>;
 		}
 
-		<span class="kw">let</span> <span class="ident">maybe_pre_digest</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">frame_system</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">digest</span>()
+		<span class="kw">let</span> <span class="ident">maybe_pre_digest</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">RawPreDigest</span><span class="op">&gt;</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">frame_system</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">digest</span>()
 			.<span class="ident">logs</span>
 			.<span class="ident">iter</span>()
 			.<span class="ident">filter_map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">s</span>.<span class="ident">as_pre_runtime</span>())
@@ -996,11 +1036,11 @@
 
 			<span class="ident">CurrentSlot</span>::<span class="ident">put</span>(<span class="ident">digest</span>.<span class="ident">slot_number</span>());
 
-			<span class="kw">if</span> <span class="kw">let</span> <span class="ident">RawPreDigest</span>::<span class="ident">Primary</span> { <span class="ident">vrf_output</span>, .. } <span class="op">=</span> <span class="ident">digest</span> {
+			<span class="kw">if</span> <span class="kw">let</span> <span class="ident">RawPreDigest</span>::<span class="ident">Primary</span>(<span class="ident">primary</span>) <span class="op">=</span> <span class="ident">digest</span> {
 				<span class="comment">// place the VRF output into the `Initialized` storage item</span>
 				<span class="comment">// and it&#39;ll be put onto the under-construction randomness</span>
 				<span class="comment">// later, once we&#39;ve decided which epoch this block is in.</span>
-				<span class="prelude-val">Some</span>(<span class="ident">vrf_output</span>)
+				<span class="prelude-val">Some</span>(<span class="ident">primary</span>.<span class="ident">vrf_output</span>)
 			} <span class="kw">else</span> {
 				<span class="prelude-val">None</span>
 			}
@@ -1014,7 +1054,7 @@
 
 	<span class="doccomment">/// Call this function exactly once when an epoch changes, to update the</span>
 	<span class="doccomment">/// randomness. Returns the new randomness.</span>
-	<span class="kw">fn</span> <span class="ident">randomness_change_epoch</span>(<span class="ident">next_epoch_index</span>: <span class="ident">u64</span>) <span class="op">-</span><span class="op">&gt;</span> [<span class="ident">u8</span>; <span class="ident">RANDOMNESS_LENGTH</span>] {
+	<span class="kw">fn</span> <span class="ident">randomness_change_epoch</span>(<span class="ident">next_epoch_index</span>: <span class="ident">u64</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">schnorrkel</span>::<span class="ident">Randomness</span> {
 		<span class="kw">let</span> <span class="ident">this_randomness</span> <span class="op">=</span> <span class="ident">NextRandomness</span>::<span class="ident">get</span>();
 		<span class="kw">let</span> <span class="ident">segment_idx</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">SegmentIndex</span><span class="op">&gt;</span>::<span class="ident">mutate</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">sp_std</span>::<span class="ident">mem</span>::<span class="ident">replace</span>(<span class="ident">s</span>, <span class="number">0</span>));
 
@@ -1041,6 +1081,12 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Trait</span><span class="op">&gt;</span> <span class="ident">OnTimestampSet</span><span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">Moment</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
 	<span class="kw">fn</span> <span class="ident">on_timestamp_set</span>(<span class="ident">_moment</span>: <span class="ident">T</span>::<span class="ident">Moment</span>) { }
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Trait</span><span class="op">&gt;</span> <span class="ident">frame_support</span>::<span class="ident">traits</span>::<span class="ident">EstimateNextSessionRotation</span><span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">BlockNumber</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">estimate_next_session_rotation</span>(<span class="ident">now</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span>::<span class="ident">BlockNumber</span><span class="op">&gt;</span> {
+		<span class="self">Self</span>::<span class="ident">next_expected_epoch_change</span>(<span class="ident">now</span>)
+	}
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Trait</span><span class="op">&gt;</span> <span class="ident">sp_runtime</span>::<span class="ident">BoundToRuntimeAppPublic</span> <span class="kw">for</span> <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
@@ -1081,11 +1127,11 @@
 <span class="comment">//</span>
 <span class="comment">// an optional size hint as to how many VRF outputs there were may be provided.</span>
 <span class="kw">fn</span> <span class="ident">compute_randomness</span>(
-	<span class="ident">last_epoch_randomness</span>: [<span class="ident">u8</span>; <span class="ident">RANDOMNESS_LENGTH</span>],
+	<span class="ident">last_epoch_randomness</span>: <span class="ident">schnorrkel</span>::<span class="ident">Randomness</span>,
 	<span class="ident">epoch_index</span>: <span class="ident">u64</span>,
-	<span class="ident">rho</span>: <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span>[<span class="ident">u8</span>; <span class="ident">VRF_OUTPUT_LENGTH</span>]<span class="op">&gt;</span>,
+	<span class="ident">rho</span>: <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span><span class="ident">schnorrkel</span>::<span class="ident">RawVRFOutput</span><span class="op">&gt;</span>,
 	<span class="ident">rho_size_hint</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>,
-) <span class="op">-</span><span class="op">&gt;</span> [<span class="ident">u8</span>; <span class="ident">RANDOMNESS_LENGTH</span>] {
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">schnorrkel</span>::<span class="ident">Randomness</span> {
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="number">40</span> <span class="op">+</span> <span class="ident">rho_size_hint</span>.<span class="ident">unwrap_or</span>(<span class="number">0</span>) <span class="op">*</span> <span class="ident">VRF_OUTPUT_LENGTH</span>);
 	<span class="ident">s</span>.<span class="ident">extend_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">last_epoch_randomness</span>);
 	<span class="ident">s</span>.<span class="ident">extend_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">epoch_index</span>.<span class="ident">to_le_bytes</span>());

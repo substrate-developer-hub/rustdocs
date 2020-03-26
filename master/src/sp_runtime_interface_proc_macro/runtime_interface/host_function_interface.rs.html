@@ -450,13 +450,13 @@
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">utils</span>::{
 	<span class="ident">generate_crate_access</span>, <span class="ident">create_host_function_ident</span>, <span class="ident">get_function_argument_names</span>,
 	<span class="ident">get_function_argument_types_without_ref</span>, <span class="ident">get_function_argument_types_ref_and_mut</span>,
-	<span class="ident">get_function_argument_names_and_types_without_ref</span>, <span class="ident">get_trait_methods</span>, <span class="ident">get_function_arguments</span>,
-	<span class="ident">get_function_argument_types</span>, <span class="ident">create_exchangeable_host_function_ident</span>,
+	<span class="ident">get_function_argument_names_and_types_without_ref</span>, <span class="ident">get_function_arguments</span>,
+	<span class="ident">get_function_argument_types</span>, <span class="ident">create_exchangeable_host_function_ident</span>, <span class="ident">get_runtime_interface</span>,
+	<span class="ident">create_function_ident_with_version</span>,
 };
 
 <span class="kw">use</span> <span class="ident">syn</span>::{
-	<span class="ident">ItemTrait</span>, <span class="ident">TraitItemMethod</span>, <span class="prelude-ty">Result</span>, <span class="ident">ReturnType</span>, <span class="ident">Ident</span>, <span class="ident">TraitItem</span>, <span class="ident">Pat</span>, <span class="ident">Error</span>, <span class="ident">Signature</span>,
-	<span class="ident">spanned</span>::<span class="ident">Spanned</span>,
+	<span class="ident">ItemTrait</span>, <span class="ident">TraitItemMethod</span>, <span class="prelude-ty">Result</span>, <span class="ident">ReturnType</span>, <span class="ident">Ident</span>, <span class="ident">Pat</span>, <span class="ident">Error</span>, <span class="ident">Signature</span>, <span class="ident">spanned</span>::<span class="ident">Spanned</span>,
 };
 
 <span class="kw">use</span> <span class="ident">proc_macro2</span>::{<span class="ident">TokenStream</span>, <span class="ident">Span</span>};
@@ -471,13 +471,15 @@
 <span class="doccomment">/// implementations for the host functions on the host.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">generate</span>(<span class="ident">trait_def</span>: <span class="kw-2">&amp;</span><span class="ident">ItemTrait</span>, <span class="ident">is_wasm_only</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">TokenStream</span><span class="op">&gt;</span> {
 	<span class="kw">let</span> <span class="ident">trait_name</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">trait_def</span>.<span class="ident">ident</span>;
-	<span class="kw">let</span> <span class="ident">extern_host_function_impls</span> <span class="op">=</span> <span class="ident">get_trait_methods</span>(<span class="ident">trait_def</span>)
-		.<span class="ident">try_fold</span>(<span class="ident">TokenStream</span>::<span class="ident">new</span>(), <span class="op">|</span><span class="kw-2">mut</span> <span class="ident">t</span>, <span class="ident">m</span><span class="op">|</span> {
-			<span class="ident">t</span>.<span class="ident">extend</span>(<span class="ident">generate_extern_host_function</span>(<span class="ident">m</span>, <span class="ident">trait_name</span>)<span class="question-mark">?</span>);
+	<span class="kw">let</span> <span class="ident">extern_host_function_impls</span> <span class="op">=</span> <span class="ident">get_runtime_interface</span>(<span class="ident">trait_def</span>)<span class="question-mark">?</span>
+		.<span class="ident">latest_versions</span>()
+		.<span class="ident">try_fold</span>(<span class="ident">TokenStream</span>::<span class="ident">new</span>(), <span class="op">|</span><span class="kw-2">mut</span> <span class="ident">t</span>, (<span class="ident">version</span>, <span class="ident">method</span>)<span class="op">|</span> {
+			<span class="ident">t</span>.<span class="ident">extend</span>(<span class="ident">generate_extern_host_function</span>(<span class="ident">method</span>, <span class="ident">version</span>, <span class="ident">trait_name</span>)<span class="question-mark">?</span>);
 			<span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">Error</span><span class="op">&gt;</span>(<span class="ident">t</span>)
 		})<span class="question-mark">?</span>;
-	<span class="kw">let</span> <span class="ident">exchangeable_host_functions</span> <span class="op">=</span> <span class="ident">get_trait_methods</span>(<span class="ident">trait_def</span>)
-		.<span class="ident">try_fold</span>(<span class="ident">TokenStream</span>::<span class="ident">new</span>(), <span class="op">|</span><span class="kw-2">mut</span> <span class="ident">t</span>, <span class="ident">m</span><span class="op">|</span> {
+	<span class="kw">let</span> <span class="ident">exchangeable_host_functions</span> <span class="op">=</span> <span class="ident">get_runtime_interface</span>(<span class="ident">trait_def</span>)<span class="question-mark">?</span>
+		.<span class="ident">latest_versions</span>()
+		.<span class="ident">try_fold</span>(<span class="ident">TokenStream</span>::<span class="ident">new</span>(), <span class="op">|</span><span class="kw-2">mut</span> <span class="ident">t</span>, (<span class="kw">_</span>, <span class="ident">m</span>)<span class="op">|</span> {
 			<span class="ident">t</span>.<span class="ident">extend</span>(<span class="ident">generate_exchangeable_host_function</span>(<span class="ident">m</span>)<span class="question-mark">?</span>);
 			<span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">Error</span><span class="op">&gt;</span>(<span class="ident">t</span>)
 		})<span class="question-mark">?</span>;
@@ -503,7 +505,7 @@
 }
 
 <span class="doccomment">/// Generate the extern host function for the given method.</span>
-<span class="kw">fn</span> <span class="ident">generate_extern_host_function</span>(<span class="ident">method</span>: <span class="kw-2">&amp;</span><span class="ident">TraitItemMethod</span>, <span class="ident">trait_name</span>: <span class="kw-2">&amp;</span><span class="ident">Ident</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">TokenStream</span><span class="op">&gt;</span> {
+<span class="kw">fn</span> <span class="ident">generate_extern_host_function</span>(<span class="ident">method</span>: <span class="kw-2">&amp;</span><span class="ident">TraitItemMethod</span>, <span class="ident">version</span>: <span class="ident">u32</span>, <span class="ident">trait_name</span>: <span class="kw-2">&amp;</span><span class="ident">Ident</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">TokenStream</span><span class="op">&gt;</span> {
 	<span class="kw">let</span> <span class="ident">crate_</span> <span class="op">=</span> <span class="ident">generate_crate_access</span>();
 	<span class="kw">let</span> <span class="ident">args</span> <span class="op">=</span> <span class="ident">get_function_arguments</span>(<span class="kw-2">&amp;</span><span class="ident">method</span>.<span class="ident">sig</span>);
 	<span class="kw">let</span> <span class="ident">arg_types</span> <span class="op">=</span> <span class="ident">get_function_argument_types_without_ref</span>(<span class="kw-2">&amp;</span><span class="ident">method</span>.<span class="ident">sig</span>);
@@ -512,7 +514,7 @@
 	<span class="kw">let</span> <span class="ident">arg_names2</span> <span class="op">=</span> <span class="ident">get_function_argument_names</span>(<span class="kw-2">&amp;</span><span class="ident">method</span>.<span class="ident">sig</span>);
 	<span class="kw">let</span> <span class="ident">arg_names3</span> <span class="op">=</span> <span class="ident">get_function_argument_names</span>(<span class="kw-2">&amp;</span><span class="ident">method</span>.<span class="ident">sig</span>);
 	<span class="kw">let</span> <span class="ident">function</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">method</span>.<span class="ident">sig</span>.<span class="ident">ident</span>;
-	<span class="kw">let</span> <span class="ident">ext_function</span> <span class="op">=</span> <span class="ident">create_host_function_ident</span>(<span class="kw-2">&amp;</span><span class="ident">method</span>.<span class="ident">sig</span>.<span class="ident">ident</span>, <span class="ident">trait_name</span>);
+	<span class="kw">let</span> <span class="ident">ext_function</span> <span class="op">=</span> <span class="ident">create_host_function_ident</span>(<span class="kw-2">&amp;</span><span class="ident">method</span>.<span class="ident">sig</span>.<span class="ident">ident</span>, <span class="ident">version</span>, <span class="ident">trait_name</span>);
 	<span class="kw">let</span> <span class="ident">doc_string</span> <span class="op">=</span> <span class="macro">format</span><span class="macro">!</span>(
 		<span class="string">&quot; Default extern host function implementation for [`super::{}`].&quot;</span>,
 		<span class="ident">method</span>.<span class="ident">sig</span>.<span class="ident">ident</span>,
@@ -584,14 +586,12 @@
 <span class="doccomment">/// implementations for the extern host functions.</span>
 <span class="kw">fn</span> <span class="ident">generate_host_functions_struct</span>(<span class="ident">trait_def</span>: <span class="kw-2">&amp;</span><span class="ident">ItemTrait</span>, <span class="ident">is_wasm_only</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">TokenStream</span><span class="op">&gt;</span> {
 	<span class="kw">let</span> <span class="ident">crate_</span> <span class="op">=</span> <span class="ident">generate_crate_access</span>();
-	<span class="kw">let</span> <span class="ident">host_functions</span> <span class="op">=</span> <span class="ident">trait_def</span>
-		.<span class="ident">items</span>
-		.<span class="ident">iter</span>()
-		.<span class="ident">filter_map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">i</span> {
-			<span class="ident">TraitItem</span>::<span class="ident">Method</span>(<span class="kw-2">ref</span> <span class="ident">method</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">method</span>),
-			<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">None</span>,
-		})
-		.<span class="ident">map</span>(<span class="op">|</span><span class="ident">m</span><span class="op">|</span> <span class="ident">generate_host_function_implementation</span>(<span class="kw-2">&amp;</span><span class="ident">trait_def</span>.<span class="ident">ident</span>, <span class="ident">m</span>, <span class="ident">is_wasm_only</span>))
+
+	<span class="kw">let</span> <span class="ident">host_functions</span> <span class="op">=</span> <span class="ident">get_runtime_interface</span>(<span class="ident">trait_def</span>)<span class="question-mark">?</span>
+		.<span class="ident">all_versions</span>()
+		.<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">version</span>, <span class="ident">method</span>)<span class="op">|</span>
+			<span class="ident">generate_host_function_implementation</span>(<span class="kw-2">&amp;</span><span class="ident">trait_def</span>.<span class="ident">ident</span>, <span class="ident">method</span>, <span class="ident">version</span>, <span class="ident">is_wasm_only</span>)
+		)
 		.<span class="ident">collect</span>::<span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>()<span class="question-mark">?</span>;
 
 	<span class="prelude-val">Ok</span>(
@@ -618,9 +618,10 @@
 <span class="kw">fn</span> <span class="ident">generate_host_function_implementation</span>(
 	<span class="ident">trait_name</span>: <span class="kw-2">&amp;</span><span class="ident">Ident</span>,
 	<span class="ident">method</span>: <span class="kw-2">&amp;</span><span class="ident">TraitItemMethod</span>,
+	<span class="ident">version</span>: <span class="ident">u32</span>,
 	<span class="ident">is_wasm_only</span>: <span class="ident">bool</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">TokenStream</span><span class="op">&gt;</span> {
-	<span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">create_host_function_ident</span>(<span class="kw-2">&amp;</span><span class="ident">method</span>.<span class="ident">sig</span>.<span class="ident">ident</span>, <span class="ident">trait_name</span>).<span class="ident">to_string</span>();
+	<span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">create_host_function_ident</span>(<span class="kw-2">&amp;</span><span class="ident">method</span>.<span class="ident">sig</span>.<span class="ident">ident</span>, <span class="ident">version</span>, <span class="ident">trait_name</span>).<span class="ident">to_string</span>();
 	<span class="kw">let</span> <span class="ident">struct_name</span> <span class="op">=</span> <span class="ident">Ident</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">name</span>.<span class="ident">to_pascal_case</span>(), <span class="ident">Span</span>::<span class="ident">call_site</span>());
 	<span class="kw">let</span> <span class="ident">crate_</span> <span class="op">=</span> <span class="ident">generate_crate_access</span>();
 	<span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span> <span class="ident">generate_wasm_interface_signature_for_host_function</span>(<span class="kw-2">&amp;</span><span class="ident">method</span>.<span class="ident">sig</span>)<span class="question-mark">?</span>;
@@ -629,7 +630,7 @@
 		<span class="ident">trait_name</span>,
 	).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>()<span class="question-mark">?</span>;
 	<span class="kw">let</span> <span class="ident">ffi_to_host_values</span> <span class="op">=</span> <span class="ident">generate_ffi_to_host_value</span>(<span class="kw-2">&amp;</span><span class="ident">method</span>.<span class="ident">sig</span>).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>()<span class="question-mark">?</span>;
-	<span class="kw">let</span> <span class="ident">host_function_call</span> <span class="op">=</span> <span class="ident">generate_host_function_call</span>(<span class="kw-2">&amp;</span><span class="ident">method</span>.<span class="ident">sig</span>, <span class="ident">is_wasm_only</span>);
+	<span class="kw">let</span> <span class="ident">host_function_call</span> <span class="op">=</span> <span class="ident">generate_host_function_call</span>(<span class="kw-2">&amp;</span><span class="ident">method</span>.<span class="ident">sig</span>, <span class="ident">version</span>, <span class="ident">is_wasm_only</span>);
 	<span class="kw">let</span> <span class="ident">into_preallocated_ffi_value</span> <span class="op">=</span> <span class="ident">generate_into_preallocated_ffi_value</span>(<span class="kw-2">&amp;</span><span class="ident">method</span>.<span class="ident">sig</span>)<span class="question-mark">?</span>;
 	<span class="kw">let</span> <span class="ident">convert_return_value</span> <span class="op">=</span> <span class="ident">generate_return_value_into_wasm_value</span>(<span class="kw-2">&amp;</span><span class="ident">method</span>.<span class="ident">sig</span>);
 
@@ -638,7 +639,6 @@
 			{
 				<span class="kw">struct</span> #<span class="ident">struct_name</span>;
 
-				<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused</span>)]</span>
 				<span class="kw">impl</span> #<span class="ident">crate_</span>::<span class="ident">sp_wasm_interface</span>::<span class="ident">Function</span> <span class="kw">for</span> #<span class="ident">struct_name</span> {
 					<span class="kw">fn</span> <span class="ident">name</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">str</span> {
 						#<span class="ident">name</span>
@@ -749,8 +749,8 @@
 }
 
 <span class="doccomment">/// Generate the code to call the host function and the ident that stores the result.</span>
-<span class="kw">fn</span> <span class="ident">generate_host_function_call</span>(<span class="ident">sig</span>: <span class="kw-2">&amp;</span><span class="ident">Signature</span>, <span class="ident">is_wasm_only</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TokenStream</span> {
-	<span class="kw">let</span> <span class="ident">host_function_name</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">sig</span>.<span class="ident">ident</span>;
+<span class="kw">fn</span> <span class="ident">generate_host_function_call</span>(<span class="ident">sig</span>: <span class="kw-2">&amp;</span><span class="ident">Signature</span>, <span class="ident">version</span>: <span class="ident">u32</span>, <span class="ident">is_wasm_only</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TokenStream</span> {
+	<span class="kw">let</span> <span class="ident">host_function_name</span> <span class="op">=</span> <span class="ident">create_function_ident_with_version</span>(<span class="kw-2">&amp;</span><span class="ident">sig</span>.<span class="ident">ident</span>, <span class="ident">version</span>);
 	<span class="kw">let</span> <span class="ident">result_var_name</span> <span class="op">=</span> <span class="ident">generate_host_function_result_var_name</span>(<span class="kw-2">&amp;</span><span class="ident">sig</span>.<span class="ident">ident</span>);
 	<span class="kw">let</span> <span class="ident">ref_and_mut</span> <span class="op">=</span> <span class="ident">get_function_argument_types_ref_and_mut</span>(<span class="ident">sig</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">ram</span><span class="op">|</span>
 		<span class="ident">ram</span>.<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">vr</span>, <span class="ident">vm</span>)<span class="op">|</span> <span class="macro">quote</span><span class="macro">!</span>(#<span class="ident">vr</span> #<span class="ident">vm</span>))

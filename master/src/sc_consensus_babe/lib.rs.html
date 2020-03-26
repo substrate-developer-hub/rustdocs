@@ -1254,6 +1254,25 @@
 <span id="1243">1243</span>
 <span id="1244">1244</span>
 <span id="1245">1245</span>
+<span id="1246">1246</span>
+<span id="1247">1247</span>
+<span id="1248">1248</span>
+<span id="1249">1249</span>
+<span id="1250">1250</span>
+<span id="1251">1251</span>
+<span id="1252">1252</span>
+<span id="1253">1253</span>
+<span id="1254">1254</span>
+<span id="1255">1255</span>
+<span id="1256">1256</span>
+<span id="1257">1257</span>
+<span id="1258">1258</span>
+<span id="1259">1259</span>
+<span id="1260">1260</span>
+<span id="1261">1261</span>
+<span id="1262">1262</span>
+<span id="1263">1263</span>
+<span id="1264">1264</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1319,7 +1338,9 @@
 	<span class="ident">BabeApi</span>, <span class="ident">ConsensusLog</span>, <span class="ident">BABE_ENGINE_ID</span>, <span class="ident">SlotNumber</span>, <span class="ident">BabeConfiguration</span>,
 	<span class="ident">AuthorityId</span>, <span class="ident">AuthorityPair</span>, <span class="ident">AuthoritySignature</span>,
 	<span class="ident">BabeAuthorityWeight</span>, <span class="ident">VRF_OUTPUT_LENGTH</span>,
-	<span class="ident">digests</span>::{<span class="ident">PreDigest</span>, <span class="ident">CompatibleDigestItem</span>, <span class="ident">NextEpochDescriptor</span>},
+	<span class="ident">digests</span>::{
+		<span class="ident">CompatibleDigestItem</span>, <span class="ident">NextEpochDescriptor</span>, <span class="ident">PreDigest</span>, <span class="ident">PrimaryPreDigest</span>, <span class="ident">SecondaryPreDigest</span>,
+	},
 };
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">sp_consensus</span>::<span class="ident">SyncOracle</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{
@@ -1335,7 +1356,7 @@
 	<span class="ident">generic</span>::{<span class="ident">BlockId</span>, <span class="ident">OpaqueDigestItemId</span>}, <span class="ident">Justification</span>,
 	<span class="ident">traits</span>::{<span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>, <span class="ident">Header</span>, <span class="ident">DigestItemFor</span>, <span class="ident">Zero</span>},
 };
-<span class="kw">use</span> <span class="ident">sp_api</span>::<span class="ident">ProvideRuntimeApi</span>;
+<span class="kw">use</span> <span class="ident">sp_api</span>::{<span class="ident">ProvideRuntimeApi</span>, <span class="ident">NumberFor</span>};
 <span class="kw">use</span> <span class="ident">sc_keystore</span>::<span class="ident">KeyStorePtr</span>;
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">Mutex</span>;
 <span class="kw">use</span> <span class="ident">sp_core</span>::<span class="ident">Pair</span>;
@@ -1361,7 +1382,7 @@
 	<span class="ident">SlotWorker</span>, <span class="ident">SlotInfo</span>, <span class="ident">SlotCompatible</span>, <span class="ident">StorageChanges</span>, <span class="ident">CheckedHeader</span>, <span class="ident">check_equivocation</span>,
 };
 <span class="kw">use</span> <span class="ident">sc_consensus_epochs</span>::{
-	<span class="ident">descendent_query</span>, <span class="ident">ViableEpoch</span>, <span class="ident">SharedEpochChanges</span>, <span class="ident">EpochChangesFor</span>, <span class="ident">Epoch</span> <span class="kw">as</span> <span class="ident">EpochT</span>
+	<span class="ident">descendent_query</span>, <span class="ident">SharedEpochChanges</span>, <span class="ident">EpochChangesFor</span>, <span class="ident">Epoch</span> <span class="kw">as</span> <span class="ident">EpochT</span>, <span class="ident">ViableEpochDescriptor</span>,
 };
 <span class="kw">use</span> <span class="ident">sp_blockchain</span>::{
 	<span class="prelude-ty">Result</span> <span class="kw">as</span> <span class="ident">ClientResult</span>, <span class="ident">Error</span> <span class="kw">as</span> <span class="ident">ClientError</span>,
@@ -1488,9 +1509,9 @@
 
 
 <span class="doccomment">/// Intermediate value passed to block importer.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BabeIntermediate</span> {
-	<span class="doccomment">/// The epoch data, if available.</span>
-	<span class="kw">pub</span> <span class="ident">epoch</span>: <span class="ident">ViableEpoch</span><span class="op">&lt;</span><span class="ident">Epoch</span><span class="op">&gt;</span>,
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BabeIntermediate</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> {
+	<span class="doccomment">/// The epoch descriptor.</span>
+	<span class="kw">pub</span> <span class="ident">epoch_descriptor</span>: <span class="ident">ViableEpochDescriptor</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">Epoch</span><span class="op">&gt;</span>,
 }
 
 <span class="doccomment">/// Intermediate key for Babe engine.</span>
@@ -1575,7 +1596,7 @@
 	<span class="kw">pub</span> <span class="ident">can_author_with</span>: <span class="ident">CAW</span>,
 }
 
-<span class="doccomment">/// Start the babe worker. The returned future should be run in a tokio runtime.</span>
+<span class="doccomment">/// Start the babe worker.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">start_babe</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">C</span>, <span class="ident">SC</span>, <span class="ident">E</span>, <span class="ident">I</span>, <span class="ident">SO</span>, <span class="ident">CAW</span>, <span class="ident">Error</span><span class="op">&gt;</span>(<span class="ident">BabeParams</span> {
 	<span class="ident">keystore</span>,
 	<span class="ident">client</span>,
@@ -1659,7 +1680,7 @@
 	<span class="ident">SO</span>: <span class="ident">SyncOracle</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Clone</span>,
 	<span class="ident">Error</span>: <span class="ident">std</span>::<span class="ident">error</span>::<span class="ident">Error</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">ConsensusError</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">I</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 {
-	<span class="kw">type</span> <span class="ident">EpochData</span> <span class="op">=</span> <span class="ident">ViableEpoch</span><span class="op">&lt;</span><span class="ident">Epoch</span><span class="op">&gt;</span>;
+	<span class="kw">type</span> <span class="ident">EpochData</span> <span class="op">=</span> <span class="ident">ViableEpochDescriptor</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">Epoch</span><span class="op">&gt;</span>;
 	<span class="kw">type</span> <span class="ident">Claim</span> <span class="op">=</span> (<span class="ident">PreDigest</span>, <span class="ident">AuthorityPair</span>);
 	<span class="kw">type</span> <span class="ident">SyncOracle</span> <span class="op">=</span> <span class="ident">SO</span>;
 	<span class="kw">type</span> <span class="ident">CreateProposer</span> <span class="op">=</span> <span class="ident">Pin</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span>
@@ -1681,31 +1702,35 @@
 		<span class="ident">parent</span>: <span class="kw-2">&amp;</span><span class="ident">B</span>::<span class="ident">Header</span>,
 		<span class="ident">slot_number</span>: <span class="ident">u64</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">EpochData</span>, <span class="ident">ConsensusError</span><span class="op">&gt;</span> {
-		<span class="self">self</span>.<span class="ident">epoch_changes</span>.<span class="ident">lock</span>().<span class="ident">epoch_for_child_of</span>(
+		<span class="self">self</span>.<span class="ident">epoch_changes</span>.<span class="ident">lock</span>().<span class="ident">epoch_descriptor_for_child_of</span>(
 			<span class="ident">descendent_query</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">client</span>),
 			<span class="kw-2">&amp;</span><span class="ident">parent</span>.<span class="ident">hash</span>(),
 			<span class="ident">parent</span>.<span class="ident">number</span>().<span class="ident">clone</span>(),
 			<span class="ident">slot_number</span>,
-			<span class="op">|</span><span class="ident">slot</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">genesis_epoch</span>(<span class="ident">slot</span>)
 		)
 			.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">ConsensusError</span>::<span class="ident">ChainLookup</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">e</span>)))<span class="question-mark">?</span>
 			.<span class="ident">ok_or</span>(<span class="ident">sp_consensus</span>::<span class="ident">Error</span>::<span class="ident">InvalidAuthoritiesSet</span>)
 	}
 
-	<span class="kw">fn</span> <span class="ident">authorities_len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">epoch_data</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">EpochData</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
-		<span class="ident">epoch_data</span>.<span class="ident">as_ref</span>().<span class="ident">authorities</span>.<span class="ident">len</span>()
+	<span class="kw">fn</span> <span class="ident">authorities_len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">epoch_descriptor</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">EpochData</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> {
+		<span class="self">self</span>.<span class="ident">epoch_changes</span>.<span class="ident">lock</span>()
+			.<span class="ident">viable_epoch</span>(<span class="kw-2">&amp;</span><span class="ident">epoch_descriptor</span>, <span class="op">|</span><span class="ident">slot</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">genesis_epoch</span>(<span class="ident">slot</span>))
+			.<span class="ident">map</span>(<span class="op">|</span><span class="ident">epoch</span><span class="op">|</span> <span class="ident">epoch</span>.<span class="ident">as_ref</span>().<span class="ident">authorities</span>.<span class="ident">len</span>())
 	}
 
 	<span class="kw">fn</span> <span class="ident">claim_slot</span>(
 		<span class="kw-2">&amp;</span><span class="self">self</span>,
 		<span class="ident">_parent_header</span>: <span class="kw-2">&amp;</span><span class="ident">B</span>::<span class="ident">Header</span>,
 		<span class="ident">slot_number</span>: <span class="ident">SlotNumber</span>,
-		<span class="ident">epoch_data</span>: <span class="kw-2">&amp;</span><span class="ident">ViableEpoch</span><span class="op">&lt;</span><span class="ident">Epoch</span><span class="op">&gt;</span>,
+		<span class="ident">epoch_descriptor</span>: <span class="kw-2">&amp;</span><span class="ident">ViableEpochDescriptor</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Hash</span>, <span class="ident">NumberFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>, <span class="ident">Epoch</span><span class="op">&gt;</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Claim</span><span class="op">&gt;</span> {
 		<span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;babe&quot;</span>, <span class="string">&quot;Attempting to claim slot {}&quot;</span>, <span class="ident">slot_number</span>);
 		<span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">authorship</span>::<span class="ident">claim_slot</span>(
 			<span class="ident">slot_number</span>,
-			<span class="ident">epoch_data</span>.<span class="ident">as_ref</span>(),
+			<span class="self">self</span>.<span class="ident">epoch_changes</span>.<span class="ident">lock</span>().<span class="ident">viable_epoch</span>(
+				<span class="kw-2">&amp;</span><span class="ident">epoch_descriptor</span>,
+				<span class="op">|</span><span class="ident">slot</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">genesis_epoch</span>(<span class="ident">slot</span>)
+			)<span class="question-mark">?</span>.<span class="ident">as_ref</span>(),
 			<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">config</span>,
 			<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">keystore</span>,
 		);
@@ -1735,7 +1760,7 @@
 		<span class="self">Self</span>::<span class="ident">Claim</span>,
 		<span class="self">Self</span>::<span class="ident">EpochData</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">sp_consensus</span>::<span class="ident">BlockImportParams</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">I</span>::<span class="ident">Transaction</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span> {
-		<span class="ident">Box</span>::<span class="ident">new</span>(<span class="op">|</span><span class="ident">header</span>, <span class="ident">header_hash</span>, <span class="ident">body</span>, <span class="ident">storage_changes</span>, (<span class="kw">_</span>, <span class="ident">pair</span>), <span class="ident">epoch</span><span class="op">|</span> {
+		<span class="ident">Box</span>::<span class="ident">new</span>(<span class="op">|</span><span class="ident">header</span>, <span class="ident">header_hash</span>, <span class="ident">body</span>, <span class="ident">storage_changes</span>, (<span class="kw">_</span>, <span class="ident">pair</span>), <span class="ident">epoch_descriptor</span><span class="op">|</span> {
 			<span class="comment">// sign the pre-sealed hash of the block and then</span>
 			<span class="comment">// add it to a digest item.</span>
 			<span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span> <span class="ident">pair</span>.<span class="ident">sign</span>(<span class="ident">header_hash</span>.<span class="ident">as_ref</span>());
@@ -1747,7 +1772,7 @@
 			<span class="ident">import_block</span>.<span class="ident">storage_changes</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">storage_changes</span>);
 			<span class="ident">import_block</span>.<span class="ident">intermediates</span>.<span class="ident">insert</span>(
 				<span class="ident">Cow</span>::<span class="ident">from</span>(<span class="ident">INTERMEDIATE_KEY</span>),
-				<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">BabeIntermediate</span> { <span class="ident">epoch</span> }) <span class="kw">as</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Any</span><span class="op">&gt;</span>,
+				<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">BabeIntermediate</span>::<span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> { <span class="ident">epoch_descriptor</span> }) <span class="kw">as</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Any</span><span class="op">&gt;</span>,
 			);
 
 			<span class="ident">import_block</span>
@@ -1833,10 +1858,10 @@
 	<span class="comment">// genesis block doesn&#39;t contain a pre digest so let&#39;s generate a</span>
 	<span class="comment">// dummy one to not break any invariants in the rest of the code</span>
 	<span class="kw">if</span> <span class="ident">header</span>.<span class="ident">number</span>().<span class="ident">is_zero</span>() {
-		<span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">PreDigest</span>::<span class="ident">Secondary</span> {
+		<span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">PreDigest</span>::<span class="ident">Secondary</span>(<span class="ident">SecondaryPreDigest</span> {
 			<span class="ident">slot_number</span>: <span class="number">0</span>,
 			<span class="ident">authority_index</span>: <span class="number">0</span>,
-		});
+		}));
 	}
 
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pre_digest</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> <span class="prelude-val">None</span>;
@@ -1986,18 +2011,19 @@
 			.<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>::<span class="ident">FetchParentHeader</span>)<span class="question-mark">?</span>;
 
 		<span class="kw">let</span> <span class="ident">pre_digest</span> <span class="op">=</span> <span class="ident">find_pre_digest</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="ident">header</span>)<span class="question-mark">?</span>;
-		<span class="kw">let</span> <span class="ident">epoch</span> <span class="op">=</span> {
-			<span class="kw">let</span> <span class="ident">epoch_changes</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">epoch_changes</span>.<span class="ident">lock</span>();
-			<span class="ident">epoch_changes</span>.<span class="ident">epoch_for_child_of</span>(
-				<span class="ident">descendent_query</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">client</span>),
-				<span class="kw-2">&amp;</span><span class="ident">parent_hash</span>,
-				<span class="ident">parent_header_metadata</span>.<span class="ident">number</span>,
-				<span class="ident">pre_digest</span>.<span class="ident">slot_number</span>(),
-				<span class="op">|</span><span class="ident">slot</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">genesis_epoch</span>(<span class="ident">slot</span>),
-			)
-				.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">Error</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>::<span class="ident">ForkTree</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">e</span>)))<span class="question-mark">?</span>
-				.<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">Error</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>::<span class="ident">FetchEpoch</span>(<span class="ident">parent_hash</span>))<span class="question-mark">?</span>
-		};
+		<span class="kw">let</span> <span class="ident">epoch_changes</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">epoch_changes</span>.<span class="ident">lock</span>();
+		<span class="kw">let</span> <span class="ident">epoch_descriptor</span> <span class="op">=</span> <span class="ident">epoch_changes</span>.<span class="ident">epoch_descriptor_for_child_of</span>(
+			<span class="ident">descendent_query</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">client</span>),
+			<span class="kw-2">&amp;</span><span class="ident">parent_hash</span>,
+			<span class="ident">parent_header_metadata</span>.<span class="ident">number</span>,
+			<span class="ident">pre_digest</span>.<span class="ident">slot_number</span>(),
+		)
+			.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">Error</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>::<span class="ident">ForkTree</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">e</span>)))<span class="question-mark">?</span>
+			.<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">Error</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>::<span class="ident">FetchEpoch</span>(<span class="ident">parent_hash</span>))<span class="question-mark">?</span>;
+		<span class="kw">let</span> <span class="ident">viable_epoch</span> <span class="op">=</span> <span class="ident">epoch_changes</span>.<span class="ident">viable_epoch</span>(
+			<span class="kw-2">&amp;</span><span class="ident">epoch_descriptor</span>,
+			<span class="op">|</span><span class="ident">slot</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">genesis_epoch</span>(<span class="ident">slot</span>)
+		).<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">Error</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>::<span class="ident">FetchEpoch</span>(<span class="ident">parent_hash</span>))<span class="question-mark">?</span>;
 
 		<span class="comment">// We add one to the current slot to allow for some small drift.</span>
 		<span class="comment">// FIXME #1019 in the future, alter this queue to allow deferring of headers</span>
@@ -2005,7 +2031,7 @@
 			<span class="ident">header</span>: <span class="ident">header</span>.<span class="ident">clone</span>(),
 			<span class="ident">pre_digest</span>: <span class="prelude-val">Some</span>(<span class="ident">pre_digest</span>.<span class="ident">clone</span>()),
 			<span class="ident">slot_now</span>: <span class="ident">slot_now</span> <span class="op">+</span> <span class="number">1</span>,
-			<span class="ident">epoch</span>: <span class="ident">epoch</span>.<span class="ident">as_ref</span>(),
+			<span class="ident">epoch</span>: <span class="ident">viable_epoch</span>.<span class="ident">as_ref</span>(),
 			<span class="ident">config</span>: <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">config</span>,
 		};
 
@@ -2065,7 +2091,7 @@
 				<span class="ident">import_block</span>.<span class="ident">justification</span> <span class="op">=</span> <span class="ident">justification</span>;
 				<span class="ident">import_block</span>.<span class="ident">intermediates</span>.<span class="ident">insert</span>(
 					<span class="ident">Cow</span>::<span class="ident">from</span>(<span class="ident">INTERMEDIATE_KEY</span>),
-					<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">BabeIntermediate</span> { <span class="ident">epoch</span> }) <span class="kw">as</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Any</span><span class="op">&gt;</span>,
+					<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">BabeIntermediate</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> { <span class="ident">epoch_descriptor</span> }) <span class="kw">as</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Any</span><span class="op">&gt;</span>,
 				);
 				<span class="ident">import_block</span>.<span class="ident">post_hash</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">hash</span>);
 
@@ -2203,7 +2229,7 @@
 		<span class="comment">// if this is the first block in its chain for that epoch.</span>
 		<span class="comment">//</span>
 		<span class="comment">// also provides the total weight of the chain, including the imported block.</span>
-		<span class="kw">let</span> (<span class="ident">epoch</span>, <span class="ident">first_in_epoch</span>, <span class="ident">parent_weight</span>) <span class="op">=</span> {
+		<span class="kw">let</span> (<span class="ident">epoch_descriptor</span>, <span class="ident">first_in_epoch</span>, <span class="ident">parent_weight</span>) <span class="op">=</span> {
 			<span class="kw">let</span> <span class="ident">parent_weight</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">parent_header</span>.<span class="ident">number</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">Zero</span>::<span class="ident">zero</span>() {
 				<span class="number">0</span>
 			} <span class="kw">else</span> {
@@ -2214,13 +2240,13 @@
 					))<span class="question-mark">?</span>
 			};
 
-			<span class="kw">let</span> <span class="ident">intermediate</span> <span class="op">=</span> <span class="ident">block</span>.<span class="ident">take_intermediate</span>::<span class="op">&lt;</span><span class="ident">BabeIntermediate</span><span class="op">&gt;</span>(
+			<span class="kw">let</span> <span class="ident">intermediate</span> <span class="op">=</span> <span class="ident">block</span>.<span class="ident">take_intermediate</span>::<span class="op">&lt;</span><span class="ident">BabeIntermediate</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>(
 				<span class="ident">INTERMEDIATE_KEY</span>
 			)<span class="question-mark">?</span>;
 
-			<span class="kw">let</span> <span class="ident">epoch</span> <span class="op">=</span> <span class="ident">intermediate</span>.<span class="ident">epoch</span>;
-			<span class="kw">let</span> <span class="ident">first_in_epoch</span> <span class="op">=</span> <span class="ident">parent_slot</span> <span class="op">&lt;</span> <span class="ident">epoch</span>.<span class="ident">as_ref</span>().<span class="ident">start_slot</span>;
-			(<span class="ident">epoch</span>, <span class="ident">first_in_epoch</span>, <span class="ident">parent_weight</span>)
+			<span class="kw">let</span> <span class="ident">epoch_descriptor</span> <span class="op">=</span> <span class="ident">intermediate</span>.<span class="ident">epoch_descriptor</span>;
+			<span class="kw">let</span> <span class="ident">first_in_epoch</span> <span class="op">=</span> <span class="ident">parent_slot</span> <span class="op">&lt;</span> <span class="ident">epoch_descriptor</span>.<span class="ident">start_slot</span>();
+			(<span class="ident">epoch_descriptor</span>, <span class="ident">first_in_epoch</span>, <span class="ident">parent_weight</span>)
 		};
 
 		<span class="kw">let</span> <span class="ident">total_weight</span> <span class="op">=</span> <span class="ident">parent_weight</span> <span class="op">+</span> <span class="ident">pre_digest</span>.<span class="ident">added_weight</span>();
@@ -2251,12 +2277,23 @@
 		<span class="kw">let</span> <span class="ident">info</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">client</span>.<span class="ident">info</span>();
 
 		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">next_epoch_descriptor</span>) <span class="op">=</span> <span class="ident">next_epoch_digest</span> {
-			<span class="kw">let</span> <span class="ident">next_epoch</span> <span class="op">=</span> <span class="ident">epoch</span>.<span class="ident">increment</span>(<span class="ident">next_epoch_descriptor</span>);
-
 			<span class="ident">old_epoch_changes</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">epoch_changes</span>.<span class="ident">clone</span>());
 
+			<span class="kw">let</span> <span class="ident">viable_epoch</span> <span class="op">=</span> <span class="ident">epoch_changes</span>.<span class="ident">viable_epoch</span>(
+				<span class="kw-2">&amp;</span><span class="ident">epoch_descriptor</span>,
+				<span class="op">|</span><span class="ident">slot</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">config</span>.<span class="ident">genesis_epoch</span>(<span class="ident">slot</span>),
+			).<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> {
+				<span class="ident">ConsensusError</span>::<span class="ident">ClientImport</span>(<span class="ident">Error</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>::<span class="ident">FetchEpoch</span>(<span class="ident">parent_hash</span>).<span class="ident">into</span>())
+			})<span class="question-mark">?</span>;
+
 			<span class="macro">babe_info</span><span class="macro">!</span>(<span class="string">&quot;New epoch {} launching at block {} (block slot {} &gt;= start slot {}).&quot;</span>,
-				<span class="ident">epoch</span>.<span class="ident">as_ref</span>().<span class="ident">epoch_index</span>, <span class="ident">hash</span>, <span class="ident">slot_number</span>, <span class="ident">epoch</span>.<span class="ident">as_ref</span>().<span class="ident">start_slot</span>);
+					   <span class="ident">viable_epoch</span>.<span class="ident">as_ref</span>().<span class="ident">epoch_index</span>,
+					   <span class="ident">hash</span>,
+					   <span class="ident">slot_number</span>,
+					   <span class="ident">viable_epoch</span>.<span class="ident">as_ref</span>().<span class="ident">start_slot</span>);
+
+			<span class="kw">let</span> <span class="ident">next_epoch</span> <span class="op">=</span> <span class="ident">viable_epoch</span>.<span class="ident">increment</span>(<span class="ident">next_epoch_descriptor</span>);
+
 			<span class="macro">babe_info</span><span class="macro">!</span>(<span class="string">&quot;Next epoch starts at slot {}&quot;</span>, <span class="ident">next_epoch</span>.<span class="ident">as_ref</span>().<span class="ident">start_slot</span>);
 
 			<span class="comment">// prune the tree of epochs not part of the finalized chain or</span>
@@ -2484,7 +2521,8 @@
 			<span class="ident">HeaderMetadata</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">ClientError</span><span class="op">&gt;</span>,
 		<span class="ident">C</span>::<span class="ident">Api</span>: <span class="ident">BabeApi</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 	{
-		<span class="kw">let</span> <span class="ident">epoch</span> <span class="op">=</span> <span class="ident">link</span>.<span class="ident">epoch_changes</span>.<span class="ident">lock</span>().<span class="ident">epoch_for_child_of</span>(
+		<span class="kw">let</span> <span class="ident">epoch_changes</span> <span class="op">=</span> <span class="ident">link</span>.<span class="ident">epoch_changes</span>.<span class="ident">lock</span>();
+		<span class="kw">let</span> <span class="ident">epoch</span> <span class="op">=</span> <span class="ident">epoch_changes</span>.<span class="ident">epoch_data_for_child_of</span>(
 			<span class="ident">descendent_query</span>(<span class="ident">client</span>),
 			<span class="kw-2">&amp;</span><span class="ident">parent</span>.<span class="ident">hash</span>(),
 			<span class="ident">parent</span>.<span class="ident">number</span>().<span class="ident">clone</span>(),
@@ -2494,7 +2532,7 @@
 
 		<span class="ident">authorship</span>::<span class="ident">claim_slot</span>(
 			<span class="ident">slot_number</span>,
-			<span class="ident">epoch</span>.<span class="ident">as_ref</span>(),
+			<span class="kw-2">&amp;</span><span class="ident">epoch</span>,
 			<span class="kw-2">&amp;</span><span class="ident">link</span>.<span class="ident">config</span>,
 			<span class="ident">keystore</span>,
 		).<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">digest</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">digest</span>)

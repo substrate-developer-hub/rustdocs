@@ -332,6 +332,29 @@
 <span id="321">321</span>
 <span id="322">322</span>
 <span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -404,6 +427,7 @@
 <span class="doccomment">//!</span>
 <span class="doccomment">//! decl_module! {</span>
 <span class="doccomment">//! 	pub struct Module&lt;T: Trait&gt; for enum Call where origin: T::Origin {</span>
+<span class="doccomment">//! 		#[weight = frame_support::weights::SimpleDispatchInfo::default()]</span>
 <span class="doccomment">//! 		pub fn get_time(origin) -&gt; dispatch::DispatchResult {</span>
 <span class="doccomment">//! 			let _sender = ensure_signed(origin)?;</span>
 <span class="doccomment">//! 			let _now = &lt;timestamp::Module&lt;T&gt;&gt;::get();</span>
@@ -425,19 +449,22 @@
 
 <span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>), <span class="ident">no_std</span>)]</span>
 
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;runtime-benchmarks&quot;</span>)]</span>
 <span class="kw">mod</span> <span class="ident">benchmarking</span>;
 
 <span class="kw">use</span> <span class="ident">sp_std</span>::{<span class="ident">result</span>, <span class="ident">cmp</span>};
 <span class="kw">use</span> <span class="ident">sp_inherents</span>::{<span class="ident">ProvideInherent</span>, <span class="ident">InherentData</span>, <span class="ident">InherentIdentifier</span>};
-<span class="kw">use</span> <span class="ident">frame_support</span>::{<span class="ident">Parameter</span>, <span class="ident">decl_storage</span>, <span class="ident">decl_module</span>};
-<span class="kw">use</span> <span class="ident">frame_support</span>::<span class="ident">traits</span>::{<span class="ident">Time</span>, <span class="ident">Get</span>};
+<span class="kw">use</span> <span class="ident">frame_support</span>::{
+	<span class="ident">Parameter</span>, <span class="ident">decl_storage</span>, <span class="ident">decl_module</span>, <span class="ident">debug</span>,
+	<span class="ident">traits</span>::{<span class="ident">Time</span>, <span class="ident">UnixTime</span>, <span class="ident">Get</span>},
+	<span class="ident">weights</span>::<span class="ident">SimpleDispatchInfo</span>,
+};
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::{
 	<span class="ident">RuntimeString</span>,
 	<span class="ident">traits</span>::{
 		<span class="ident">AtLeast32Bit</span>, <span class="ident">Zero</span>, <span class="ident">SaturatedConversion</span>, <span class="ident">Scale</span>
 	}
 };
-<span class="kw">use</span> <span class="ident">frame_support</span>::<span class="ident">weights</span>::<span class="ident">SimpleDispatchInfo</span>;
 <span class="kw">use</span> <span class="ident">frame_system</span>::<span class="ident">ensure_none</span>;
 <span class="kw">use</span> <span class="ident">sp_timestamp</span>::{
 	<span class="ident">InherentError</span>, <span class="ident">INHERENT_IDENTIFIER</span>, <span class="ident">InherentType</span>,
@@ -570,6 +597,25 @@
 	<span class="doccomment">/// Before the first set of now with inherent the value returned is zero.</span>
 	<span class="kw">fn</span> <span class="ident">now</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>::<span class="ident">Moment</span> {
 		<span class="self">Self</span>::<span class="ident">now</span>()
+	}
+}
+
+<span class="doccomment">/// Before the timestamp inherent is applied, it returns the time of previous block.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// On genesis the time returned is not valid.</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Trait</span><span class="op">&gt;</span> <span class="ident">UnixTime</span> <span class="kw">for</span> <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">now</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">core</span>::<span class="ident">time</span>::<span class="ident">Duration</span> {
+		<span class="comment">// now is duration since unix epoch in millisecond as documented in</span>
+		<span class="comment">// `sp_timestamp::InherentDataProvider`.</span>
+		<span class="kw">let</span> <span class="ident">now</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">now</span>();
+		<span class="ident">sp_std</span>::<span class="macro">if_std</span><span class="macro">!</span> { 
+			<span class="kw">if</span> <span class="ident">now</span> <span class="op">=</span><span class="op">=</span> <span class="ident">T</span>::<span class="ident">Moment</span>::<span class="ident">zero</span>() {
+				<span class="ident">debug</span>::<span class="macro">error</span><span class="macro">!</span>(
+					<span class="string">&quot;`pallet_timestamp::UnixTime::now` is called at genesis, invalid value returned: 0&quot;</span>
+				);
+			}
+		}
+		<span class="ident">core</span>::<span class="ident">time</span>::<span class="ident">Duration</span>::<span class="ident">from_millis</span>(<span class="ident">now</span>.<span class="ident">saturated_into</span>::<span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>())
 	}
 }
 

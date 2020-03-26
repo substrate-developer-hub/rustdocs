@@ -185,8 +185,6 @@
 <span id="174">174</span>
 <span id="175">175</span>
 <span id="176">176</span>
-<span id="177">177</span>
-<span id="178">178</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -209,36 +207,34 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 <span class="kw">use</span> <span class="ident">sc_service</span>::{
 	<span class="ident">AbstractService</span>, <span class="ident">RpcSession</span>, <span class="ident">Roles</span>, <span class="ident">Configuration</span>, <span class="ident">config</span>::{<span class="ident">DatabaseConfig</span>, <span class="ident">KeystoreConfig</span>},
-	<span class="ident">ChainSpec</span>, <span class="ident">RuntimeGenesis</span>
+	<span class="ident">GenericChainSpec</span>, <span class="ident">RuntimeGenesis</span>
 };
 <span class="kw">use</span> <span class="ident">wasm_bindgen</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">channel</span>::{<span class="ident">oneshot</span>, <span class="ident">mpsc</span>}, <span class="ident">future</span>::{<span class="ident">poll_fn</span>, <span class="ident">ok</span>}, <span class="ident">compat</span>::<span class="kw-2">*</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">task</span>::<span class="ident">Poll</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">pin</span>::<span class="ident">Pin</span>;
 <span class="kw">use</span> <span class="ident">sc_chain_spec</span>::<span class="ident">Extension</span>;
+<span class="kw">use</span> <span class="ident">libp2p_wasm_ext</span>::{<span class="ident">ExtTransport</span>, <span class="ident">ffi</span>};
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">wasm_ext</span>::{<span class="ident">ExtTransport</span>, <span class="ident">ffi</span>::<span class="ident">Transport</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">console_error_panic_hook</span>::<span class="ident">set_once</span> <span class="kw">as</span> <span class="ident">set_console_error_panic_hook</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">console_log</span>::<span class="ident">init_with_level</span> <span class="kw">as</span> <span class="ident">init_console_log</span>;
 
-<span class="doccomment">/// Create a service configuration from a chain spec and the websocket transport.</span>
+<span class="doccomment">/// Create a service configuration from a chain spec.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// This configuration contains good defaults for a browser light client.</span>
-<span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">browser_configuration</span><span class="op">&lt;</span><span class="ident">G</span>, <span class="ident">E</span><span class="op">&gt;</span>(
-	<span class="ident">transport</span>: <span class="ident">Transport</span>,
-	<span class="ident">chain_spec</span>: <span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">G</span>, <span class="ident">E</span><span class="op">&gt;</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Configuration</span><span class="op">&lt;</span><span class="ident">G</span>, <span class="ident">E</span><span class="op">&gt;</span>, <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">std</span>::<span class="ident">error</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>
+<span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">browser_configuration</span><span class="op">&lt;</span><span class="ident">G</span>, <span class="ident">E</span><span class="op">&gt;</span>(<span class="ident">chain_spec</span>: <span class="ident">GenericChainSpec</span><span class="op">&lt;</span><span class="ident">G</span>, <span class="ident">E</span><span class="op">&gt;</span>)
+	<span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Configuration</span>, <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">std</span>::<span class="ident">error</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>
 <span class="kw">where</span>
-	<span class="ident">G</span>: <span class="ident">RuntimeGenesis</span>,
-	<span class="ident">E</span>: <span class="ident">Extension</span>,
+	<span class="ident">G</span>: <span class="ident">RuntimeGenesis</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+	<span class="ident">E</span>: <span class="ident">Extension</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Send</span>,
 {
 	<span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">chain_spec</span>.<span class="ident">name</span>().<span class="ident">to_string</span>();
 
-	<span class="kw">let</span> <span class="ident">transport</span> <span class="op">=</span> <span class="ident">ExtTransport</span>::<span class="ident">new</span>(<span class="ident">transport</span>);
+	<span class="kw">let</span> <span class="ident">transport</span> <span class="op">=</span> <span class="ident">ExtTransport</span>::<span class="ident">new</span>(<span class="ident">ffi</span>::<span class="ident">websocket_transport</span>());
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">Configuration</span>::<span class="ident">default</span>();
 	<span class="ident">config</span>.<span class="ident">network</span>.<span class="ident">boot_nodes</span> <span class="op">=</span> <span class="ident">chain_spec</span>.<span class="ident">boot_nodes</span>().<span class="ident">to_vec</span>();
 	<span class="ident">config</span>.<span class="ident">telemetry_endpoints</span> <span class="op">=</span> <span class="ident">chain_spec</span>.<span class="ident">telemetry_endpoints</span>().<span class="ident">clone</span>();
-	<span class="ident">config</span>.<span class="ident">chain_spec</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">chain_spec</span>);
+	<span class="ident">config</span>.<span class="ident">chain_spec</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">chain_spec</span>));
 	<span class="ident">config</span>.<span class="ident">network</span>.<span class="ident">transport</span> <span class="op">=</span> <span class="ident">sc_network</span>::<span class="ident">config</span>::<span class="ident">TransportConfig</span>::<span class="ident">Normal</span> {
 		<span class="ident">wasm_external_transport</span>: <span class="prelude-val">Some</span>(<span class="ident">transport</span>.<span class="ident">clone</span>()),
 		<span class="ident">allow_private_ipv4</span>: <span class="bool-val">true</span>,

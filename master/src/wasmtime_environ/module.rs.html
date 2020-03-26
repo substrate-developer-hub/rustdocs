@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/wasmtime-environ-0.11.0/src/module.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>module.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/wasmtime-environ-0.12.0/src/module.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>module.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -326,11 +326,20 @@
 <span id="315">315</span>
 <span id="316">316</span>
 <span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Data structures for representing decoded wasm modules.</span>
 
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module_environ</span>::<span class="ident">FunctionBodyData</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">tunables</span>::<span class="ident">Tunables</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">WASM_MAX_PAGES</span>;
 <span class="kw">use</span> <span class="ident">cranelift_codegen</span>::<span class="ident">ir</span>;
 <span class="kw">use</span> <span class="ident">cranelift_entity</span>::{<span class="ident">EntityRef</span>, <span class="ident">PrimaryMap</span>};
 <span class="kw">use</span> <span class="ident">cranelift_wasm</span>::{
@@ -340,7 +349,6 @@
 <span class="kw">use</span> <span class="ident">indexmap</span>::<span class="ident">IndexMap</span>;
 <span class="kw">use</span> <span class="ident">more_asserts</span>::<span class="ident">assert_ge</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">hash</span>::{<span class="ident">Hash</span>, <span class="ident">Hasher</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">atomic</span>::{<span class="ident">AtomicUsize</span>, <span class="ident">Ordering</span>::<span class="ident">SeqCst</span>};
 
 <span class="doccomment">/// A WebAssembly table initializer.</span>
@@ -384,18 +392,19 @@
 <span class="kw">impl</span> <span class="ident">MemoryStyle</span> {
     <span class="doccomment">/// Decide on an implementation style for the given `Memory`.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">for_memory</span>(<span class="ident">memory</span>: <span class="ident">Memory</span>, <span class="ident">tunables</span>: <span class="kw-2">&amp;</span><span class="ident">Tunables</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="self">Self</span>, <span class="ident">u64</span>) {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">maximum</span>) <span class="op">=</span> <span class="ident">memory</span>.<span class="ident">maximum</span> {
-            <span class="kw">if</span> <span class="ident">maximum</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">tunables</span>.<span class="ident">static_memory_bound</span> {
-                <span class="comment">// A heap with a declared maximum can be immovable, so make</span>
-                <span class="comment">// it static.</span>
-                <span class="macro">assert_ge</span><span class="macro">!</span>(<span class="ident">tunables</span>.<span class="ident">static_memory_bound</span>, <span class="ident">memory</span>.<span class="ident">minimum</span>);
-                <span class="kw">return</span> (
-                    <span class="self">Self</span>::<span class="ident">Static</span> {
-                        <span class="ident">bound</span>: <span class="ident">tunables</span>.<span class="ident">static_memory_bound</span>,
-                    },
-                    <span class="ident">tunables</span>.<span class="ident">static_memory_offset_guard_size</span>,
-                );
-            }
+        <span class="comment">// A heap with a maximum that doesn&#39;t exceed the static memory bound specified by the</span>
+        <span class="comment">// tunables make it static.</span>
+        <span class="comment">//</span>
+        <span class="comment">// If the module doesn&#39;t declare an explicit maximum treat it as 4GiB.</span>
+        <span class="kw">let</span> <span class="ident">maximum</span> <span class="op">=</span> <span class="ident">memory</span>.<span class="ident">maximum</span>.<span class="ident">unwrap_or</span>(<span class="ident">WASM_MAX_PAGES</span>);
+        <span class="kw">if</span> <span class="ident">maximum</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">tunables</span>.<span class="ident">static_memory_bound</span> {
+            <span class="macro">assert_ge</span><span class="macro">!</span>(<span class="ident">tunables</span>.<span class="ident">static_memory_bound</span>, <span class="ident">memory</span>.<span class="ident">minimum</span>);
+            <span class="kw">return</span> (
+                <span class="self">Self</span>::<span class="ident">Static</span> {
+                    <span class="ident">bound</span>: <span class="ident">tunables</span>.<span class="ident">static_memory_bound</span>,
+                },
+                <span class="ident">tunables</span>.<span class="ident">static_memory_offset_guard_size</span>,
+            );
         }
 
         <span class="comment">// Otherwise, make it dynamic.</span>
@@ -461,14 +470,16 @@
 
 <span class="doccomment">/// A translated WebAssembly module, excluding the function bodies and</span>
 <span class="doccomment">/// memory initializers.</span>
-<span class="comment">// WARNING: when modifying, make sure that `hash_for_cache` is still valid!</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Module</span> {
     <span class="doccomment">/// A unique identifier (within this process) for this module.</span>
     <span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">usize</span>,
 
-    <span class="doccomment">/// Unprocessed signatures exactly as provided by `declare_signature()`.</span>
-    <span class="kw">pub</span> <span class="ident">signatures</span>: <span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">SignatureIndex</span>, <span class="ident">ir</span>::<span class="ident">Signature</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// Local information about a module which is the bare minimum necessary to</span>
+    <span class="doccomment">/// translate a function body. This is derived as `Hash` whereas this module</span>
+    <span class="doccomment">/// isn&#39;t, since it contains too much information needed to translate a</span>
+    <span class="doccomment">/// function.</span>
+    <span class="kw">pub</span> <span class="ident">local</span>: <span class="ident">ModuleLocal</span>,
 
     <span class="doccomment">/// Names of imported functions, as well as the index of the import that</span>
     <span class="doccomment">/// performed this import.</span>
@@ -483,18 +494,6 @@
     <span class="doccomment">/// Names of imported globals.</span>
     <span class="kw">pub</span> <span class="ident">imported_globals</span>: <span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">GlobalIndex</span>, (<span class="ident">String</span>, <span class="ident">String</span>, <span class="ident">u32</span>)<span class="op">&gt;</span>,
 
-    <span class="doccomment">/// Types of functions, imported and local.</span>
-    <span class="kw">pub</span> <span class="ident">functions</span>: <span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">FuncIndex</span>, <span class="ident">SignatureIndex</span><span class="op">&gt;</span>,
-
-    <span class="doccomment">/// WebAssembly tables.</span>
-    <span class="kw">pub</span> <span class="ident">table_plans</span>: <span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">TableIndex</span>, <span class="ident">TablePlan</span><span class="op">&gt;</span>,
-
-    <span class="doccomment">/// WebAssembly linear memory plans.</span>
-    <span class="kw">pub</span> <span class="ident">memory_plans</span>: <span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">MemoryIndex</span>, <span class="ident">MemoryPlan</span><span class="op">&gt;</span>,
-
-    <span class="doccomment">/// WebAssembly global variables.</span>
-    <span class="kw">pub</span> <span class="ident">globals</span>: <span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">GlobalIndex</span>, <span class="ident">Global</span><span class="op">&gt;</span>,
-
     <span class="doccomment">/// Exported entities.</span>
     <span class="kw">pub</span> <span class="ident">exports</span>: <span class="ident">IndexMap</span><span class="op">&lt;</span><span class="ident">String</span>, <span class="ident">Export</span><span class="op">&gt;</span>,
 
@@ -508,6 +507,42 @@
     <span class="kw">pub</span> <span class="ident">func_names</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">FuncIndex</span>, <span class="ident">String</span><span class="op">&gt;</span>,
 }
 
+<span class="doccomment">/// Local information known about a wasm module, the bare minimum necessary to</span>
+<span class="doccomment">/// translate function bodies.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// This is stored within a `Module` and it implements `Hash`, unlike `Module`,</span>
+<span class="doccomment">/// and is used as part of the cache key when we load compiled modules from the</span>
+<span class="doccomment">/// global cache.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Hash</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ModuleLocal</span> {
+    <span class="doccomment">/// Unprocessed signatures exactly as provided by `declare_signature()`.</span>
+    <span class="kw">pub</span> <span class="ident">signatures</span>: <span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">SignatureIndex</span>, <span class="ident">ir</span>::<span class="ident">Signature</span><span class="op">&gt;</span>,
+
+    <span class="doccomment">/// Number of imported functions in the module.</span>
+    <span class="kw">pub</span> <span class="ident">num_imported_funcs</span>: <span class="ident">usize</span>,
+
+    <span class="doccomment">/// Number of imported tables in the module.</span>
+    <span class="kw">pub</span> <span class="ident">num_imported_tables</span>: <span class="ident">usize</span>,
+
+    <span class="doccomment">/// Number of imported memories in the module.</span>
+    <span class="kw">pub</span> <span class="ident">num_imported_memories</span>: <span class="ident">usize</span>,
+
+    <span class="doccomment">/// Number of imported globals in the module.</span>
+    <span class="kw">pub</span> <span class="ident">num_imported_globals</span>: <span class="ident">usize</span>,
+
+    <span class="doccomment">/// Types of functions, imported and local.</span>
+    <span class="kw">pub</span> <span class="ident">functions</span>: <span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">FuncIndex</span>, <span class="ident">SignatureIndex</span><span class="op">&gt;</span>,
+
+    <span class="doccomment">/// WebAssembly tables.</span>
+    <span class="kw">pub</span> <span class="ident">table_plans</span>: <span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">TableIndex</span>, <span class="ident">TablePlan</span><span class="op">&gt;</span>,
+
+    <span class="doccomment">/// WebAssembly linear memory plans.</span>
+    <span class="kw">pub</span> <span class="ident">memory_plans</span>: <span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">MemoryIndex</span>, <span class="ident">MemoryPlan</span><span class="op">&gt;</span>,
+
+    <span class="doccomment">/// WebAssembly global variables.</span>
+    <span class="kw">pub</span> <span class="ident">globals</span>: <span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">GlobalIndex</span>, <span class="ident">Global</span><span class="op">&gt;</span>,
+}
+
 <span class="kw">impl</span> <span class="ident">Module</span> {
     <span class="doccomment">/// Allocates the module data structures.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
@@ -515,133 +550,116 @@
 
         <span class="self">Self</span> {
             <span class="ident">id</span>: <span class="ident">NEXT_ID</span>.<span class="ident">fetch_add</span>(<span class="number">1</span>, <span class="ident">SeqCst</span>),
-            <span class="ident">signatures</span>: <span class="ident">PrimaryMap</span>::<span class="ident">new</span>(),
             <span class="ident">imported_funcs</span>: <span class="ident">PrimaryMap</span>::<span class="ident">new</span>(),
             <span class="ident">imported_tables</span>: <span class="ident">PrimaryMap</span>::<span class="ident">new</span>(),
             <span class="ident">imported_memories</span>: <span class="ident">PrimaryMap</span>::<span class="ident">new</span>(),
             <span class="ident">imported_globals</span>: <span class="ident">PrimaryMap</span>::<span class="ident">new</span>(),
-            <span class="ident">functions</span>: <span class="ident">PrimaryMap</span>::<span class="ident">new</span>(),
-            <span class="ident">table_plans</span>: <span class="ident">PrimaryMap</span>::<span class="ident">new</span>(),
-            <span class="ident">memory_plans</span>: <span class="ident">PrimaryMap</span>::<span class="ident">new</span>(),
-            <span class="ident">globals</span>: <span class="ident">PrimaryMap</span>::<span class="ident">new</span>(),
             <span class="ident">exports</span>: <span class="ident">IndexMap</span>::<span class="ident">new</span>(),
             <span class="ident">start_func</span>: <span class="prelude-val">None</span>,
             <span class="ident">table_elements</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
             <span class="ident">func_names</span>: <span class="ident">HashMap</span>::<span class="ident">new</span>(),
+            <span class="ident">local</span>: <span class="ident">ModuleLocal</span> {
+                <span class="ident">num_imported_funcs</span>: <span class="number">0</span>,
+                <span class="ident">num_imported_tables</span>: <span class="number">0</span>,
+                <span class="ident">num_imported_memories</span>: <span class="number">0</span>,
+                <span class="ident">num_imported_globals</span>: <span class="number">0</span>,
+                <span class="ident">signatures</span>: <span class="ident">PrimaryMap</span>::<span class="ident">new</span>(),
+                <span class="ident">functions</span>: <span class="ident">PrimaryMap</span>::<span class="ident">new</span>(),
+                <span class="ident">table_plans</span>: <span class="ident">PrimaryMap</span>::<span class="ident">new</span>(),
+                <span class="ident">memory_plans</span>: <span class="ident">PrimaryMap</span>::<span class="ident">new</span>(),
+                <span class="ident">globals</span>: <span class="ident">PrimaryMap</span>::<span class="ident">new</span>(),
+            },
         }
     }
+}
 
+<span class="kw">impl</span> <span class="ident">ModuleLocal</span> {
     <span class="doccomment">/// Convert a `DefinedFuncIndex` into a `FuncIndex`.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">func_index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">defined_func</span>: <span class="ident">DefinedFuncIndex</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">FuncIndex</span> {
-        <span class="ident">FuncIndex</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">imported_funcs</span>.<span class="ident">len</span>() <span class="op">+</span> <span class="ident">defined_func</span>.<span class="ident">index</span>())
+        <span class="ident">FuncIndex</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">num_imported_funcs</span> <span class="op">+</span> <span class="ident">defined_func</span>.<span class="ident">index</span>())
     }
 
     <span class="doccomment">/// Convert a `FuncIndex` into a `DefinedFuncIndex`. Returns None if the</span>
     <span class="doccomment">/// index is an imported function.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">defined_func_index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">func</span>: <span class="ident">FuncIndex</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">DefinedFuncIndex</span><span class="op">&gt;</span> {
-        <span class="kw">if</span> <span class="ident">func</span>.<span class="ident">index</span>() <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">imported_funcs</span>.<span class="ident">len</span>() {
+        <span class="kw">if</span> <span class="ident">func</span>.<span class="ident">index</span>() <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">num_imported_funcs</span> {
             <span class="prelude-val">None</span>
         } <span class="kw">else</span> {
             <span class="prelude-val">Some</span>(<span class="ident">DefinedFuncIndex</span>::<span class="ident">new</span>(
-                <span class="ident">func</span>.<span class="ident">index</span>() <span class="op">-</span> <span class="self">self</span>.<span class="ident">imported_funcs</span>.<span class="ident">len</span>(),
+                <span class="ident">func</span>.<span class="ident">index</span>() <span class="op">-</span> <span class="self">self</span>.<span class="ident">num_imported_funcs</span>,
             ))
         }
     }
 
     <span class="doccomment">/// Test whether the given function index is for an imported function.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_imported_function</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">index</span>: <span class="ident">FuncIndex</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-        <span class="ident">index</span>.<span class="ident">index</span>() <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">imported_funcs</span>.<span class="ident">len</span>()
+        <span class="ident">index</span>.<span class="ident">index</span>() <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">num_imported_funcs</span>
     }
 
     <span class="doccomment">/// Convert a `DefinedTableIndex` into a `TableIndex`.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">table_index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">defined_table</span>: <span class="ident">DefinedTableIndex</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TableIndex</span> {
-        <span class="ident">TableIndex</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">imported_tables</span>.<span class="ident">len</span>() <span class="op">+</span> <span class="ident">defined_table</span>.<span class="ident">index</span>())
+        <span class="ident">TableIndex</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">num_imported_tables</span> <span class="op">+</span> <span class="ident">defined_table</span>.<span class="ident">index</span>())
     }
 
     <span class="doccomment">/// Convert a `TableIndex` into a `DefinedTableIndex`. Returns None if the</span>
     <span class="doccomment">/// index is an imported table.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">defined_table_index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">table</span>: <span class="ident">TableIndex</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">DefinedTableIndex</span><span class="op">&gt;</span> {
-        <span class="kw">if</span> <span class="ident">table</span>.<span class="ident">index</span>() <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">imported_tables</span>.<span class="ident">len</span>() {
+        <span class="kw">if</span> <span class="ident">table</span>.<span class="ident">index</span>() <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">num_imported_tables</span> {
             <span class="prelude-val">None</span>
         } <span class="kw">else</span> {
             <span class="prelude-val">Some</span>(<span class="ident">DefinedTableIndex</span>::<span class="ident">new</span>(
-                <span class="ident">table</span>.<span class="ident">index</span>() <span class="op">-</span> <span class="self">self</span>.<span class="ident">imported_tables</span>.<span class="ident">len</span>(),
+                <span class="ident">table</span>.<span class="ident">index</span>() <span class="op">-</span> <span class="self">self</span>.<span class="ident">num_imported_tables</span>,
             ))
         }
     }
 
     <span class="doccomment">/// Test whether the given table index is for an imported table.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_imported_table</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">index</span>: <span class="ident">TableIndex</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-        <span class="ident">index</span>.<span class="ident">index</span>() <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">imported_tables</span>.<span class="ident">len</span>()
+        <span class="ident">index</span>.<span class="ident">index</span>() <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">num_imported_tables</span>
     }
 
     <span class="doccomment">/// Convert a `DefinedMemoryIndex` into a `MemoryIndex`.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">memory_index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">defined_memory</span>: <span class="ident">DefinedMemoryIndex</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">MemoryIndex</span> {
-        <span class="ident">MemoryIndex</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">imported_memories</span>.<span class="ident">len</span>() <span class="op">+</span> <span class="ident">defined_memory</span>.<span class="ident">index</span>())
+        <span class="ident">MemoryIndex</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">num_imported_memories</span> <span class="op">+</span> <span class="ident">defined_memory</span>.<span class="ident">index</span>())
     }
 
     <span class="doccomment">/// Convert a `MemoryIndex` into a `DefinedMemoryIndex`. Returns None if the</span>
     <span class="doccomment">/// index is an imported memory.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">defined_memory_index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">memory</span>: <span class="ident">MemoryIndex</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">DefinedMemoryIndex</span><span class="op">&gt;</span> {
-        <span class="kw">if</span> <span class="ident">memory</span>.<span class="ident">index</span>() <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">imported_memories</span>.<span class="ident">len</span>() {
+        <span class="kw">if</span> <span class="ident">memory</span>.<span class="ident">index</span>() <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">num_imported_memories</span> {
             <span class="prelude-val">None</span>
         } <span class="kw">else</span> {
             <span class="prelude-val">Some</span>(<span class="ident">DefinedMemoryIndex</span>::<span class="ident">new</span>(
-                <span class="ident">memory</span>.<span class="ident">index</span>() <span class="op">-</span> <span class="self">self</span>.<span class="ident">imported_memories</span>.<span class="ident">len</span>(),
+                <span class="ident">memory</span>.<span class="ident">index</span>() <span class="op">-</span> <span class="self">self</span>.<span class="ident">num_imported_memories</span>,
             ))
         }
     }
 
     <span class="doccomment">/// Test whether the given memory index is for an imported memory.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_imported_memory</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">index</span>: <span class="ident">MemoryIndex</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-        <span class="ident">index</span>.<span class="ident">index</span>() <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">imported_memories</span>.<span class="ident">len</span>()
+        <span class="ident">index</span>.<span class="ident">index</span>() <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">num_imported_memories</span>
     }
 
     <span class="doccomment">/// Convert a `DefinedGlobalIndex` into a `GlobalIndex`.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">global_index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">defined_global</span>: <span class="ident">DefinedGlobalIndex</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">GlobalIndex</span> {
-        <span class="ident">GlobalIndex</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">imported_globals</span>.<span class="ident">len</span>() <span class="op">+</span> <span class="ident">defined_global</span>.<span class="ident">index</span>())
+        <span class="ident">GlobalIndex</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">num_imported_globals</span> <span class="op">+</span> <span class="ident">defined_global</span>.<span class="ident">index</span>())
     }
 
     <span class="doccomment">/// Convert a `GlobalIndex` into a `DefinedGlobalIndex`. Returns None if the</span>
     <span class="doccomment">/// index is an imported global.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">defined_global_index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">global</span>: <span class="ident">GlobalIndex</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">DefinedGlobalIndex</span><span class="op">&gt;</span> {
-        <span class="kw">if</span> <span class="ident">global</span>.<span class="ident">index</span>() <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">imported_globals</span>.<span class="ident">len</span>() {
+        <span class="kw">if</span> <span class="ident">global</span>.<span class="ident">index</span>() <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">num_imported_globals</span> {
             <span class="prelude-val">None</span>
         } <span class="kw">else</span> {
             <span class="prelude-val">Some</span>(<span class="ident">DefinedGlobalIndex</span>::<span class="ident">new</span>(
-                <span class="ident">global</span>.<span class="ident">index</span>() <span class="op">-</span> <span class="self">self</span>.<span class="ident">imported_globals</span>.<span class="ident">len</span>(),
+                <span class="ident">global</span>.<span class="ident">index</span>() <span class="op">-</span> <span class="self">self</span>.<span class="ident">num_imported_globals</span>,
             ))
         }
     }
 
     <span class="doccomment">/// Test whether the given global index is for an imported global.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_imported_global</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">index</span>: <span class="ident">GlobalIndex</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-        <span class="ident">index</span>.<span class="ident">index</span>() <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">imported_globals</span>.<span class="ident">len</span>()
-    }
-
-    <span class="doccomment">/// Computes hash of the module for the purpose of caching.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">hash_for_cache</span><span class="op">&lt;</span><span class="lifetime">&#39;data</span>, <span class="ident">H</span><span class="op">&gt;</span>(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">function_body_inputs</span>: <span class="kw-2">&amp;</span><span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">DefinedFuncIndex</span>, <span class="ident">FunctionBodyData</span><span class="op">&lt;</span><span class="lifetime">&#39;data</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">state</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">H</span>,
-    ) <span class="kw">where</span>
-        <span class="ident">H</span>: <span class="ident">Hasher</span>,
-    {
-        <span class="comment">// There&#39;s no need to cache names (strings), start function</span>
-        <span class="comment">// and data initializers (for both memory and tables)</span>
-        <span class="self">self</span>.<span class="ident">signatures</span>.<span class="ident">hash</span>(<span class="ident">state</span>);
-        <span class="self">self</span>.<span class="ident">functions</span>.<span class="ident">hash</span>(<span class="ident">state</span>);
-        <span class="self">self</span>.<span class="ident">table_plans</span>.<span class="ident">hash</span>(<span class="ident">state</span>);
-        <span class="self">self</span>.<span class="ident">memory_plans</span>.<span class="ident">hash</span>(<span class="ident">state</span>);
-        <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">hash</span>(<span class="ident">state</span>);
-        <span class="comment">// IndexMap (self.export) iterates over values in order of item inserts</span>
-        <span class="comment">// Let&#39;s actually sort the values.</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">exports</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">exports</span>.<span class="ident">values</span>().<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
-        <span class="ident">exports</span>.<span class="ident">sort</span>();
-        <span class="kw">for</span> <span class="ident">val</span> <span class="kw">in</span> <span class="ident">exports</span> {
-            <span class="ident">val</span>.<span class="ident">hash</span>(<span class="ident">state</span>);
-        }
-        <span class="ident">function_body_inputs</span>.<span class="ident">hash</span>(<span class="ident">state</span>);
+        <span class="ident">index</span>.<span class="ident">index</span>() <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">num_imported_globals</span>
     }
 }
 </pre></div>

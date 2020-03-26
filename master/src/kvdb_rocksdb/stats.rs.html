@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/kvdb-rocksdb-0.5.0/src/stats.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>stats.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/kvdb-rocksdb-0.7.0/src/stats.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>stats.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -153,33 +153,128 @@
 <span id="142">142</span>
 <span id="143">143</span>
 <span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="comment">// Copyright 2015-2020 Parity Technologies (UK) Ltd.</span>
-<span class="comment">// This file is part of Parity.</span>
-
-<span class="comment">// Parity is free software: you can redistribute it and/or modify</span>
-<span class="comment">// it under the terms of the GNU General Public License as published by</span>
-<span class="comment">// the Free Software Foundation, either version 3 of the License, or</span>
-<span class="comment">// (at your option) any later version.</span>
-
-<span class="comment">// Parity is distributed in the hope that it will be useful,</span>
-<span class="comment">// but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
-<span class="comment">// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
-<span class="comment">// GNU General Public License for more details.</span>
-
-<span class="comment">// You should have received a copy of the GNU General Public License</span>
-<span class="comment">// along with Parity.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
+<span class="comment">// Copyright 2020 Parity Technologies</span>
+<span class="comment">//</span>
+<span class="comment">// Licensed under the Apache License, Version 2.0 &lt;LICENSE-APACHE or</span>
+<span class="comment">// http://www.apache.org/licenses/LICENSE-2.0&gt; or the MIT license</span>
+<span class="comment">// &lt;LICENSE-MIT or http://opensource.org/licenses/MIT&gt;, at your</span>
+<span class="comment">// option. This file may not be copied, modified, or distributed</span>
+<span class="comment">// except according to those terms.</span>
 
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">RwLock</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">str</span>::<span class="ident">FromStr</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">atomic</span>::{<span class="ident">AtomicU64</span>, <span class="ident">Ordering</span> <span class="kw">as</span> <span class="ident">AtomicOrdering</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Instant</span>;
 
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Default</span>, <span class="ident">Clone</span>, <span class="ident">Copy</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">RawDbStats</span> {
 	<span class="kw">pub</span> <span class="ident">reads</span>: <span class="ident">u64</span>,
 	<span class="kw">pub</span> <span class="ident">writes</span>: <span class="ident">u64</span>,
 	<span class="kw">pub</span> <span class="ident">bytes_written</span>: <span class="ident">u64</span>,
 	<span class="kw">pub</span> <span class="ident">bytes_read</span>: <span class="ident">u64</span>,
 	<span class="kw">pub</span> <span class="ident">transactions</span>: <span class="ident">u64</span>,
+	<span class="kw">pub</span> <span class="ident">cache_hit_count</span>: <span class="ident">u64</span>,
+}
+
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Default</span>, <span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">Copy</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">RocksDbStatsTimeValue</span> {
+	<span class="doccomment">/// 50% percentile</span>
+	<span class="kw">pub</span> <span class="ident">p50</span>: <span class="ident">f64</span>,
+	<span class="doccomment">/// 95% percentile</span>
+	<span class="kw">pub</span> <span class="ident">p95</span>: <span class="ident">f64</span>,
+	<span class="doccomment">/// 99% percentile</span>
+	<span class="kw">pub</span> <span class="ident">p99</span>: <span class="ident">f64</span>,
+	<span class="doccomment">/// 100% percentile</span>
+	<span class="kw">pub</span> <span class="ident">p100</span>: <span class="ident">f64</span>,
+	<span class="kw">pub</span> <span class="ident">sum</span>: <span class="ident">u64</span>,
+}
+
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Default</span>, <span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">Copy</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">RocksDbStatsValue</span> {
+	<span class="kw">pub</span> <span class="ident">count</span>: <span class="ident">u64</span>,
+	<span class="kw">pub</span> <span class="ident">times</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">RocksDbStatsTimeValue</span><span class="op">&gt;</span>,
+}
+
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">parse_rocksdb_stats</span>(<span class="ident">stats</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">String</span>, <span class="ident">RocksDbStatsValue</span><span class="op">&gt;</span> {
+	<span class="ident">stats</span>.<span class="ident">lines</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">line</span><span class="op">|</span> <span class="ident">parse_rocksdb_stats_row</span>(<span class="ident">line</span>.<span class="ident">splitn</span>(<span class="number">2</span>, <span class="string">&#39; &#39;</span>))).<span class="ident">collect</span>()
+}
+
+<span class="kw">fn</span> <span class="ident">parse_rocksdb_stats_row</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(<span class="kw-2">mut</span> <span class="ident">iter</span>: <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">str</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">String</span>, <span class="ident">RocksDbStatsValue</span>) {
+	<span class="kw">const</span> <span class="ident">PROOF</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> <span class="op">=</span> <span class="string">&quot;rocksdb statistics format is valid and hasn&#39;t changed&quot;</span>;
+	<span class="kw">const</span> <span class="ident">SEPARATOR</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> <span class="op">=</span> <span class="string">&quot; : &quot;</span>;
+	<span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">iter</span>.<span class="ident">next</span>().<span class="ident">expect</span>(<span class="ident">PROOF</span>).<span class="ident">trim_start_matches</span>(<span class="string">&quot;rocksdb.&quot;</span>).<span class="ident">to_owned</span>();
+	<span class="kw">let</span> <span class="ident">values</span> <span class="op">=</span> <span class="ident">iter</span>.<span class="ident">next</span>().<span class="ident">expect</span>(<span class="ident">PROOF</span>);
+	<span class="kw">let</span> <span class="ident">value</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">values</span>.<span class="ident">starts_with</span>(<span class="string">&quot;COUNT&quot;</span>) {
+		<span class="comment">// rocksdb.row.cache.hit COUNT : 0</span>
+		<span class="ident">RocksDbStatsValue</span> {
+			<span class="ident">count</span>: <span class="ident">u64</span>::<span class="ident">from_str</span>(<span class="ident">values</span>.<span class="ident">rsplit</span>(<span class="ident">SEPARATOR</span>).<span class="ident">next</span>().<span class="ident">expect</span>(<span class="ident">PROOF</span>)).<span class="ident">expect</span>(<span class="ident">PROOF</span>),
+			<span class="ident">times</span>: <span class="prelude-val">None</span>,
+		}
+	} <span class="kw">else</span> {
+		<span class="comment">// rocksdb.db.get.micros P50 : 0.000000 P95 : 0.000000 P99 : 0.000000 P100 : 0.000000 COUNT : 0 SUM : 0</span>
+		<span class="kw">let</span> <span class="ident">values</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">values</span>.<span class="ident">split_whitespace</span>().<span class="ident">filter</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="kw-2">*</span><span class="ident">s</span> <span class="op">!</span><span class="op">=</span> <span class="string">&quot;:&quot;</span>).<span class="ident">collect</span>();
+		<span class="kw">let</span> <span class="ident">times</span> <span class="op">=</span> <span class="ident">RocksDbStatsTimeValue</span> {
+			<span class="ident">p50</span>: <span class="ident">f64</span>::<span class="ident">from_str</span>(<span class="ident">values</span>.<span class="ident">get</span>(<span class="number">1</span>).<span class="ident">expect</span>(<span class="ident">PROOF</span>)).<span class="ident">expect</span>(<span class="ident">PROOF</span>),
+			<span class="ident">p95</span>: <span class="ident">f64</span>::<span class="ident">from_str</span>(<span class="ident">values</span>.<span class="ident">get</span>(<span class="number">3</span>).<span class="ident">expect</span>(<span class="ident">PROOF</span>)).<span class="ident">expect</span>(<span class="ident">PROOF</span>),
+			<span class="ident">p99</span>: <span class="ident">f64</span>::<span class="ident">from_str</span>(<span class="ident">values</span>.<span class="ident">get</span>(<span class="number">5</span>).<span class="ident">expect</span>(<span class="ident">PROOF</span>)).<span class="ident">expect</span>(<span class="ident">PROOF</span>),
+			<span class="ident">p100</span>: <span class="ident">f64</span>::<span class="ident">from_str</span>(<span class="ident">values</span>.<span class="ident">get</span>(<span class="number">7</span>).<span class="ident">expect</span>(<span class="ident">PROOF</span>)).<span class="ident">expect</span>(<span class="ident">PROOF</span>),
+			<span class="ident">sum</span>: <span class="ident">u64</span>::<span class="ident">from_str</span>(<span class="ident">values</span>.<span class="ident">get</span>(<span class="number">11</span>).<span class="ident">expect</span>(<span class="ident">PROOF</span>)).<span class="ident">expect</span>(<span class="ident">PROOF</span>),
+		};
+		<span class="ident">RocksDbStatsValue</span> { <span class="ident">count</span>: <span class="ident">u64</span>::<span class="ident">from_str</span>(<span class="ident">values</span>.<span class="ident">get</span>(<span class="number">9</span>).<span class="ident">expect</span>(<span class="ident">PROOF</span>)).<span class="ident">expect</span>(<span class="ident">PROOF</span>), <span class="ident">times</span>: <span class="prelude-val">Some</span>(<span class="ident">times</span>) }
+	};
+	(<span class="ident">key</span>, <span class="ident">value</span>)
 }
 
 <span class="kw">impl</span> <span class="ident">RawDbStats</span> {
@@ -190,6 +285,7 @@
 			<span class="ident">bytes_written</span>: <span class="self">self</span>.<span class="ident">bytes_written</span> <span class="op">+</span> <span class="ident">other</span>.<span class="ident">bytes_written</span>,
 			<span class="ident">bytes_read</span>: <span class="self">self</span>.<span class="ident">bytes_read</span> <span class="op">+</span> <span class="ident">other</span>.<span class="ident">bytes_written</span>,
 			<span class="ident">transactions</span>: <span class="self">self</span>.<span class="ident">transactions</span> <span class="op">+</span> <span class="ident">other</span>.<span class="ident">transactions</span>,
+			<span class="ident">cache_hit_count</span>: <span class="self">self</span>.<span class="ident">cache_hit_count</span> <span class="op">+</span> <span class="ident">other</span>.<span class="ident">cache_hit_count</span>,
 		}
 	}
 }
@@ -202,11 +298,7 @@
 
 <span class="kw">impl</span> <span class="ident">OverallDbStats</span> {
 	<span class="kw">fn</span> <span class="ident">new</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-		<span class="ident">OverallDbStats</span> {
-			<span class="ident">stats</span>: <span class="ident">RawDbStats</span> { <span class="ident">reads</span>: <span class="number">0</span>, <span class="ident">writes</span>: <span class="number">0</span>, <span class="ident">bytes_written</span>: <span class="number">0</span>, <span class="ident">bytes_read</span>: <span class="number">0</span>, <span class="ident">transactions</span>: <span class="number">0</span> },
-			<span class="ident">last_taken</span>: <span class="ident">Instant</span>::<span class="ident">now</span>(),
-			<span class="ident">started</span>: <span class="ident">Instant</span>::<span class="ident">now</span>(),
-		}
+		<span class="ident">OverallDbStats</span> { <span class="ident">stats</span>: <span class="ident">RawDbStats</span>::<span class="ident">default</span>(), <span class="ident">last_taken</span>: <span class="ident">Instant</span>::<span class="ident">now</span>(), <span class="ident">started</span>: <span class="ident">Instant</span>::<span class="ident">now</span>() }
 	}
 }
 
@@ -216,6 +308,7 @@
 	<span class="ident">bytes_written</span>: <span class="ident">AtomicU64</span>,
 	<span class="ident">bytes_read</span>: <span class="ident">AtomicU64</span>,
 	<span class="ident">transactions</span>: <span class="ident">AtomicU64</span>,
+	<span class="ident">cache_hit_count</span>: <span class="ident">AtomicU64</span>,
 	<span class="ident">overall</span>: <span class="ident">RwLock</span><span class="op">&lt;</span><span class="ident">OverallDbStats</span><span class="op">&gt;</span>,
 }
 
@@ -232,6 +325,7 @@
 			<span class="ident">writes</span>: <span class="number">0</span>.<span class="ident">into</span>(),
 			<span class="ident">bytes_written</span>: <span class="number">0</span>.<span class="ident">into</span>(),
 			<span class="ident">transactions</span>: <span class="number">0</span>.<span class="ident">into</span>(),
+			<span class="ident">cache_hit_count</span>: <span class="number">0</span>.<span class="ident">into</span>(),
 			<span class="ident">overall</span>: <span class="ident">OverallDbStats</span>::<span class="ident">new</span>().<span class="ident">into</span>(),
 		}
 	}
@@ -256,6 +350,10 @@
 		<span class="self">self</span>.<span class="ident">transactions</span>.<span class="ident">fetch_add</span>(<span class="ident">val</span>, <span class="ident">AtomicOrdering</span>::<span class="ident">Relaxed</span>);
 	}
 
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">tally_cache_hit_count</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">val</span>: <span class="ident">u64</span>) {
+		<span class="self">self</span>.<span class="ident">cache_hit_count</span>.<span class="ident">fetch_add</span>(<span class="ident">val</span>, <span class="ident">AtomicOrdering</span>::<span class="ident">Relaxed</span>);
+	}
+
 	<span class="kw">fn</span> <span class="ident">take_current</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">RawDbStats</span> {
 		<span class="ident">RawDbStats</span> {
 			<span class="ident">reads</span>: <span class="self">self</span>.<span class="ident">reads</span>.<span class="ident">swap</span>(<span class="number">0</span>, <span class="ident">AtomicOrdering</span>::<span class="ident">Relaxed</span>),
@@ -263,6 +361,7 @@
 			<span class="ident">bytes_written</span>: <span class="self">self</span>.<span class="ident">bytes_written</span>.<span class="ident">swap</span>(<span class="number">0</span>, <span class="ident">AtomicOrdering</span>::<span class="ident">Relaxed</span>),
 			<span class="ident">bytes_read</span>: <span class="self">self</span>.<span class="ident">bytes_read</span>.<span class="ident">swap</span>(<span class="number">0</span>, <span class="ident">AtomicOrdering</span>::<span class="ident">Relaxed</span>),
 			<span class="ident">transactions</span>: <span class="self">self</span>.<span class="ident">transactions</span>.<span class="ident">swap</span>(<span class="number">0</span>, <span class="ident">AtomicOrdering</span>::<span class="ident">Relaxed</span>),
+			<span class="ident">cache_hit_count</span>: <span class="self">self</span>.<span class="ident">cache_hit_count</span>.<span class="ident">swap</span>(<span class="number">0</span>, <span class="ident">AtomicOrdering</span>::<span class="ident">Relaxed</span>),
 		}
 	}
 
@@ -273,6 +372,7 @@
 			<span class="ident">bytes_written</span>: <span class="self">self</span>.<span class="ident">bytes_written</span>.<span class="ident">load</span>(<span class="ident">AtomicOrdering</span>::<span class="ident">Relaxed</span>),
 			<span class="ident">bytes_read</span>: <span class="self">self</span>.<span class="ident">bytes_read</span>.<span class="ident">load</span>(<span class="ident">AtomicOrdering</span>::<span class="ident">Relaxed</span>),
 			<span class="ident">transactions</span>: <span class="self">self</span>.<span class="ident">transactions</span>.<span class="ident">load</span>(<span class="ident">AtomicOrdering</span>::<span class="ident">Relaxed</span>),
+			<span class="ident">cache_hit_count</span>: <span class="self">self</span>.<span class="ident">cache_hit_count</span>.<span class="ident">load</span>(<span class="ident">AtomicOrdering</span>::<span class="ident">Relaxed</span>),
 		}
 	}
 

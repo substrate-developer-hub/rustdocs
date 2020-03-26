@@ -109,8 +109,6 @@
 <span id="98"> 98</span>
 <span id="99"> 99</span>
 <span id="100">100</span>
-<span id="101">101</span>
-<span id="102">102</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -135,6 +133,7 @@
 <span class="kw">use</span> <span class="ident">codec</span>::{<span class="ident">Encode</span>, <span class="ident">Decode</span>};
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">traits</span>::{<span class="ident">Zero</span>, <span class="ident">IntegerSquareRoot</span>};
 <span class="kw">use</span> <span class="ident">sp_std</span>::<span class="ident">ops</span>::{<span class="ident">Add</span>, <span class="ident">Mul</span>, <span class="ident">Div</span>, <span class="ident">Rem</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">Tally</span>;
 
 <span class="doccomment">/// A means of determining if a vote is past pass threshold.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Copy</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Encode</span>, <span class="ident">Decode</span>, <span class="ident">sp_runtime</span>::<span class="ident">RuntimeDebug</span>)]</span>
@@ -149,10 +148,9 @@
 }
 
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Approved</span><span class="op">&lt;</span><span class="ident">Balance</span><span class="op">&gt;</span> {
-	<span class="doccomment">/// Given `approve` votes for and `against` votes against from a total electorate size of</span>
-	<span class="doccomment">/// `electorate` (`electorate - (approve + against)` are abstainers), then returns true if the</span>
-	<span class="doccomment">/// overall outcome is in favor of approval.</span>
-	<span class="kw">fn</span> <span class="ident">approved</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">approve</span>: <span class="ident">Balance</span>, <span class="ident">against</span>: <span class="ident">Balance</span>, <span class="ident">voters</span>: <span class="ident">Balance</span>, <span class="ident">electorate</span>: <span class="ident">Balance</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span>;
+	<span class="doccomment">/// Given a `tally` of votes and a total size of `electorate`, this returns `true` if the</span>
+	<span class="doccomment">/// overall outcome is in favor of approval according to `self`&#39;s threshold method.</span>
+	<span class="kw">fn</span> <span class="ident">approved</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">tally</span>: <span class="ident">Tally</span><span class="op">&lt;</span><span class="ident">Balance</span><span class="op">&gt;</span>, <span class="ident">electorate</span>: <span class="ident">Balance</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span>;
 }
 
 <span class="doccomment">/// Return `true` iff `n1 / d1 &lt; n2 / d2`. `d1` and `d2` may not be zero.</span>
@@ -183,23 +181,21 @@
 	}
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Balance</span>: <span class="ident">IntegerSquareRoot</span> <span class="op">+</span> <span class="ident">Zero</span> <span class="op">+</span> <span class="ident">Ord</span> <span class="op">+</span> <span class="ident">Add</span><span class="op">&lt;</span><span class="ident">Balance</span>, <span class="ident">Output</span> <span class="op">=</span> <span class="ident">Balance</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Mul</span><span class="op">&lt;</span><span class="ident">Balance</span>, <span class="ident">Output</span> <span class="op">=</span> <span class="ident">Balance</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Div</span><span class="op">&lt;</span><span class="ident">Balance</span>, <span class="ident">Output</span> <span class="op">=</span> <span class="ident">Balance</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Rem</span><span class="op">&lt;</span><span class="ident">Balance</span>, <span class="ident">Output</span> <span class="op">=</span> <span class="ident">Balance</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Copy</span><span class="op">&gt;</span> <span class="ident">Approved</span><span class="op">&lt;</span><span class="ident">Balance</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">VoteThreshold</span> {
-	<span class="doccomment">/// Given `approve` votes for and `against` votes against from a total electorate size of</span>
-	<span class="doccomment">/// `electorate` of whom `voters` voted (`electorate - voters` are abstainers) then returns true if the</span>
-	<span class="doccomment">/// overall outcome is in favor of approval.</span>
-	<span class="doccomment">///</span>
-	<span class="doccomment">/// We assume each *voter* may cast more than one *vote*, hence `voters` is not necessarily equal to</span>
-	<span class="doccomment">/// `approve + against`.</span>
-	<span class="kw">fn</span> <span class="ident">approved</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">approve</span>: <span class="ident">Balance</span>, <span class="ident">against</span>: <span class="ident">Balance</span>, <span class="ident">voters</span>: <span class="ident">Balance</span>, <span class="ident">electorate</span>: <span class="ident">Balance</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-		<span class="kw">let</span> <span class="ident">sqrt_voters</span> <span class="op">=</span> <span class="ident">voters</span>.<span class="ident">integer_sqrt</span>();
+<span class="kw">impl</span><span class="op">&lt;</span>
+	<span class="ident">Balance</span>: <span class="ident">IntegerSquareRoot</span> <span class="op">+</span> <span class="ident">Zero</span> <span class="op">+</span> <span class="ident">Ord</span> <span class="op">+</span> <span class="ident">Add</span><span class="op">&lt;</span><span class="ident">Balance</span>, <span class="ident">Output</span> <span class="op">=</span> <span class="ident">Balance</span><span class="op">&gt;</span>
+		<span class="op">+</span> <span class="ident">Mul</span><span class="op">&lt;</span><span class="ident">Balance</span>, <span class="ident">Output</span> <span class="op">=</span> <span class="ident">Balance</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Div</span><span class="op">&lt;</span><span class="ident">Balance</span>, <span class="ident">Output</span> <span class="op">=</span> <span class="ident">Balance</span><span class="op">&gt;</span>
+		<span class="op">+</span> <span class="ident">Rem</span><span class="op">&lt;</span><span class="ident">Balance</span>, <span class="ident">Output</span> <span class="op">=</span> <span class="ident">Balance</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Copy</span>,
+<span class="op">&gt;</span> <span class="ident">Approved</span><span class="op">&lt;</span><span class="ident">Balance</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">VoteThreshold</span> {
+	<span class="kw">fn</span> <span class="ident">approved</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">tally</span>: <span class="ident">Tally</span><span class="op">&lt;</span><span class="ident">Balance</span><span class="op">&gt;</span>, <span class="ident">electorate</span>: <span class="ident">Balance</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+		<span class="kw">let</span> <span class="ident">sqrt_voters</span> <span class="op">=</span> <span class="ident">tally</span>.<span class="ident">turnout</span>.<span class="ident">integer_sqrt</span>();
 		<span class="kw">let</span> <span class="ident">sqrt_electorate</span> <span class="op">=</span> <span class="ident">electorate</span>.<span class="ident">integer_sqrt</span>();
 		<span class="kw">if</span> <span class="ident">sqrt_voters</span>.<span class="ident">is_zero</span>() { <span class="kw">return</span> <span class="bool-val">false</span>; }
 		<span class="kw">match</span> <span class="kw-2">*</span><span class="self">self</span> {
 			<span class="ident">VoteThreshold</span>::<span class="ident">SuperMajorityApprove</span> <span class="op">=</span><span class="op">&gt;</span>
-				<span class="ident">compare_rationals</span>(<span class="ident">against</span>, <span class="ident">sqrt_voters</span>, <span class="ident">approve</span>, <span class="ident">sqrt_electorate</span>),
+				<span class="ident">compare_rationals</span>(<span class="ident">tally</span>.<span class="ident">nays</span>, <span class="ident">sqrt_voters</span>, <span class="ident">tally</span>.<span class="ident">ayes</span>, <span class="ident">sqrt_electorate</span>),
 			<span class="ident">VoteThreshold</span>::<span class="ident">SuperMajorityAgainst</span> <span class="op">=</span><span class="op">&gt;</span>
-				<span class="ident">compare_rationals</span>(<span class="ident">against</span>, <span class="ident">sqrt_electorate</span>, <span class="ident">approve</span>, <span class="ident">sqrt_voters</span>),
-			<span class="ident">VoteThreshold</span>::<span class="ident">SimpleMajority</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">approve</span> <span class="op">&gt;</span> <span class="ident">against</span>,
+				<span class="ident">compare_rationals</span>(<span class="ident">tally</span>.<span class="ident">nays</span>, <span class="ident">sqrt_electorate</span>, <span class="ident">tally</span>.<span class="ident">ayes</span>, <span class="ident">sqrt_voters</span>),
+			<span class="ident">VoteThreshold</span>::<span class="ident">SimpleMajority</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">tally</span>.<span class="ident">ayes</span> <span class="op">&gt;</span> <span class="ident">tally</span>.<span class="ident">nays</span>,
 		}
 	}
 }
@@ -210,8 +206,8 @@
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
 	<span class="kw">fn</span> <span class="ident">should_work</span>() {
-		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">VoteThreshold</span>::<span class="ident">SuperMajorityApprove</span>.<span class="ident">approved</span>(<span class="number">60</span>, <span class="number">50</span>, <span class="number">110</span>, <span class="number">210</span>), <span class="bool-val">false</span>);
-		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">VoteThreshold</span>::<span class="ident">SuperMajorityApprove</span>.<span class="ident">approved</span>(<span class="number">100</span>, <span class="number">50</span>, <span class="number">150</span>, <span class="number">210</span>), <span class="bool-val">true</span>);
+		<span class="macro">assert</span><span class="macro">!</span>(<span class="op">!</span><span class="ident">VoteThreshold</span>::<span class="ident">SuperMajorityApprove</span>.<span class="ident">approved</span>(<span class="ident">Tally</span>{<span class="ident">ayes</span>: <span class="number">60</span>, <span class="ident">nays</span>: <span class="number">50</span>, <span class="ident">turnout</span>: <span class="number">110</span>}, <span class="number">210</span>));
+		<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">VoteThreshold</span>::<span class="ident">SuperMajorityApprove</span>.<span class="ident">approved</span>(<span class="ident">Tally</span>{<span class="ident">ayes</span>: <span class="number">100</span>, <span class="ident">nays</span>: <span class="number">50</span>, <span class="ident">turnout</span>: <span class="number">150</span>}, <span class="number">210</span>));
 	}
 }
 </pre></div>

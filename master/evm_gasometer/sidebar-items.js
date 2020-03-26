@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["GasCost",""],["TransactionCost",""]],"fn":[["call_transaction_cost",""],["create_transaction_cost",""],["opcode_cost",""]],"struct":[["Gasometer",""],["MemoryCost",""]]});
+initSidebarItems({"enum":[["GasCost","Gas cost."],["TransactionCost","Transaction cost."]],"fn":[["call_transaction_cost","Calculate the call transaction cost."],["create_transaction_cost","Calculate the create transaction cost."],["opcode_cost","Calculate the opcode cost."]],"struct":[["Gasometer","EVM gasometer."],["MemoryCost","Memory cost."]]});

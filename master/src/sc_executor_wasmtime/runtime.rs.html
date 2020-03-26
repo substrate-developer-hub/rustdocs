@@ -184,6 +184,14 @@
 <span id="173">173</span>
 <span id="174">174</span>
 <span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -202,57 +210,85 @@
 <span class="comment">// along with Substrate.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
 
 <span class="doccomment">//! Defines the compiled Wasm runtime that uses Wasmtime internally.</span>
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">rc</span>::<span class="ident">Rc</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">host</span>::<span class="ident">HostState</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">imports</span>::{<span class="ident">resolve_imports</span>, <span class="ident">Imports</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">imports</span>::{<span class="ident">Imports</span>, <span class="ident">resolve_imports</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">instance_wrapper</span>::<span class="ident">InstanceWrapper</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">state_holder</span>::<span class="ident">StateHolder</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">state_holder</span>;
 
 <span class="kw">use</span> <span class="ident">sc_executor_common</span>::{
 	<span class="ident">error</span>::{<span class="ident">Error</span>, <span class="prelude-ty">Result</span>, <span class="ident">WasmError</span>},
-	<span class="ident">wasm_runtime</span>::<span class="ident">WasmRuntime</span>,
+	<span class="ident">wasm_runtime</span>::{<span class="ident">WasmModule</span>, <span class="ident">WasmInstance</span>},
 };
 <span class="kw">use</span> <span class="ident">sp_allocator</span>::<span class="ident">FreeingBumpHeapAllocator</span>;
 <span class="kw">use</span> <span class="ident">sp_runtime_interface</span>::<span class="ident">unpack_ptr_and_len</span>;
 <span class="kw">use</span> <span class="ident">sp_wasm_interface</span>::{<span class="ident">Function</span>, <span class="ident">Pointer</span>, <span class="ident">WordSize</span>, <span class="ident">Value</span>};
 <span class="kw">use</span> <span class="ident">wasmtime</span>::{<span class="ident">Config</span>, <span class="ident">Engine</span>, <span class="ident">Module</span>, <span class="ident">Store</span>};
 
-<span class="doccomment">/// A `WasmRuntime` implementation using wasmtime to compile the runtime module to machine code</span>
+<span class="doccomment">/// A `WasmModule` implementation using wasmtime to compile the runtime module to machine code</span>
 <span class="doccomment">/// and execute the compiled code.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">WasmtimeRuntime</span> {
-	<span class="ident">module</span>: <span class="ident">Module</span>,
-	<span class="ident">imports</span>: <span class="ident">Imports</span>,
-	<span class="ident">state_holder</span>: <span class="ident">StateHolder</span>,
+	<span class="ident">module</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Module</span><span class="op">&gt;</span>,
 	<span class="ident">heap_pages</span>: <span class="ident">u32</span>,
+	<span class="ident">allow_missing_func_imports</span>: <span class="ident">bool</span>,
 	<span class="ident">host_functions</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="kw">dyn</span> <span class="ident">Function</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span> <span class="ident">WasmRuntime</span> <span class="kw">for</span> <span class="ident">WasmtimeRuntime</span> {
-	<span class="kw">fn</span> <span class="ident">host_functions</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="kw">dyn</span> <span class="ident">Function</span>] {
-		<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">host_functions</span>
-	}
-
-	<span class="kw">fn</span> <span class="ident">call</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">method</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-		<span class="ident">call_method</span>(
+<span class="kw">impl</span> <span class="ident">WasmModule</span> <span class="kw">for</span> <span class="ident">WasmtimeRuntime</span> {
+	<span class="kw">fn</span> <span class="ident">new_instance</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">WasmInstance</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+		<span class="comment">// Scan all imports, find the matching host functions, and create stubs that adapt arguments</span>
+		<span class="comment">// and results.</span>
+		<span class="kw">let</span> <span class="ident">imports</span> <span class="op">=</span> <span class="ident">resolve_imports</span>(
 			<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">module</span>,
-			<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">imports</span>,
-			<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">state_holder</span>,
-			<span class="ident">method</span>,
-			<span class="ident">data</span>,
+			<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">host_functions</span>,
 			<span class="self">self</span>.<span class="ident">heap_pages</span>,
-		)
-	}
+			<span class="self">self</span>.<span class="ident">allow_missing_func_imports</span>,
+		)<span class="question-mark">?</span>;
 
-	<span class="kw">fn</span> <span class="ident">get_global_val</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">name</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Value</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-		<span class="comment">// Yeah, there is no better way currently :(</span>
-		<span class="ident">InstanceWrapper</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">module</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">imports</span>, <span class="self">self</span>.<span class="ident">heap_pages</span>)<span class="question-mark">?</span>
-			.<span class="ident">get_global_val</span>(<span class="ident">name</span>)
+		<span class="prelude-val">Ok</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">WasmtimeInstance</span> {
+			<span class="ident">module</span>: <span class="self">self</span>.<span class="ident">module</span>.<span class="ident">clone</span>(),
+			<span class="ident">imports</span>,
+			<span class="ident">heap_pages</span>: <span class="self">self</span>.<span class="ident">heap_pages</span>,
+		}))
 	}
 }
 
+<span class="doccomment">/// A `WasmInstance` implementation that reuses compiled module and spawns instances</span>
+<span class="doccomment">/// to execute the compiled code.</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">WasmtimeInstance</span> {
+	<span class="ident">module</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Module</span><span class="op">&gt;</span>,
+	<span class="ident">imports</span>: <span class="ident">Imports</span>,
+	<span class="ident">heap_pages</span>: <span class="ident">u32</span>,
+}
+
+<span class="comment">// This is safe because `WasmtimeInstance` does not leak reference to `self.imports`</span>
+<span class="comment">// and all imports don&#39;t reference any anything, other than host functions and memory</span>
+<span class="kw">unsafe</span> <span class="kw">impl</span> <span class="ident">Send</span> <span class="kw">for</span> <span class="ident">WasmtimeInstance</span> {}
+
+<span class="kw">impl</span> <span class="ident">WasmInstance</span> <span class="kw">for</span> <span class="ident">WasmtimeInstance</span> {
+	<span class="kw">fn</span> <span class="ident">call</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">method</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+		<span class="comment">// TODO: reuse the instance and reset globals after call</span>
+		<span class="comment">// https://github.com/paritytech/substrate/issues/5141</span>
+		<span class="kw">let</span> <span class="ident">instance</span> <span class="op">=</span> <span class="ident">Rc</span>::<span class="ident">new</span>(<span class="ident">InstanceWrapper</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">module</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">imports</span>, <span class="self">self</span>.<span class="ident">heap_pages</span>)<span class="question-mark">?</span>);
+		<span class="ident">call_method</span>(
+			<span class="ident">instance</span>,
+			<span class="ident">method</span>,
+			<span class="ident">data</span>,
+		)
+	}
+
+	<span class="kw">fn</span> <span class="ident">get_global_const</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">name</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Value</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+		<span class="kw">let</span> <span class="ident">instance</span> <span class="op">=</span> <span class="ident">InstanceWrapper</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">module</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">imports</span>, <span class="self">self</span>.<span class="ident">heap_pages</span>)<span class="question-mark">?</span>;
+		<span class="ident">instance</span>.<span class="ident">get_global_val</span>(<span class="ident">name</span>)
+	}
+}
+
+
 <span class="doccomment">/// Create a new `WasmtimeRuntime` given the code. This function performs translation from Wasm to</span>
 <span class="doccomment">/// machine code, which can be computationally heavy.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">create_instance</span>(
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">create_runtime</span>(
 	<span class="ident">code</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
 	<span class="ident">heap_pages</span>: <span class="ident">u64</span>,
 	<span class="ident">host_functions</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="kw">dyn</span> <span class="ident">Function</span><span class="op">&gt;</span>,
@@ -267,55 +303,37 @@
 	<span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">Module</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">store</span>, <span class="ident">code</span>)
 		.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">WasmError</span>::<span class="ident">Other</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;cannot create module: {}&quot;</span>, <span class="ident">e</span>)))<span class="question-mark">?</span>;
 
-	<span class="kw">let</span> <span class="ident">state_holder</span> <span class="op">=</span> <span class="ident">StateHolder</span>::<span class="ident">empty</span>();
-
-	<span class="comment">// Scan all imports, find the matching host functions, and create stubs that adapt arguments</span>
-	<span class="comment">// and results.</span>
-	<span class="kw">let</span> <span class="ident">imports</span> <span class="op">=</span> <span class="ident">resolve_imports</span>(
-		<span class="kw-2">&amp;</span><span class="ident">state_holder</span>,
-		<span class="kw-2">&amp;</span><span class="ident">module</span>,
-		<span class="kw-2">&amp;</span><span class="ident">host_functions</span>,
-		<span class="ident">heap_pages</span> <span class="kw">as</span> <span class="ident">u32</span>,
-		<span class="ident">allow_missing_func_imports</span>,
-	)<span class="question-mark">?</span>;
-
 	<span class="prelude-val">Ok</span>(<span class="ident">WasmtimeRuntime</span> {
-		<span class="ident">module</span>,
-		<span class="ident">imports</span>,
-		<span class="ident">state_holder</span>,
+		<span class="ident">module</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">module</span>),
 		<span class="ident">heap_pages</span>: <span class="ident">heap_pages</span> <span class="kw">as</span> <span class="ident">u32</span>,
+		<span class="ident">allow_missing_func_imports</span>,
 		<span class="ident">host_functions</span>,
 	})
 }
 
 <span class="doccomment">/// Call a function inside a precompiled Wasm module.</span>
 <span class="kw">fn</span> <span class="ident">call_method</span>(
-	<span class="ident">module</span>: <span class="kw-2">&amp;</span><span class="ident">Module</span>,
-	<span class="ident">imports</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Imports</span>,
-	<span class="ident">state_holder</span>: <span class="kw-2">&amp;</span><span class="ident">StateHolder</span>,
+	<span class="ident">instance_wrapper</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">InstanceWrapper</span><span class="op">&gt;</span>,
 	<span class="ident">method</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
 	<span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
-	<span class="ident">heap_pages</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-	<span class="kw">let</span> <span class="ident">instance_wrapper</span> <span class="op">=</span> <span class="ident">InstanceWrapper</span>::<span class="ident">new</span>(<span class="ident">module</span>, <span class="ident">imports</span>, <span class="ident">heap_pages</span>)<span class="question-mark">?</span>;
 	<span class="kw">let</span> <span class="ident">entrypoint</span> <span class="op">=</span> <span class="ident">instance_wrapper</span>.<span class="ident">resolve_entrypoint</span>(<span class="ident">method</span>)<span class="question-mark">?</span>;
 	<span class="kw">let</span> <span class="ident">heap_base</span> <span class="op">=</span> <span class="ident">instance_wrapper</span>.<span class="ident">extract_heap_base</span>()<span class="question-mark">?</span>;
 	<span class="kw">let</span> <span class="ident">allocator</span> <span class="op">=</span> <span class="ident">FreeingBumpHeapAllocator</span>::<span class="ident">new</span>(<span class="ident">heap_base</span>);
 
-	<span class="ident">perform_call</span>(<span class="ident">data</span>, <span class="ident">state_holder</span>, <span class="ident">instance_wrapper</span>, <span class="ident">entrypoint</span>, <span class="ident">allocator</span>)
+	<span class="ident">perform_call</span>(<span class="ident">data</span>, <span class="ident">instance_wrapper</span>, <span class="ident">entrypoint</span>, <span class="ident">allocator</span>)
 }
 
 <span class="kw">fn</span> <span class="ident">perform_call</span>(
 	<span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
-	<span class="ident">state_holder</span>: <span class="kw-2">&amp;</span><span class="ident">StateHolder</span>,
-	<span class="ident">instance_wrapper</span>: <span class="ident">InstanceWrapper</span>,
+	<span class="ident">instance_wrapper</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">InstanceWrapper</span><span class="op">&gt;</span>,
 	<span class="ident">entrypoint</span>: <span class="ident">wasmtime</span>::<span class="ident">Func</span>,
 	<span class="kw-2">mut</span> <span class="ident">allocator</span>: <span class="ident">FreeingBumpHeapAllocator</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 	<span class="kw">let</span> (<span class="ident">data_ptr</span>, <span class="ident">data_len</span>) <span class="op">=</span> <span class="ident">inject_input_data</span>(<span class="kw-2">&amp;</span><span class="ident">instance_wrapper</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">allocator</span>, <span class="ident">data</span>)<span class="question-mark">?</span>;
 
-	<span class="kw">let</span> <span class="ident">host_state</span> <span class="op">=</span> <span class="ident">HostState</span>::<span class="ident">new</span>(<span class="ident">allocator</span>, <span class="ident">instance_wrapper</span>);
-	<span class="kw">let</span> (<span class="ident">ret</span>, <span class="ident">host_state</span>) <span class="op">=</span> <span class="ident">state_holder</span>.<span class="ident">with_initialized_state</span>(<span class="ident">host_state</span>, <span class="op">|</span><span class="op">|</span> {
+	<span class="kw">let</span> <span class="ident">host_state</span> <span class="op">=</span> <span class="ident">HostState</span>::<span class="ident">new</span>(<span class="ident">allocator</span>, <span class="ident">instance_wrapper</span>.<span class="ident">clone</span>());
+	<span class="kw">let</span> <span class="ident">ret</span> <span class="op">=</span> <span class="ident">state_holder</span>::<span class="ident">with_initialized_state</span>(<span class="kw-2">&amp;</span><span class="ident">host_state</span>, <span class="op">|</span><span class="op">|</span> {
 		<span class="kw">match</span> <span class="ident">entrypoint</span>.<span class="ident">call</span>(<span class="kw-2">&amp;</span>[
 			<span class="ident">wasmtime</span>::<span class="ident">Val</span>::<span class="ident">I32</span>(<span class="ident">u32</span>::<span class="ident">from</span>(<span class="ident">data_ptr</span>) <span class="kw">as</span> <span class="ident">i32</span>),
 			<span class="ident">wasmtime</span>::<span class="ident">Val</span>::<span class="ident">I32</span>(<span class="ident">u32</span>::<span class="ident">from</span>(<span class="ident">data_len</span>) <span class="kw">as</span> <span class="ident">i32</span>),
@@ -333,9 +351,7 @@
 		}
 	});
 	<span class="kw">let</span> (<span class="ident">output_ptr</span>, <span class="ident">output_len</span>) <span class="op">=</span> <span class="ident">ret</span><span class="question-mark">?</span>;
-
-	<span class="kw">let</span> <span class="ident">instance</span> <span class="op">=</span> <span class="ident">host_state</span>.<span class="ident">into_instance</span>();
-	<span class="kw">let</span> <span class="ident">output</span> <span class="op">=</span> <span class="ident">extract_output_data</span>(<span class="kw-2">&amp;</span><span class="ident">instance</span>, <span class="ident">output_ptr</span>, <span class="ident">output_len</span>)<span class="question-mark">?</span>;
+	<span class="kw">let</span> <span class="ident">output</span> <span class="op">=</span> <span class="ident">extract_output_data</span>(<span class="kw-2">&amp;</span><span class="ident">instance_wrapper</span>, <span class="ident">output_ptr</span>, <span class="ident">output_len</span>)<span class="question-mark">?</span>;
 
 	<span class="prelude-val">Ok</span>(<span class="ident">output</span>)
 }

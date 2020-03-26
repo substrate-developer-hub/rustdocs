@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.11/src/task/harness.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>harness.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.13/src/task/harness.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>harness.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -564,9 +564,11 @@
 <span id="553">553</span>
 <span id="554">554</span>
 <span id="555">555</span>
+<span id="556">556</span>
+<span id="557">557</span>
+<span id="558">558</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">loom</span>::<span class="ident">alloc</span>::<span class="ident">Track</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">loom</span>::<span class="ident">cell</span>::<span class="ident">CausalCheck</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">task</span>::<span class="ident">core</span>::{<span class="ident">Cell</span>, <span class="ident">Core</span>, <span class="ident">Header</span>, <span class="ident">Trailer</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">task</span>::<span class="ident">state</span>::<span class="ident">Snapshot</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">task</span>::{<span class="ident">JoinError</span>, <span class="ident">Schedule</span>, <span class="ident">Task</span>};
@@ -718,8 +720,12 @@
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">drop_task</span>(<span class="kw-2">mut</span> <span class="self">self</span>) {
         <span class="kw">let</span> <span class="ident">might_drop_join_waker_on_release</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">might_drop_join_waker_on_release</span>();
 
-        <span class="comment">// Read the join waker cell just to have it</span>
-        <span class="kw">let</span> (<span class="ident">join_waker</span>, <span class="ident">check</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">read_join_waker</span>();
+        <span class="kw">let</span> <span class="ident">join_waker</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">might_drop_join_waker_on_release</span> {
+            <span class="comment">// Read the join waker cell just to have it</span>
+            <span class="self">self</span>.<span class="ident">read_join_waker</span>()
+        } <span class="kw">else</span> {
+            <span class="ident">MaybeUninit</span>::<span class="ident">uninit</span>()
+        };
 
         <span class="comment">// transition the task to released</span>
         <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">header</span>().<span class="ident">state</span>.<span class="ident">release_task</span>();
@@ -730,7 +736,6 @@
             <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">res</span>.<span class="ident">has_join_waker</span>());
 
             <span class="comment">// Its our responsibility to drop the waker</span>
-            <span class="ident">check</span>.<span class="ident">check</span>();
             <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">join_waker</span>.<span class="ident">assume_init</span>();
         }
 
@@ -768,14 +773,13 @@
         <span class="comment">// possible that, after the transition, we are responsible for dropping</span>
         <span class="comment">// the waker but before the waker can be read from the struct, the</span>
         <span class="comment">// struct is deallocated.</span>
-        <span class="kw">let</span> (<span class="ident">waker</span>, <span class="ident">check</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">read_join_waker</span>();
+        <span class="kw">let</span> <span class="ident">waker</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">read_join_waker</span>();
 
         <span class="comment">// The operation counts as dropping the join handle</span>
         <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">header</span>().<span class="ident">state</span>.<span class="ident">complete_join_handle</span>();
 
         <span class="kw">if</span> <span class="ident">res</span>.<span class="ident">is_released</span>() {
             <span class="comment">// We are responsible for freeing the waker handle</span>
-            <span class="ident">check</span>.<span class="ident">check</span>();
             <span class="ident">drop</span>(<span class="ident">waker</span>.<span class="ident">assume_init</span>());
         }
 
@@ -831,7 +835,7 @@
             <span class="comment">// possible that, after the transition, we are responsible for dropping</span>
             <span class="comment">// the waker but before the waker can be read from the struct, the</span>
             <span class="comment">// struct is deallocated.</span>
-            <span class="kw">let</span> (<span class="ident">waker</span>, <span class="ident">check</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">read_join_waker</span>();
+            <span class="kw">let</span> <span class="ident">waker</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">read_join_waker</span>();
 
             <span class="comment">// The operation counts as dropping the join handle</span>
             <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>.<span class="ident">header</span>().<span class="ident">state</span>.<span class="ident">drop_join_handle_slow</span>() {
@@ -850,7 +854,6 @@
 
             <span class="kw">if</span> <span class="op">!</span>(<span class="ident">res</span>.<span class="ident">is_complete</span>() <span class="op">|</span> <span class="ident">res</span>.<span class="ident">is_canceled</span>()) <span class="op">|</span><span class="op">|</span> <span class="ident">res</span>.<span class="ident">is_released</span>() {
                 <span class="comment">// We are responsible for freeing the waker handle</span>
-                <span class="ident">check</span>.<span class="ident">check</span>();
                 <span class="ident">drop</span>(<span class="ident">waker</span>.<span class="ident">assume_init</span>());
             }
 
@@ -1033,11 +1036,15 @@
         <span class="kw">if</span> <span class="ident">join_interest</span> {
             <span class="kw">let</span> <span class="ident">res1</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">transition_to_complete</span>(<span class="ident">join_interest</span>);
 
-            <span class="comment">// At this point, the join waker may not be changed. Once we perform</span>
-            <span class="comment">// `release_task` we may no longer read from the struct but we</span>
-            <span class="comment">// **may** be responsible for dropping the waker. We do an</span>
-            <span class="comment">// optimistic read here.</span>
-            <span class="kw">let</span> (<span class="ident">join_waker</span>, <span class="ident">check</span>) <span class="op">=</span> <span class="kw">unsafe</span> { <span class="self">self</span>.<span class="ident">read_join_waker</span>() };
+            <span class="kw">let</span> <span class="ident">join_waker</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">res1</span>.<span class="ident">has_join_waker</span>() {
+                <span class="comment">// At this point, the join waker may not be changed. Once we perform</span>
+                <span class="comment">// `release_task` we may no longer read from the struct but we</span>
+                <span class="comment">// **may** be responsible for dropping the waker. We do an</span>
+                <span class="comment">// optimistic read here.</span>
+                <span class="kw">unsafe</span> { <span class="self">self</span>.<span class="ident">read_join_waker</span>() }
+            } <span class="kw">else</span> {
+                <span class="ident">MaybeUninit</span>::<span class="ident">uninit</span>()
+            };
 
             <span class="kw">let</span> <span class="ident">res2</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">header</span>().<span class="ident">state</span>.<span class="ident">release_task</span>();
 
@@ -1045,7 +1052,6 @@
                 <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">res2</span>.<span class="ident">has_join_waker</span>());
 
                 <span class="comment">// Its our responsibility to drop the waker</span>
-                <span class="ident">check</span>.<span class="ident">check</span>();
                 <span class="kw">unsafe</span> {
                     <span class="ident">drop</span>(<span class="ident">join_waker</span>.<span class="ident">assume_init</span>());
                 }
@@ -1111,8 +1117,8 @@
         });
     }
 
-    <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">read_join_waker</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">MaybeUninit</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Waker</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">CausalCheck</span>) {
-        <span class="self">self</span>.<span class="ident">trailer</span>().<span class="ident">waker</span>.<span class="ident">with_deferred</span>(<span class="op">|</span><span class="ident">ptr</span><span class="op">|</span> <span class="ident">ptr</span>.<span class="ident">read</span>())
+    <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">read_join_waker</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">MaybeUninit</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Waker</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">trailer</span>().<span class="ident">waker</span>.<span class="ident">with</span>(<span class="op">|</span><span class="ident">ptr</span><span class="op">|</span> <span class="ident">ptr</span>.<span class="ident">read</span>())
     }
 
     <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">to_task</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Task</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> {

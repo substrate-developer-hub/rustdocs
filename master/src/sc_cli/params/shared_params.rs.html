@@ -121,10 +121,6 @@
 <span id="110">110</span>
 <span id="111">111</span>
 <span id="112">112</span>
-<span id="113">113</span>
-<span id="114">114</span>
-<span id="115">115</span>
-<span id="116">116</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -146,8 +142,7 @@
 <span class="kw">use</span> <span class="ident">structopt</span>::<span class="ident">StructOpt</span>;
 <span class="kw">use</span> <span class="ident">app_dirs</span>::{<span class="ident">AppInfo</span>, <span class="ident">AppDataType</span>};
 <span class="kw">use</span> <span class="ident">sc_service</span>::{
-	<span class="ident">Configuration</span>, <span class="ident">ChainSpecExtension</span>, <span class="ident">RuntimeGenesis</span>,
-	<span class="ident">config</span>::<span class="ident">DatabaseConfig</span>, <span class="ident">ChainSpec</span>,
+	<span class="ident">Configuration</span>, <span class="ident">config</span>::<span class="ident">DatabaseConfig</span>, <span class="ident">ChainSpec</span>,
 };
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">VersionInfo</span>;
@@ -159,7 +154,7 @@
 <span class="doccomment">/// Shared parameters used by all `CoreParams`.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">StructOpt</span>, <span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SharedParams</span> {
-	<span class="doccomment">/// Specify the chain specification (one of dev, local or staging).</span>
+	<span class="doccomment">/// Specify the chain specification (one of dev, local, or staging).</span>
 	<span class="attribute">#[<span class="ident">structopt</span>(<span class="ident">long</span> <span class="op">=</span> <span class="string">&quot;chain&quot;</span>, <span class="ident">value_name</span> <span class="op">=</span> <span class="string">&quot;CHAIN_SPEC&quot;</span>)]</span>
 	<span class="kw">pub</span> <span class="ident">chain</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>,
 
@@ -171,32 +166,29 @@
 	<span class="attribute">#[<span class="ident">structopt</span>(<span class="ident">long</span> <span class="op">=</span> <span class="string">&quot;base-path&quot;</span>, <span class="ident">short</span> <span class="op">=</span> <span class="string">&quot;d&quot;</span>, <span class="ident">value_name</span> <span class="op">=</span> <span class="string">&quot;PATH&quot;</span>, <span class="ident">parse</span>(<span class="ident">from_os_str</span>))]</span>
 	<span class="kw">pub</span> <span class="ident">base_path</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span>,
 
-	<span class="doccomment">/// Sets a custom logging filter.</span>
+	<span class="doccomment">/// Sets a custom logging filter. Syntax is &lt;target&gt;=&lt;level&gt;, e.g. -lsync=debug.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// Log levels (least to most verbose) are error, warn, info, debug, and trace.</span>
+	<span class="doccomment">/// By default, all targets log `info`. The global log level can be set with -l&lt;level&gt;.</span>
 	<span class="attribute">#[<span class="ident">structopt</span>(<span class="ident">short</span> <span class="op">=</span> <span class="string">&quot;l&quot;</span>, <span class="ident">long</span> <span class="op">=</span> <span class="string">&quot;log&quot;</span>, <span class="ident">value_name</span> <span class="op">=</span> <span class="string">&quot;LOG_PATTERN&quot;</span>)]</span>
 	<span class="kw">pub</span> <span class="ident">log</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">SharedParams</span> {
 	<span class="doccomment">/// Load spec to `Configuration` from `SharedParams` and spec factory.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">update_config</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">G</span>, <span class="ident">E</span>, <span class="ident">F</span><span class="op">&gt;</span>(
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">update_config</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">F</span><span class="op">&gt;</span>(
 		<span class="kw-2">&amp;</span><span class="self">self</span>,
-		<span class="kw-2">mut</span> <span class="ident">config</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">Configuration</span><span class="op">&lt;</span><span class="ident">G</span>, <span class="ident">E</span><span class="op">&gt;</span>,
+		<span class="kw-2">mut</span> <span class="ident">config</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">Configuration</span>,
 		<span class="ident">spec_factory</span>: <span class="ident">F</span>,
 		<span class="ident">version</span>: <span class="kw-2">&amp;</span><span class="ident">VersionInfo</span>,
-	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">G</span>, <span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="kw">where</span>
-		<span class="ident">G</span>: <span class="ident">RuntimeGenesis</span>,
-		<span class="ident">E</span>: <span class="ident">ChainSpecExtension</span>,
-		<span class="ident">F</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainSpec</span><span class="op">&lt;</span><span class="ident">G</span>, <span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span>,
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw">dyn</span> <span class="ident">ChainSpec</span><span class="op">&gt;</span> <span class="kw">where</span>
+		<span class="ident">F</span>: <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">ChainSpec</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span>,
 	{
 		<span class="kw">let</span> <span class="ident">chain_key</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>.<span class="ident">chain</span> {
 			<span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">chain</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">chain</span>.<span class="ident">clone</span>(),
 			<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">dev</span> { <span class="string">&quot;dev&quot;</span>.<span class="ident">into</span>() } <span class="kw">else</span> { <span class="string">&quot;&quot;</span>.<span class="ident">into</span>() }
 		};
-		<span class="kw">let</span> <span class="ident">spec</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">spec_factory</span>(<span class="kw-2">&amp;</span><span class="ident">chain_key</span>)<span class="question-mark">?</span> {
-			<span class="prelude-val">Some</span>(<span class="ident">spec</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">spec</span>,
-			<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ChainSpec</span>::<span class="ident">from_json_file</span>(<span class="ident">PathBuf</span>::<span class="ident">from</span>(<span class="ident">chain_key</span>))<span class="question-mark">?</span>
-		};
-
+		<span class="kw">let</span> <span class="ident">spec</span> <span class="op">=</span> <span class="ident">spec_factory</span>(<span class="kw-2">&amp;</span><span class="ident">chain_key</span>)<span class="question-mark">?</span>;
 		<span class="ident">config</span>.<span class="ident">network</span>.<span class="ident">boot_nodes</span> <span class="op">=</span> <span class="ident">spec</span>.<span class="ident">boot_nodes</span>().<span class="ident">to_vec</span>();
 		<span class="ident">config</span>.<span class="ident">telemetry_endpoints</span> <span class="op">=</span> <span class="ident">spec</span>.<span class="ident">telemetry_endpoints</span>().<span class="ident">clone</span>();
 
@@ -215,7 +207,7 @@
 			});
 		}
 
-		<span class="prelude-val">Ok</span>(<span class="ident">config</span>.<span class="ident">chain_spec</span>.<span class="ident">as_ref</span>().<span class="ident">unwrap</span>())
+		<span class="prelude-val">Ok</span>(<span class="ident">config</span>.<span class="ident">expect_chain_spec</span>())
 	}
 
 	<span class="doccomment">/// Initialize substrate. This must be done only once.</span>

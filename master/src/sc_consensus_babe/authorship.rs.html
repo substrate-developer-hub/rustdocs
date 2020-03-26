@@ -226,6 +226,7 @@
 <span id="215">215</span>
 <span id="216">216</span>
 <span id="217">217</span>
+<span id="218">218</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -250,7 +251,8 @@
 	<span class="ident">AuthorityId</span>, <span class="ident">BabeAuthorityWeight</span>, <span class="ident">BABE_ENGINE_ID</span>, <span class="ident">BABE_VRF_PREFIX</span>,
 	<span class="ident">SlotNumber</span>, <span class="ident">AuthorityPair</span>, <span class="ident">BabeConfiguration</span>
 };
-<span class="kw">use</span> <span class="ident">sp_consensus_babe</span>::<span class="ident">digests</span>::<span class="ident">PreDigest</span>;
+<span class="kw">use</span> <span class="ident">sp_consensus_babe</span>::<span class="ident">digests</span>::{<span class="ident">PreDigest</span>, <span class="ident">PrimaryPreDigest</span>, <span class="ident">SecondaryPreDigest</span>};
+<span class="kw">use</span> <span class="ident">sp_consensus_vrf</span>::<span class="ident">schnorrkel</span>::{<span class="ident">VRFOutput</span>, <span class="ident">VRFProof</span>};
 <span class="kw">use</span> <span class="ident">sp_core</span>::{<span class="ident">U256</span>, <span class="ident">blake2_256</span>};
 <span class="kw">use</span> <span class="ident">codec</span>::<span class="ident">Encode</span>;
 <span class="kw">use</span> <span class="ident">schnorrkel</span>::<span class="ident">vrf</span>::<span class="ident">VRFInOut</span>;
@@ -356,10 +358,10 @@
 		})
 	{
 		<span class="kw">if</span> <span class="ident">pair</span>.<span class="ident">public</span>() <span class="op">=</span><span class="op">=</span> <span class="kw-2">*</span><span class="ident">expected_author</span> {
-			<span class="kw">let</span> <span class="ident">pre_digest</span> <span class="op">=</span> <span class="ident">PreDigest</span>::<span class="ident">Secondary</span> {
+			<span class="kw">let</span> <span class="ident">pre_digest</span> <span class="op">=</span> <span class="ident">PreDigest</span>::<span class="ident">Secondary</span>(<span class="ident">SecondaryPreDigest</span> {
 				<span class="ident">slot_number</span>,
 				<span class="ident">authority_index</span>: <span class="ident">authority_index</span> <span class="kw">as</span> <span class="ident">u32</span>,
-			};
+			});
 
 			<span class="kw">return</span> <span class="prelude-val">Some</span>((<span class="ident">pre_digest</span>, <span class="ident">pair</span>));
 		}
@@ -428,12 +430,12 @@
 		<span class="kw">let</span> <span class="ident">pre_digest</span> <span class="op">=</span> <span class="ident">get_keypair</span>(<span class="kw-2">&amp;</span><span class="ident">pair</span>)
 			.<span class="ident">vrf_sign_after_check</span>(<span class="ident">transcript</span>, <span class="op">|</span><span class="ident">inout</span><span class="op">|</span> <span class="kw">super</span>::<span class="ident">authorship</span>::<span class="ident">check_primary_threshold</span>(<span class="ident">inout</span>, <span class="ident">threshold</span>))
 			.<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
-				<span class="ident">PreDigest</span>::<span class="ident">Primary</span> {
+				<span class="ident">PreDigest</span>::<span class="ident">Primary</span>(<span class="ident">PrimaryPreDigest</span> {
 					<span class="ident">slot_number</span>,
-					<span class="ident">vrf_output</span>: <span class="ident">s</span>.<span class="number">0</span>.<span class="ident">to_output</span>(),
-					<span class="ident">vrf_proof</span>: <span class="ident">s</span>.<span class="number">1</span>,
+					<span class="ident">vrf_output</span>: <span class="ident">VRFOutput</span>(<span class="ident">s</span>.<span class="number">0</span>.<span class="ident">to_output</span>()),
+					<span class="ident">vrf_proof</span>: <span class="ident">VRFProof</span>(<span class="ident">s</span>.<span class="number">1</span>),
 					<span class="ident">authority_index</span>: <span class="ident">authority_index</span> <span class="kw">as</span> <span class="ident">u32</span>,
-				}
+				})
 			});
 
 		<span class="comment">// early exit on first successful claim</span>

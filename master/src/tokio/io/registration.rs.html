@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.11/src/io/registration.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>registration.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.13/src/io/registration.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>registration.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -294,6 +294,14 @@
 <span id="283">283</span>
 <span id="284">284</span>
 <span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">io</span>::<span class="ident">driver</span>::{<span class="ident">platform</span>, <span class="ident">Direction</span>, <span class="ident">Handle</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">util</span>::<span class="ident">slab</span>::<span class="ident">Address</span>;
@@ -526,18 +534,26 @@
         }
 
         <span class="kw">let</span> <span class="ident">mask</span> <span class="op">=</span> <span class="ident">direction</span>.<span class="ident">mask</span>();
-        <span class="kw">let</span> <span class="ident">mask_no_hup</span> <span class="op">=</span> (<span class="ident">mask</span> <span class="op">-</span> <span class="ident">platform</span>::<span class="ident">hup</span>()).<span class="ident">as_usize</span>();
+        <span class="kw">let</span> <span class="ident">mask_no_hup</span> <span class="op">=</span> (<span class="ident">mask</span> <span class="op">-</span> <span class="ident">platform</span>::<span class="ident">hup</span>() <span class="op">-</span> <span class="ident">platform</span>::<span class="ident">error</span>()).<span class="ident">as_usize</span>();
 
         <span class="kw">let</span> <span class="ident">sched</span> <span class="op">=</span> <span class="ident">inner</span>.<span class="ident">io_dispatch</span>.<span class="ident">get</span>(<span class="self">self</span>.<span class="ident">address</span>).<span class="ident">unwrap</span>();
 
-        <span class="comment">// This consumes the current readiness state **except** for HUP. HUP is</span>
-        <span class="comment">// excluded because a) it is a final state and never transitions out of</span>
-        <span class="comment">// HUP and b) both the read AND the write directions need to be able to</span>
-        <span class="comment">// observe this state.</span>
+        <span class="comment">// This consumes the current readiness state **except** for HUP and</span>
+        <span class="comment">// error. HUP and error are excluded because a) they are final states</span>
+        <span class="comment">// and never transitition out and b) both the read AND the write</span>
+        <span class="comment">// directions need to be able to obvserve these states.</span>
         <span class="comment">//</span>
-        <span class="comment">// If HUP were to be cleared when `direction` is `Read`, then when</span>
-        <span class="comment">// `poll_ready` is called again with a _`direction` of `Write`, the HUP</span>
-        <span class="comment">// state would not be visible.</span>
+        <span class="comment">// # Platform-specific behavior</span>
+        <span class="comment">//</span>
+        <span class="comment">// HUP and error readiness are platform-specific. On epoll platforms,</span>
+        <span class="comment">// HUP has specific conditions that must be met by both peers of a</span>
+        <span class="comment">// connection in order to be triggered.</span>
+        <span class="comment">//</span>
+        <span class="comment">// On epoll platforms, `EPOLLERR` is signaled through</span>
+        <span class="comment">// `UnixReady::error()` and is important to be observable by both read</span>
+        <span class="comment">// AND write. A specific case that `EPOLLERR` occurs is when the read</span>
+        <span class="comment">// end of a pipe is closed. When this occurs, a peer blocked by</span>
+        <span class="comment">// writing to the pipe should be notified.</span>
         <span class="kw">let</span> <span class="ident">curr_ready</span> <span class="op">=</span> <span class="ident">sched</span>
             .<span class="ident">set_readiness</span>(<span class="self">self</span>.<span class="ident">address</span>, <span class="op">|</span><span class="ident">curr</span><span class="op">|</span> <span class="ident">curr</span> <span class="op">&amp;</span> (<span class="op">!</span><span class="ident">mask_no_hup</span>))
             .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;address {:?} no longer valid!&quot;</span>, <span class="self">self</span>.<span class="ident">address</span>));

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/cranelift-frontend-0.58.0/src/frontend.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>frontend.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/cranelift-frontend-0.59.0/src/frontend.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>frontend.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -1284,42 +1284,10 @@
 <span id="1273">1273</span>
 <span id="1274">1274</span>
 <span id="1275">1275</span>
-<span id="1276">1276</span>
-<span id="1277">1277</span>
-<span id="1278">1278</span>
-<span id="1279">1279</span>
-<span id="1280">1280</span>
-<span id="1281">1281</span>
-<span id="1282">1282</span>
-<span id="1283">1283</span>
-<span id="1284">1284</span>
-<span id="1285">1285</span>
-<span id="1286">1286</span>
-<span id="1287">1287</span>
-<span id="1288">1288</span>
-<span id="1289">1289</span>
-<span id="1290">1290</span>
-<span id="1291">1291</span>
-<span id="1292">1292</span>
-<span id="1293">1293</span>
-<span id="1294">1294</span>
-<span id="1295">1295</span>
-<span id="1296">1296</span>
-<span id="1297">1297</span>
-<span id="1298">1298</span>
-<span id="1299">1299</span>
-<span id="1300">1300</span>
-<span id="1301">1301</span>
-<span id="1302">1302</span>
-<span id="1303">1303</span>
-<span id="1304">1304</span>
-<span id="1305">1305</span>
-<span id="1306">1306</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! A frontend for building Cranelift IR from other languages.</span>
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">ssa</span>::{<span class="ident">SSABlock</span>, <span class="ident">SSABuilder</span>, <span class="ident">SideEffects</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">variable</span>::<span class="ident">Variable</span>;
-<span class="kw">use</span> <span class="ident">alloc</span>::<span class="ident">vec</span>::<span class="ident">Vec</span>;
 <span class="kw">use</span> <span class="ident">cranelift_codegen</span>::<span class="ident">cursor</span>::{<span class="ident">Cursor</span>, <span class="ident">FuncCursor</span>};
 <span class="kw">use</span> <span class="ident">cranelift_codegen</span>::<span class="ident">entity</span>::{<span class="ident">EntitySet</span>, <span class="ident">SecondaryMap</span>};
 <span class="kw">use</span> <span class="ident">cranelift_codegen</span>::<span class="ident">ir</span>;
@@ -1944,8 +1912,15 @@
         <span class="self">self</span>.<span class="ident">ins</span>().<span class="ident">call</span>(<span class="ident">libc_memcpy</span>, <span class="kw-2">&amp;</span>[<span class="ident">dest</span>, <span class="ident">src</span>, <span class="ident">size</span>]);
     }
 
-    <span class="doccomment">/// Optimised memcpy for small copies.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">emit_small_memcpy</span>(
+    <span class="doccomment">/// Optimised memcpy or memmove for small copies.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Codegen safety</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The following properties must hold to prevent UB:</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// * `src_align` and `dest_align` are an upper-bound on the alignment of `src` respectively `dest`.</span>
+    <span class="doccomment">/// * If `non_overlapping` is true, then this must be correct.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">emit_small_memory_copy</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">config</span>: <span class="ident">TargetFrontendConfig</span>,
         <span class="ident">dest</span>: <span class="ident">Value</span>,
@@ -1953,6 +1928,7 @@
         <span class="ident">size</span>: <span class="ident">u64</span>,
         <span class="ident">dest_align</span>: <span class="ident">u8</span>,
         <span class="ident">src_align</span>: <span class="ident">u8</span>,
+        <span class="ident">non_overlapping</span>: <span class="ident">bool</span>,
     ) {
         <span class="comment">// Currently the result of guess work, not actual profiling.</span>
         <span class="kw">const</span> <span class="ident">THRESHOLD</span>: <span class="ident">u64</span> <span class="op">=</span> <span class="number">4</span>;
@@ -1981,16 +1957,27 @@
 
         <span class="kw">if</span> <span class="ident">load_and_store_amount</span> <span class="op">&gt;</span> <span class="ident">THRESHOLD</span> {
             <span class="kw">let</span> <span class="ident">size_value</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">ins</span>().<span class="ident">iconst</span>(<span class="ident">config</span>.<span class="ident">pointer_type</span>(), <span class="ident">size</span> <span class="kw">as</span> <span class="ident">i64</span>);
-            <span class="self">self</span>.<span class="ident">call_memcpy</span>(<span class="ident">config</span>, <span class="ident">dest</span>, <span class="ident">src</span>, <span class="ident">size_value</span>);
+            <span class="kw">if</span> <span class="ident">non_overlapping</span> {
+                <span class="self">self</span>.<span class="ident">call_memcpy</span>(<span class="ident">config</span>, <span class="ident">dest</span>, <span class="ident">src</span>, <span class="ident">size_value</span>);
+            } <span class="kw">else</span> {
+                <span class="self">self</span>.<span class="ident">call_memmove</span>(<span class="ident">config</span>, <span class="ident">dest</span>, <span class="ident">src</span>, <span class="ident">size_value</span>);
+            }
             <span class="kw">return</span>;
         }
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">flags</span> <span class="op">=</span> <span class="ident">MemFlags</span>::<span class="ident">new</span>();
         <span class="ident">flags</span>.<span class="ident">set_aligned</span>();
 
-        <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">load_and_store_amount</span> {
-            <span class="kw">let</span> <span class="ident">offset</span> <span class="op">=</span> (<span class="ident">access_size</span> <span class="op">*</span> <span class="ident">i</span>) <span class="kw">as</span> <span class="ident">i32</span>;
-            <span class="kw">let</span> <span class="ident">value</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">ins</span>().<span class="ident">load</span>(<span class="ident">int_type</span>, <span class="ident">flags</span>, <span class="ident">src</span>, <span class="ident">offset</span>);
+        <span class="comment">// Load all of the memory first. This is necessary in case `dest` overlaps.</span>
+        <span class="comment">// It can also improve performance a bit.</span>
+        <span class="kw">let</span> <span class="ident">registers</span>: <span class="ident">smallvec</span>::<span class="ident">SmallVec</span><span class="op">&lt;</span>[<span class="kw">_</span>; <span class="ident">THRESHOLD</span> <span class="kw">as</span> <span class="ident">usize</span>]<span class="op">&gt;</span> <span class="op">=</span> (<span class="number">0</span>..<span class="ident">load_and_store_amount</span>)
+            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
+                <span class="kw">let</span> <span class="ident">offset</span> <span class="op">=</span> (<span class="ident">access_size</span> <span class="op">*</span> <span class="ident">i</span>) <span class="kw">as</span> <span class="ident">i32</span>;
+                (<span class="self">self</span>.<span class="ident">ins</span>().<span class="ident">load</span>(<span class="ident">int_type</span>, <span class="ident">flags</span>, <span class="ident">src</span>, <span class="ident">offset</span>), <span class="ident">offset</span>)
+            })
+            .<span class="ident">collect</span>();
+
+        <span class="kw">for</span> (<span class="ident">value</span>, <span class="ident">offset</span>) <span class="kw">in</span> <span class="ident">registers</span> {
             <span class="self">self</span>.<span class="ident">ins</span>().<span class="ident">store</span>(<span class="ident">flags</span>, <span class="ident">value</span>, <span class="ident">dest</span>, <span class="ident">offset</span>);
         }
     }
@@ -2115,55 +2102,6 @@
         });
 
         <span class="self">self</span>.<span class="ident">ins</span>().<span class="ident">call</span>(<span class="ident">libc_memmove</span>, <span class="kw-2">&amp;</span>[<span class="ident">dest</span>, <span class="ident">source</span>, <span class="ident">size</span>]);
-    }
-
-    <span class="doccomment">/// Optimised memmove for small moves.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">emit_small_memmove</span>(
-        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-        <span class="ident">config</span>: <span class="ident">TargetFrontendConfig</span>,
-        <span class="ident">dest</span>: <span class="ident">Value</span>,
-        <span class="ident">src</span>: <span class="ident">Value</span>,
-        <span class="ident">size</span>: <span class="ident">u64</span>,
-        <span class="ident">dest_align</span>: <span class="ident">u8</span>,
-        <span class="ident">src_align</span>: <span class="ident">u8</span>,
-    ) {
-        <span class="comment">// Currently the result of guess work, not actual profiling.</span>
-        <span class="kw">const</span> <span class="ident">THRESHOLD</span>: <span class="ident">u64</span> <span class="op">=</span> <span class="number">4</span>;
-
-        <span class="kw">let</span> <span class="ident">access_size</span> <span class="op">=</span> <span class="ident">greatest_divisible_power_of_two</span>(<span class="ident">size</span>);
-        <span class="macro">assert</span><span class="macro">!</span>(
-            <span class="ident">access_size</span>.<span class="ident">is_power_of_two</span>(),
-            <span class="string">&quot;`size` is not a power of two&quot;</span>
-        );
-        <span class="macro">assert</span><span class="macro">!</span>(
-            <span class="ident">access_size</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">u64</span>::<span class="ident">from</span>(::<span class="ident">core</span>::<span class="ident">cmp</span>::<span class="ident">min</span>(<span class="ident">src_align</span>, <span class="ident">dest_align</span>)),
-            <span class="string">&quot;`size` is smaller than `dest` and `src`&#39;s alignment value.&quot;</span>
-        );
-        <span class="kw">let</span> <span class="ident">load_and_store_amount</span> <span class="op">=</span> <span class="ident">size</span> <span class="op">/</span> <span class="ident">access_size</span>;
-
-        <span class="kw">if</span> <span class="ident">load_and_store_amount</span> <span class="op">&gt;</span> <span class="ident">THRESHOLD</span> {
-            <span class="kw">let</span> <span class="ident">size_value</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">ins</span>().<span class="ident">iconst</span>(<span class="ident">config</span>.<span class="ident">pointer_type</span>(), <span class="ident">size</span> <span class="kw">as</span> <span class="ident">i64</span>);
-            <span class="self">self</span>.<span class="ident">call_memmove</span>(<span class="ident">config</span>, <span class="ident">dest</span>, <span class="ident">src</span>, <span class="ident">size_value</span>);
-            <span class="kw">return</span>;
-        }
-
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">flags</span> <span class="op">=</span> <span class="ident">MemFlags</span>::<span class="ident">new</span>();
-        <span class="ident">flags</span>.<span class="ident">set_aligned</span>();
-
-        <span class="comment">// Load all of the memory first in case `dest` overlaps.</span>
-        <span class="kw">let</span> <span class="ident">registers</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> (<span class="number">0</span>..<span class="ident">load_and_store_amount</span>)
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
-                <span class="kw">let</span> <span class="ident">offset</span> <span class="op">=</span> (<span class="ident">access_size</span> <span class="op">*</span> <span class="ident">i</span>) <span class="kw">as</span> <span class="ident">i32</span>;
-                (
-                    <span class="self">self</span>.<span class="ident">ins</span>().<span class="ident">load</span>(<span class="ident">config</span>.<span class="ident">pointer_type</span>(), <span class="ident">flags</span>, <span class="ident">src</span>, <span class="ident">offset</span>),
-                    <span class="ident">offset</span>,
-                )
-            })
-            .<span class="ident">collect</span>();
-
-        <span class="kw">for</span> (<span class="ident">value</span>, <span class="ident">offset</span>) <span class="kw">in</span> <span class="ident">registers</span> {
-            <span class="self">self</span>.<span class="ident">ins</span>().<span class="ident">store</span>(<span class="ident">flags</span>, <span class="ident">value</span>, <span class="ident">dest</span>, <span class="ident">offset</span>);
-        }
     }
 }
 
@@ -2422,7 +2360,7 @@ block0:
             <span class="kw">let</span> <span class="ident">src</span> <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">use_var</span>(<span class="ident">x</span>);
             <span class="kw">let</span> <span class="ident">dest</span> <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">use_var</span>(<span class="ident">y</span>);
             <span class="kw">let</span> <span class="ident">size</span> <span class="op">=</span> <span class="number">8</span>;
-            <span class="ident">builder</span>.<span class="ident">emit_small_memcpy</span>(<span class="ident">target</span>.<span class="ident">frontend_config</span>(), <span class="ident">dest</span>, <span class="ident">src</span>, <span class="ident">size</span>, <span class="number">8</span>, <span class="number">8</span>);
+            <span class="ident">builder</span>.<span class="ident">emit_small_memory_copy</span>(<span class="ident">target</span>.<span class="ident">frontend_config</span>(), <span class="ident">dest</span>, <span class="ident">src</span>, <span class="ident">size</span>, <span class="number">8</span>, <span class="number">8</span>, <span class="bool-val">true</span>);
             <span class="ident">builder</span>.<span class="ident">ins</span>().<span class="ident">return_</span>(<span class="kw-2">&amp;</span>[<span class="ident">dest</span>]);
 
             <span class="ident">builder</span>.<span class="ident">seal_all_blocks</span>();
@@ -2479,7 +2417,7 @@ block0:
             <span class="kw">let</span> <span class="ident">src</span> <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">use_var</span>(<span class="ident">x</span>);
             <span class="kw">let</span> <span class="ident">dest</span> <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">use_var</span>(<span class="ident">y</span>);
             <span class="kw">let</span> <span class="ident">size</span> <span class="op">=</span> <span class="number">8192</span>;
-            <span class="ident">builder</span>.<span class="ident">emit_small_memcpy</span>(<span class="ident">target</span>.<span class="ident">frontend_config</span>(), <span class="ident">dest</span>, <span class="ident">src</span>, <span class="ident">size</span>, <span class="number">8</span>, <span class="number">8</span>);
+            <span class="ident">builder</span>.<span class="ident">emit_small_memory_copy</span>(<span class="ident">target</span>.<span class="ident">frontend_config</span>(), <span class="ident">dest</span>, <span class="ident">src</span>, <span class="ident">size</span>, <span class="number">8</span>, <span class="number">8</span>, <span class="bool-val">true</span>);
             <span class="ident">builder</span>.<span class="ident">ins</span>().<span class="ident">return_</span>(<span class="kw-2">&amp;</span>[<span class="ident">dest</span>]);
 
             <span class="ident">builder</span>.<span class="ident">seal_all_blocks</span>();

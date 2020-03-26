@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.11/src/runtime/thread_pool/worker.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>worker.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../../light.css" id="themeStyle"><script src="../../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.13/src/runtime/thread_pool/worker.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>worker.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../../light.css" id="themeStyle"><script src="../../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -619,6 +619,13 @@
 <span id="608">608</span>
 <span id="609">609</span>
 <span id="610">610</span>
+<span id="611">611</span>
+<span id="612">612</span>
+<span id="613">613</span>
+<span id="614">614</span>
+<span id="615">615</span>
+<span id="616">616</span>
+<span id="617">617</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">loom</span>::<span class="ident">cell</span>::<span class="ident">CausalCell</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">loom</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
@@ -834,12 +841,6 @@
             <span class="kw">return</span>;
         }
 
-        <span class="comment">// make sure no subsequent code thinks that it is on a worker</span>
-        <span class="ident">current</span>::<span class="ident">clear</span>();
-
-        <span class="comment">// Track that the worker is gone</span>
-        <span class="self">self</span>.<span class="ident">gone</span>.<span class="ident">set</span>(<span class="bool-val">true</span>);
-
         <span class="comment">// If this method is called, we need to move the entire worker onto a</span>
         <span class="comment">// separate (blocking) thread before returning. Once we return, the</span>
         <span class="comment">// caller is going to execute some blocking code which would otherwise</span>
@@ -881,7 +882,20 @@
         };
 
         <span class="comment">// Give away the worker</span>
-        <span class="ident">runtime</span>::<span class="ident">spawn_blocking</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> <span class="ident">worker</span>.<span class="ident">run</span>());
+        <span class="comment">//</span>
+        <span class="comment">// Returns `Err` if the spawn failed due to the runtime shutting down</span>
+        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">runtime</span>::<span class="ident">try_spawn_blocking</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> <span class="ident">worker</span>.<span class="ident">run</span>());
+
+        <span class="comment">// If the worker hand-off was successful, clear the local state.</span>
+        <span class="comment">// Otherwise, the runtime is in the process of shutting down, so we will</span>
+        <span class="comment">// just block on the worker.</span>
+        <span class="kw">if</span> <span class="ident">res</span>.<span class="ident">is_ok</span>() {
+            <span class="comment">// make sure no subsequent code thinks that it is on a worker</span>
+            <span class="ident">current</span>::<span class="ident">clear</span>();
+
+            <span class="comment">// Track that the worker is gone</span>
+            <span class="self">self</span>.<span class="ident">gone</span>.<span class="ident">set</span>(<span class="bool-val">true</span>);
+        }
     }
 }
 

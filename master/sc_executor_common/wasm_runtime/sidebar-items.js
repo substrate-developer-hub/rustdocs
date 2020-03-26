@@ -1,1 +1,1 @@
-initSidebarItems({"trait":[["WasmRuntime","A trait that defines an abstract wasm runtime."]]});
+initSidebarItems({"trait":[["WasmInstance","A trait that defines an abstract wasm module instance."],["WasmModule","A trait that defines an abstract WASM runtime module."]]});

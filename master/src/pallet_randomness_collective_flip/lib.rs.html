@@ -301,6 +301,14 @@
 <span id="290">290</span>
 <span id="291">291</span>
 <span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -339,12 +347,13 @@
 <span class="doccomment">//! ### Example - Get random seed for the current block</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! ```</span>
-<span class="doccomment">//! use frame_support::{decl_module, dispatch, traits::Randomness};</span>
+<span class="doccomment">//! use frame_support::{decl_module, dispatch, traits::Randomness, weights::SimpleDispatchInfo};</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! pub trait Trait: frame_system::Trait {}</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! decl_module! {</span>
 <span class="doccomment">//! 	pub struct Module&lt;T: Trait&gt; for enum Call where origin: T::Origin {</span>
+<span class="doccomment">//! 		#[weight = SimpleDispatchInfo::default()]</span>
 <span class="doccomment">//! 		pub fn random_module_example(origin) -&gt; dispatch::DispatchResult {</span>
 <span class="doccomment">//! 			let _random_seed = &lt;pallet_randomness_collective_flip::Module&lt;T&gt;&gt;::random_seed();</span>
 <span class="doccomment">//! 			Ok(())</span>
@@ -358,7 +367,10 @@
 
 <span class="kw">use</span> <span class="ident">sp_std</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">convert</span>::<span class="ident">TryInto</span>};
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">traits</span>::<span class="ident">Hash</span>;
-<span class="kw">use</span> <span class="ident">frame_support</span>::{<span class="ident">decl_module</span>, <span class="ident">decl_storage</span>, <span class="ident">traits</span>::<span class="ident">Randomness</span>};
+<span class="kw">use</span> <span class="ident">frame_support</span>::{
+	<span class="ident">decl_module</span>, <span class="ident">decl_storage</span>, <span class="ident">traits</span>::<span class="ident">Randomness</span>,
+	<span class="ident">weights</span>::{<span class="ident">Weight</span>, <span class="ident">SimpleDispatchInfo</span>, <span class="ident">WeighData</span>}
+};
 <span class="kw">use</span> <span class="ident">safe_mix</span>::<span class="ident">TripletMix</span>;
 <span class="kw">use</span> <span class="ident">codec</span>::<span class="ident">Encode</span>;
 <span class="kw">use</span> <span class="ident">frame_system</span>::<span class="ident">Trait</span>;
@@ -373,7 +385,7 @@
 
 <span class="macro">decl_module</span><span class="macro">!</span> {
 	<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Trait</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="kw">enum</span> <span class="ident">Call</span> <span class="kw">where</span> <span class="ident">origin</span>: <span class="ident">T</span>::<span class="ident">Origin</span> {
-		<span class="kw">fn</span> <span class="ident">on_initialize</span>(<span class="ident">block_number</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>) {
+		<span class="kw">fn</span> <span class="ident">on_initialize</span>(<span class="ident">block_number</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Weight</span> {
 			<span class="kw">let</span> <span class="ident">parent_hash</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">frame_system</span>::<span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">parent_hash</span>();
 
 			<span class="op">&lt;</span><span class="ident">RandomMaterial</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">mutate</span>(<span class="op">|</span><span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">values</span><span class="op">|</span> <span class="kw">if</span> <span class="ident">values</span>.<span class="ident">len</span>() <span class="op">&lt;</span> <span class="ident">RANDOM_MATERIAL_LEN</span> <span class="kw">as</span> <span class="ident">usize</span> {
@@ -382,6 +394,8 @@
 				<span class="kw">let</span> <span class="ident">index</span> <span class="op">=</span> <span class="ident">block_number_to_index</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="ident">block_number</span>);
 				<span class="ident">values</span>[<span class="ident">index</span>] <span class="op">=</span> <span class="ident">parent_hash</span>;
 			});
+
+			<span class="ident">SimpleDispatchInfo</span>::<span class="ident">default</span>().<span class="ident">weigh_data</span>(())
 		}
 	}
 }
@@ -460,9 +474,11 @@
 	<span class="kw">use</span> <span class="ident">sp_runtime</span>::{
 		<span class="ident">Perbill</span>,
 		<span class="ident">testing</span>::<span class="ident">Header</span>,
-		<span class="ident">traits</span>::{<span class="ident">BlakeTwo256</span>, <span class="ident">OnInitialize</span>, <span class="ident">Header</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">IdentityLookup</span>},
+		<span class="ident">traits</span>::{<span class="ident">BlakeTwo256</span>, <span class="ident">Header</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">IdentityLookup</span>},
 	};
-	<span class="kw">use</span> <span class="ident">frame_support</span>::{<span class="ident">impl_outer_origin</span>, <span class="ident">parameter_types</span>, <span class="ident">weights</span>::<span class="ident">Weight</span>, <span class="ident">traits</span>::<span class="ident">Randomness</span>};
+	<span class="kw">use</span> <span class="ident">frame_support</span>::{
+		<span class="ident">impl_outer_origin</span>, <span class="ident">parameter_types</span>, <span class="ident">weights</span>::<span class="ident">Weight</span>, <span class="ident">traits</span>::{<span class="ident">Randomness</span>, <span class="ident">OnInitialize</span>},
+	};
 
 	<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>)]</span>
 	<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Test</span>;

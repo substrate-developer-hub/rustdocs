@@ -152,7 +152,7 @@
 
 <span class="kw">use</span> <span class="ident">sc_rpc_api</span>::<span class="ident">Subscriptions</span>;
 <span class="kw">use</span> <span class="ident">sc_client</span>::{
-	<span class="ident">Client</span>, <span class="ident">light</span>::{<span class="ident">fetcher</span>::{<span class="ident">Fetcher</span>, <span class="ident">RemoteBodyRequest</span>}, <span class="ident">blockchain</span>::<span class="ident">RemoteBlockchain</span>},
+	<span class="ident">light</span>::{<span class="ident">fetcher</span>::{<span class="ident">Fetcher</span>, <span class="ident">RemoteBodyRequest</span>}, <span class="ident">blockchain</span>::<span class="ident">RemoteBlockchain</span>},
 };
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::{
 	<span class="ident">generic</span>::{<span class="ident">BlockId</span>, <span class="ident">SignedBlock</span>},
@@ -160,12 +160,14 @@
 };
 
 <span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">ChainBackend</span>, <span class="ident">client_err</span>, <span class="ident">error</span>::<span class="ident">FutureResult</span>};
+<span class="kw">use</span> <span class="ident">sp_blockchain</span>::<span class="ident">HeaderBackend</span>;
+<span class="kw">use</span> <span class="ident">sc_client_api</span>::<span class="ident">BlockchainEvents</span>;
 
 <span class="doccomment">/// Blockchain API backend for light nodes. Reads all the data from local</span>
 <span class="doccomment">/// database, if available, or fetches it from remote node otherwise.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">LightChain</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span>, <span class="ident">RA</span>, <span class="ident">F</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">LightChain</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">BlockT</span>, <span class="ident">Client</span>, <span class="ident">F</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Substrate client.</span>
-	<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Client</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// Current subscriptions.</span>
 	<span class="ident">subscriptions</span>: <span class="ident">Subscriptions</span>,
 	<span class="doccomment">/// Remote blockchain reference</span>
@@ -174,10 +176,10 @@
 	<span class="ident">fetcher</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>: <span class="ident">BlockT</span>, <span class="ident">RA</span>, <span class="ident">F</span>: <span class="ident">Fetcher</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">LightChain</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span>, <span class="ident">F</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">BlockT</span>, <span class="ident">Client</span>, <span class="ident">F</span>: <span class="ident">Fetcher</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">LightChain</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Client</span>, <span class="ident">F</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Create new Chain API RPC handler.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
-		<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+		<span class="ident">client</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Client</span><span class="op">&gt;</span>,
 		<span class="ident">subscriptions</span>: <span class="ident">Subscriptions</span>,
 		<span class="ident">remote_blockchain</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">RemoteBlockchain</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 		<span class="ident">fetcher</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>,
@@ -191,14 +193,12 @@
 	}
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span>, <span class="ident">F</span><span class="op">&gt;</span> <span class="ident">ChainBackend</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">LightChain</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span>, <span class="ident">F</span><span class="op">&gt;</span> <span class="kw">where</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Client</span>, <span class="ident">F</span><span class="op">&gt;</span> <span class="ident">ChainBackend</span><span class="op">&lt;</span><span class="ident">Client</span>, <span class="ident">Block</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">LightChain</span><span class="op">&lt;</span><span class="ident">Block</span>, <span class="ident">Client</span>, <span class="ident">F</span><span class="op">&gt;</span> <span class="kw">where</span>
 	<span class="ident">Block</span>: <span class="ident">BlockT</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-	<span class="ident">B</span>: <span class="ident">sc_client_api</span>::<span class="ident">backend</span>::<span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-	<span class="ident">E</span>: <span class="ident">sc_client</span>::<span class="ident">CallExecutor</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-	<span class="ident">RA</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+	<span class="ident">Client</span>: <span class="ident">BlockchainEvents</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">HeaderBackend</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 	<span class="ident">F</span>: <span class="ident">Fetcher</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 {
-	<span class="kw">fn</span> <span class="ident">client</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Client</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">E</span>, <span class="ident">Block</span>, <span class="ident">RA</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">client</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Client</span><span class="op">&gt;</span> {
 		<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">client</span>
 	}
 

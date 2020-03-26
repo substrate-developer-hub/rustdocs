@@ -675,6 +675,10 @@
 <span id="664">664</span>
 <span id="665">665</span>
 <span id="666">666</span>
+<span id="667">667</span>
+<span id="668">668</span>
+<span id="669">669</span>
+<span id="670">670</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -713,7 +717,7 @@
 <span class="kw">use</span> <span class="ident">codec</span>::{<span class="ident">Encode</span>, <span class="ident">Decode</span>};
 <span class="kw">use</span> <span class="ident">frame_support</span>::{
 	<span class="ident">decl_storage</span>, <span class="ident">decl_module</span>,
-	<span class="ident">traits</span>::{<span class="ident">Currency</span>, <span class="ident">Get</span>, <span class="ident">OnUnbalanced</span>, <span class="ident">ExistenceRequirement</span>, <span class="ident">WithdrawReason</span>},
+	<span class="ident">traits</span>::{<span class="ident">Currency</span>, <span class="ident">Get</span>, <span class="ident">OnUnbalanced</span>, <span class="ident">ExistenceRequirement</span>, <span class="ident">WithdrawReason</span>, <span class="ident">Imbalance</span>},
 	<span class="ident">weights</span>::{<span class="ident">Weight</span>, <span class="ident">DispatchInfo</span>, <span class="ident">GetDispatchInfo</span>},
 };
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::{
@@ -736,7 +740,9 @@
 	<span class="doccomment">/// The currency type in which fees will be paid.</span>
 	<span class="kw">type</span> <span class="ident">Currency</span>: <span class="ident">Currency</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">AccountId</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>;
 
-	<span class="doccomment">/// Handler for the unbalanced reduction when taking transaction fees.</span>
+	<span class="doccomment">/// Handler for the unbalanced reduction when taking transaction fees. This is either one or</span>
+	<span class="doccomment">/// two separate imbalances, the first is the transaction fee paid, the second is the tip paid,</span>
+	<span class="doccomment">/// if any.</span>
 	<span class="kw">type</span> <span class="ident">OnTransactionPayment</span>: <span class="ident">OnUnbalanced</span><span class="op">&lt;</span><span class="ident">NegativeImbalanceOf</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
 	<span class="doccomment">/// The fee to be paid for making a transaction; the base.</span>
@@ -753,7 +759,7 @@
 }
 
 <span class="macro">decl_storage</span><span class="macro">!</span> {
-	<span class="kw">trait</span> <span class="ident">Store</span> <span class="kw">for</span> <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Trait</span><span class="op">&gt;</span> <span class="kw">as</span> <span class="ident">Balances</span> {
+	<span class="kw">trait</span> <span class="ident">Store</span> <span class="kw">for</span> <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Trait</span><span class="op">&gt;</span> <span class="kw">as</span> <span class="ident">TransactionPayment</span> {
 		<span class="kw">pub</span> <span class="ident">NextFeeMultiplier</span> <span class="ident">get</span>(<span class="kw">fn</span> <span class="ident">next_fee_multiplier</span>): <span class="ident">Multiplier</span> <span class="op">=</span> <span class="ident">Multiplier</span>::<span class="ident">from_parts</span>(<span class="number">0</span>);
 	}
 }
@@ -782,11 +788,6 @@
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// All dispatchables must be annotated with weight and will have some fee info. This function</span>
 	<span class="doccomment">/// always returns.</span>
-	<span class="comment">// NOTE: we can actually make it understand `ChargeTransactionPayment`, but would be some hassle</span>
-	<span class="comment">// for sure. We have to make it aware of the index of `ChargeTransactionPayment` in `Extra`.</span>
-	<span class="comment">// Alternatively, we could actually execute the tx&#39;s per-dispatch and record the balance of the</span>
-	<span class="comment">// sender before and after the pipeline.. but this is way too much hassle for a very very little</span>
-	<span class="comment">// potential gain in the future.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">query_info</span><span class="op">&lt;</span><span class="ident">Extrinsic</span>: <span class="ident">GetDispatchInfo</span><span class="op">&gt;</span>(
 		<span class="ident">unchecked_extrinsic</span>: <span class="ident">Extrinsic</span>,
 		<span class="ident">len</span>: <span class="ident">u32</span>,
@@ -795,6 +796,11 @@
 		<span class="ident">T</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
 		<span class="ident">BalanceOf</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
 	{
+		<span class="comment">// NOTE: we can actually make it understand `ChargeTransactionPayment`, but would be some</span>
+		<span class="comment">// hassle for sure. We have to make it aware of the index of `ChargeTransactionPayment` in</span>
+		<span class="comment">// `Extra`. Alternatively, we could actually execute the tx&#39;s per-dispatch and record the</span>
+		<span class="comment">// balance of the sender before and after the pipeline.. but this is way too much hassle for</span>
+		<span class="comment">// a very very little potential gain in the future.</span>
 		<span class="kw">let</span> <span class="ident">dispatch_info</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">Extrinsic</span> <span class="kw">as</span> <span class="ident">GetDispatchInfo</span><span class="op">&gt;</span>::<span class="ident">get_dispatch_info</span>(<span class="kw-2">&amp;</span><span class="ident">unchecked_extrinsic</span>);
 
 		<span class="kw">let</span> <span class="ident">partial_fee</span> <span class="op">=</span>
@@ -912,7 +918,9 @@
 				<span class="prelude-val">Ok</span>(<span class="ident">imbalance</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">imbalance</span>,
 				<span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">InvalidTransaction</span>::<span class="ident">Payment</span>.<span class="ident">into</span>(),
 			};
-			<span class="ident">T</span>::<span class="ident">OnTransactionPayment</span>::<span class="ident">on_unbalanced</span>(<span class="ident">imbalance</span>);
+			<span class="kw">let</span> <span class="ident">imbalances</span> <span class="op">=</span> <span class="ident">imbalance</span>.<span class="ident">split</span>(<span class="ident">tip</span>);
+			<span class="ident">T</span>::<span class="ident">OnTransactionPayment</span>::<span class="ident">on_unbalanceds</span>(<span class="prelude-val">Some</span>(<span class="ident">imbalances</span>.<span class="number">0</span>).<span class="ident">into_iter</span>()
+				.<span class="ident">chain</span>(<span class="prelude-val">Some</span>(<span class="ident">imbalances</span>.<span class="number">1</span>)));
 		}
 
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">r</span> <span class="op">=</span> <span class="ident">ValidTransaction</span>::<span class="ident">default</span>();
@@ -936,7 +944,7 @@
 	<span class="kw">use</span> <span class="ident">sp_core</span>::<span class="ident">H256</span>;
 	<span class="kw">use</span> <span class="ident">sp_runtime</span>::{
 		<span class="ident">testing</span>::{<span class="ident">Header</span>, <span class="ident">TestXt</span>},
-		<span class="ident">traits</span>::{<span class="ident">BlakeTwo256</span>, <span class="ident">Extrinsic</span>, <span class="ident">IdentityLookup</span>},
+		<span class="ident">traits</span>::{<span class="ident">BlakeTwo256</span>, <span class="ident">IdentityLookup</span>},
 		<span class="ident">Perbill</span>,
 	};
 	<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cell</span>::<span class="ident">RefCell</span>;
@@ -1213,7 +1221,7 @@
 		<span class="kw">let</span> <span class="ident">call</span> <span class="op">=</span> <span class="ident">Call</span>::<span class="ident">Balances</span>(<span class="ident">BalancesCall</span>::<span class="ident">transfer</span>(<span class="number">2</span>, <span class="number">69</span>));
 		<span class="kw">let</span> <span class="ident">origin</span> <span class="op">=</span> <span class="number">111111</span>;
 		<span class="kw">let</span> <span class="ident">extra</span> <span class="op">=</span> ();
-		<span class="kw">let</span> <span class="ident">xt</span> <span class="op">=</span> <span class="ident">TestXt</span>::<span class="ident">new</span>(<span class="ident">call</span>, <span class="prelude-val">Some</span>((<span class="ident">origin</span>, <span class="ident">extra</span>))).<span class="ident">unwrap</span>();
+		<span class="kw">let</span> <span class="ident">xt</span> <span class="op">=</span> <span class="ident">TestXt</span>::<span class="ident">new</span>(<span class="ident">call</span>, <span class="prelude-val">Some</span>((<span class="ident">origin</span>, <span class="ident">extra</span>)));
 		<span class="kw">let</span> <span class="ident">info</span>  <span class="op">=</span> <span class="ident">xt</span>.<span class="ident">get_dispatch_info</span>();
 		<span class="kw">let</span> <span class="ident">ext</span> <span class="op">=</span> <span class="ident">xt</span>.<span class="ident">encode</span>();
 		<span class="kw">let</span> <span class="ident">len</span> <span class="op">=</span> <span class="ident">ext</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>;

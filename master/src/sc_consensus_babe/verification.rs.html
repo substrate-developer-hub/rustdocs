@@ -219,13 +219,6 @@
 <span id="208">208</span>
 <span id="209">209</span>
 <span id="210">210</span>
-<span id="211">211</span>
-<span id="212">212</span>
-<span id="213">213</span>
-<span id="214">214</span>
-<span id="215">215</span>
-<span id="216">216</span>
-<span id="217">217</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -244,11 +237,12 @@
 <span class="comment">// along with Substrate.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
 
 <span class="doccomment">//! Verification for BABE headers.</span>
-<span class="kw">use</span> <span class="ident">schnorrkel</span>::<span class="ident">vrf</span>::{<span class="ident">VRFOutput</span>, <span class="ident">VRFProof</span>};
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::{<span class="ident">traits</span>::<span class="ident">Header</span>, <span class="ident">traits</span>::<span class="ident">DigestItemFor</span>};
 <span class="kw">use</span> <span class="ident">sp_core</span>::{<span class="ident">Pair</span>, <span class="ident">Public</span>};
-<span class="kw">use</span> <span class="ident">sp_consensus_babe</span>::{<span class="ident">AuthoritySignature</span>, <span class="ident">SlotNumber</span>, <span class="ident">AuthorityIndex</span>, <span class="ident">AuthorityPair</span>, <span class="ident">AuthorityId</span>};
-<span class="kw">use</span> <span class="ident">sp_consensus_babe</span>::<span class="ident">digests</span>::{<span class="ident">PreDigest</span>, <span class="ident">CompatibleDigestItem</span>};
+<span class="kw">use</span> <span class="ident">sp_consensus_babe</span>::{<span class="ident">AuthoritySignature</span>, <span class="ident">SlotNumber</span>, <span class="ident">AuthorityPair</span>, <span class="ident">AuthorityId</span>};
+<span class="kw">use</span> <span class="ident">sp_consensus_babe</span>::<span class="ident">digests</span>::{
+	<span class="ident">PreDigest</span>, <span class="ident">PrimaryPreDigest</span>, <span class="ident">SecondaryPreDigest</span>, <span class="ident">CompatibleDigestItem</span>
+};
 <span class="kw">use</span> <span class="ident">sc_consensus_slots</span>::<span class="ident">CheckedHeader</span>;
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">debug</span>, <span class="ident">trace</span>};
 <span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">find_pre_digest</span>, <span class="ident">babe_err</span>, <span class="ident">Epoch</span>, <span class="ident">BlockT</span>, <span class="ident">Error</span>};
@@ -322,27 +316,23 @@
 	};
 
 	<span class="kw">match</span> <span class="kw-2">&amp;</span><span class="ident">pre_digest</span> {
-		<span class="ident">PreDigest</span>::<span class="ident">Primary</span> { <span class="ident">vrf_output</span>, <span class="ident">vrf_proof</span>, <span class="ident">authority_index</span>, <span class="ident">slot_number</span> } <span class="op">=</span><span class="op">&gt;</span> {
+		<span class="ident">PreDigest</span>::<span class="ident">Primary</span>(<span class="ident">primary</span>) <span class="op">=</span><span class="op">&gt;</span> {
 			<span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;babe&quot;</span>, <span class="string">&quot;Verifying Primary block&quot;</span>);
-
-			<span class="kw">let</span> <span class="ident">digest</span> <span class="op">=</span> (<span class="ident">vrf_output</span>, <span class="ident">vrf_proof</span>, <span class="kw-2">*</span><span class="ident">authority_index</span>, <span class="kw-2">*</span><span class="ident">slot_number</span>);
 
 			<span class="ident">check_primary_header</span>::<span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>(
 				<span class="ident">pre_hash</span>,
-				<span class="ident">digest</span>,
+				<span class="ident">primary</span>,
 				<span class="ident">sig</span>,
 				<span class="kw-2">&amp;</span><span class="ident">epoch</span>,
 				<span class="ident">config</span>.<span class="ident">c</span>,
 			)<span class="question-mark">?</span>;
 		},
-		<span class="ident">PreDigest</span>::<span class="ident">Secondary</span> { <span class="ident">authority_index</span>, <span class="ident">slot_number</span> } <span class="kw">if</span> <span class="ident">config</span>.<span class="ident">secondary_slots</span> <span class="op">=</span><span class="op">&gt;</span> {
+		<span class="ident">PreDigest</span>::<span class="ident">Secondary</span>(<span class="ident">secondary</span>) <span class="kw">if</span> <span class="ident">config</span>.<span class="ident">secondary_slots</span> <span class="op">=</span><span class="op">&gt;</span> {
 			<span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;babe&quot;</span>, <span class="string">&quot;Verifying Secondary block&quot;</span>);
-
-			<span class="kw">let</span> <span class="ident">digest</span> <span class="op">=</span> (<span class="kw-2">*</span><span class="ident">authority_index</span>, <span class="kw-2">*</span><span class="ident">slot_number</span>);
 
 			<span class="ident">check_secondary_header</span>::<span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>(
 				<span class="ident">pre_hash</span>,
-				<span class="ident">digest</span>,
+				<span class="ident">secondary</span>,
 				<span class="ident">sig</span>,
 				<span class="kw-2">&amp;</span><span class="ident">epoch</span>,
 			)<span class="question-mark">?</span>;
@@ -372,25 +362,23 @@
 <span class="doccomment">/// its parent since it is a primary block.</span>
 <span class="kw">fn</span> <span class="ident">check_primary_header</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span> <span class="op">+</span> <span class="ident">Sized</span><span class="op">&gt;</span>(
 	<span class="ident">pre_hash</span>: <span class="ident">B</span>::<span class="ident">Hash</span>,
-	<span class="ident">pre_digest</span>: (<span class="kw-2">&amp;</span><span class="ident">VRFOutput</span>, <span class="kw-2">&amp;</span><span class="ident">VRFProof</span>, <span class="ident">AuthorityIndex</span>, <span class="ident">SlotNumber</span>),
+	<span class="ident">pre_digest</span>: <span class="kw-2">&amp;</span><span class="ident">PrimaryPreDigest</span>,
 	<span class="ident">signature</span>: <span class="ident">AuthoritySignature</span>,
 	<span class="ident">epoch</span>: <span class="kw-2">&amp;</span><span class="ident">Epoch</span>,
 	<span class="ident">c</span>: (<span class="ident">u64</span>, <span class="ident">u64</span>),
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-	<span class="kw">let</span> (<span class="ident">vrf_output</span>, <span class="ident">vrf_proof</span>, <span class="ident">authority_index</span>, <span class="ident">slot_number</span>) <span class="op">=</span> <span class="ident">pre_digest</span>;
-
-	<span class="kw">let</span> <span class="ident">author</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">epoch</span>.<span class="ident">authorities</span>[<span class="ident">authority_index</span> <span class="kw">as</span> <span class="ident">usize</span>].<span class="number">0</span>;
+	<span class="kw">let</span> <span class="ident">author</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">epoch</span>.<span class="ident">authorities</span>[<span class="ident">pre_digest</span>.<span class="ident">authority_index</span> <span class="kw">as</span> <span class="ident">usize</span>].<span class="number">0</span>;
 
 	<span class="kw">if</span> <span class="ident">AuthorityPair</span>::<span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="ident">signature</span>, <span class="ident">pre_hash</span>, <span class="kw-2">&amp;</span><span class="ident">author</span>) {
 		<span class="kw">let</span> (<span class="ident">inout</span>, <span class="kw">_</span>) <span class="op">=</span> {
 			<span class="kw">let</span> <span class="ident">transcript</span> <span class="op">=</span> <span class="ident">make_transcript</span>(
 				<span class="kw-2">&amp;</span><span class="ident">epoch</span>.<span class="ident">randomness</span>,
-				<span class="ident">slot_number</span>,
+				<span class="ident">pre_digest</span>.<span class="ident">slot_number</span>,
 				<span class="ident">epoch</span>.<span class="ident">epoch_index</span>,
 			);
 
 			<span class="ident">schnorrkel</span>::<span class="ident">PublicKey</span>::<span class="ident">from_bytes</span>(<span class="ident">author</span>.<span class="ident">as_slice</span>()).<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">p</span><span class="op">|</span> {
-				<span class="ident">p</span>.<span class="ident">vrf_verify</span>(<span class="ident">transcript</span>, <span class="ident">vrf_output</span>, <span class="ident">vrf_proof</span>)
+				<span class="ident">p</span>.<span class="ident">vrf_verify</span>(<span class="ident">transcript</span>, <span class="kw-2">&amp;</span><span class="ident">pre_digest</span>.<span class="ident">vrf_output</span>, <span class="kw-2">&amp;</span><span class="ident">pre_digest</span>.<span class="ident">vrf_proof</span>)
 			}).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
 				<span class="ident">babe_err</span>(<span class="ident">Error</span>::<span class="ident">VRFVerificationFailed</span>(<span class="ident">s</span>))
 			})<span class="question-mark">?</span>
@@ -399,7 +387,7 @@
 		<span class="kw">let</span> <span class="ident">threshold</span> <span class="op">=</span> <span class="ident">calculate_primary_threshold</span>(
 			<span class="ident">c</span>,
 			<span class="kw-2">&amp;</span><span class="ident">epoch</span>.<span class="ident">authorities</span>,
-			<span class="ident">authority_index</span> <span class="kw">as</span> <span class="ident">usize</span>,
+			<span class="ident">pre_digest</span>.<span class="ident">authority_index</span> <span class="kw">as</span> <span class="ident">usize</span>,
 		);
 
 		<span class="kw">if</span> <span class="op">!</span><span class="ident">check_primary_threshold</span>(<span class="kw-2">&amp;</span><span class="ident">inout</span>, <span class="ident">threshold</span>) {
@@ -418,21 +406,19 @@
 <span class="doccomment">/// compared to its parent since it is a secondary block.</span>
 <span class="kw">fn</span> <span class="ident">check_secondary_header</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span>(
 	<span class="ident">pre_hash</span>: <span class="ident">B</span>::<span class="ident">Hash</span>,
-	<span class="ident">pre_digest</span>: (<span class="ident">AuthorityIndex</span>, <span class="ident">SlotNumber</span>),
+	<span class="ident">pre_digest</span>: <span class="kw-2">&amp;</span><span class="ident">SecondaryPreDigest</span>,
 	<span class="ident">signature</span>: <span class="ident">AuthoritySignature</span>,
 	<span class="ident">epoch</span>: <span class="kw-2">&amp;</span><span class="ident">Epoch</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-	<span class="kw">let</span> (<span class="ident">authority_index</span>, <span class="ident">slot_number</span>) <span class="op">=</span> <span class="ident">pre_digest</span>;
-
 	<span class="comment">// check the signature is valid under the expected authority and</span>
 	<span class="comment">// chain state.</span>
 	<span class="kw">let</span> <span class="ident">expected_author</span> <span class="op">=</span> <span class="ident">secondary_slot_author</span>(
-		<span class="ident">slot_number</span>,
+		<span class="ident">pre_digest</span>.<span class="ident">slot_number</span>,
 		<span class="kw-2">&amp;</span><span class="ident">epoch</span>.<span class="ident">authorities</span>,
 		<span class="ident">epoch</span>.<span class="ident">randomness</span>,
 	).<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">NoSecondaryAuthorExpected</span>)<span class="question-mark">?</span>;
 
-	<span class="kw">let</span> <span class="ident">author</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">epoch</span>.<span class="ident">authorities</span>[<span class="ident">authority_index</span> <span class="kw">as</span> <span class="ident">usize</span>].<span class="number">0</span>;
+	<span class="kw">let</span> <span class="ident">author</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">epoch</span>.<span class="ident">authorities</span>[<span class="ident">pre_digest</span>.<span class="ident">authority_index</span> <span class="kw">as</span> <span class="ident">usize</span>].<span class="number">0</span>;
 
 	<span class="kw">if</span> <span class="ident">expected_author</span> <span class="op">!</span><span class="op">=</span> <span class="ident">author</span> {
 		<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">InvalidAuthor</span>(<span class="ident">expected_author</span>.<span class="ident">clone</span>(), <span class="ident">author</span>.<span class="ident">clone</span>()));

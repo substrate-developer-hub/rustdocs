@@ -433,6 +433,71 @@
 <span id="422">422</span>
 <span id="423">423</span>
 <span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
+<span id="438">438</span>
+<span id="439">439</span>
+<span id="440">440</span>
+<span id="441">441</span>
+<span id="442">442</span>
+<span id="443">443</span>
+<span id="444">444</span>
+<span id="445">445</span>
+<span id="446">446</span>
+<span id="447">447</span>
+<span id="448">448</span>
+<span id="449">449</span>
+<span id="450">450</span>
+<span id="451">451</span>
+<span id="452">452</span>
+<span id="453">453</span>
+<span id="454">454</span>
+<span id="455">455</span>
+<span id="456">456</span>
+<span id="457">457</span>
+<span id="458">458</span>
+<span id="459">459</span>
+<span id="460">460</span>
+<span id="461">461</span>
+<span id="462">462</span>
+<span id="463">463</span>
+<span id="464">464</span>
+<span id="465">465</span>
+<span id="466">466</span>
+<span id="467">467</span>
+<span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -483,7 +548,7 @@
 	<span class="ident">AccountId</span>,
 	<span class="ident">Signature</span>,
 };
-<span class="kw">use</span> <span class="ident">sp_core</span>::<span class="ident">ExecutionContext</span>;
+<span class="kw">use</span> <span class="ident">sp_core</span>::{<span class="ident">ExecutionContext</span>, <span class="ident">blake2_256</span>};
 <span class="kw">use</span> <span class="ident">sp_api</span>::<span class="ident">ProvideRuntimeApi</span>;
 <span class="kw">use</span> <span class="ident">sp_block_builder</span>::<span class="ident">BlockBuilder</span>;
 <span class="kw">use</span> <span class="ident">sp_inherents</span>::<span class="ident">InherentData</span>;
@@ -491,7 +556,8 @@
 	<span class="ident">ExecutionStrategy</span>,
 	<span class="ident">execution_extensions</span>::{<span class="ident">ExecutionExtensions</span>, <span class="ident">ExecutionStrategies</span>},
 };
-<span class="kw">use</span> <span class="ident">sp_core</span>::{<span class="ident">Pair</span>, <span class="ident">Public</span>, <span class="ident">sr25519</span>};
+<span class="kw">use</span> <span class="ident">sp_core</span>::{<span class="ident">Pair</span>, <span class="ident">Public</span>, <span class="ident">sr25519</span>, <span class="ident">ed25519</span>};
+<span class="kw">use</span> <span class="ident">sc_block_builder</span>::<span class="ident">BlockBuilderProvider</span>;
 
 <span class="doccomment">/// Keyring full of accounts for benching.</span>
 <span class="doccomment">///</span>
@@ -502,7 +568,22 @@
 <span class="doccomment">///     //endowed-user//N</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BenchKeyring</span> {
-	<span class="ident">accounts</span>: <span class="ident">BTreeMap</span><span class="op">&lt;</span><span class="ident">AccountId</span>, <span class="ident">sr25519</span>::<span class="ident">Pair</span><span class="op">&gt;</span>,
+	<span class="ident">accounts</span>: <span class="ident">BTreeMap</span><span class="op">&lt;</span><span class="ident">AccountId</span>, <span class="ident">BenchPair</span><span class="op">&gt;</span>,
+}
+
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
+<span class="kw">enum</span> <span class="ident">BenchPair</span> {
+	<span class="ident">Sr25519</span>(<span class="ident">sr25519</span>::<span class="ident">Pair</span>),
+	<span class="ident">Ed25519</span>(<span class="ident">ed25519</span>::<span class="ident">Pair</span>),
+}
+
+<span class="kw">impl</span> <span class="ident">BenchPair</span> {
+	<span class="kw">fn</span> <span class="ident">sign</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">payload</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Signature</span> {
+		<span class="kw">match</span> <span class="self">self</span> {
+			<span class="self">Self</span>::<span class="ident">Sr25519</span>(<span class="ident">pair</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">pair</span>.<span class="ident">sign</span>(<span class="ident">payload</span>).<span class="ident">into</span>(),
+			<span class="self">Self</span>::<span class="ident">Ed25519</span>(<span class="ident">pair</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">pair</span>.<span class="ident">sign</span>(<span class="ident">payload</span>).<span class="ident">into</span>(),
+		}
+	}
 }
 
 <span class="doccomment">/// Pre-initialized benchmarking database.</span>
@@ -544,17 +625,31 @@
 	}
 }
 
+<span class="doccomment">/// Type of block for generation</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">PartialEq</span>, <span class="ident">Clone</span>, <span class="ident">Copy</span>)]</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">BlockType</span> {
+	<span class="doccomment">/// Bunch of random transfers.</span>
+	<span class="ident">RandomTransfers</span>(<span class="ident">usize</span>),
+	<span class="doccomment">/// Bunch of random transfers that drain all of the source balance.</span>
+	<span class="ident">RandomTransfersReaping</span>(<span class="ident">usize</span>),
+}
+
+<span class="kw">impl</span> <span class="ident">BlockType</span> {
+	<span class="doccomment">/// Number of transactions for this block type.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">transactions</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+		<span class="kw">match</span> <span class="self">self</span> {
+			<span class="self">Self</span>::<span class="ident">RandomTransfers</span>(<span class="ident">v</span>) <span class="op">|</span> <span class="self">Self</span>::<span class="ident">RandomTransfersReaping</span>(<span class="ident">v</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw-2">*</span><span class="ident">v</span>,
+		}
+	}
+}
+
 <span class="kw">impl</span> <span class="ident">BenchDb</span> {
 	<span class="doccomment">/// New immutable benchmarking database.</span>
 	<span class="doccomment">///</span>
-	<span class="doccomment">/// This will generate database files in random temporary directory</span>
-	<span class="doccomment">/// and keep it there until struct is dropped.</span>
-	<span class="doccomment">///</span>
-	<span class="doccomment">/// You can `clone` this database or you can `create_context` from it</span>
-	<span class="doccomment">/// (which also do `clone`) to run actual operation against new database</span>
-	<span class="doccomment">/// which will be identical to this.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">keyring_length</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-		<span class="kw">let</span> <span class="ident">keyring</span> <span class="op">=</span> <span class="ident">BenchKeyring</span>::<span class="ident">new</span>(<span class="ident">keyring_length</span>);
+	<span class="doccomment">/// See [`new`] method documentation for more information about the purpose</span>
+	<span class="doccomment">/// of this structure.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_key_types</span>(<span class="ident">keyring_length</span>: <span class="ident">usize</span>, <span class="ident">key_types</span>: <span class="ident">KeyTypes</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+		<span class="kw">let</span> <span class="ident">keyring</span> <span class="op">=</span> <span class="ident">BenchKeyring</span>::<span class="ident">new</span>(<span class="ident">keyring_length</span>, <span class="ident">key_types</span>);
 
 		<span class="kw">let</span> <span class="ident">dir</span> <span class="op">=</span> <span class="ident">tempfile</span>::<span class="ident">tempdir</span>().<span class="ident">expect</span>(<span class="string">&quot;temp dir creation failed&quot;</span>);
 		<span class="ident">log</span>::<span class="macro">trace</span><span class="macro">!</span>(
@@ -566,6 +661,18 @@
 		<span class="kw">let</span> <span class="ident">directory_guard</span> <span class="op">=</span> <span class="ident">Guard</span>(<span class="ident">dir</span>);
 
 		<span class="ident">BenchDb</span> { <span class="ident">keyring</span>, <span class="ident">directory_guard</span> }
+	}
+
+	<span class="doccomment">/// New immutable benchmarking database.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// This will generate database files in random temporary directory</span>
+	<span class="doccomment">/// and keep it there until struct is dropped.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// You can `clone` this database or you can `create_context` from it</span>
+	<span class="doccomment">/// (which also do `clone`) to run actual operation against new database</span>
+	<span class="doccomment">/// which will be identical to this.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">keyring_length</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+		<span class="self">Self</span>::<span class="ident">with_key_types</span>(<span class="ident">keyring_length</span>, <span class="ident">KeyTypes</span>::<span class="ident">Sr25519</span>)
 	}
 
 	<span class="comment">// This should return client that is doing everything that full node</span>
@@ -586,18 +693,20 @@
 
 		<span class="kw">let</span> (<span class="ident">client</span>, <span class="ident">backend</span>) <span class="op">=</span> <span class="ident">sc_client_db</span>::<span class="ident">new_client</span>(
 			<span class="ident">db_config</span>,
-			<span class="ident">NativeExecutor</span>::<span class="ident">new</span>(<span class="ident">WasmExecutionMethod</span>::<span class="ident">Compiled</span>, <span class="prelude-val">None</span>),
+			<span class="ident">NativeExecutor</span>::<span class="ident">new</span>(<span class="ident">WasmExecutionMethod</span>::<span class="ident">Compiled</span>, <span class="prelude-val">None</span>, <span class="number">8</span>),
 			<span class="kw-2">&amp;</span><span class="ident">keyring</span>.<span class="ident">generate_genesis</span>(),
 			<span class="prelude-val">None</span>,
 			<span class="prelude-val">None</span>,
 			<span class="ident">ExecutionExtensions</span>::<span class="ident">new</span>(<span class="ident">profile</span>.<span class="ident">into_execution_strategies</span>(), <span class="prelude-val">None</span>),
+			<span class="ident">sp_core</span>::<span class="ident">tasks</span>::<span class="ident">executor</span>(),
+			<span class="prelude-val">None</span>,
 		).<span class="ident">expect</span>(<span class="string">&quot;Should not fail&quot;</span>);
 
 		(<span class="ident">client</span>, <span class="ident">backend</span>)
 	}
 
 	<span class="doccomment">/// Generate new block using this database.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">generate_block</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">transactions</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Block</span> {
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">generate_block</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">block_type</span>: <span class="ident">BlockType</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Block</span> {
 		<span class="kw">let</span> (<span class="ident">client</span>, <span class="ident">_backend</span>) <span class="op">=</span> <span class="self">Self</span>::<span class="ident">bench_client</span>(
 			<span class="self">self</span>.<span class="ident">directory_guard</span>.<span class="ident">path</span>(),
 			<span class="ident">Profile</span>::<span class="ident">Wasm</span>,
@@ -637,7 +746,7 @@
 
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">iteration</span> <span class="op">=</span> <span class="number">0</span>;
 		<span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Instant</span>::<span class="ident">now</span>();
-		<span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">transactions</span> {
+		<span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">block_type</span>.<span class="ident">transactions</span>() {
 
 			<span class="kw">let</span> <span class="ident">sender</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">keyring</span>.<span class="ident">at</span>(<span class="ident">iteration</span>);
 			<span class="kw">let</span> <span class="ident">receiver</span> <span class="op">=</span> <span class="ident">get_account_id_from_seed</span>::<span class="op">&lt;</span><span class="ident">sr25519</span>::<span class="ident">Public</span><span class="op">&gt;</span>(
@@ -646,11 +755,14 @@
 
 			<span class="kw">let</span> <span class="ident">signed</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">keyring</span>.<span class="ident">sign</span>(
 				<span class="ident">CheckedExtrinsic</span> {
-					<span class="ident">signed</span>: <span class="prelude-val">Some</span>((<span class="ident">sender</span>, <span class="ident">signed_extra</span>(<span class="number">0</span>, <span class="number">1</span><span class="kw-2">*</span><span class="ident">DOLLARS</span>))),
+					<span class="ident">signed</span>: <span class="prelude-val">Some</span>((<span class="ident">sender</span>, <span class="ident">signed_extra</span>(<span class="number">0</span>, <span class="ident">node_runtime</span>::<span class="ident">ExistentialDeposit</span>::<span class="ident">get</span>() <span class="op">+</span> <span class="number">1</span>))),
 					<span class="ident">function</span>: <span class="ident">Call</span>::<span class="ident">Balances</span>(
 						<span class="ident">BalancesCall</span>::<span class="ident">transfer</span>(
 							<span class="ident">pallet_indices</span>::<span class="ident">address</span>::<span class="ident">Address</span>::<span class="ident">Id</span>(<span class="ident">receiver</span>),
-							<span class="number">1</span><span class="kw-2">*</span><span class="ident">DOLLARS</span>
+							<span class="kw">match</span> <span class="ident">block_type</span> {
+								<span class="ident">BlockType</span>::<span class="ident">RandomTransfers</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">node_runtime</span>::<span class="ident">ExistentialDeposit</span>::<span class="ident">get</span>() <span class="op">+</span> <span class="number">1</span>,
+								<span class="ident">BlockType</span>::<span class="ident">RandomTransfersReaping</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="number">100</span><span class="kw-2">*</span><span class="ident">DOLLARS</span> <span class="op">-</span> <span class="ident">node_runtime</span>::<span class="ident">ExistentialDeposit</span>::<span class="ident">get</span>() <span class="op">-</span> <span class="number">1</span>,
+							}
 						)
 					),
 				},
@@ -701,17 +813,35 @@
 	}
 }
 
+<span class="doccomment">/// Key types to be used in benching keyring</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">KeyTypes</span> {
+	<span class="doccomment">/// sr25519 signing keys</span>
+	<span class="ident">Sr25519</span>,
+	<span class="doccomment">/// ed25519 signing keys</span>
+	<span class="ident">Ed25519</span>,
+}
+
 <span class="kw">impl</span> <span class="ident">BenchKeyring</span> {
 	<span class="doccomment">/// New keyring.</span>
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// `length` is the number of accounts generated.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">length</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">length</span>: <span class="ident">usize</span>, <span class="ident">key_types</span>: <span class="ident">KeyTypes</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">accounts</span> <span class="op">=</span> <span class="ident">BTreeMap</span>::<span class="ident">new</span>();
 
 		<span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">length</span> {
 			<span class="kw">let</span> <span class="ident">seed</span> <span class="op">=</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;//endowed-user/{}&quot;</span>, <span class="ident">n</span>);
-			<span class="kw">let</span> <span class="ident">pair</span> <span class="op">=</span> <span class="ident">sr25519</span>::<span class="ident">Pair</span>::<span class="ident">from_string</span>(<span class="kw-2">&amp;</span><span class="ident">seed</span>, <span class="prelude-val">None</span>).<span class="ident">expect</span>(<span class="string">&quot;failed to generate pair&quot;</span>);
-			<span class="kw">let</span> <span class="ident">account_id</span> <span class="op">=</span> <span class="ident">AccountPublic</span>::<span class="ident">from</span>(<span class="ident">pair</span>.<span class="ident">public</span>()).<span class="ident">into_account</span>();
+			<span class="kw">let</span> (<span class="ident">account_id</span>, <span class="ident">pair</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">key_types</span> {
+				<span class="ident">KeyTypes</span>::<span class="ident">Sr25519</span> <span class="op">=</span><span class="op">&gt;</span> {
+					<span class="kw">let</span> <span class="ident">pair</span> <span class="op">=</span> <span class="ident">sr25519</span>::<span class="ident">Pair</span>::<span class="ident">from_string</span>(<span class="kw-2">&amp;</span><span class="ident">seed</span>, <span class="prelude-val">None</span>).<span class="ident">expect</span>(<span class="string">&quot;failed to generate pair&quot;</span>);
+					<span class="kw">let</span> <span class="ident">account_id</span> <span class="op">=</span> <span class="ident">AccountPublic</span>::<span class="ident">from</span>(<span class="ident">pair</span>.<span class="ident">public</span>()).<span class="ident">into_account</span>();
+					(<span class="ident">account_id</span>, <span class="ident">BenchPair</span>::<span class="ident">Sr25519</span>(<span class="ident">pair</span>))
+				},
+				<span class="ident">KeyTypes</span>::<span class="ident">Ed25519</span> <span class="op">=</span><span class="op">&gt;</span> {
+					<span class="kw">let</span> <span class="ident">pair</span> <span class="op">=</span> <span class="ident">ed25519</span>::<span class="ident">Pair</span>::<span class="ident">from_seed</span>(<span class="kw-2">&amp;</span><span class="ident">blake2_256</span>(<span class="ident">seed</span>.<span class="ident">as_bytes</span>()));
+					<span class="kw">let</span> <span class="ident">account_id</span> <span class="op">=</span> <span class="ident">AccountPublic</span>::<span class="ident">from</span>(<span class="ident">pair</span>.<span class="ident">public</span>()).<span class="ident">into_account</span>();
+					(<span class="ident">account_id</span>, <span class="ident">BenchPair</span>::<span class="ident">Ed25519</span>(<span class="ident">pair</span>))
+				},
+			};
 			<span class="ident">accounts</span>.<span class="ident">insert</span>(<span class="ident">account_id</span>, <span class="ident">pair</span>);
 		}
 

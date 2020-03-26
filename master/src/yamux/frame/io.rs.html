@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/yamux-0.4.3/src/frame/io.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>io.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/yamux-0.4.5/src/frame/io.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>io.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -267,14 +267,6 @@
 <span id="256">256</span>
 <span id="257">257</span>
 <span id="258">258</span>
-<span id="259">259</span>
-<span id="260">260</span>
-<span id="261">261</span>
-<span id="262">262</span>
-<span id="263">263</span>
-<span id="264">264</span>
-<span id="265">265</span>
-<span id="266">266</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright (c) 2019 Parity Technologies (UK) Ltd.</span>
 <span class="comment">//</span>
@@ -286,81 +278,59 @@
 <span class="comment">// at https://www.apache.org/licenses/LICENSE-2.0 and a copy of the MIT license</span>
 <span class="comment">// at https://opensource.org/licenses/MIT.</span>
 
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">u32_as_usize</span>;
-<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">io</span>::<span class="ident">BufWriter</span>, <span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">ready</span>};
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">io</span>, <span class="ident">pin</span>::<span class="ident">Pin</span>, <span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>}};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">connection</span>::<span class="ident">Id</span>;
+<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">ready</span>};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">fmt</span>, <span class="ident">io</span>, <span class="ident">pin</span>::<span class="ident">Pin</span>, <span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>}};
 <span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">Frame</span>, <span class="ident">header</span>::{<span class="self">self</span>, <span class="ident">HeaderDecodeError</span>}};
-<span class="kw">use</span> <span class="ident">thiserror</span>::<span class="ident">Error</span>;
-
-<span class="doccomment">/// When growing buffers we allocate units of `BLOCKSIZE`.</span>
-<span class="doccomment">/// We also use this value to buffer write operations.</span>
-<span class="kw">const</span> <span class="ident">BLOCKSIZE</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">8</span> <span class="op">*</span> <span class="number">1024</span>;
 
 <span class="doccomment">/// A [`Stream`] and writer of [`Frame`] values.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Io</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="ident">io</span>: <span class="ident">BufWriter</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
-    <span class="ident">buffer</span>: <span class="ident">buf</span>::<span class="ident">Buffer</span>,
-    <span class="ident">header</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">header</span>::<span class="ident">Header</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span>,
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">Io</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+    <span class="ident">id</span>: <span class="ident">Id</span>,
+    <span class="ident">io</span>: <span class="ident">T</span>,
+    <span class="ident">state</span>: <span class="ident">ReadState</span>,
     <span class="ident">max_body_len</span>: <span class="ident">usize</span>
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span><span class="op">&gt;</span> <span class="ident">Io</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">io</span>: <span class="ident">T</span>, <span class="ident">max_frame_body_len</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">id</span>: <span class="ident">Id</span>, <span class="ident">io</span>: <span class="ident">T</span>, <span class="ident">max_frame_body_len</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="ident">Io</span> {
-            <span class="ident">io</span>: <span class="ident">BufWriter</span>::<span class="ident">with_capacity</span>(<span class="ident">BLOCKSIZE</span>, <span class="ident">io</span>),
-            <span class="ident">buffer</span>: <span class="ident">buf</span>::<span class="ident">Buffer</span>::<span class="ident">new</span>(),
-            <span class="ident">header</span>: <span class="prelude-val">None</span>,
+            <span class="ident">id</span>,
+            <span class="ident">io</span>,
+            <span class="ident">state</span>: <span class="ident">ReadState</span>::<span class="ident">Init</span>,
             <span class="ident">max_body_len</span>: <span class="ident">max_frame_body_len</span>
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">frame</span>: <span class="kw-2">&amp;</span><span class="ident">Frame</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">frame</span>: <span class="kw-2">&amp;</span><span class="ident">Frame</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">header</span> <span class="op">=</span> <span class="ident">header</span>::<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="ident">frame</span>.<span class="ident">header</span>);
         <span class="self">self</span>.<span class="ident">io</span>.<span class="ident">write_all</span>(<span class="kw-2">&amp;</span><span class="ident">header</span>).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="self">self</span>.<span class="ident">io</span>.<span class="ident">write_all</span>(<span class="kw-2">&amp;</span><span class="ident">frame</span>.<span class="ident">body</span>).<span class="kw">await</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">flush</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">flush</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">io</span>.<span class="ident">flush</span>().<span class="kw">await</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">close</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">close</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">io</span>.<span class="ident">close</span>().<span class="kw">await</span>
     }
+}
 
-    <span class="doccomment">/// Try to decode a [`Frame`] from the internal buffer.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Returns `Ok(None)` if more data is needed, otherwise some</span>
-    <span class="doccomment">/// frame or a decoding error.</span>
-    <span class="kw">fn</span> <span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Frame</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">FrameDecodeError</span><span class="op">&gt;</span> {
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">header</span>.<span class="ident">is_none</span>() {
-            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">len</span>() <span class="op">&lt;</span> <span class="ident">header</span>::<span class="ident">HEADER_SIZE</span> {
-                <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
-            }
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">b</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="ident">header</span>::<span class="ident">HEADER_SIZE</span>];
-            <span class="ident">b</span>.<span class="ident">copy_from_slice</span>(<span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">split_to</span>(<span class="ident">header</span>::<span class="ident">HEADER_SIZE</span>).<span class="ident">as_ref</span>());
-            <span class="kw">let</span> <span class="ident">header</span> <span class="op">=</span> <span class="ident">header</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="ident">b</span>)<span class="question-mark">?</span>;
-            <span class="kw">if</span> <span class="ident">header</span>.<span class="ident">tag</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">header</span>::<span class="ident">Tag</span>::<span class="ident">Data</span> {
-                <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">Frame</span>::<span class="ident">new</span>(<span class="ident">header</span>)))
-            }
-            <span class="kw">if</span> <span class="ident">u32_as_usize</span>(<span class="ident">header</span>.<span class="ident">len</span>().<span class="ident">val</span>()) <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">max_body_len</span> {
-                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">FrameDecodeError</span>::<span class="ident">FrameTooLarge</span>(<span class="ident">u32_as_usize</span>(<span class="ident">header</span>.<span class="ident">len</span>().<span class="ident">val</span>())))
-            }
-            <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">reserve</span>(<span class="ident">u32_as_usize</span>(<span class="ident">header</span>.<span class="ident">len</span>().<span class="ident">val</span>()));
-            <span class="self">self</span>.<span class="ident">header</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">header</span>)
-        }
-
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">header</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">header</span>.<span class="ident">take</span>() {
-            <span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> <span class="ident">u32_as_usize</span>(<span class="ident">header</span>.<span class="ident">len</span>().<span class="ident">val</span>());
-            <span class="kw">if</span> <span class="ident">n</span> <span class="op">&lt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">len</span>() {
-                <span class="kw">let</span> <span class="ident">bytes</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">split_to</span>(<span class="ident">n</span>).<span class="ident">into_bytes</span>();
-                <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">Frame</span> { <span class="ident">header</span>, <span class="ident">body</span>: <span class="ident">bytes</span>.<span class="ident">freeze</span>() }))
-            }
-            <span class="self">self</span>.<span class="ident">header</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">header</span>)
-        }
-
-        <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
+<span class="doccomment">/// The stages of reading a new `Frame`.</span>
+<span class="kw">enum</span> <span class="ident">ReadState</span> {
+    <span class="doccomment">/// Initial reading state.</span>
+    <span class="ident">Init</span>,
+    <span class="doccomment">/// Reading the frame header.</span>
+    <span class="ident">Header</span> {
+        <span class="ident">offset</span>: <span class="ident">usize</span>,
+        <span class="ident">buffer</span>: [<span class="ident">u8</span>; <span class="ident">header</span>::<span class="ident">HEADER_SIZE</span>]
+    },
+    <span class="doccomment">/// Reading the frame body.</span>
+    <span class="ident">Body</span> {
+        <span class="ident">header</span>: <span class="ident">header</span>::<span class="ident">Header</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
+        <span class="ident">offset</span>: <span class="ident">usize</span>,
+        <span class="ident">buffer</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>
     }
 }
 
@@ -368,133 +338,147 @@
     <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Frame</span><span class="op">&lt;</span>()<span class="op">&gt;</span>, <span class="ident">FrameDecodeError</span><span class="op">&gt;</span>;
 
     <span class="kw">fn</span> <span class="ident">poll_next</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Item</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">this</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="self">self</span>;
         <span class="kw">loop</span> {
-            <span class="kw">match</span> <span class="self">self</span>.<span class="ident">decode</span>() {
-                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">f</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">f</span>))),
-                <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="kw">if</span> <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">remaining_mut</span>() <span class="op">&lt;</span> <span class="ident">BLOCKSIZE</span> {
-                        <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">reserve</span>(<span class="ident">BLOCKSIZE</span>)
+            <span class="ident">log</span>::<span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;{}: read: {:?}&quot;</span>, <span class="ident">this</span>.<span class="ident">id</span>, <span class="ident">this</span>.<span class="ident">state</span>);
+            <span class="kw">match</span> <span class="ident">this</span>.<span class="ident">state</span> {
+                <span class="ident">ReadState</span>::<span class="ident">Init</span> <span class="op">=</span><span class="op">&gt;</span> {
+                    <span class="ident">this</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">ReadState</span>::<span class="ident">Header</span> {
+                        <span class="ident">offset</span>: <span class="number">0</span>,
+                        <span class="ident">buffer</span>: [<span class="number">0</span>; <span class="ident">header</span>::<span class="ident">HEADER_SIZE</span>]
+                    };
+                }
+                <span class="ident">ReadState</span>::<span class="ident">Header</span> { <span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">offset</span>, <span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">buffer</span> } <span class="op">=</span><span class="op">&gt;</span> {
+                    <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">offset</span> <span class="op">=</span><span class="op">=</span> <span class="ident">header</span>::<span class="ident">HEADER_SIZE</span> {
+                        <span class="kw">let</span> <span class="ident">header</span> <span class="op">=</span>
+                            <span class="kw">match</span> <span class="ident">header</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="ident">buffer</span>) {
+                                <span class="prelude-val">Ok</span>(<span class="ident">hd</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">hd</span>,
+                                <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(<span class="ident">e</span>.<span class="ident">into</span>())))
+                            };
+
+                        <span class="ident">log</span>::<span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;{}: read: {}&quot;</span>, <span class="ident">this</span>.<span class="ident">id</span>, <span class="ident">header</span>);
+
+                        <span class="kw">if</span> <span class="ident">header</span>.<span class="ident">tag</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">header</span>::<span class="ident">Tag</span>::<span class="ident">Data</span> {
+                            <span class="ident">this</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">ReadState</span>::<span class="ident">Init</span>;
+                            <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">Frame</span>::<span class="ident">new</span>(<span class="ident">header</span>))))
+                        }
+
+                        <span class="kw">let</span> <span class="ident">body_len</span> <span class="op">=</span> <span class="ident">header</span>.<span class="ident">len</span>().<span class="ident">val</span>() <span class="kw">as</span> <span class="ident">usize</span>;
+
+                        <span class="kw">if</span> <span class="ident">body_len</span> <span class="op">&gt;</span> <span class="ident">this</span>.<span class="ident">max_body_len</span> {
+                            <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(<span class="ident">FrameDecodeError</span>::<span class="ident">FrameTooLarge</span>(<span class="ident">body_len</span>))))
+                        }
+
+                        <span class="ident">this</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">ReadState</span>::<span class="ident">Body</span> {
+                            <span class="ident">header</span>,
+                            <span class="ident">offset</span>: <span class="number">0</span>,
+                            <span class="ident">buffer</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="number">0</span>; <span class="ident">body_len</span>]
+                        };
+
+                        <span class="kw">continue</span>
                     }
-                    <span class="kw">let</span> <span class="ident">this</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="self">self</span>;
-                    <span class="kw">let</span> <span class="ident">write_buffer</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">buffer</span>.<span class="ident">bytes_mut</span>();
-                    <span class="kw">match</span> <span class="macro">ready</span><span class="macro">!</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="ident">this</span>.<span class="ident">io</span>.<span class="ident">get_mut</span>()).<span class="ident">poll_read</span>(<span class="ident">cx</span>, <span class="ident">write_buffer</span>)<span class="question-mark">?</span>) {
+
+                    <span class="kw">let</span> <span class="ident">buf</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">buffer</span>[<span class="kw-2">*</span><span class="ident">offset</span> .. <span class="ident">header</span>::<span class="ident">HEADER_SIZE</span>];
+                    <span class="kw">match</span> <span class="macro">ready</span><span class="macro">!</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">this</span>.<span class="ident">io</span>).<span class="ident">poll_read</span>(<span class="ident">cx</span>, <span class="ident">buf</span>))<span class="question-mark">?</span> {
                         <span class="number">0</span> <span class="op">=</span><span class="op">&gt;</span> {
-                            <span class="kw">if</span> <span class="ident">this</span>.<span class="ident">header</span>.<span class="ident">is_none</span>() <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">this</span>.<span class="ident">buffer</span>.<span class="ident">is_empty</span>() {
+                            <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">offset</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
                                 <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>)
                             }
                             <span class="kw">let</span> <span class="ident">e</span> <span class="op">=</span> <span class="ident">FrameDecodeError</span>::<span class="ident">Io</span>(<span class="ident">io</span>::<span class="ident">ErrorKind</span>::<span class="ident">UnexpectedEof</span>.<span class="ident">into</span>());
                             <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(<span class="ident">e</span>)))
                         }
-                        <span class="ident">n</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">this</span>.<span class="ident">buffer</span>.<span class="ident">advance_mut</span>(<span class="ident">n</span>)
+                        <span class="ident">n</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw-2">*</span><span class="ident">offset</span> <span class="op">+</span><span class="op">=</span> <span class="ident">n</span>
                     }
                 }
-                <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(<span class="ident">e</span>)))
+                <span class="ident">ReadState</span>::<span class="ident">Body</span> { <span class="kw-2">ref</span> <span class="ident">header</span>, <span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">offset</span>, <span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">buffer</span> } <span class="op">=</span><span class="op">&gt;</span> {
+                    <span class="kw">let</span> <span class="ident">body_len</span> <span class="op">=</span> <span class="ident">header</span>.<span class="ident">len</span>().<span class="ident">val</span>() <span class="kw">as</span> <span class="ident">usize</span>;
+
+                    <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">offset</span> <span class="op">=</span><span class="op">=</span> <span class="ident">body_len</span> {
+                        <span class="kw">let</span> <span class="ident">h</span> <span class="op">=</span> <span class="ident">header</span>.<span class="ident">clone</span>();
+                        <span class="kw">let</span> <span class="ident">v</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">take</span>(<span class="ident">buffer</span>);
+                        <span class="ident">this</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">ReadState</span>::<span class="ident">Init</span>;
+                        <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">Frame</span> { <span class="ident">header</span>: <span class="ident">h</span>, <span class="ident">body</span>: <span class="ident">v</span> })))
+                    }
+
+                    <span class="kw">let</span> <span class="ident">buf</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">buffer</span>[<span class="kw-2">*</span><span class="ident">offset</span> .. <span class="ident">body_len</span>];
+                    <span class="kw">match</span> <span class="macro">ready</span><span class="macro">!</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">this</span>.<span class="ident">io</span>).<span class="ident">poll_read</span>(<span class="ident">cx</span>, <span class="ident">buf</span>))<span class="question-mark">?</span> {
+                        <span class="number">0</span> <span class="op">=</span><span class="op">&gt;</span> {
+                            <span class="kw">let</span> <span class="ident">e</span> <span class="op">=</span> <span class="ident">FrameDecodeError</span>::<span class="ident">Io</span>(<span class="ident">io</span>::<span class="ident">ErrorKind</span>::<span class="ident">UnexpectedEof</span>.<span class="ident">into</span>());
+                            <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(<span class="ident">e</span>)))
+                        }
+                        <span class="ident">n</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw-2">*</span><span class="ident">offset</span> <span class="op">+</span><span class="op">=</span> <span class="ident">n</span>
+                    }
+                }
             }
         }
     }
 }
 
-<span class="kw">mod</span> <span class="ident">buf</span> {
-    <span class="kw">use</span> <span class="ident">bytes</span>::{<span class="ident">BufMut</span>, <span class="ident">BytesMut</span>};
-    <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">mem</span>::{<span class="self">self</span>, <span class="ident">MaybeUninit</span>}, <span class="ident">ptr</span>};
-
-    <span class="doccomment">/// Wrapper around `BytesMut` with a safe API.</span>
-    <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
-    <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Buffer</span>(<span class="ident">BytesMut</span>);
-
-    <span class="kw">impl</span> <span class="ident">Buffer</span> {
-        <span class="doccomment">/// Create a fresh empty buffer.</span>
-        <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-            <span class="ident">Buffer</span>(<span class="ident">BytesMut</span>::<span class="ident">new</span>())
-        }
-
-        <span class="doccomment">/// Is this buffer empty?</span>
-        <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_empty</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-            <span class="self">self</span>.<span class="number">0</span>.<span class="ident">is_empty</span>()
-        }
-
-        <span class="doccomment">/// Buffer length in bytes.</span>
-        <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
-            <span class="self">self</span>.<span class="number">0</span>.<span class="ident">len</span>()
-        }
-
-        <span class="doccomment">/// The remaining write capacity of this buffer.</span>
-        <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">remaining_mut</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
-            <span class="self">self</span>.<span class="number">0</span>.<span class="ident">capacity</span>() <span class="op">-</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">len</span>()
-        }
-
-        <span class="doccomment">/// Set `self` to `self[n ..]` and return `self[.. n]`.</span>
-        <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">split_to</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">n</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-            <span class="ident">Buffer</span>(<span class="self">self</span>.<span class="number">0</span>.<span class="ident">split_to</span>(<span class="ident">n</span>))
-        }
-
-        <span class="doccomment">/// Extract the underlying storage bytes.</span>
-        <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">into_bytes</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">BytesMut</span> {
-            <span class="self">self</span>.<span class="number">0</span>
-        }
-
-        <span class="doccomment">/// Reserve and initialise more capacity.</span>
-        <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reserve</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">additional</span>: <span class="ident">usize</span>) {
-            <span class="kw">let</span> <span class="ident">old</span> <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">capacity</span>();
-            <span class="self">self</span>.<span class="number">0</span>.<span class="ident">reserve</span>(<span class="ident">additional</span>);
-            <span class="kw">let</span> <span class="ident">new</span> <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">capacity</span>();
-            <span class="kw">if</span> <span class="ident">new</span> <span class="op">&gt;</span> <span class="ident">old</span> {
-                <span class="kw">let</span> <span class="ident">b</span> <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">bytes_mut</span>();
-                <span class="kw">unsafe</span> {
-                    <span class="comment">// Safe because we never read from `b` and stay within</span>
-                    <span class="comment">// the boundaries of `b` when writing.</span>
-                    <span class="ident">ptr</span>::<span class="ident">write_bytes</span>(<span class="ident">b</span>.<span class="ident">as_mut_ptr</span>(), <span class="number">0</span>, <span class="ident">b</span>.<span class="ident">len</span>())
-                }
+<span class="kw">impl</span> <span class="ident">fmt</span>::<span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">ReadState</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
+        <span class="kw">match</span> <span class="self">self</span> {
+            <span class="ident">ReadState</span>::<span class="ident">Init</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">f</span>.<span class="ident">write_str</span>(<span class="string">&quot;(ReadState::Init)&quot;</span>)
             }
-        }
-
-        <span class="doccomment">/// Get a mutable handle to the remaining write capacity.</span>
-        <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">bytes_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] {
-            <span class="kw">let</span> <span class="ident">b</span> <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">bytes_mut</span>();
-            <span class="kw">unsafe</span> {
-                <span class="comment">// Safe because `reserve` always initialises memory.</span>
-                <span class="ident">mem</span>::<span class="ident">transmute</span>::<span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">MaybeUninit</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>], <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>]<span class="op">&gt;</span>(<span class="ident">b</span>)
+            <span class="ident">ReadState</span>::<span class="ident">Header</span> { <span class="ident">offset</span>, .. } <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;(ReadState::Header {})&quot;</span>, <span class="ident">offset</span>)
             }
-        }
-
-        <span class="doccomment">/// Increment the buffer length by `n` bytes.</span>
-        <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">advance_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">n</span>: <span class="ident">usize</span>) {
-            <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">n</span> <span class="op">&lt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">remaining_mut</span>(), <span class="string">&quot;{} &gt; {}&quot;</span>, <span class="ident">n</span>, <span class="self">self</span>.<span class="ident">remaining_mut</span>());
-            <span class="kw">unsafe</span> {
-                <span class="comment">// Safe because we have established that `n` does not exceed</span>
-                <span class="comment">// the remaining capacity.</span>
-                <span class="self">self</span>.<span class="number">0</span>.<span class="ident">advance_mut</span>(<span class="ident">n</span>)
+            <span class="ident">ReadState</span>::<span class="ident">Body</span> { <span class="ident">header</span>, <span class="ident">offset</span>, <span class="ident">buffer</span> } <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;(ReadState::Body (header {}) (offset {}) (buffer-len {}))&quot;</span>,
+                    <span class="ident">header</span>,
+                    <span class="ident">offset</span>,
+                    <span class="ident">buffer</span>.<span class="ident">len</span>())
             }
-        }
-    }
-
-    <span class="kw">impl</span> <span class="ident">AsRef</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Buffer</span> {
-        <span class="kw">fn</span> <span class="ident">as_ref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] {
-            <span class="self">self</span>.<span class="number">0</span>.<span class="ident">as_ref</span>()
         }
     }
 }
 
 <span class="doccomment">/// Possible errors while decoding a message frame.</span>
 <span class="attribute">#[<span class="ident">non_exhaustive</span>]</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Error</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">FrameDecodeError</span> {
     <span class="doccomment">/// An I/O error.</span>
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;i/o error: {0}&quot;</span>)]</span>
-    <span class="ident">Io</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">io</span>::<span class="ident">Error</span>),
-
+    <span class="ident">Io</span>(<span class="ident">io</span>::<span class="ident">Error</span>),
     <span class="doccomment">/// Decoding the frame header failed.</span>
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;decode error: {0}&quot;</span>)]</span>
-    <span class="ident">Header</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">HeaderDecodeError</span>),
-
+    <span class="ident">Header</span>(<span class="ident">HeaderDecodeError</span>),
     <span class="doccomment">/// A data frame body length is larger than the configured maximum.</span>
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;frame body is too large ({0})&quot;</span>)]</span>
     <span class="ident">FrameTooLarge</span>(<span class="ident">usize</span>)
+}
+
+<span class="kw">impl</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Display</span> <span class="kw">for</span> <span class="ident">FrameDecodeError</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
+        <span class="kw">match</span> <span class="self">self</span> {
+            <span class="ident">FrameDecodeError</span>::<span class="ident">Io</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;i/o error: {}&quot;</span>, <span class="ident">e</span>),
+            <span class="ident">FrameDecodeError</span>::<span class="ident">Header</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;decode error: {}&quot;</span>, <span class="ident">e</span>),
+            <span class="ident">FrameDecodeError</span>::<span class="ident">FrameTooLarge</span>(<span class="ident">n</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;frame body is too large ({})&quot;</span>, <span class="ident">n</span>)
+        }
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">std</span>::<span class="ident">error</span>::<span class="ident">Error</span> <span class="kw">for</span> <span class="ident">FrameDecodeError</span> {
+    <span class="kw">fn</span> <span class="ident">source</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>(<span class="kw">dyn</span> <span class="ident">std</span>::<span class="ident">error</span>::<span class="ident">Error</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>)<span class="op">&gt;</span> {
+        <span class="kw">match</span> <span class="self">self</span> {
+            <span class="ident">FrameDecodeError</span>::<span class="ident">Io</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">e</span>),
+            <span class="ident">FrameDecodeError</span>::<span class="ident">Header</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">e</span>),
+            <span class="ident">FrameDecodeError</span>::<span class="ident">FrameTooLarge</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">None</span>
+        }
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">FrameDecodeError</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">e</span>: <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Error</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+        <span class="ident">FrameDecodeError</span>::<span class="ident">Io</span>(<span class="ident">e</span>)
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">HeaderDecodeError</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">FrameDecodeError</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">e</span>: <span class="ident">HeaderDecodeError</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+        <span class="ident">FrameDecodeError</span>::<span class="ident">Header</span>(<span class="ident">e</span>)
+    }
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span> {
-    <span class="kw">use</span> <span class="ident">bytes</span>::<span class="ident">Bytes</span>;
     <span class="kw">use</span> <span class="ident">quickcheck</span>::{<span class="ident">Arbitrary</span>, <span class="ident">Gen</span>, <span class="ident">QuickCheck</span>};
     <span class="kw">use</span> <span class="ident">rand</span>::<span class="ident">RngCore</span>;
     <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
@@ -505,11 +489,11 @@
             <span class="kw">let</span> <span class="ident">body</span> <span class="op">=</span>
                 <span class="kw">if</span> <span class="ident">header</span>.<span class="ident">tag</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">header</span>::<span class="ident">Tag</span>::<span class="ident">Data</span> {
                     <span class="ident">header</span>.<span class="ident">set_len</span>(<span class="ident">header</span>.<span class="ident">len</span>().<span class="ident">val</span>() <span class="op">%</span> <span class="number">4096</span>);
-                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">b</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="number">0</span>; <span class="ident">u32_as_usize</span>(<span class="ident">header</span>.<span class="ident">len</span>().<span class="ident">val</span>())];
+                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">b</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="number">0</span>; <span class="ident">header</span>.<span class="ident">len</span>().<span class="ident">val</span>() <span class="kw">as</span> <span class="ident">usize</span>];
                     <span class="ident">rand</span>::<span class="ident">thread_rng</span>().<span class="ident">fill_bytes</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">b</span>);
-                    <span class="ident">Bytes</span>::<span class="ident">from</span>(<span class="ident">b</span>)
+                    <span class="ident">b</span>
                 } <span class="kw">else</span> {
-                    <span class="ident">Bytes</span>::<span class="ident">new</span>()
+                    <span class="ident">Vec</span>::<span class="ident">new</span>()
                 };
             <span class="ident">Frame</span> { <span class="ident">header</span>, <span class="ident">body</span> }
         }
@@ -519,15 +503,15 @@
     <span class="kw">fn</span> <span class="ident">encode_decode_identity</span>() {
         <span class="kw">fn</span> <span class="ident">property</span>(<span class="ident">f</span>: <span class="ident">Frame</span><span class="op">&lt;</span>()<span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
             <span class="ident">async_std</span>::<span class="ident">task</span>::<span class="ident">block_on</span>(<span class="kw">async</span> <span class="kw">move</span> {
-                <span class="kw">let</span> <span class="ident">buf</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">header</span>::<span class="ident">HEADER_SIZE</span> <span class="op">+</span> <span class="ident">f</span>.<span class="ident">body</span>.<span class="ident">len</span>());
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">io</span> <span class="op">=</span> <span class="ident">Io</span>::<span class="ident">new</span>(<span class="ident">futures</span>::<span class="ident">io</span>::<span class="ident">Cursor</span>::<span class="ident">new</span>(<span class="ident">buf</span>), <span class="ident">f</span>.<span class="ident">body</span>.<span class="ident">len</span>());
+                <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="kw">crate</span>::<span class="ident">connection</span>::<span class="ident">Id</span>::<span class="ident">random</span>();
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">io</span> <span class="op">=</span> <span class="ident">Io</span>::<span class="ident">new</span>(<span class="ident">id</span>, <span class="ident">futures</span>::<span class="ident">io</span>::<span class="ident">Cursor</span>::<span class="ident">new</span>(<span class="ident">Vec</span>::<span class="ident">new</span>()), <span class="ident">f</span>.<span class="ident">body</span>.<span class="ident">len</span>());
                 <span class="kw">if</span> <span class="ident">io</span>.<span class="ident">send</span>(<span class="kw-2">&amp;</span><span class="ident">f</span>).<span class="kw">await</span>.<span class="ident">is_err</span>() {
                     <span class="kw">return</span> <span class="bool-val">false</span>
                 }
                 <span class="kw">if</span> <span class="ident">io</span>.<span class="ident">flush</span>().<span class="kw">await</span>.<span class="ident">is_err</span>() {
                     <span class="kw">return</span> <span class="bool-val">false</span>
                 }
-                <span class="ident">io</span>.<span class="ident">io</span>.<span class="ident">get_mut</span>().<span class="ident">set_position</span>(<span class="number">0</span>);
+                <span class="ident">io</span>.<span class="ident">io</span>.<span class="ident">set_position</span>(<span class="number">0</span>);
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">x</span>)) <span class="op">=</span> <span class="ident">io</span>.<span class="ident">try_next</span>().<span class="kw">await</span> {
                     <span class="ident">x</span> <span class="op">=</span><span class="op">=</span> <span class="ident">f</span>
                 } <span class="kw">else</span> {

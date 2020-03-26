@@ -557,6 +557,28 @@
 <span id="546">546</span>
 <span id="547">547</span>
 <span id="548">548</span>
+<span id="549">549</span>
+<span id="550">550</span>
+<span id="551">551</span>
+<span id="552">552</span>
+<span id="553">553</span>
+<span id="554">554</span>
+<span id="555">555</span>
+<span id="556">556</span>
+<span id="557">557</span>
+<span id="558">558</span>
+<span id="559">559</span>
+<span id="560">560</span>
+<span id="561">561</span>
+<span id="562">562</span>
+<span id="563">563</span>
+<span id="564">564</span>
+<span id="565">565</span>
+<span id="566">566</span>
+<span id="567">567</span>
+<span id="568">568</span>
+<span id="569">569</span>
+<span id="570">570</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -607,13 +629,16 @@
 	<span class="ident">weights</span>::<span class="ident">SimpleDispatchInfo</span>,
 };
 <span class="kw">use</span> <span class="ident">frame_system</span>::{<span class="self">self</span> <span class="kw">as</span> <span class="ident">system</span>, <span class="ident">ensure_signed</span>, <span class="ident">ensure_none</span>, <span class="ident">offchain</span>};
-<span class="kw">use</span> <span class="ident">serde_json</span> <span class="kw">as</span> <span class="ident">json</span>;
 <span class="kw">use</span> <span class="ident">sp_core</span>::<span class="ident">crypto</span>::<span class="ident">KeyTypeId</span>;
 <span class="kw">use</span> <span class="ident">sp_runtime</span>::{
 	<span class="ident">offchain</span>::{<span class="ident">http</span>, <span class="ident">Duration</span>, <span class="ident">storage</span>::<span class="ident">StorageValueRef</span>},
 	<span class="ident">traits</span>::<span class="ident">Zero</span>,
-	<span class="ident">transaction_validity</span>::{<span class="ident">InvalidTransaction</span>, <span class="ident">ValidTransaction</span>, <span class="ident">TransactionValidity</span>},
+	<span class="ident">transaction_validity</span>::{
+		<span class="ident">InvalidTransaction</span>, <span class="ident">ValidTransaction</span>, <span class="ident">TransactionValidity</span>, <span class="ident">TransactionSource</span>,
+	},
 };
+<span class="kw">use</span> <span class="ident">sp_std</span>::{<span class="ident">vec</span>, <span class="ident">vec</span>::<span class="ident">Vec</span>};
+<span class="kw">use</span> <span class="ident">lite_json</span>::<span class="ident">json</span>::<span class="ident">JsonValue</span>;
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span>;
@@ -666,7 +691,7 @@
 }
 
 <span class="macro">decl_storage</span><span class="macro">!</span> {
-	<span class="kw">trait</span> <span class="ident">Store</span> <span class="kw">for</span> <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Trait</span><span class="op">&gt;</span> <span class="kw">as</span> <span class="ident">Example</span> {
+	<span class="kw">trait</span> <span class="ident">Store</span> <span class="kw">for</span> <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Trait</span><span class="op">&gt;</span> <span class="kw">as</span> <span class="ident">ExampleOffchainWorker</span> {
 		<span class="doccomment">/// A vector of recently submitted prices.</span>
 		<span class="doccomment">///</span>
 		<span class="doccomment">/// This is used to calculate average price, should have bounded size.</span>
@@ -836,7 +861,7 @@
 			<span class="kw">match</span> <span class="ident">last_send</span> {
 				<span class="comment">// If we already have a value in storage and the block number is recent enough</span>
 				<span class="comment">// we avoid sending another transaction at this time.</span>
-				<span class="prelude-val">Some</span>(<span class="prelude-val">Some</span>(<span class="ident">block</span>)) <span class="kw">if</span> <span class="ident">block</span> <span class="op">+</span> <span class="ident">T</span>::<span class="ident">GracePeriod</span>::<span class="ident">get</span>() <span class="op">&lt;</span> <span class="ident">block_number</span> <span class="op">=</span><span class="op">&gt;</span> {
+				<span class="prelude-val">Some</span>(<span class="prelude-val">Some</span>(<span class="ident">block</span>)) <span class="kw">if</span> <span class="ident">block_number</span> <span class="op">&lt;</span> <span class="ident">block</span> <span class="op">+</span> <span class="ident">T</span>::<span class="ident">GracePeriod</span>::<span class="ident">get</span>() <span class="op">=</span><span class="op">&gt;</span> {
 					<span class="prelude-val">Err</span>(<span class="ident">RECENTLY_SENT</span>)
 				},
 				<span class="comment">// In every other case we attempt to acquire the lock and send a transaction.</span>
@@ -880,7 +905,7 @@
 	}
 
 	<span class="doccomment">/// A helper function to fetch the price and send signed transaction.</span>
-	<span class="kw">fn</span> <span class="ident">fetch_price_and_send_signed</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">String</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">fetch_price_and_send_signed</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span> {
 		<span class="kw">use</span> <span class="ident">system</span>::<span class="ident">offchain</span>::<span class="ident">SubmitSignedTransaction</span>;
 		<span class="comment">// Firstly we check if there are any accounts in the local keystore that are capable of</span>
 		<span class="comment">// signing the transaction.</span>
@@ -894,7 +919,7 @@
 
 		<span class="comment">// Make an external HTTP request to fetch the current price.</span>
 		<span class="comment">// Note this call will block until response is received.</span>
-		<span class="kw">let</span> <span class="ident">price</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">fetch_price</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">e</span>))<span class="question-mark">?</span>;
+		<span class="kw">let</span> <span class="ident">price</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">fetch_price</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Failed to fetch price&quot;</span>)<span class="question-mark">?</span>;
 
 		<span class="comment">// Received price is wrapped into a call to `submit_price` public function of this pallet.</span>
 		<span class="comment">// This means that the transaction, when executed, will simply call that function passing</span>
@@ -917,20 +942,18 @@
 	}
 
 	<span class="doccomment">/// A helper function to fetch the price and send unsigned transaction.</span>
-	<span class="kw">fn</span> <span class="ident">fetch_price_and_send_unsigned</span>(<span class="ident">block_number</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">String</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">fetch_price_and_send_unsigned</span>(<span class="ident">block_number</span>: <span class="ident">T</span>::<span class="ident">BlockNumber</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span><span class="op">&gt;</span> {
 		<span class="kw">use</span> <span class="ident">system</span>::<span class="ident">offchain</span>::<span class="ident">SubmitUnsignedTransaction</span>;
 		<span class="comment">// Make sure we don&#39;t fetch the price if unsigned transaction is going to be rejected</span>
 		<span class="comment">// anyway.</span>
 		<span class="kw">let</span> <span class="ident">next_unsigned_at</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">NextUnsignedAt</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">get</span>();
 		<span class="kw">if</span> <span class="ident">next_unsigned_at</span> <span class="op">&gt;</span> <span class="ident">block_number</span> {
-			<span class="kw">return</span> <span class="prelude-val">Err</span>(
-				<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Too early to send unsigned transaction. Next at: {:?}&quot;</span>, <span class="ident">next_unsigned_at</span>)
-			)<span class="question-mark">?</span>
+			<span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="string">&quot;Too early to send unsigned transaction&quot;</span>)
 		}
 
 		<span class="comment">// Make an external HTTP request to fetch the current price.</span>
 		<span class="comment">// Note this call will block until response is received.</span>
-		<span class="kw">let</span> <span class="ident">price</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">fetch_price</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">e</span>))<span class="question-mark">?</span>;
+		<span class="kw">let</span> <span class="ident">price</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">fetch_price</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="string">&quot;Failed to fetch price&quot;</span>)<span class="question-mark">?</span>;
 
 		<span class="comment">// Received price is wrapped into a call to `submit_price_unsigned` public function of this</span>
 		<span class="comment">// pallet. This means that the transaction, when executed, will simply call that function</span>
@@ -988,21 +1011,17 @@
 		<span class="comment">// Note that the return object allows you to read the body in chunks as well</span>
 		<span class="comment">// with a way to control the deadline.</span>
 		<span class="kw">let</span> <span class="ident">body</span> <span class="op">=</span> <span class="ident">response</span>.<span class="ident">body</span>().<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>();
-		<span class="comment">// Next we parse the response using `serde_json`. Even though it&#39;s possible to use</span>
-		<span class="comment">// `serde_derive` and deserialize to a struct it&#39;s not recommended due to blob size</span>
-		<span class="comment">// overhead introduced by such code. Deserializing to `json::Value` is much more</span>
-		<span class="comment">// lightweight and should be preferred, especially if we only care about a small number</span>
-		<span class="comment">// of properties from the response.</span>
-		<span class="kw">let</span> <span class="ident">val</span>: <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">json</span>::<span class="ident">Value</span>, <span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">json</span>::<span class="ident">from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">body</span>);
-		<span class="comment">// Let&#39;s parse the price as float value. Note that you should avoid using floats in the</span>
-		<span class="comment">// runtime, it&#39;s fine to do that in the offchain worker, but we do convert it to an integer</span>
-		<span class="comment">// before submitting on-chain.</span>
-		<span class="kw">let</span> <span class="ident">price</span> <span class="op">=</span> <span class="ident">val</span>.<span class="ident">ok</span>().<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="ident">v</span>.<span class="ident">get</span>(<span class="string">&quot;USD&quot;</span>).<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="ident">v</span>.<span class="ident">as_f64</span>()));
-		<span class="kw">let</span> <span class="ident">price</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">price</span> {
-			<span class="prelude-val">Some</span>(<span class="ident">pricef</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>((<span class="ident">pricef</span> <span class="op">*</span> <span class="number">100.</span>) <span class="kw">as</span> <span class="ident">u32</span>),
+
+		<span class="comment">// Create a str slice from the body.</span>
+		<span class="kw">let</span> <span class="ident">body_str</span> <span class="op">=</span> <span class="ident">sp_std</span>::<span class="ident">str</span>::<span class="ident">from_utf8</span>(<span class="kw-2">&amp;</span><span class="ident">body</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
+			<span class="ident">debug</span>::<span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;No UTF8 body&quot;</span>);
+			<span class="ident">http</span>::<span class="ident">Error</span>::<span class="ident">Unknown</span>
+		})<span class="question-mark">?</span>;
+
+		<span class="kw">let</span> <span class="ident">price</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">Self</span>::<span class="ident">parse_price</span>(<span class="ident">body_str</span>) {
+			<span class="prelude-val">Some</span>(<span class="ident">price</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">price</span>),
 			<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> {
-				<span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">core</span>::<span class="ident">str</span>::<span class="ident">from_utf8</span>(<span class="kw-2">&amp;</span><span class="ident">body</span>);
-				<span class="ident">debug</span>::<span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;Unable to extract price from the response: {:?}&quot;</span>, <span class="ident">s</span>);
+				<span class="ident">debug</span>::<span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;Unable to extract price from the response: {:?}&quot;</span>, <span class="ident">body_str</span>);
 				<span class="prelude-val">Err</span>(<span class="ident">http</span>::<span class="ident">Error</span>::<span class="ident">Unknown</span>)
 			}
 		}<span class="question-mark">?</span>;
@@ -1010,6 +1029,28 @@
 		<span class="ident">debug</span>::<span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;Got price: {} cents&quot;</span>, <span class="ident">price</span>);
 
 		<span class="prelude-val">Ok</span>(<span class="ident">price</span>)
+	}
+
+	<span class="doccomment">/// Parse the price from the given JSON string using `lite-json`.</span>
+	<span class="doccomment">///</span>
+	<span class="doccomment">/// Returns `None` when parsing failed or `Some(price in cents)` when parsing is successful.</span>
+	<span class="kw">fn</span> <span class="ident">parse_price</span>(<span class="ident">price_str</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
+		<span class="kw">let</span> <span class="ident">val</span> <span class="op">=</span> <span class="ident">lite_json</span>::<span class="ident">parse_json</span>(<span class="ident">price_str</span>);
+		<span class="kw">let</span> <span class="ident">price</span> <span class="op">=</span> <span class="ident">val</span>.<span class="ident">ok</span>().<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">v</span> {
+			<span class="ident">JsonValue</span>::<span class="ident">Object</span>(<span class="ident">obj</span>) <span class="op">=</span><span class="op">&gt;</span> {
+				<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">chars</span> <span class="op">=</span> <span class="string">&quot;USD&quot;</span>.<span class="ident">chars</span>();
+				<span class="ident">obj</span>.<span class="ident">into_iter</span>()
+					.<span class="ident">find</span>(<span class="op">|</span>(<span class="ident">k</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">k</span>.<span class="ident">iter</span>().<span class="ident">all</span>(<span class="op">|</span><span class="ident">k</span><span class="op">|</span> <span class="prelude-val">Some</span>(<span class="kw-2">*</span><span class="ident">k</span>) <span class="op">=</span><span class="op">=</span> <span class="ident">chars</span>.<span class="ident">next</span>()))
+					.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">v</span>.<span class="number">1</span> {
+						<span class="ident">JsonValue</span>::<span class="ident">Number</span>(<span class="ident">number</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">number</span>),
+						<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">None</span>,
+					})
+			},
+			<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">None</span>
+		})<span class="question-mark">?</span>;
+
+		<span class="kw">let</span> <span class="ident">exp</span> <span class="op">=</span> <span class="ident">price</span>.<span class="ident">fraction_length</span>.<span class="ident">checked_sub</span>(<span class="number">2</span>).<span class="ident">unwrap_or</span>(<span class="number">0</span>);
+		<span class="prelude-val">Some</span>(<span class="ident">price</span>.<span class="ident">integer</span> <span class="kw">as</span> <span class="ident">u32</span> <span class="op">*</span> <span class="number">100</span> <span class="op">+</span> (<span class="ident">price</span>.<span class="ident">fraction</span> <span class="op">/</span> <span class="number">10_u64</span>.<span class="ident">pow</span>(<span class="ident">exp</span>)) <span class="kw">as</span> <span class="ident">u32</span>)
 	}
 
 	<span class="doccomment">/// Add new price to the list.</span>
@@ -1052,7 +1093,10 @@
 	<span class="doccomment">/// By default unsigned transactions are disallowed, but implementing the validator</span>
 	<span class="doccomment">/// here we make sure that some particular calls (the ones produced by offchain worker)</span>
 	<span class="doccomment">/// are being whitelisted and marked as valid.</span>
-	<span class="kw">fn</span> <span class="ident">validate_unsigned</span>(<span class="ident">call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TransactionValidity</span> {
+	<span class="kw">fn</span> <span class="ident">validate_unsigned</span>(
+		<span class="ident">_source</span>: <span class="ident">TransactionSource</span>,
+		<span class="ident">call</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Call</span>,
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TransactionValidity</span> {
 		<span class="comment">// Firstly let&#39;s check that we call the right function.</span>
 		<span class="kw">if</span> <span class="kw">let</span> <span class="ident">Call</span>::<span class="ident">submit_price_unsigned</span>(<span class="ident">block_number</span>, <span class="ident">new_price</span>) <span class="op">=</span> <span class="ident">call</span> {
 			<span class="comment">// Now let&#39;s check if the transaction has any chance to succeed.</span>

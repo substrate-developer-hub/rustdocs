@@ -1052,6 +1052,15 @@
 <span id="1041">1041</span>
 <span id="1042">1042</span>
 <span id="1043">1043</span>
+<span id="1044">1044</span>
+<span id="1045">1045</span>
+<span id="1046">1046</span>
+<span id="1047">1047</span>
+<span id="1048">1048</span>
+<span id="1049">1049</span>
+<span id="1050">1050</span>
+<span id="1051">1051</span>
+<span id="1052">1052</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2017-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -1085,6 +1094,7 @@
 <span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">channel</span>::<span class="ident">mpsc</span>};
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">debug</span>, <span class="ident">trace</span>};
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">Mutex</span>;
+<span class="kw">use</span> <span class="ident">prometheus_endpoint</span>::<span class="ident">Registry</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">pin</span>::<span class="ident">Pin</span>, <span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>}};
 
 <span class="kw">use</span> <span class="ident">finality_grandpa</span>::<span class="ident">Message</span>::{<span class="ident">Prevote</span>, <span class="ident">Precommit</span>, <span class="ident">PrimaryPropose</span>};
@@ -1197,7 +1207,7 @@
 <span class="doccomment">/// Bridge between the underlying network service, gossiping consensus messages and Grandpa</span>
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">NetworkBridge</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">N</span>: <span class="ident">Network</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span> {
 	<span class="ident">service</span>: <span class="ident">N</span>,
-	<span class="ident">gossip_engine</span>: <span class="ident">GossipEngine</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+	<span class="ident">gossip_engine</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">GossipEngine</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">validator</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">GossipValidator</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 
 	<span class="doccomment">/// Sender side of the neighbor packet channel.</span>
@@ -1233,19 +1243,21 @@
 		<span class="ident">service</span>: <span class="ident">N</span>,
 		<span class="ident">config</span>: <span class="kw">crate</span>::<span class="ident">Config</span>,
 		<span class="ident">set_state</span>: <span class="kw">crate</span>::<span class="ident">environment</span>::<span class="ident">SharedVoterSetState</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+		<span class="ident">prometheus_registry</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Registry</span><span class="op">&gt;</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
 		<span class="kw">let</span> (<span class="ident">validator</span>, <span class="ident">report_stream</span>) <span class="op">=</span> <span class="ident">GossipValidator</span>::<span class="ident">new</span>(
 			<span class="ident">config</span>,
 			<span class="ident">set_state</span>.<span class="ident">clone</span>(),
+			<span class="ident">prometheus_registry</span>,
 		);
 
 		<span class="kw">let</span> <span class="ident">validator</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">validator</span>);
-		<span class="kw">let</span> <span class="ident">gossip_engine</span> <span class="op">=</span> <span class="ident">GossipEngine</span>::<span class="ident">new</span>(
+		<span class="kw">let</span> <span class="ident">gossip_engine</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Mutex</span>::<span class="ident">new</span>(<span class="ident">GossipEngine</span>::<span class="ident">new</span>(
 			<span class="ident">service</span>.<span class="ident">clone</span>(),
 			<span class="ident">GRANDPA_ENGINE_ID</span>,
 			<span class="ident">GRANDPA_PROTOCOL_NAME</span>,
 			<span class="ident">validator</span>.<span class="ident">clone</span>()
-		);
+		)));
 
 		{
 			<span class="comment">// register all previous votes with the gossip service so that they&#39;re</span>
@@ -1269,7 +1281,7 @@
 						}
 					);
 
-					<span class="ident">gossip_engine</span>.<span class="ident">register_gossip_message</span>(
+					<span class="ident">gossip_engine</span>.<span class="ident">lock</span>().<span class="ident">register_gossip_message</span>(
 						<span class="ident">topic</span>,
 						<span class="ident">message</span>.<span class="ident">encode</span>(),
 					);
@@ -1348,7 +1360,7 @@
 		});
 
 		<span class="kw">let</span> <span class="ident">topic</span> <span class="op">=</span> <span class="ident">round_topic</span>::<span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>(<span class="ident">round</span>.<span class="number">0</span>, <span class="ident">set_id</span>.<span class="number">0</span>);
-		<span class="kw">let</span> <span class="ident">incoming</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">gossip_engine</span>.<span class="ident">messages_for</span>(<span class="ident">topic</span>)
+		<span class="kw">let</span> <span class="ident">incoming</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">gossip_engine</span>.<span class="ident">lock</span>().<span class="ident">messages_for</span>(<span class="ident">topic</span>)
 			.<span class="ident">filter_map</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">notification</span><span class="op">|</span> {
 				<span class="kw">let</span> <span class="ident">decoded</span> <span class="op">=</span> <span class="ident">GossipMessage</span>::<span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="ident">notification</span>.<span class="ident">message</span>[..]);
 
@@ -1477,11 +1489,11 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span>, <span class="ident">N</span>: <span class="ident">Network</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">Future</span> <span class="kw">for</span> <span class="ident">NetworkBridge</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">N</span><span class="op">&gt;</span> {
 	<span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span>;
 
-	<span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Output</span><span class="op">&gt;</span> {
+	<span class="kw">fn</span> <span class="ident">poll</span>(<span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Output</span><span class="op">&gt;</span> {
 		<span class="kw">loop</span> {
 			<span class="kw">match</span> <span class="self">self</span>.<span class="ident">neighbor_packet_worker</span>.<span class="ident">lock</span>().<span class="ident">poll_next_unpin</span>(<span class="ident">cx</span>) {
 				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>((<span class="ident">to</span>, <span class="ident">packet</span>))) <span class="op">=</span><span class="op">&gt;</span> {
-					<span class="self">self</span>.<span class="ident">gossip_engine</span>.<span class="ident">send_message</span>(<span class="ident">to</span>, <span class="ident">packet</span>.<span class="ident">encode</span>());
+					<span class="self">self</span>.<span class="ident">gossip_engine</span>.<span class="ident">lock</span>().<span class="ident">send_message</span>(<span class="ident">to</span>, <span class="ident">packet</span>.<span class="ident">encode</span>());
 				},
 				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(
 					<span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">Network</span>(<span class="string">&quot;Neighbor packet worker stream closed.&quot;</span>.<span class="ident">into</span>()))
@@ -1493,7 +1505,7 @@
 		<span class="kw">loop</span> {
 			<span class="kw">match</span> <span class="self">self</span>.<span class="ident">gossip_validator_report_stream</span>.<span class="ident">lock</span>().<span class="ident">poll_next_unpin</span>(<span class="ident">cx</span>) {
 				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="ident">PeerReport</span> { <span class="ident">who</span>, <span class="ident">cost_benefit</span> })) <span class="op">=</span><span class="op">&gt;</span> {
-					<span class="self">self</span>.<span class="ident">gossip_engine</span>.<span class="ident">report</span>(<span class="ident">who</span>, <span class="ident">cost_benefit</span>);
+					<span class="self">self</span>.<span class="ident">gossip_engine</span>.<span class="ident">lock</span>().<span class="ident">report</span>(<span class="ident">who</span>, <span class="ident">cost_benefit</span>);
 				},
 				<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(
 					<span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">Network</span>(<span class="string">&quot;Gossip validator report stream closed.&quot;</span>.<span class="ident">into</span>()))
@@ -1502,9 +1514,10 @@
 			}
 		}
 
-		<span class="kw">match</span> <span class="self">self</span>.<span class="ident">gossip_engine</span>.<span class="ident">poll_unpin</span>(<span class="ident">cx</span>) {
-			<span class="comment">// The gossip engine future finished. We should do the same.</span>
-			<span class="ident">Poll</span>::<span class="ident">Ready</span>(()) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Ok</span>(())),
+		<span class="kw">match</span> <span class="self">self</span>.<span class="ident">gossip_engine</span>.<span class="ident">lock</span>().<span class="ident">poll_unpin</span>(<span class="ident">cx</span>) {
+			<span class="ident">Poll</span>::<span class="ident">Ready</span>(()) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(
+				<span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">Network</span>(<span class="string">&quot;Gossip engine future finished.&quot;</span>.<span class="ident">into</span>()))
+			),
 			<span class="ident">Poll</span>::<span class="ident">Pending</span> <span class="op">=</span><span class="op">&gt;</span> {},
 		}
 
@@ -1513,7 +1526,7 @@
 }
 
 <span class="kw">fn</span> <span class="ident">incoming_global</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span>(
-	<span class="kw-2">mut</span> <span class="ident">gossip_engine</span>: <span class="ident">GossipEngine</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+	<span class="ident">gossip_engine</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">GossipEngine</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">topic</span>: <span class="ident">B</span>::<span class="ident">Hash</span>,
 	<span class="ident">voters</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">VoterSet</span><span class="op">&lt;</span><span class="ident">AuthorityId</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">gossip_validator</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">GossipValidator</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -1522,16 +1535,16 @@
 	<span class="kw">let</span> <span class="ident">process_commit</span> <span class="op">=</span> <span class="kw">move</span> <span class="op">|</span>
 		<span class="ident">msg</span>: <span class="ident">FullCommitMessage</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 		<span class="kw-2">mut</span> <span class="ident">notification</span>: <span class="ident">sc_network_gossip</span>::<span class="ident">TopicNotification</span>,
-		<span class="ident">gossip_engine</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">GossipEngine</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+		<span class="ident">gossip_engine</span>: <span class="kw-2">&amp;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">GossipEngine</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 		<span class="ident">gossip_validator</span>: <span class="kw-2">&amp;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">GossipValidator</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 		<span class="ident">voters</span>: <span class="kw-2">&amp;</span><span class="ident">VoterSet</span><span class="op">&lt;</span><span class="ident">AuthorityId</span><span class="op">&gt;</span>,
 	<span class="op">|</span> {
-		<span class="kw">let</span> <span class="ident">precommits_signed_by</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span> <span class="op">=</span>
-			<span class="ident">msg</span>.<span class="ident">message</span>.<span class="ident">auth_data</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="kw">_</span>, <span class="ident">a</span>)<span class="op">|</span> {
-				<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">a</span>)
-			}).<span class="ident">collect</span>();
-
 		<span class="kw">if</span> <span class="ident">voters</span>.<span class="ident">len</span>() <span class="op">&lt;</span><span class="op">=</span> <span class="ident">TELEMETRY_VOTERS_LIMIT</span> {
+			<span class="kw">let</span> <span class="ident">precommits_signed_by</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span> <span class="op">=</span>
+				<span class="ident">msg</span>.<span class="ident">message</span>.<span class="ident">auth_data</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="kw">_</span>, <span class="ident">a</span>)<span class="op">|</span> {
+					<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">a</span>)
+				}).<span class="ident">collect</span>();
+
 			<span class="macro">telemetry</span><span class="macro">!</span>(<span class="ident">CONSENSUS_INFO</span>; <span class="string">&quot;afg.received_commit&quot;</span>;
 				<span class="string">&quot;contains_precommits_signed_by&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="question-mark">?</span><span class="ident">precommits_signed_by</span>,
 				<span class="string">&quot;target_number&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="question-mark">?</span><span class="ident">msg</span>.<span class="ident">message</span>.<span class="ident">target_number</span>.<span class="ident">clone</span>(),
@@ -1546,13 +1559,14 @@
 			<span class="ident">msg</span>.<span class="ident">set_id</span>,
 		) {
 			<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">who</span>) <span class="op">=</span> <span class="ident">notification</span>.<span class="ident">sender</span> {
-				<span class="ident">gossip_engine</span>.<span class="ident">report</span>(<span class="ident">who</span>, <span class="ident">cost</span>);
+				<span class="ident">gossip_engine</span>.<span class="ident">lock</span>().<span class="ident">report</span>(<span class="ident">who</span>, <span class="ident">cost</span>);
 			}
 
 			<span class="kw">return</span> <span class="prelude-val">None</span>;
 		}
 
-		<span class="kw">let</span> <span class="ident">round</span> <span class="op">=</span> <span class="ident">msg</span>.<span class="ident">round</span>.<span class="number">0</span>;
+		<span class="kw">let</span> <span class="ident">round</span> <span class="op">=</span> <span class="ident">msg</span>.<span class="ident">round</span>;
+		<span class="kw">let</span> <span class="ident">set_id</span> <span class="op">=</span> <span class="ident">msg</span>.<span class="ident">set_id</span>;
 		<span class="kw">let</span> <span class="ident">commit</span> <span class="op">=</span> <span class="ident">msg</span>.<span class="ident">message</span>;
 		<span class="kw">let</span> <span class="ident">finalized_number</span> <span class="op">=</span> <span class="ident">commit</span>.<span class="ident">target_number</span>;
 		<span class="kw">let</span> <span class="ident">gossip_validator</span> <span class="op">=</span> <span class="ident">gossip_validator</span>.<span class="ident">clone</span>();
@@ -1564,29 +1578,31 @@
 				<span class="comment">// any discrepancy between the actual ghost and the claimed</span>
 				<span class="comment">// finalized number.</span>
 				<span class="ident">gossip_validator</span>.<span class="ident">note_commit_finalized</span>(
+					<span class="ident">round</span>,
+					<span class="ident">set_id</span>,
 					<span class="ident">finalized_number</span>,
 					<span class="op">|</span><span class="ident">to</span>, <span class="ident">neighbor</span><span class="op">|</span> <span class="ident">neighbor_sender</span>.<span class="ident">send</span>(<span class="ident">to</span>, <span class="ident">neighbor</span>),
 				);
 
-				<span class="ident">gossip_engine</span>.<span class="ident">gossip_message</span>(<span class="ident">topic</span>, <span class="ident">notification</span>.<span class="ident">message</span>.<span class="ident">clone</span>(), <span class="bool-val">false</span>);
+				<span class="ident">gossip_engine</span>.<span class="ident">lock</span>().<span class="ident">gossip_message</span>(<span class="ident">topic</span>, <span class="ident">notification</span>.<span class="ident">message</span>.<span class="ident">clone</span>(), <span class="bool-val">false</span>);
 			}
 			<span class="ident">voter</span>::<span class="ident">CommitProcessingOutcome</span>::<span class="ident">Bad</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="comment">// report peer and do not gossip.</span>
 				<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">who</span>) <span class="op">=</span> <span class="ident">notification</span>.<span class="ident">sender</span>.<span class="ident">take</span>() {
-					<span class="ident">gossip_engine</span>.<span class="ident">report</span>(<span class="ident">who</span>, <span class="ident">cost</span>::<span class="ident">INVALID_COMMIT</span>);
+					<span class="ident">gossip_engine</span>.<span class="ident">lock</span>().<span class="ident">report</span>(<span class="ident">who</span>, <span class="ident">cost</span>::<span class="ident">INVALID_COMMIT</span>);
 				}
 			}
 		};
 
 		<span class="kw">let</span> <span class="ident">cb</span> <span class="op">=</span> <span class="ident">voter</span>::<span class="ident">Callback</span>::<span class="ident">Work</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">cb</span>));
 
-		<span class="prelude-val">Some</span>(<span class="ident">voter</span>::<span class="ident">CommunicationIn</span>::<span class="ident">Commit</span>(<span class="ident">round</span>, <span class="ident">commit</span>, <span class="ident">cb</span>))
+		<span class="prelude-val">Some</span>(<span class="ident">voter</span>::<span class="ident">CommunicationIn</span>::<span class="ident">Commit</span>(<span class="ident">round</span>.<span class="number">0</span>, <span class="ident">commit</span>, <span class="ident">cb</span>))
 	};
 
 	<span class="kw">let</span> <span class="ident">process_catch_up</span> <span class="op">=</span> <span class="kw">move</span> <span class="op">|</span>
 		<span class="ident">msg</span>: <span class="ident">FullCatchUpMessage</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
 		<span class="kw-2">mut</span> <span class="ident">notification</span>: <span class="ident">sc_network_gossip</span>::<span class="ident">TopicNotification</span>,
-		<span class="ident">gossip_engine</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">GossipEngine</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>,
+		<span class="ident">gossip_engine</span>: <span class="kw-2">&amp;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">GossipEngine</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 		<span class="ident">gossip_validator</span>: <span class="kw-2">&amp;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">GossipValidator</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 		<span class="ident">voters</span>: <span class="kw-2">&amp;</span><span class="ident">VoterSet</span><span class="op">&lt;</span><span class="ident">AuthorityId</span><span class="op">&gt;</span>,
 	<span class="op">|</span> {
@@ -1599,7 +1615,7 @@
 			<span class="ident">msg</span>.<span class="ident">set_id</span>,
 		) {
 			<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">who</span>) <span class="op">=</span> <span class="ident">notification</span>.<span class="ident">sender</span> {
-				<span class="ident">gossip_engine</span>.<span class="ident">report</span>(<span class="ident">who</span>, <span class="ident">cost</span>);
+				<span class="ident">gossip_engine</span>.<span class="ident">lock</span>().<span class="ident">report</span>(<span class="ident">who</span>, <span class="ident">cost</span>);
 			}
 
 			<span class="kw">return</span> <span class="prelude-val">None</span>;
@@ -1609,7 +1625,7 @@
 			<span class="kw">if</span> <span class="kw">let</span> <span class="ident">voter</span>::<span class="ident">CatchUpProcessingOutcome</span>::<span class="ident">Bad</span>(<span class="kw">_</span>) <span class="op">=</span> <span class="ident">outcome</span> {
 				<span class="comment">// report peer</span>
 				<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">who</span>) <span class="op">=</span> <span class="ident">notification</span>.<span class="ident">sender</span>.<span class="ident">take</span>() {
-					<span class="ident">gossip_engine</span>.<span class="ident">report</span>(<span class="ident">who</span>, <span class="ident">cost</span>::<span class="ident">INVALID_CATCH_UP</span>);
+					<span class="ident">gossip_engine</span>.<span class="ident">lock</span>().<span class="ident">report</span>(<span class="ident">who</span>, <span class="ident">cost</span>::<span class="ident">INVALID_CATCH_UP</span>);
 				}
 			}
 
@@ -1621,7 +1637,7 @@
 		<span class="prelude-val">Some</span>(<span class="ident">voter</span>::<span class="ident">CommunicationIn</span>::<span class="ident">CatchUp</span>(<span class="ident">msg</span>.<span class="ident">message</span>, <span class="ident">cb</span>))
 	};
 
-	<span class="ident">gossip_engine</span>.<span class="ident">messages_for</span>(<span class="ident">topic</span>)
+	<span class="ident">gossip_engine</span>.<span class="ident">clone</span>().<span class="ident">lock</span>().<span class="ident">messages_for</span>(<span class="ident">topic</span>)
 		.<span class="ident">filter_map</span>(<span class="op">|</span><span class="ident">notification</span><span class="op">|</span> {
 			<span class="comment">// this could be optimized by decoding piecewise.</span>
 			<span class="kw">let</span> <span class="ident">decoded</span> <span class="op">=</span> <span class="ident">GossipMessage</span>::<span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="ident">notification</span>.<span class="ident">message</span>[..]);
@@ -1633,9 +1649,9 @@
 		.<span class="ident">filter_map</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="ident">notification</span>, <span class="ident">msg</span>)<span class="op">|</span> {
 			<span class="ident">future</span>::<span class="ident">ready</span>(<span class="kw">match</span> <span class="ident">msg</span> {
 				<span class="ident">GossipMessage</span>::<span class="ident">Commit</span>(<span class="ident">msg</span>) <span class="op">=</span><span class="op">&gt;</span>
-					<span class="ident">process_commit</span>(<span class="ident">msg</span>, <span class="ident">notification</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">gossip_engine</span>, <span class="kw-2">&amp;</span><span class="ident">gossip_validator</span>, <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">voters</span>),
+					<span class="ident">process_commit</span>(<span class="ident">msg</span>, <span class="ident">notification</span>, <span class="kw-2">&amp;</span><span class="ident">gossip_engine</span>, <span class="kw-2">&amp;</span><span class="ident">gossip_validator</span>, <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">voters</span>),
 				<span class="ident">GossipMessage</span>::<span class="ident">CatchUp</span>(<span class="ident">msg</span>) <span class="op">=</span><span class="op">&gt;</span>
-					<span class="ident">process_catch_up</span>(<span class="ident">msg</span>, <span class="ident">notification</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">gossip_engine</span>, <span class="kw-2">&amp;</span><span class="ident">gossip_validator</span>, <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">voters</span>),
+					<span class="ident">process_catch_up</span>(<span class="ident">msg</span>, <span class="ident">notification</span>, <span class="kw-2">&amp;</span><span class="ident">gossip_engine</span>, <span class="kw-2">&amp;</span><span class="ident">gossip_validator</span>, <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">voters</span>),
 				<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> {
 					<span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;afg&quot;</span>, <span class="string">&quot;Skipping unknown message type&quot;</span>);
 					<span class="prelude-val">None</span>
@@ -1743,7 +1759,7 @@
 	<span class="ident">set_id</span>: <span class="ident">SetIdNumber</span>,
 	<span class="ident">locals</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">AuthorityPair</span>, <span class="ident">AuthorityId</span>)<span class="op">&gt;</span>,
 	<span class="ident">sender</span>: <span class="ident">mpsc</span>::<span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">SignedMessage</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-	<span class="ident">network</span>: <span class="ident">GossipEngine</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
+	<span class="ident">network</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">GossipEngine</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">has_voted</span>: <span class="ident">HasVoted</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
 }
 
@@ -1809,11 +1825,11 @@
 			);
 
 			<span class="comment">// announce the block we voted on to our peers.</span>
-			<span class="self">self</span>.<span class="ident">network</span>.<span class="ident">announce</span>(<span class="ident">target_hash</span>, <span class="ident">Vec</span>::<span class="ident">new</span>());
+			<span class="self">self</span>.<span class="ident">network</span>.<span class="ident">lock</span>().<span class="ident">announce</span>(<span class="ident">target_hash</span>, <span class="ident">Vec</span>::<span class="ident">new</span>());
 
 			<span class="comment">// propagate the message to peers</span>
 			<span class="kw">let</span> <span class="ident">topic</span> <span class="op">=</span> <span class="ident">round_topic</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>(<span class="self">self</span>.<span class="ident">round</span>, <span class="self">self</span>.<span class="ident">set_id</span>);
-			<span class="self">self</span>.<span class="ident">network</span>.<span class="ident">gossip_message</span>(<span class="ident">topic</span>, <span class="ident">message</span>.<span class="ident">encode</span>(), <span class="bool-val">false</span>);
+			<span class="self">self</span>.<span class="ident">network</span>.<span class="ident">lock</span>().<span class="ident">gossip_message</span>(<span class="ident">topic</span>, <span class="ident">message</span>.<span class="ident">encode</span>(), <span class="bool-val">false</span>);
 
 			<span class="comment">// forward the message to the inner sender.</span>
 			<span class="kw">return</span> <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">start_send</span>(<span class="ident">signed</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
@@ -2014,7 +2030,7 @@
 
 <span class="doccomment">/// An output sink for commit messages.</span>
 <span class="kw">struct</span> <span class="ident">CommitsOut</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> {
-	<span class="ident">network</span>: <span class="ident">GossipEngine</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
+	<span class="ident">network</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">GossipEngine</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">set_id</span>: <span class="ident">SetId</span>,
 	<span class="ident">is_voter</span>: <span class="ident">bool</span>,
 	<span class="ident">gossip_validator</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">GossipValidator</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -2024,7 +2040,7 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Block</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> <span class="ident">CommitsOut</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Create a new commit output stream.</span>
 	<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">new</span>(
-		<span class="ident">network</span>: <span class="ident">GossipEngine</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
+		<span class="ident">network</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">GossipEngine</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 		<span class="ident">set_id</span>: <span class="ident">SetIdNumber</span>,
 		<span class="ident">is_voter</span>: <span class="ident">bool</span>,
 		<span class="ident">gossip_validator</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">GossipValidator</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -2070,7 +2086,7 @@
 		};
 
 		<span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">GossipMessage</span>::<span class="ident">Commit</span>(<span class="ident">FullCommitMessage</span>::<span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> {
-			<span class="ident">round</span>: <span class="ident">round</span>,
+			<span class="ident">round</span>,
 			<span class="ident">set_id</span>: <span class="self">self</span>.<span class="ident">set_id</span>,
 			<span class="ident">message</span>: <span class="ident">compact_commit</span>,
 		});
@@ -2080,10 +2096,12 @@
 		<span class="comment">// the gossip validator needs to be made aware of the best commit-height we know of</span>
 		<span class="comment">// before gossiping</span>
 		<span class="self">self</span>.<span class="ident">gossip_validator</span>.<span class="ident">note_commit_finalized</span>(
+			<span class="ident">round</span>,
+			<span class="self">self</span>.<span class="ident">set_id</span>,
 			<span class="ident">commit</span>.<span class="ident">target_number</span>,
 			<span class="op">|</span><span class="ident">to</span>, <span class="ident">neighbor</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">neighbor_sender</span>.<span class="ident">send</span>(<span class="ident">to</span>, <span class="ident">neighbor</span>),
 		);
-		<span class="self">self</span>.<span class="ident">network</span>.<span class="ident">gossip_message</span>(<span class="ident">topic</span>, <span class="ident">message</span>.<span class="ident">encode</span>(), <span class="bool-val">false</span>);
+		<span class="self">self</span>.<span class="ident">network</span>.<span class="ident">lock</span>().<span class="ident">gossip_message</span>(<span class="ident">topic</span>, <span class="ident">message</span>.<span class="ident">encode</span>(), <span class="bool-val">false</span>);
 
 		<span class="prelude-val">Ok</span>(())
 	}

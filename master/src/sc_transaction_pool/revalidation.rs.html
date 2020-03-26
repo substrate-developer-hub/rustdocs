@@ -352,6 +352,12 @@
 <span id="341">341</span>
 <span id="342">342</span>
 <span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -433,7 +439,7 @@
 			<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">continue</span>,
 		};
 
-		<span class="kw">match</span> <span class="ident">api</span>.<span class="ident">validate_transaction</span>(<span class="kw-2">&amp;</span><span class="ident">BlockId</span>::<span class="ident">Number</span>(<span class="ident">at</span>), <span class="ident">ext</span>.<span class="ident">data</span>.<span class="ident">clone</span>()).<span class="kw">await</span> {
+		<span class="kw">match</span> <span class="ident">api</span>.<span class="ident">validate_transaction</span>(<span class="kw-2">&amp;</span><span class="ident">BlockId</span>::<span class="ident">Number</span>(<span class="ident">at</span>), <span class="ident">ext</span>.<span class="ident">source</span>, <span class="ident">ext</span>.<span class="ident">data</span>.<span class="ident">clone</span>()).<span class="kw">await</span> {
 			<span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(<span class="ident">TransactionValidityError</span>::<span class="ident">Invalid</span>(<span class="ident">err</span>))) <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;txpool&quot;</span>, <span class="string">&quot;[{:?}]: Revalidation: invalid {:?}&quot;</span>, <span class="ident">ext_hash</span>, <span class="ident">err</span>);
 				<span class="ident">invalid_hashes</span>.<span class="ident">push</span>(<span class="ident">ext_hash</span>);
@@ -449,6 +455,7 @@
 					<span class="ident">ValidatedTransaction</span>::<span class="ident">valid_at</span>(
 						<span class="ident">at</span>.<span class="ident">saturated_into</span>::<span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>(),
 						<span class="ident">ext_hash</span>,
+						<span class="ident">ext</span>.<span class="ident">source</span>,
 						<span class="ident">ext</span>.<span class="ident">data</span>.<span class="ident">clone</span>(),
 						<span class="ident">api</span>.<span class="ident">hash_and_length</span>(<span class="kw-2">&amp;</span><span class="ident">ext</span>.<span class="ident">data</span>).<span class="number">1</span>,
 						<span class="ident">validity</span>,
@@ -506,7 +513,6 @@
 				} <span class="kw">else</span> {
 					<span class="kw">for</span> <span class="ident">xt</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">to_queue</span> {
 						<span class="ident">extrinsics</span>.<span class="ident">remove</span>(<span class="ident">xt</span>);
-						<span class="self">self</span>.<span class="ident">members</span>.<span class="ident">remove</span>(<span class="ident">xt</span>);
 					}
 				}
 				<span class="ident">left</span> <span class="op">-</span><span class="op">=</span> <span class="ident">to_queue</span>.<span class="ident">len</span>();
@@ -516,6 +522,10 @@
 			<span class="kw">if</span> <span class="ident">block_drained</span> {
 			  <span class="self">self</span>.<span class="ident">block_ordered</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">first_block</span>);
 			}
+		}
+
+		<span class="kw">for</span> <span class="ident">hash</span> <span class="kw">in</span> <span class="ident">queued_exts</span>.<span class="ident">iter</span>() {
+			<span class="self">self</span>.<span class="ident">members</span>.<span class="ident">remove</span>(<span class="ident">hash</span>);
 		}
 
 		<span class="ident">queued_exts</span>
@@ -664,9 +674,9 @@
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span> {
-
 	<span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 	<span class="kw">use</span> <span class="ident">sc_transaction_graph</span>::<span class="ident">Pool</span>;
+	<span class="kw">use</span> <span class="ident">sp_transaction_pool</span>::<span class="ident">TransactionSource</span>;
 	<span class="kw">use</span> <span class="ident">substrate_test_runtime_transaction_pool</span>::{<span class="ident">TestApi</span>, <span class="ident">uxt</span>};
 	<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">executor</span>::<span class="ident">block_on</span>;
 	<span class="kw">use</span> <span class="ident">substrate_test_runtime_client</span>::{
@@ -686,7 +696,9 @@
 		<span class="kw">let</span> <span class="ident">queue</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">RevalidationQueue</span>::<span class="ident">new</span>(<span class="ident">api</span>.<span class="ident">clone</span>(), <span class="ident">pool</span>.<span class="ident">clone</span>()));
 
 		<span class="kw">let</span> <span class="ident">uxt</span> <span class="op">=</span> <span class="ident">uxt</span>(<span class="ident">Alice</span>, <span class="number">0</span>);
-		<span class="kw">let</span> <span class="ident">uxt_hash</span> <span class="op">=</span> <span class="ident">block_on</span>(<span class="ident">pool</span>.<span class="ident">submit_one</span>(<span class="kw-2">&amp;</span><span class="ident">BlockId</span>::<span class="ident">number</span>(<span class="number">0</span>), <span class="ident">uxt</span>.<span class="ident">clone</span>())).<span class="ident">expect</span>(<span class="string">&quot;Should be valid&quot;</span>);
+		<span class="kw">let</span> <span class="ident">uxt_hash</span> <span class="op">=</span> <span class="ident">block_on</span>(
+			<span class="ident">pool</span>.<span class="ident">submit_one</span>(<span class="kw-2">&amp;</span><span class="ident">BlockId</span>::<span class="ident">number</span>(<span class="number">0</span>), <span class="ident">TransactionSource</span>::<span class="ident">External</span>, <span class="ident">uxt</span>.<span class="ident">clone</span>())
+		).<span class="ident">expect</span>(<span class="string">&quot;Should be valid&quot;</span>);
 
 		<span class="ident">block_on</span>(<span class="ident">queue</span>.<span class="ident">revalidate_later</span>(<span class="number">0</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">uxt_hash</span>]));
 
@@ -695,5 +707,6 @@
 		<span class="comment">// number of ready</span>
 		<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">pool</span>.<span class="ident">validated_pool</span>().<span class="ident">status</span>().<span class="ident">ready</span>, <span class="number">1</span>);
 	}
-}</pre></div>
+}
+</pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../";window.currentCrate = "sc_transaction_pool";</script><script src="../../aliases.js"></script><script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script><script defer src="../../search-index.js"></script></body></html>
