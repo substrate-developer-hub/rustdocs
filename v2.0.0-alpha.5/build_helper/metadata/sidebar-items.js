@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["emit_raw","Emit a metadata field for dependents of this package."],["get_raw","Read a metadata field from the specified dependency of this package."]]});

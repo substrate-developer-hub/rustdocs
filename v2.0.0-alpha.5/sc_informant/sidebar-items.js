@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["OutputFormat","The format to print telemetry output in."]],"fn":[["build","Creates an informant in the form of a `Future` that must be polled regularly."]]});

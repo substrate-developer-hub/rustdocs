@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["features","Package features."],["manifest","Information related to the package manifest."],["pkg","Information related to the package."]]});
