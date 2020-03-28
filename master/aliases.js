@@ -358,6 +358,7 @@ ALIASES["pwasm_utils"] = {};
 ALIASES["quick_error"] = {};
 ALIASES["quicksink"] = {};
 ALIASES["quote"] = {};
+ALIASES["radium"] = {};
 ALIASES["rand"] = {};
 ALIASES["rand_chacha"] = {};
 ALIASES["rand_core"] = {};

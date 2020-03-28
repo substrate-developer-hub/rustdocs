@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["BitBox","A pointer type for owned bit sequences."],["IntoIter",""]]});
+initSidebarItems({"struct":[["BitBox","A pointer type for owned bit sequences."],["IntoIter","State keeper for consuming iteration over a `BitBox`."]]});

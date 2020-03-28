@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/bitvec-0.15.2/src/macros.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>macros.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/ci-cache/substrate/cargo/build-rust-doc-release/registry/src/github.com-1ecc6299db9ec823/bitvec-0.17.4/src/macros.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>macros.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><script defer type="text/javascript" src="https://substrate.dev/js/config.js"></script>
 <script defer type="text/javascript" src="https://substrate.dev/js/klaro.min.js"></script>
 <script async type="opt-in" data-type="application/javascript"
 		data-src="https://www.googletagmanager.com/gtag/js?id=UA-145158313-2" data-name="googleAnalytics"></script>
@@ -319,137 +319,176 @@
 <span id="308">308</span>
 <span id="309">309</span>
 <span id="310">310</span>
-<span id="311">311</span>
-<span id="312">312</span>
-<span id="313">313</span>
-<span id="314">314</span>
-<span id="315">315</span>
-<span id="316">316</span>
-<span id="317">317</span>
-<span id="318">318</span>
-<span id="319">319</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">/*! Utility macros for constructing data structures and implementing bulk types.
 
-The only public macro is `bitvec`; this module also provides convenience macros
-for code generation.
+The public macros are `bits!`, `bitvec!`, and `bitbox!`.
 !*/</span>
 
-<span class="doccomment">/** Construct a `BitVec` out of a literal array in source code, like `vec!`.
+<span class="attribute">#[<span class="ident">macro_use</span>]</span>
+<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">internal</span>;
 
-`bitvec!` can be invoked in a number of ways. It takes the name of a `Cursor`
-implementation, the name of a `BitStore`-implementing fundamental, and zero or
-more fundamentals (integer, floating-point, or boolean) which are used to build
-the bits. Each fundamental literal corresponds to one bit, and is considered to
-represent `1` if it is any other value than exactly zero.
+<span class="doccomment">/** Construct a `&amp;BitSlice` out of a literal array in source code, like `vec!`.
 
-`bitvec!` can be invoked with no specifiers, a `Cursor` specifier, or a `Cursor`
-and a `BitStore` specifier. It cannot be invoked with a `BitStore` specifier but
-no `Cursor` specifier, due to overlap in how those tokens are matched by the
-macro system.
+`bits!` can be invoked in a number of ways. It takes the name of a `BitOrder`
+implementation, the name of a `BitStore`-implementing fundamental (which must be
+one of `u8`, `u16`, `u32`, or `u64`), and zero or more fundamentals (integer,
+floating-point) which are used to build the bits. Each fundamental literal
+corresponds to one bit, and is considered to represent `1` if it is any other
+value than exactly zero.
 
-Like `vec!`, `bitvec!` supports bit lists `[0, 1, …]` and repetition markers
+`bits!` can be invoked with no specifiers, a `BitOrder` specifier, or a
+`BitOrder` and a `BitStore` specifier. It cannot be invoked with a `BitStore`
+specifier but no `BitOrder` specifier, due to overlap in how those tokens are
+matched by the macro system.
+
+Like `vec!`, `bits!` supports bit lists `[0, 1, …]` and repetition markers
 `[1; n]`.
-
-# Notes
-
-The bit list syntax `bitvec![expr, expr, expr...]` currently produces an
-`&amp;[bool]` slice of the initial pattern, which is written into the final
-artifact’s static memory and may consume excessive space.
-
-The repetition syntax `bitec![expr; count]` currently zeros its allocated buffer
-before setting the first `count` bits to `expr`. This may result in a
-performance penalty when using `bitvec![1; N]`, as the allocation will be zeroed
-and then a subset will be set high.
-
-This behavior is currently required to maintain compatibility with `serde`
-expectations that dead bits are zero. As the `serdes` module removes those
-expectations, the repetition syntax implementation may speed up.
 
 # Examples
 
 ```rust
 use bitvec::prelude::*;
 
-bitvec![BigEndian, u8; 0, 1];
-bitvec![LittleEndian, u8; 0, 1,];
-bitvec![BigEndian; 0, 1];
-bitvec![LittleEndian; 0, 1,];
+bits![Msb0, u8; 0, 1];
+bits![Lsb0, u8; 0, 1,];
+bits![Msb0; 0, 1];
+bits![Lsb0; 0, 1,];
+bits![0, 1];
+bits![0, 1,];
+bits![0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0];
+bits![Msb0, u8; 1; 5];
+bits![Lsb0; 0; 5];
+bits![1; 5];
+bits![Local; 0, 1,];
+```
+**/</span>
+<span class="attribute">#[<span class="ident">macro_export</span>]</span>
+<span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">bits</span> {
+	<span class="comment">//  Sequence syntax `[bit (, bit)*]` or `[(bit ,)*]`</span>
+
+	<span class="comment">//  Explicit order and store.</span>
+	(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">order</span>:<span class="ident">ident</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">store</span>:<span class="ident">ident</span>; $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span>),<span class="op">*</span> $(,)<span class="question-mark">?</span>) <span class="op">=</span><span class="op">&gt;</span> {{
+		<span class="kw">static</span> <span class="ident">DATA</span>: <span class="kw-2">&amp;</span>[<span class="macro-nonterminal">$</span><span class="macro-nonterminal">store</span>] <span class="op">=</span> <span class="kw-2">&amp;</span><span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">__bits_store_array</span><span class="op">!</span>(
+			<span class="macro-nonterminal">$</span><span class="macro-nonterminal">order</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">store</span>; $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>),<span class="op">*</span>
+		);
+		<span class="kw-2">&amp;</span><span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">__bits_from_slice</span><span class="op">!</span>(
+			<span class="macro-nonterminal">$</span><span class="macro-nonterminal">order</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">store</span>, <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">__count</span><span class="op">!</span>($(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>),<span class="kw-2">*</span>), <span class="ident">DATA</span>
+		)
+	}};
+	<span class="comment">/* Duplicate arms, differing in `$order:ident` and `$order:path`, force the
+	matcher to wrap a `:path`, which is `[:tt]`, as a single opaque `:tt` for
+	propagation through the macro call. Since the literal `$order` values will
+	match as `:ident`, not `:path`, this will only enter for orderings that the
+	rest of the macros would not be able to inspect and special-case *anyway*.
+	*/</span>
+	(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">order</span>:<span class="ident">path</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">store</span>:<span class="ident">ident</span>; $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span>),<span class="op">*</span> $(,)<span class="question-mark">?</span>) <span class="op">=</span><span class="op">&gt;</span> {{
+		<span class="kw">static</span> <span class="ident">DATA</span>: <span class="kw-2">&amp;</span>[<span class="macro-nonterminal">$</span><span class="macro-nonterminal">store</span>] <span class="op">=</span> <span class="kw-2">&amp;</span><span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">__bits_store_array</span><span class="op">!</span>(
+			<span class="macro-nonterminal">$</span><span class="macro-nonterminal">order</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">store</span>; $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>),<span class="op">*</span>
+		);
+		<span class="kw-2">&amp;</span><span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">__bits_from_slice</span><span class="op">!</span>(
+			<span class="macro-nonterminal">$</span><span class="macro-nonterminal">order</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">store</span>, <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">__count</span><span class="op">!</span>($(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>),<span class="kw-2">*</span>), <span class="ident">DATA</span>
+		)
+	}};
+
+	<span class="comment">//  Explicit order, default store.</span>
+	(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">order</span>:<span class="ident">ident</span>; $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span>),<span class="op">*</span> $(,)<span class="question-mark">?</span>) <span class="op">=</span><span class="op">&gt;</span> {
+		<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">bits</span><span class="op">!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">order</span>, <span class="ident">usize</span>; $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>),<span class="kw-2">*</span>)
+	};
+	(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">order</span>:<span class="ident">path</span>; $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span>),<span class="op">*</span> $(,)<span class="question-mark">?</span>) <span class="op">=</span><span class="op">&gt;</span> {
+		<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">bits</span><span class="op">!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">order</span>, <span class="ident">usize</span>; $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>),<span class="kw-2">*</span>)
+	};
+
+	<span class="comment">//  Default order and store.</span>
+	($(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span>),<span class="op">*</span> $(,)<span class="question-mark">?</span>) <span class="op">=</span><span class="op">&gt;</span> {
+		<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">bits</span><span class="op">!</span>(<span class="ident">Local</span>, <span class="ident">usize</span>; $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>),<span class="kw-2">*</span>)
+	};
+
+	<span class="comment">//  Repetition syntax `[bit ; count]`</span>
+	<span class="comment">//  NOTE: `count` must be `const`, as this is a non-allocating macro.</span>
+
+	<span class="comment">//  Explicit order and store.</span>
+	(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">order</span>:<span class="ident">ident</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">store</span>:<span class="ident">ident</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">len</span>:<span class="ident">expr</span>) <span class="op">=</span><span class="op">&gt;</span> {{
+		<span class="kw">static</span> <span class="ident">DATA</span>: <span class="kw-2">&amp;</span>[<span class="macro-nonterminal">$</span><span class="macro-nonterminal">store</span>] <span class="op">=</span> <span class="kw-2">&amp;</span>[
+			<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">__extend_bool</span><span class="op">!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">store</span>);
+			<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">store</span>::<span class="ident">elts</span>::<span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">store</span><span class="op">&gt;</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">len</span>)
+		];
+		<span class="kw-2">&amp;</span><span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">__bits_from_slice</span><span class="op">!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">order</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">store</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">len</span>, <span class="ident">DATA</span>)
+	}};
+	(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">order</span>:<span class="ident">path</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">store</span>:<span class="ident">ident</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">len</span>:<span class="ident">expr</span>) <span class="op">=</span><span class="op">&gt;</span> {{
+		<span class="kw">static</span> <span class="ident">DATA</span>: <span class="kw-2">&amp;</span>[<span class="macro-nonterminal">$</span><span class="macro-nonterminal">store</span>] <span class="op">=</span> <span class="kw-2">&amp;</span>[
+			<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">__extend_bool</span><span class="op">!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">store</span>);
+			<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">store</span>::<span class="ident">elts</span>::<span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">store</span><span class="op">&gt;</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">len</span>)
+		];
+		<span class="kw-2">&amp;</span><span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">__bits_from_slice</span><span class="op">!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">order</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">store</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">len</span>, <span class="ident">DATA</span>)
+	}};
+
+	<span class="comment">//  Explicit order, default store.</span>
+	(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">order</span>:<span class="ident">ident</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">len</span>:<span class="ident">expr</span>) <span class="op">=</span><span class="op">&gt;</span> {
+		<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">bits</span><span class="op">!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">order</span>, <span class="ident">usize</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">len</span>)
+	};
+	(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">order</span>:<span class="ident">path</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">len</span>:<span class="ident">expr</span>) <span class="op">=</span><span class="op">&gt;</span> {
+		<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">bits</span><span class="op">!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">order</span>, <span class="ident">usize</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">len</span>)
+	};
+
+	<span class="comment">//  Default order and store.</span>
+	(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">len</span>:<span class="ident">expr</span>) <span class="op">=</span><span class="op">&gt;</span> {
+		<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">bits</span><span class="op">!</span>(<span class="ident">Local</span>, <span class="ident">usize</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">len</span>)
+	};
+}
+
+<span class="doccomment">/** Construct a `BitVec` out of a literal array in source code, like `vec!`.
+
+`bitvec!` can be invoked in a number of ways. It takes the name of a `BitOrder`
+implementation, the name of a `BitStore`-implementing fundamental, and zero or
+more fundamentals (integer, floating-point, or boolean) which are used to build
+the bits. Each fundamental literal corresponds to one bit, and is considered to
+represent `1` if it is any other value than exactly zero.
+
+`bitvec!` can be invoked with no specifiers, a `BitOrder` specifier, or a
+`BitOrder` and a `BitStore` specifier. It cannot be invoked with a `BitStore`
+specifier but no `BitOrder` specifier, due to overlap in how those tokens are
+matched by the macro system.
+
+Like `vec!`, `bitvec!` supports bit lists `[0, 1, …]` and repetition markers
+`[1; n]`.
+
+# Examples
+
+```rust
+use bitvec::prelude::*;
+
+bitvec![Msb0, u8; 0, 1];
+bitvec![Lsb0, u8; 0, 1,];
+bitvec![Msb0; 0, 1];
+bitvec![Lsb0; 0, 1,];
 bitvec![0, 1];
 bitvec![0, 1,];
-bitvec![BigEndian, u8; 1; 5];
-bitvec![LittleEndian; 0; 5];
+bitvec![Msb0, u8; 1; 5];
+bitvec![Lsb0; 0; 5];
 bitvec![1; 5];
 ```
 **/</span>
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;alloc&quot;</span>)]</span>
 <span class="attribute">#[<span class="ident">macro_export</span>]</span>
 <span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">bitvec</span> {
-	<span class="comment">//  bitvec![ endian , type ; 0 , 1 , … ]</span>
-	( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span>:<span class="ident">path</span> , <span class="macro-nonterminal">$</span><span class="macro-nonterminal">bits</span>:<span class="ident">ty</span> ; $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span> ),<span class="op">*</span> ) <span class="op">=</span><span class="op">&gt;</span> {
-		<span class="macro">bitvec</span><span class="macro">!</span>[ <span class="ident">__bv_impl__</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span> , <span class="macro-nonterminal">$</span><span class="macro-nonterminal">bits</span> ; $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span> ),<span class="op">*</span> ]
+	<span class="comment">//  First, capture the repetition syntax, as it is permitted to use runtime</span>
+	<span class="comment">//  values for the repetition count.</span>
+	(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">order</span>:<span class="ident">ty</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">store</span>:<span class="ident">ident</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">rep</span>:<span class="ident">expr</span>) <span class="op">=</span><span class="op">&gt;</span> {
+		<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">vec</span>::<span class="ident">BitVec</span>::<span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">order</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">store</span><span class="op">&gt;</span>::<span class="ident">repeat</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">rep</span>)
 	};
-	<span class="comment">//  bitvec![ endian , type ; 0 , 1 , … , ]</span>
-	( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span>:<span class="ident">path</span> , <span class="macro-nonterminal">$</span><span class="macro-nonterminal">bits</span>:<span class="ident">ty</span> ; $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span> , )<span class="op">*</span> ) <span class="op">=</span><span class="op">&gt;</span> {
-		<span class="macro">bitvec</span><span class="macro">!</span>[ <span class="ident">__bv_impl__</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span> , <span class="macro-nonterminal">$</span><span class="macro-nonterminal">bits</span> ; $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span> ),<span class="op">*</span> ]
+	(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">order</span>:<span class="ident">ty</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">rep</span>:<span class="ident">expr</span>) <span class="op">=</span><span class="op">&gt;</span> {
+		<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">bitvec</span><span class="op">!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">order</span>, <span class="ident">usize</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">rep</span>)
 	};
-
-	<span class="comment">//  bitvec![ endian ; 0 , 1 , … ]</span>
-	( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span>:<span class="ident">path</span> ; $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span> ),<span class="op">*</span> ) <span class="op">=</span><span class="op">&gt;</span> {
-		<span class="macro">bitvec</span><span class="macro">!</span>[ <span class="ident">__bv_impl__</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span> , <span class="ident">u8</span> ; $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span> ),<span class="op">*</span> ]
-	};
-	<span class="comment">//  bitvec![ endian ; 0 , 1 , … , ]</span>
-	( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span>:<span class="ident">path</span> ; $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span> , )<span class="op">*</span> ) <span class="op">=</span><span class="op">&gt;</span> {
-		<span class="macro">bitvec</span><span class="macro">!</span>[ <span class="ident">__bv_impl__</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span> , <span class="ident">u8</span> ; $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span> ),<span class="op">*</span> ]
+	(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">rep</span>:<span class="ident">expr</span>) <span class="op">=</span><span class="op">&gt;</span> {
+		<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">bitvec</span><span class="op">!</span>(<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">order</span>::<span class="ident">Local</span>, <span class="ident">usize</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">rep</span>)
 	};
 
-	<span class="comment">//  bitvec![ 0 , 1 , … ]</span>
-	( $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span> ),<span class="op">*</span> ) <span class="op">=</span><span class="op">&gt;</span> {
-		<span class="macro">bitvec</span><span class="macro">!</span>[ <span class="ident">__bv_impl__</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">prelude</span>::<span class="ident">BigEndian</span> , <span class="ident">u8</span> ; $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span> ),<span class="op">*</span> ]
-	};
-	<span class="comment">//  bitvec![ 0 , 1 , … , ]</span>
-	( $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span> , )<span class="op">*</span> ) <span class="op">=</span><span class="op">&gt;</span> {
-		<span class="macro">bitvec</span><span class="macro">!</span>[ <span class="ident">__bv_impl__</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">prelude</span>::<span class="ident">BigEndian</span> , <span class="ident">u8</span> ; $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span> ),<span class="op">*</span> ]
-	};
-
-	<span class="comment">//  bitvec![ endian , type ; bit ; rep ]</span>
-	( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span>:<span class="ident">path</span> , <span class="macro-nonterminal">$</span><span class="macro-nonterminal">bits</span>:<span class="ident">ty</span> ; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span> ; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">rep</span>:<span class="ident">expr</span> ) <span class="op">=</span><span class="op">&gt;</span> {
-		<span class="macro">bitvec</span><span class="macro">!</span>[ <span class="ident">__bv_impl__</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span> , <span class="macro-nonterminal">$</span><span class="macro-nonterminal">bits</span> ; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">rep</span> ]
-	};
-	<span class="comment">//  bitvec![ endian ; bit ; rep ]</span>
-	( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span>:<span class="ident">path</span> ; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span> ; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">rep</span>:<span class="ident">expr</span> ) <span class="op">=</span><span class="op">&gt;</span> {
-		<span class="macro">bitvec</span><span class="macro">!</span>[ <span class="ident">__bv_impl__</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span> , <span class="ident">u8</span> ; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span> ; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">rep</span> ]
-	};
-	<span class="comment">//  bitvec![ bit ; rep ]</span>
-	( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span> ; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">rep</span>:<span class="ident">expr</span> ) <span class="op">=</span><span class="op">&gt;</span> {
-		<span class="macro">bitvec</span><span class="macro">!</span>[ <span class="ident">__bv_impl__</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">prelude</span>::<span class="ident">BigEndian</span> , <span class="ident">u8</span> ; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span> ; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">rep</span> ]
-	};
-
-	<span class="comment">//  GitHub issue #25 is to make this into a proc-macro that produces the</span>
-	<span class="comment">//  correct memory slab at compile time.</span>
-
-	( <span class="ident">__bv_impl__</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span>:<span class="ident">path</span> , <span class="macro-nonterminal">$</span><span class="macro-nonterminal">bits</span>:<span class="ident">ty</span> ; $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span> ),<span class="op">*</span> ) <span class="op">=</span><span class="op">&gt;</span> {{
-		<span class="kw">let</span> <span class="ident">init</span>: <span class="kw-2">&amp;</span>[<span class="ident">bool</span>] <span class="op">=</span> <span class="kw-2">&amp;</span>[ $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span> ),<span class="op">*</span> ];
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bv</span> <span class="op">=</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">vec</span>::<span class="ident">BitVec</span>::<span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">bits</span><span class="op">&gt;</span>::<span class="ident">with_capacity</span>(
-			<span class="ident">init</span>.<span class="ident">len</span>(),
-		);
-		<span class="ident">bv</span>.<span class="ident">extend</span>(<span class="ident">init</span>.<span class="ident">iter</span>().<span class="ident">copied</span>());
-		<span class="ident">bv</span>
-	}};
-
-	<span class="comment">//  `[$val; $rep]` can just allocate a slab of at least `$rep` bits and then</span>
-	<span class="comment">//  use `.set_all` to force them to `$val`. This is much faster than</span>
-	<span class="comment">//  collecting from a bitstream.</span>
-
-	( <span class="ident">__bv_impl__</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span>:<span class="ident">path</span> , <span class="macro-nonterminal">$</span><span class="macro-nonterminal">bits</span>:<span class="ident">ty</span> ; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span> ; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">rep</span>:<span class="ident">expr</span> ) <span class="op">=</span><span class="op">&gt;</span> {{
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bv</span> <span class="op">=</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">vec</span>::<span class="ident">BitVec</span>::<span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">bits</span><span class="op">&gt;</span>::<span class="ident">with_capacity</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">rep</span>);
-		<span class="ident">bv</span>.<span class="ident">set_elements</span>(<span class="number">0</span>);
-		<span class="kw">unsafe</span> { <span class="ident">bv</span>.<span class="ident">set_len</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">rep</span>); }
-		<span class="kw">let</span> <span class="ident">one</span> <span class="op">=</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span>;
-		<span class="kw">if</span> <span class="ident">one</span> {
-			<span class="ident">bv</span>.<span class="ident">set_all</span>(<span class="ident">one</span>);
-		}
-		<span class="ident">bv</span>
+	<span class="comment">//  Delegate all others to the `bits!` macro.</span>
+	($(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>:<span class="ident">tt</span>)<span class="kw-2">*</span>) <span class="op">=</span><span class="op">&gt;</span> {{
+		<span class="kw">let</span> <span class="ident">bits</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">slice</span>::<span class="ident">BitSlice</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">bits</span><span class="op">!</span>($(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>)<span class="kw-2">*</span>);
+		<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">vec</span>::<span class="ident">BitVec</span>::<span class="ident">from_bitslice</span>(<span class="ident">bits</span>)
 	}};
 }
 
@@ -464,188 +503,131 @@ freeze it.
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;alloc&quot;</span>)]</span>
 <span class="attribute">#[<span class="ident">macro_export</span>]</span>
 <span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">bitbox</span> {
-	<span class="comment">//  bitbox![ endian , type ; 0 , 1 , … ]</span>
-	( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span>:<span class="ident">path</span> , <span class="macro-nonterminal">$</span><span class="macro-nonterminal">bits</span>:<span class="ident">ty</span> ; $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span> ),<span class="op">*</span> ) <span class="op">=</span><span class="op">&gt;</span> {
-		<span class="macro">bitvec</span><span class="macro">!</span>[ <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span> , <span class="macro-nonterminal">$</span><span class="macro-nonterminal">bits</span> ; $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span> ),<span class="op">*</span> ].<span class="ident">into_boxed_bitslice</span>()
-	};
-	<span class="comment">//  bitbox![ endian , type ; 0 , 1 , … , ]</span>
-	( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span>:<span class="ident">path</span> , <span class="macro-nonterminal">$</span><span class="macro-nonterminal">bits</span>:<span class="ident">ty</span> ; $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span> , )<span class="op">*</span> ) <span class="op">=</span><span class="op">&gt;</span> {
-		<span class="macro">bitvec</span><span class="macro">!</span>[ <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span> , <span class="macro-nonterminal">$</span><span class="macro-nonterminal">bits</span> ; $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span> ),<span class="op">*</span> ].<span class="ident">into_boxed_bitslice</span>()
-	};
-
-	<span class="comment">//  bitbox![ endian ; 0 , 1 , … ]</span>
-	( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span>:<span class="ident">path</span> ; $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span> ),<span class="op">*</span> ) <span class="op">=</span><span class="op">&gt;</span> {
-		<span class="macro">bitvec</span><span class="macro">!</span>[ <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span> , <span class="ident">u8</span> ; $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span> ),<span class="op">*</span> ].<span class="ident">into_boxed_bitslice</span>()
-	};
-	<span class="comment">//  bitbox![ endian ; 0 , 1 , … , ]</span>
-	( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span>:<span class="ident">path</span> ; $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span> , )<span class="op">*</span> ) <span class="op">=</span><span class="op">&gt;</span> {
-		<span class="macro">bitvec</span><span class="macro">!</span>[ <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span> , <span class="ident">u8</span> ; $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span> ),<span class="op">*</span> ].<span class="ident">into_boxed_bitslice</span>()
-	};
-
-	<span class="comment">//  bitbox![ 0 , 1 , … ]</span>
-	( $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span> ),<span class="op">*</span> ) <span class="op">=</span><span class="op">&gt;</span> {
-		<span class="macro">bitvec</span><span class="macro">!</span>[ <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">prelude</span>::<span class="ident">BigEndian</span> , <span class="ident">u8</span> ; $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span> ),<span class="op">*</span> ].<span class="ident">into_boxed_bitslice</span>()
-	};
-	<span class="comment">//  bitbox![ 0 , 1 , … , ]</span>
-	( $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span> , )<span class="op">*</span> ) <span class="op">=</span><span class="op">&gt;</span> {
-		<span class="macro">bitvec</span><span class="macro">!</span>[ <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">prelude</span>::<span class="ident">BigEndian</span> , <span class="ident">u8</span> ; $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span> ),<span class="op">*</span> ].<span class="ident">into_boxed_bitslice</span>()
-	};
-
-	<span class="comment">//  bitbox![ endian , type ; bit ; rep ]</span>
-	( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span>:<span class="ident">path</span> , <span class="macro-nonterminal">$</span><span class="macro-nonterminal">bits</span>:<span class="ident">ty</span> ; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span> ; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">rep</span>:<span class="ident">expr</span> ) <span class="op">=</span><span class="op">&gt;</span> {
-		<span class="macro">bitvec</span><span class="macro">!</span>[ <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span> , <span class="macro-nonterminal">$</span><span class="macro-nonterminal">bits</span> ; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">rep</span> ].<span class="ident">into_boxed_bitslice</span>()
-	};
-	<span class="comment">//  bitbox![ endian ; bit ; rep ]</span>
-	( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span>:<span class="ident">path</span> ; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span> ; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">rep</span>:<span class="ident">expr</span> ) <span class="op">=</span><span class="op">&gt;</span> {
-		<span class="macro">bitvec</span><span class="macro">!</span>[ <span class="macro-nonterminal">$</span><span class="macro-nonterminal">cursor</span> , <span class="ident">u8</span> ; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span> ; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">rep</span> ].<span class="ident">into_boxed_bitslice</span>()
-	};
-	<span class="comment">//  bitbox![ bit ; rep ]</span>
-	( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span>:<span class="ident">expr</span> ; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">rep</span>:<span class="ident">expr</span> ) <span class="op">=</span><span class="op">&gt;</span> {
-		<span class="macro">bitvec</span><span class="macro">!</span>[ <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">prelude</span>::<span class="ident">BigEndian</span> , <span class="ident">u8</span> ; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">val</span> ; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">rep</span> ].<span class="ident">into_boxed_bitslice</span>()
+	($(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>:<span class="ident">tt</span>)<span class="kw-2">*</span>) <span class="op">=</span><span class="op">&gt;</span> {
+		<span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">bitvec</span><span class="op">!</span>[$(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>)<span class="kw-2">*</span>].<span class="ident">into_boxed_bitslice</span>()
 	};
 }
 
-<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
-<span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">__bitslice_shift</span> {
-	( $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span>:<span class="ident">ty</span> ),<span class="op">+</span> ) <span class="op">=</span><span class="op">&gt;</span> { $(
-		<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
-		<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">T</span> <span class="op">&gt;</span><span class="ident">core</span>::<span class="ident">ops</span>::<span class="ident">ShlAssign</span><span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span><span class="op">&gt;</span>
-		<span class="kw">for</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">prelude</span>::<span class="ident">BitSlice</span><span class="op">&lt;</span><span class="ident">C</span>,<span class="ident">T</span><span class="op">&gt;</span>
-		<span class="kw">where</span> <span class="ident">C</span>: <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">cursor</span>::<span class="ident">Cursor</span>, <span class="ident">T</span>: <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">store</span>::<span class="ident">BitStore</span> {
-			<span class="kw">fn</span> <span class="ident">shl_assign</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">shamt</span>: <span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span>) {
-				<span class="ident">core</span>::<span class="ident">ops</span>::<span class="ident">ShlAssign</span>::<span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>::<span class="ident">shl_assign</span>(
-					<span class="self">self</span>,
-					<span class="ident">shamt</span> <span class="kw">as</span> <span class="ident">usize</span>,
-				)
-			}
-		}
-
-		<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
-		<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">T</span><span class="op">&gt;</span> <span class="ident">core</span>::<span class="ident">ops</span>::<span class="ident">ShrAssign</span><span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span><span class="op">&gt;</span>
-		<span class="kw">for</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">prelude</span>::<span class="ident">BitSlice</span><span class="op">&lt;</span><span class="ident">C</span>,<span class="ident">T</span><span class="op">&gt;</span>
-		<span class="kw">where</span> <span class="ident">C</span>: <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">cursor</span>::<span class="ident">Cursor</span>, <span class="ident">T</span>: <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">store</span>::<span class="ident">BitStore</span> {
-			<span class="kw">fn</span> <span class="ident">shr_assign</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,<span class="ident">shamt</span>: <span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span>){
-				<span class="ident">core</span>::<span class="ident">ops</span>::<span class="ident">ShrAssign</span>::<span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>::<span class="ident">shr_assign</span>(
-					<span class="self">self</span>,
-					<span class="ident">shamt</span> <span class="kw">as</span> <span class="ident">usize</span>,
-				)
-			}
-		}
-	)<span class="op">+</span> };
-}
-
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;alloc&quot;</span>)]</span>
-<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
-<span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">__bitvec_shift</span> {
-	( $( <span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span>:<span class="ident">ty</span> ),<span class="op">+</span> ) <span class="op">=</span><span class="op">&gt;</span> { $(
-		<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
-		<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">T</span><span class="op">&gt;</span> <span class="ident">core</span>::<span class="ident">ops</span>::<span class="ident">Shl</span><span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span><span class="op">&gt;</span>
-		<span class="kw">for</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">vec</span>::<span class="ident">BitVec</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">T</span><span class="op">&gt;</span>
-		<span class="kw">where</span> <span class="ident">C</span>: <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">cursor</span>::<span class="ident">Cursor</span>, <span class="ident">T</span>: <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">store</span>::<span class="ident">BitStore</span> {
-			<span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="ident">core</span>::<span class="ident">ops</span>::<span class="ident">Shl</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">Output</span>;
-
-			<span class="kw">fn</span> <span class="ident">shl</span>(<span class="self">self</span>, <span class="ident">shamt</span>: <span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>::<span class="ident">Output</span> {
-				<span class="ident">core</span>::<span class="ident">ops</span>::<span class="ident">Shl</span>::<span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>::<span class="ident">shl</span>(<span class="self">self</span>, <span class="ident">shamt</span> <span class="kw">as</span> <span class="ident">usize</span>)
-			}
-		}
-
-		<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
-		<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">T</span><span class="op">&gt;</span> <span class="ident">core</span>::<span class="ident">ops</span>::<span class="ident">ShlAssign</span><span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span><span class="op">&gt;</span>
-		<span class="kw">for</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">vec</span>::<span class="ident">BitVec</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">T</span><span class="op">&gt;</span>
-		<span class="kw">where</span> <span class="ident">C</span>: <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">cursor</span>::<span class="ident">Cursor</span>, <span class="ident">T</span>: <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">store</span>::<span class="ident">BitStore</span> {
-			<span class="kw">fn</span> <span class="ident">shl_assign</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">shamt</span>: <span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span>) {
-				<span class="ident">core</span>::<span class="ident">ops</span>::<span class="ident">ShlAssign</span>::<span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>::<span class="ident">shl_assign</span>(
-					<span class="self">self</span>,
-					<span class="ident">shamt</span> <span class="kw">as</span> <span class="ident">usize</span>,
-				)
-			}
-		}
-
-		<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
-		<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">T</span><span class="op">&gt;</span> <span class="ident">core</span>::<span class="ident">ops</span>::<span class="ident">Shr</span><span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span><span class="op">&gt;</span>
-		<span class="kw">for</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">vec</span>::<span class="ident">BitVec</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">T</span><span class="op">&gt;</span>
-		<span class="kw">where</span> <span class="ident">C</span>: <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">cursor</span>::<span class="ident">Cursor</span>, <span class="ident">T</span>: <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">store</span>::<span class="ident">BitStore</span> {
-			<span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="ident">core</span>::<span class="ident">ops</span>::<span class="ident">Shr</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">Output</span>;
-
-			<span class="kw">fn</span> <span class="ident">shr</span>(<span class="self">self</span>, <span class="ident">shamt</span>: <span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>::<span class="ident">Output</span> {
-				<span class="ident">core</span>::<span class="ident">ops</span>::<span class="ident">Shr</span>::<span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>::<span class="ident">shr</span>(<span class="self">self</span>, <span class="ident">shamt</span> <span class="kw">as</span> <span class="ident">usize</span>)
-			}
-		}
-
-		<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
-		<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">T</span><span class="op">&gt;</span> <span class="ident">core</span>::<span class="ident">ops</span>::<span class="ident">ShrAssign</span><span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span><span class="op">&gt;</span>
-		<span class="kw">for</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">vec</span>::<span class="ident">BitVec</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">T</span><span class="op">&gt;</span>
-		<span class="kw">where</span> <span class="ident">C</span>: <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">cursor</span>::<span class="ident">Cursor</span>, <span class="ident">T</span>: <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">store</span>::<span class="ident">BitStore</span> {
-			<span class="kw">fn</span> <span class="ident">shr_assign</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">shamt</span>: <span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span>) {
-				<span class="ident">core</span>::<span class="ident">ops</span>::<span class="ident">ShrAssign</span>::<span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>::<span class="ident">shr_assign</span>(
-					<span class="self">self</span>,
-					<span class="ident">shamt</span> <span class="kw">as</span> <span class="ident">usize</span>,
-				)
-			}
-		}
-	)<span class="op">+</span> };
-}
-
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">all</span>(<span class="ident">test</span>, <span class="ident">any</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;alloc&quot;</span>, <span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>)))]</span>
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span> {
 	<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_imports</span>)]</span>
-	<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">cursor</span>::{
-		<span class="ident">BigEndian</span>,
-		<span class="ident">LittleEndian</span>,
+	<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">order</span>::{
+		<span class="ident">Msb0</span>,
+		<span class="ident">Lsb0</span>,
 	};
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
-	<span class="kw">fn</span> <span class="ident">compile_bitvec_macros</span>() {
-		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="number">0</span>, <span class="number">1</span>];
-		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">BigEndian</span>; <span class="number">0</span>, <span class="number">1</span>];
-		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">LittleEndian</span>; <span class="number">0</span>, <span class="number">1</span>];
-		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">BigEndian</span>, <span class="ident">u8</span>; <span class="number">0</span>, <span class="number">1</span>];
-		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">LittleEndian</span>, <span class="ident">u8</span>; <span class="number">0</span>, <span class="number">1</span>];
-		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">BigEndian</span>, <span class="ident">u16</span>; <span class="number">0</span>, <span class="number">1</span>];
-		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">LittleEndian</span>, <span class="ident">u16</span>; <span class="number">0</span>, <span class="number">1</span>];
-		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">BigEndian</span>, <span class="ident">u32</span>; <span class="number">0</span>, <span class="number">1</span>];
-		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">LittleEndian</span>, <span class="ident">u32</span>; <span class="number">0</span>, <span class="number">1</span>];
-		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">BigEndian</span>, <span class="ident">u64</span>; <span class="number">0</span>, <span class="number">1</span>];
-		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">LittleEndian</span>, <span class="ident">u64</span>; <span class="number">0</span>, <span class="number">1</span>];
+	<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;alloc&quot;</span>)]</span>
+	<span class="kw">fn</span> <span class="ident">compile_bits_macros</span>() {
+		<span class="macro">bits</span><span class="macro">!</span>[<span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bits</span><span class="macro">!</span>[<span class="ident">Msb0</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bits</span><span class="macro">!</span>[<span class="ident">Lsb0</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bits</span><span class="macro">!</span>[<span class="ident">Msb0</span>, <span class="ident">u8</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bits</span><span class="macro">!</span>[<span class="ident">Lsb0</span>, <span class="ident">u8</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bits</span><span class="macro">!</span>[<span class="ident">Msb0</span>, <span class="ident">u16</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bits</span><span class="macro">!</span>[<span class="ident">Lsb0</span>, <span class="ident">u16</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bits</span><span class="macro">!</span>[<span class="ident">Msb0</span>, <span class="ident">u32</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bits</span><span class="macro">!</span>[<span class="ident">Lsb0</span>, <span class="ident">u32</span>; <span class="number">0</span>, <span class="number">1</span>];
 
-		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="number">1</span>; <span class="number">70</span>];
-		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">BigEndian</span>; <span class="number">0</span>; <span class="number">70</span>];
-		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">LittleEndian</span>; <span class="number">1</span>; <span class="number">70</span>];
-		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">BigEndian</span>, <span class="ident">u8</span>; <span class="number">0</span>; <span class="number">70</span>];
-		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">LittleEndian</span>, <span class="ident">u8</span>; <span class="number">1</span>; <span class="number">70</span>];
-		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">BigEndian</span>, <span class="ident">u16</span>; <span class="number">0</span>; <span class="number">70</span>];
-		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">LittleEndian</span>, <span class="ident">u16</span>; <span class="number">1</span>; <span class="number">70</span>];
-		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">BigEndian</span>, <span class="ident">u32</span>; <span class="number">0</span>; <span class="number">70</span>];
-		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">LittleEndian</span>, <span class="ident">u32</span>; <span class="number">1</span>; <span class="number">70</span>];
-		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">BigEndian</span>, <span class="ident">u64</span>; <span class="number">0</span>; <span class="number">70</span>];
-		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">LittleEndian</span>, <span class="ident">u64</span>; <span class="number">1</span>; <span class="number">70</span>];
+		<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">target_pointer_width</span> <span class="op">=</span> <span class="string">&quot;64&quot;</span>)]</span> {
+
+		<span class="macro">bits</span><span class="macro">!</span>[<span class="ident">Msb0</span>, <span class="ident">u64</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bits</span><span class="macro">!</span>[<span class="ident">Lsb0</span>, <span class="ident">u64</span>; <span class="number">0</span>, <span class="number">1</span>];
+
+		}
+
+		<span class="macro">bits</span><span class="macro">!</span>[<span class="number">1</span>; <span class="number">70</span>];
+		<span class="macro">bits</span><span class="macro">!</span>[<span class="ident">Msb0</span>; <span class="number">0</span>; <span class="number">70</span>];
+		<span class="macro">bits</span><span class="macro">!</span>[<span class="ident">Lsb0</span>; <span class="number">1</span>; <span class="number">70</span>];
+		<span class="macro">bits</span><span class="macro">!</span>[<span class="ident">Msb0</span>, <span class="ident">u8</span>; <span class="number">0</span>; <span class="number">70</span>];
+		<span class="macro">bits</span><span class="macro">!</span>[<span class="ident">Lsb0</span>, <span class="ident">u8</span>; <span class="number">1</span>; <span class="number">70</span>];
+		<span class="macro">bits</span><span class="macro">!</span>[<span class="ident">Msb0</span>, <span class="ident">u16</span>; <span class="number">0</span>; <span class="number">70</span>];
+		<span class="macro">bits</span><span class="macro">!</span>[<span class="ident">Lsb0</span>, <span class="ident">u16</span>; <span class="number">1</span>; <span class="number">70</span>];
+		<span class="macro">bits</span><span class="macro">!</span>[<span class="ident">Msb0</span>, <span class="ident">u32</span>; <span class="number">0</span>; <span class="number">70</span>];
+		<span class="macro">bits</span><span class="macro">!</span>[<span class="ident">Lsb0</span>, <span class="ident">u32</span>; <span class="number">1</span>; <span class="number">70</span>];
+
+		<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">target_pointer_width</span> <span class="op">=</span> <span class="string">&quot;64&quot;</span>)]</span> {
+
+		<span class="macro">bits</span><span class="macro">!</span>[<span class="ident">Msb0</span>, <span class="ident">u64</span>; <span class="number">0</span>; <span class="number">70</span>];
+		<span class="macro">bits</span><span class="macro">!</span>[<span class="ident">Lsb0</span>, <span class="ident">u64</span>; <span class="number">1</span>; <span class="number">70</span>];
+
+		}
 	}
 
 	<span class="attribute">#[<span class="ident">test</span>]</span>
+	<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;alloc&quot;</span>)]</span>
+	<span class="kw">fn</span> <span class="ident">compile_bitvec_macros</span>() {
+		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">Msb0</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">Lsb0</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">Msb0</span>, <span class="ident">u8</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">Lsb0</span>, <span class="ident">u8</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">Msb0</span>, <span class="ident">u16</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">Lsb0</span>, <span class="ident">u16</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">Msb0</span>, <span class="ident">u32</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">Lsb0</span>, <span class="ident">u32</span>; <span class="number">0</span>, <span class="number">1</span>];
+
+		<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">target_pointer_width</span> <span class="op">=</span> <span class="string">&quot;64&quot;</span>)]</span> {
+
+		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">Msb0</span>, <span class="ident">u64</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">Lsb0</span>, <span class="ident">u64</span>; <span class="number">0</span>, <span class="number">1</span>];
+
+		}
+
+		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="number">1</span>; <span class="number">70</span>];
+		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">Msb0</span>; <span class="number">0</span>; <span class="number">70</span>];
+		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">Lsb0</span>; <span class="number">1</span>; <span class="number">70</span>];
+		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">Msb0</span>, <span class="ident">u8</span>; <span class="number">0</span>; <span class="number">70</span>];
+		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">Lsb0</span>, <span class="ident">u8</span>; <span class="number">1</span>; <span class="number">70</span>];
+		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">Msb0</span>, <span class="ident">u16</span>; <span class="number">0</span>; <span class="number">70</span>];
+		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">Lsb0</span>, <span class="ident">u16</span>; <span class="number">1</span>; <span class="number">70</span>];
+		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">Msb0</span>, <span class="ident">u32</span>; <span class="number">0</span>; <span class="number">70</span>];
+		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">Lsb0</span>, <span class="ident">u32</span>; <span class="number">1</span>; <span class="number">70</span>];
+
+		<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">target_pointer_width</span> <span class="op">=</span> <span class="string">&quot;64&quot;</span>)]</span> {
+
+		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">Msb0</span>, <span class="ident">u64</span>; <span class="number">0</span>; <span class="number">70</span>];
+		<span class="macro">bitvec</span><span class="macro">!</span>[<span class="ident">Lsb0</span>, <span class="ident">u64</span>; <span class="number">1</span>; <span class="number">70</span>];
+
+		}
+	}
+
+	<span class="attribute">#[<span class="ident">test</span>]</span>
+	<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;alloc&quot;</span>)]</span>
 	<span class="kw">fn</span> <span class="ident">compile_bitbox_macros</span>() {
 		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="number">0</span>, <span class="number">1</span>];
-		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">BigEndian</span>; <span class="number">0</span>, <span class="number">1</span>];
-		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">LittleEndian</span>; <span class="number">0</span>, <span class="number">1</span>];
-		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">BigEndian</span>, <span class="ident">u8</span>; <span class="number">0</span>, <span class="number">1</span>];
-		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">LittleEndian</span>, <span class="ident">u8</span>; <span class="number">0</span>, <span class="number">1</span>];
-		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">BigEndian</span>, <span class="ident">u16</span>; <span class="number">0</span>, <span class="number">1</span>];
-		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">LittleEndian</span>, <span class="ident">u16</span>; <span class="number">0</span>, <span class="number">1</span>];
-		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">BigEndian</span>, <span class="ident">u32</span>; <span class="number">0</span>, <span class="number">1</span>];
-		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">LittleEndian</span>, <span class="ident">u32</span>; <span class="number">0</span>, <span class="number">1</span>];
-		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">BigEndian</span>, <span class="ident">u64</span>; <span class="number">0</span>, <span class="number">1</span>];
-		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">LittleEndian</span>, <span class="ident">u64</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">Msb0</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">Lsb0</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">Msb0</span>, <span class="ident">u8</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">Lsb0</span>, <span class="ident">u8</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">Msb0</span>, <span class="ident">u16</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">Lsb0</span>, <span class="ident">u16</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">Msb0</span>, <span class="ident">u32</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">Lsb0</span>, <span class="ident">u32</span>; <span class="number">0</span>, <span class="number">1</span>];
+
+		<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">target_pointer_width</span> <span class="op">=</span> <span class="string">&quot;64&quot;</span>)]</span> {
+
+		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">Msb0</span>, <span class="ident">u64</span>; <span class="number">0</span>, <span class="number">1</span>];
+		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">Lsb0</span>, <span class="ident">u64</span>; <span class="number">0</span>, <span class="number">1</span>];
+
+		}
 
 		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="number">1</span>; <span class="number">70</span>];
-		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">BigEndian</span>; <span class="number">0</span>; <span class="number">70</span>];
-		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">LittleEndian</span>; <span class="number">1</span>; <span class="number">70</span>];
-		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">BigEndian</span>, <span class="ident">u8</span>; <span class="number">0</span>; <span class="number">70</span>];
-		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">LittleEndian</span>, <span class="ident">u8</span>; <span class="number">1</span>; <span class="number">70</span>];
-		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">BigEndian</span>, <span class="ident">u16</span>; <span class="number">0</span>; <span class="number">70</span>];
-		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">LittleEndian</span>, <span class="ident">u16</span>; <span class="number">1</span>; <span class="number">70</span>];
-		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">BigEndian</span>, <span class="ident">u32</span>; <span class="number">0</span>; <span class="number">70</span>];
-		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">LittleEndian</span>, <span class="ident">u32</span>; <span class="number">1</span>; <span class="number">70</span>];
-		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">BigEndian</span>, <span class="ident">u64</span>; <span class="number">0</span>; <span class="number">70</span>];
-		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">LittleEndian</span>, <span class="ident">u64</span>; <span class="number">1</span>; <span class="number">70</span>];
+		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">Msb0</span>; <span class="number">0</span>; <span class="number">70</span>];
+		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">Lsb0</span>; <span class="number">1</span>; <span class="number">70</span>];
+		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">Msb0</span>, <span class="ident">u8</span>; <span class="number">0</span>; <span class="number">70</span>];
+		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">Lsb0</span>, <span class="ident">u8</span>; <span class="number">1</span>; <span class="number">70</span>];
+		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">Msb0</span>, <span class="ident">u16</span>; <span class="number">0</span>; <span class="number">70</span>];
+		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">Lsb0</span>, <span class="ident">u16</span>; <span class="number">1</span>; <span class="number">70</span>];
+		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">Msb0</span>, <span class="ident">u32</span>; <span class="number">0</span>; <span class="number">70</span>];
+		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">Lsb0</span>, <span class="ident">u32</span>; <span class="number">1</span>; <span class="number">70</span>];
+
+		<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">target_pointer_width</span> <span class="op">=</span> <span class="string">&quot;64&quot;</span>)]</span> {
+
+		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">Msb0</span>, <span class="ident">u64</span>; <span class="number">0</span>; <span class="number">70</span>];
+		<span class="macro">bitbox</span><span class="macro">!</span>[<span class="ident">Lsb0</span>, <span class="ident">u64</span>; <span class="number">1</span>; <span class="number">70</span>];
+
+		}
 	}
 }
 </pre></div>
