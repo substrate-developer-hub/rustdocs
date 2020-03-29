@@ -175,6 +175,7 @@ ALIASES["indexmap"] = {};
 ALIASES["inflector"] = {};
 ALIASES["integer_sqrt"] = {};
 ALIASES["interleaved_ordered"] = {};
+ALIASES["intervalier"] = {};
 ALIASES["iovec"] = {};
 ALIASES["ipnet"] = {};
 ALIASES["itertools"] = {};
