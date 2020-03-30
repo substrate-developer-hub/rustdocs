@@ -634,7 +634,6 @@
 <span id="623">623</span>
 <span id="624">624</span>
 <span id="625">625</span>
-<span id="626">626</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2019-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -802,12 +801,9 @@
 {
 	<span class="doccomment">/// Sends the handshake in order to inform the remote that we accept the substream.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">send_handshake</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">message</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>) {
-		<span class="kw">match</span> <span class="self">self</span>.<span class="ident">handshake</span> {
-			<span class="ident">NotificationsInSubstreamHandshake</span>::<span class="ident">NotSent</span> <span class="op">=</span><span class="op">&gt;</span> {}
-			<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> {
-				<span class="macro">error</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;Tried to send handshake twice&quot;</span>);
-				<span class="kw">return</span>;
-			}
+		<span class="kw">if</span> <span class="op">!</span><span class="macro">matches</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">handshake</span>, <span class="ident">NotificationsInSubstreamHandshake</span>::<span class="ident">NotSent</span>) {
+			<span class="macro">error</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;Tried to send handshake twice&quot;</span>);
+			<span class="kw">return</span>;
 		}
 
 		<span class="self">self</span>.<span class="ident">handshake</span> <span class="op">=</span> <span class="ident">NotificationsInSubstreamHandshake</span>::<span class="ident">PendingSend</span>(<span class="ident">message</span>.<span class="ident">into</span>());
@@ -827,8 +823,10 @@
 			<span class="kw">match</span> <span class="ident">mem</span>::<span class="ident">replace</span>(<span class="ident">this</span>.<span class="ident">handshake</span>, <span class="ident">NotificationsInSubstreamHandshake</span>::<span class="ident">Sent</span>) {
 				<span class="ident">NotificationsInSubstreamHandshake</span>::<span class="ident">Sent</span> <span class="op">=</span><span class="op">&gt;</span>
 					<span class="kw">return</span> <span class="ident">Stream</span>::<span class="ident">poll_next</span>(<span class="ident">this</span>.<span class="ident">socket</span>.<span class="ident">as_mut</span>(), <span class="ident">cx</span>),
-				<span class="ident">NotificationsInSubstreamHandshake</span>::<span class="ident">NotSent</span> <span class="op">=</span><span class="op">&gt;</span>
-					<span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Pending</span>,
+				<span class="ident">NotificationsInSubstreamHandshake</span>::<span class="ident">NotSent</span> <span class="op">=</span><span class="op">&gt;</span> {
+					<span class="kw-2">*</span><span class="ident">this</span>.<span class="ident">handshake</span> <span class="op">=</span> <span class="ident">NotificationsInSubstreamHandshake</span>::<span class="ident">NotSent</span>;
+					<span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Pending</span>
+				},
 				<span class="ident">NotificationsInSubstreamHandshake</span>::<span class="ident">PendingSend</span>(<span class="ident">msg</span>) <span class="op">=</span><span class="op">&gt;</span>
 					<span class="kw">match</span> <span class="ident">Sink</span>::<span class="ident">poll_ready</span>(<span class="ident">this</span>.<span class="ident">socket</span>.<span class="ident">as_mut</span>(), <span class="ident">cx</span>) {
 						<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {

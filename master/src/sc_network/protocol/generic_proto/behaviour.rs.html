@@ -1172,12 +1172,10 @@
 <span class="comment">// along with Substrate.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
 
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">DiscoveryNetBehaviour</span>, <span class="ident">config</span>::<span class="ident">ProtocolId</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">protocol</span>::<span class="ident">message</span>::<span class="ident">generic</span>::{<span class="ident">Message</span> <span class="kw">as</span> <span class="ident">GenericMessage</span>, <span class="ident">ConsensusMessage</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">protocol</span>::<span class="ident">generic_proto</span>::<span class="ident">handler</span>::{<span class="ident">NotifsHandlerProto</span>, <span class="ident">NotifsHandlerOut</span>, <span class="ident">NotifsHandlerIn</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">protocol</span>::<span class="ident">generic_proto</span>::<span class="ident">upgrade</span>::<span class="ident">RegisteredProtocol</span>;
 
 <span class="kw">use</span> <span class="ident">bytes</span>::<span class="ident">BytesMut</span>;
-<span class="kw">use</span> <span class="ident">codec</span>::<span class="ident">Encode</span> <span class="kw">as</span> <span class="kw">_</span>;
 <span class="kw">use</span> <span class="ident">fnv</span>::<span class="ident">FnvHashMap</span>;
 <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">libp2p</span>::<span class="ident">core</span>::{<span class="ident">ConnectedPoint</span>, <span class="ident">Multiaddr</span>, <span class="ident">PeerId</span>};
@@ -1185,10 +1183,9 @@
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">debug</span>, <span class="ident">error</span>, <span class="ident">trace</span>, <span class="ident">warn</span>};
 <span class="kw">use</span> <span class="ident">rand</span>::<span class="ident">distributions</span>::{<span class="ident">Distribution</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">Uniform</span>};
 <span class="kw">use</span> <span class="ident">smallvec</span>::<span class="ident">SmallVec</span>;
-<span class="kw">use</span> <span class="ident">sp_runtime</span>::<span class="ident">ConsensusEngineId</span>;
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">borrow</span>::<span class="ident">Cow</span>, <span class="ident">collections</span>::<span class="ident">hash_map</span>::<span class="ident">Entry</span>, <span class="ident">cmp</span>};
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">error</span>, <span class="ident">mem</span>, <span class="ident">pin</span>::<span class="ident">Pin</span>, <span class="ident">str</span>, <span class="ident">time</span>::<span class="ident">Duration</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">borrow</span>::<span class="ident">Cow</span>, <span class="ident">cmp</span>, <span class="ident">collections</span>::<span class="ident">hash_map</span>::<span class="ident">Entry</span>};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">error</span>, <span class="ident">mem</span>, <span class="ident">pin</span>::<span class="ident">Pin</span>, <span class="ident">str</span>, <span class="ident">time</span>::<span class="ident">Duration</span>};
 <span class="kw">use</span> <span class="ident">wasm_timer</span>::<span class="ident">Instant</span>;
 
 <span class="doccomment">/// Network behaviour that handles opening substreams for custom protocols with other nodes.</span>
@@ -1241,7 +1238,7 @@
 	<span class="ident">legacy_protocol</span>: <span class="ident">RegisteredProtocol</span>,
 
 	<span class="doccomment">/// Notification protocols. Entries are only ever added and not removed.</span>
-	<span class="ident">notif_protocols</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">Cow</span><span class="op">&lt;</span><span class="lifetime">&#39;static</span>, [<span class="ident">u8</span>]<span class="op">&gt;</span>, <span class="ident">ConsensusEngineId</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
+	<span class="ident">notif_protocols</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">Cow</span><span class="op">&lt;</span><span class="lifetime">&#39;static</span>, [<span class="ident">u8</span>]<span class="op">&gt;</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
 
 	<span class="doccomment">/// Receiver for instructions about who to connect to or disconnect from.</span>
 	<span class="ident">peerset</span>: <span class="ident">sc_peerset</span>::<span class="ident">Peerset</span>,
@@ -1395,12 +1392,22 @@
 		<span class="ident">reason</span>: <span class="ident">Cow</span><span class="op">&lt;</span><span class="lifetime">&#39;static</span>, <span class="ident">str</span><span class="op">&gt;</span>,
 	},
 
+	<span class="doccomment">/// Receives a message on the legacy substream.</span>
+	<span class="ident">LegacyMessage</span> {
+		<span class="doccomment">/// Id of the peer the message came from.</span>
+		<span class="ident">peer_id</span>: <span class="ident">PeerId</span>,
+		<span class="doccomment">/// Message that has been received.</span>
+		<span class="ident">message</span>: <span class="ident">BytesMut</span>,
+	},
+
 	<span class="doccomment">/// Receives a message on a custom protocol substream.</span>
 	<span class="doccomment">///</span>
 	<span class="doccomment">/// Also concerns received notifications for the notifications API.</span>
-	<span class="ident">CustomMessage</span> {
+	<span class="ident">Notification</span> {
 		<span class="doccomment">/// Id of the peer the message came from.</span>
 		<span class="ident">peer_id</span>: <span class="ident">PeerId</span>,
+		<span class="doccomment">/// Engine corresponding to the message.</span>
+		<span class="ident">protocol_name</span>: <span class="ident">Cow</span><span class="op">&lt;</span><span class="lifetime">&#39;static</span>, [<span class="ident">u8</span>]<span class="op">&gt;</span>,
 		<span class="doccomment">/// Message that has been received.</span>
 		<span class="ident">message</span>: <span class="ident">BytesMut</span>,
 	},
@@ -1442,10 +1449,9 @@
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">register_notif_protocol</span>(
 		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
 		<span class="ident">protocol_name</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">Cow</span><span class="op">&lt;</span><span class="lifetime">&#39;static</span>, [<span class="ident">u8</span>]<span class="op">&gt;</span><span class="op">&gt;</span>,
-		<span class="ident">engine_id</span>: <span class="ident">ConsensusEngineId</span>,
 		<span class="ident">handshake_msg</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>
 	) {
-		<span class="self">self</span>.<span class="ident">notif_protocols</span>.<span class="ident">push</span>((<span class="ident">protocol_name</span>.<span class="ident">into</span>(), <span class="ident">engine_id</span>, <span class="ident">handshake_msg</span>.<span class="ident">into</span>()));
+		<span class="self">self</span>.<span class="ident">notif_protocols</span>.<span class="ident">push</span>((<span class="ident">protocol_name</span>.<span class="ident">into</span>(), <span class="ident">handshake_msg</span>.<span class="ident">into</span>()));
 	}
 
 	<span class="doccomment">/// Returns the number of discovered nodes that we keep in memory.</span>
@@ -1563,14 +1569,15 @@
 	<span class="doccomment">/// Also note that even if we have a valid open substream, it may in fact be already closed</span>
 	<span class="doccomment">/// without us knowing, in which case the packet will not be received.</span>
 	<span class="doccomment">///</span>
-	<span class="doccomment">/// &gt; **Note**: Ideally the `engine_id` parameter wouldn&#39;t be necessary. See the documentation</span>
-	<span class="doccomment">/// &gt;			of [`NotifsHandlerIn`] for more information.</span>
+	<span class="doccomment">/// The `fallback` parameter is used for backwards-compatibility reason if the remote doesn&#39;t</span>
+	<span class="doccomment">/// support our protocol. One needs to pass the equivalent of what would have been passed</span>
+	<span class="doccomment">/// with `send_packet`.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">write_notification</span>(
 		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
 		<span class="ident">target</span>: <span class="kw-2">&amp;</span><span class="ident">PeerId</span>,
-		<span class="ident">engine_id</span>: <span class="ident">ConsensusEngineId</span>,
 		<span class="ident">protocol_name</span>: <span class="ident">Cow</span><span class="op">&lt;</span><span class="lifetime">&#39;static</span>, [<span class="ident">u8</span>]<span class="op">&gt;</span>,
 		<span class="ident">message</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+		<span class="ident">encoded_fallback_message</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
 	) {
 		<span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">is_open</span>(<span class="ident">target</span>) {
 			<span class="kw">return</span>;
@@ -1578,7 +1585,7 @@
 
 		<span class="macro">trace</span><span class="macro">!</span>(
 			<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>,
-			<span class="string">&quot;External API =&gt; Notification for {:?} with protocol {:?}&quot;</span>,
+			<span class="string">&quot;External API =&gt; Notification({:?}, {:?})&quot;</span>,
 			<span class="ident">target</span>,
 			<span class="ident">str</span>::<span class="ident">from_utf8</span>(<span class="kw-2">&amp;</span><span class="ident">protocol_name</span>)
 		);
@@ -1588,7 +1595,7 @@
 			<span class="ident">peer_id</span>: <span class="ident">target</span>.<span class="ident">clone</span>(),
 			<span class="ident">event</span>: <span class="ident">NotifsHandlerIn</span>::<span class="ident">SendNotification</span> {
 				<span class="ident">message</span>: <span class="ident">message</span>.<span class="ident">into</span>(),
-				<span class="ident">engine_id</span>,
+				<span class="ident">encoded_fallback_message</span>,
 				<span class="ident">protocol_name</span>,
 			},
 		});
@@ -2156,7 +2163,7 @@
 				<span class="macro">debug_assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">is_open</span>(<span class="kw-2">&amp;</span><span class="ident">source</span>));
 				<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;Handler({:?}) =&gt; Message&quot;</span>, <span class="ident">source</span>);
 				<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;External API &lt;= Message({:?})&quot;</span>, <span class="ident">source</span>);
-				<span class="kw">let</span> <span class="ident">event</span> <span class="op">=</span> <span class="ident">GenericProtoOut</span>::<span class="ident">CustomMessage</span> {
+				<span class="kw">let</span> <span class="ident">event</span> <span class="op">=</span> <span class="ident">GenericProtoOut</span>::<span class="ident">LegacyMessage</span> {
 					<span class="ident">peer_id</span>: <span class="ident">source</span>,
 					<span class="ident">message</span>,
 				};
@@ -2164,7 +2171,7 @@
 				<span class="self">self</span>.<span class="ident">events</span>.<span class="ident">push</span>(<span class="ident">NetworkBehaviourAction</span>::<span class="ident">GenerateEvent</span>(<span class="ident">event</span>));
 			}
 
-			<span class="ident">NotifsHandlerOut</span>::<span class="ident">Notification</span> { <span class="ident">protocol_name</span>, <span class="ident">engine_id</span>, <span class="ident">message</span> } <span class="op">=</span><span class="op">&gt;</span> {
+			<span class="ident">NotifsHandlerOut</span>::<span class="ident">Notification</span> { <span class="ident">protocol_name</span>, <span class="ident">message</span> } <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="macro">debug_assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">is_open</span>(<span class="kw-2">&amp;</span><span class="ident">source</span>));
 				<span class="macro">trace</span><span class="macro">!</span>(
 					<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>,
@@ -2172,18 +2179,11 @@
 					<span class="ident">source</span>,
 					<span class="ident">str</span>::<span class="ident">from_utf8</span>(<span class="kw-2">&amp;</span><span class="ident">protocol_name</span>)
 				);
-				<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;External API &lt;= Message({:?})&quot;</span>, <span class="ident">source</span>);
-				<span class="kw">let</span> <span class="ident">event</span> <span class="op">=</span> <span class="ident">GenericProtoOut</span>::<span class="ident">CustomMessage</span> {
+				<span class="macro">trace</span><span class="macro">!</span>(<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>, <span class="string">&quot;External API &lt;= Message({:?}, {:?})&quot;</span>, <span class="ident">protocol_name</span>, <span class="ident">source</span>);
+				<span class="kw">let</span> <span class="ident">event</span> <span class="op">=</span> <span class="ident">GenericProtoOut</span>::<span class="ident">Notification</span> {
 					<span class="ident">peer_id</span>: <span class="ident">source</span>,
-					<span class="ident">message</span>: {
-						<span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">GenericMessage</span>::<span class="op">&lt;</span>(), (), (), ()<span class="op">&gt;</span>::<span class="ident">Consensus</span>(<span class="ident">ConsensusMessage</span> {
-							<span class="ident">engine_id</span>,
-							<span class="ident">data</span>: <span class="ident">message</span>.<span class="ident">to_vec</span>(),
-						});
-
-						<span class="comment">// Note that we clone `message` here.</span>
-						<span class="ident">From</span>::<span class="ident">from</span>(<span class="kw-2">&amp;</span><span class="ident">message</span>.<span class="ident">encode</span>()[..])
-					},
+					<span class="ident">protocol_name</span>,
+					<span class="ident">message</span>,
 				};
 
 				<span class="self">self</span>.<span class="ident">events</span>.<span class="ident">push</span>(<span class="ident">NetworkBehaviourAction</span>::<span class="ident">GenerateEvent</span>(<span class="ident">event</span>));

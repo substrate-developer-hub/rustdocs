@@ -251,6 +251,7 @@ ALIASES["nalgebra"] = {};
 ALIASES["names"] = {};
 ALIASES["native_tls"] = {};
 ALIASES["net2"] = {};
+ALIASES["nix"] = {};
 ALIASES["node_cli"] = {};
 ALIASES["node_executor"] = {};
 ALIASES["node_inspect"] = {};

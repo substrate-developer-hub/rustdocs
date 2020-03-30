@@ -265,6 +265,16 @@
 <span id="254">254</span>
 <span id="255">255</span>
 <span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -304,7 +314,7 @@
 };
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">error</span>, <span class="ident">warn</span>};
 <span class="kw">use</span> <span class="ident">smallvec</span>::<span class="ident">SmallVec</span>;
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">borrow</span>::<span class="ident">Cow</span>, <span class="ident">fmt</span>, <span class="ident">pin</span>::<span class="ident">Pin</span>, <span class="ident">str</span>, <span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>}};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">borrow</span>::<span class="ident">Cow</span>, <span class="ident">fmt</span>, <span class="ident">pin</span>::<span class="ident">Pin</span>, <span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>}};
 
 <span class="doccomment">/// Implements the `IntoProtocolsHandler` trait of libp2p.</span>
 <span class="doccomment">///</span>
@@ -424,16 +434,19 @@
 		<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
 		(<span class="ident">msg</span>, <span class="ident">proto</span>): <span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">InboundProtocol</span> <span class="kw">as</span> <span class="ident">InboundUpgrade</span><span class="op">&lt;</span><span class="ident">NegotiatedSubstream</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">Output</span>
 	) {
+		<span class="comment">// If a substream already exists, we drop it and replace it with the new incoming one.</span>
 		<span class="kw">if</span> <span class="self">self</span>.<span class="ident">substream</span>.<span class="ident">is_some</span>() {
-			<span class="macro">warn</span><span class="macro">!</span>(
-				<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>,
-				<span class="string">&quot;Received duplicate inbound notifications substream for {:?}&quot;</span>,
-				<span class="ident">str</span>::<span class="ident">from_utf8</span>(<span class="self">self</span>.<span class="ident">in_protocol</span>.<span class="ident">protocol_name</span>()),
-			);
-			<span class="kw">return</span>;
+			<span class="self">self</span>.<span class="ident">events_queue</span>.<span class="ident">push</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">NotifsInHandlerOut</span>::<span class="ident">Closed</span>));
 		}
 
+		<span class="comment">// Note that we drop the existing substream, which will send an equivalent to a TCP &quot;RST&quot;</span>
+		<span class="comment">// to the remote and force-close the substream. It  might seem like an unclean way to get</span>
+		<span class="comment">// rid of a substream. However, keep in mind that it is invalid for the remote to open</span>
+		<span class="comment">// multiple such substreams, and therefore sending a &quot;RST&quot; is the correct thing to do.</span>
+		<span class="comment">// Also note that we have already closed our writing side during the initial handshake,</span>
+		<span class="comment">// and we can&#39;t close &quot;more&quot; than that anyway.</span>
 		<span class="self">self</span>.<span class="ident">substream</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">proto</span>);
+
 		<span class="self">self</span>.<span class="ident">events_queue</span>.<span class="ident">push</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">NotifsInHandlerOut</span>::<span class="ident">OpenRequest</span>(<span class="ident">msg</span>)));
 		<span class="self">self</span>.<span class="ident">pending_accept_refuses</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">pending_accept_refuses</span>
 			.<span class="ident">checked_add</span>(<span class="number">1</span>)
@@ -503,8 +516,15 @@
 
 		<span class="kw">match</span> <span class="self">self</span>.<span class="ident">substream</span>.<span class="ident">as_mut</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">Stream</span>::<span class="ident">poll_next</span>(<span class="ident">Pin</span>::<span class="ident">new</span>(<span class="ident">s</span>), <span class="ident">cx</span>)) {
 			<span class="prelude-val">None</span> <span class="op">|</span> <span class="prelude-val">Some</span>(<span class="ident">Poll</span>::<span class="ident">Pending</span>) <span class="op">=</span><span class="op">&gt;</span> {},
-			<span class="prelude-val">Some</span>(<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">msg</span>)))) <span class="op">=</span><span class="op">&gt;</span>
-				<span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">NotifsInHandlerOut</span>::<span class="ident">Notif</span>(<span class="ident">msg</span>))),
+			<span class="prelude-val">Some</span>(<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">msg</span>)))) <span class="op">=</span><span class="op">&gt;</span> {
+				<span class="kw">if</span> <span class="self">self</span>.<span class="ident">pending_accept_refuses</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span> {
+					<span class="macro">warn</span><span class="macro">!</span>(
+						<span class="ident">target</span>: <span class="string">&quot;sub-libp2p&quot;</span>,
+						<span class="string">&quot;Bad state in inbound-only handler: notif before accepting substream&quot;</span>
+					);
+				}
+				<span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">NotifsInHandlerOut</span>::<span class="ident">Notif</span>(<span class="ident">msg</span>)))
+			},
 			<span class="prelude-val">Some</span>(<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">None</span>)) <span class="op">|</span> <span class="prelude-val">Some</span>(<span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(<span class="kw">_</span>)))) <span class="op">=</span><span class="op">&gt;</span> {
 				<span class="self">self</span>.<span class="ident">substream</span> <span class="op">=</span> <span class="prelude-val">None</span>;
 				<span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">ProtocolsHandlerEvent</span>::<span class="ident">Custom</span>(<span class="ident">NotifsInHandlerOut</span>::<span class="ident">Closed</span>));
