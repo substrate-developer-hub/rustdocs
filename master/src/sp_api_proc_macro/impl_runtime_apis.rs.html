@@ -769,36 +769,6 @@
 <span id="758">758</span>
 <span id="759">759</span>
 <span id="760">760</span>
-<span id="761">761</span>
-<span id="762">762</span>
-<span id="763">763</span>
-<span id="764">764</span>
-<span id="765">765</span>
-<span id="766">766</span>
-<span id="767">767</span>
-<span id="768">768</span>
-<span id="769">769</span>
-<span id="770">770</span>
-<span id="771">771</span>
-<span id="772">772</span>
-<span id="773">773</span>
-<span id="774">774</span>
-<span id="775">775</span>
-<span id="776">776</span>
-<span id="777">777</span>
-<span id="778">778</span>
-<span id="779">779</span>
-<span id="780">780</span>
-<span id="781">781</span>
-<span id="782">782</span>
-<span id="783">783</span>
-<span id="784">784</span>
-<span id="785">785</span>
-<span id="786">786</span>
-<span id="787">787</span>
-<span id="788">788</span>
-<span id="789">789</span>
-<span id="790">790</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018-2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -821,7 +791,8 @@
 	<span class="ident">generate_runtime_mod_name_for_trait</span>, <span class="ident">generate_method_runtime_api_impl_name</span>,
 	<span class="ident">extract_parameter_names_types_and_borrows</span>, <span class="ident">generate_native_call_generator_fn_name</span>,
 	<span class="ident">return_type_extract_type</span>, <span class="ident">generate_call_api_at_fn_name</span>, <span class="ident">prefix_function_with_trait</span>,
-	<span class="ident">extract_all_signature_types</span>,
+	<span class="ident">extract_all_signature_types</span>, <span class="ident">extract_block_type_from_trait_path</span>, <span class="ident">extract_impl_trait</span>,
+	<span class="ident">AllowSelfRefInParameters</span>, <span class="ident">RequireQualifiedTraitPath</span>,
 };
 
 <span class="kw">use</span> <span class="ident">proc_macro2</span>::{<span class="ident">Span</span>, <span class="ident">TokenStream</span>};
@@ -868,7 +839,7 @@
 	<span class="ident">input</span>: <span class="kw-2">&amp;</span><span class="ident">Ident</span>,
 	<span class="ident">impl_trait</span>: <span class="kw-2">&amp;</span><span class="ident">Path</span>
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">TokenStream</span><span class="op">&gt;</span> {
-	<span class="kw">let</span> <span class="ident">params</span> <span class="op">=</span> <span class="ident">extract_parameter_names_types_and_borrows</span>(<span class="ident">signature</span>)<span class="question-mark">?</span>;
+	<span class="kw">let</span> <span class="ident">params</span> <span class="op">=</span> <span class="ident">extract_parameter_names_types_and_borrows</span>(<span class="ident">signature</span>, <span class="ident">AllowSelfRefInParameters</span>::<span class="ident">No</span>)<span class="question-mark">?</span>;
 
 	<span class="kw">let</span> <span class="ident">c</span> <span class="op">=</span> <span class="ident">generate_crate_access</span>(<span class="ident">HIDDEN_INCLUDES_ID</span>);
 	<span class="kw">let</span> <span class="ident">c_iter</span> <span class="op">=</span> <span class="ident">iter</span>::<span class="ident">repeat</span>(<span class="kw-2">&amp;</span><span class="ident">c</span>);
@@ -895,50 +866,6 @@
 	)
 }
 
-<span class="doccomment">/// Extract the trait that is implemented in the given `ItemImpl`.</span>
-<span class="kw">fn</span> <span class="ident">extract_impl_trait</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(<span class="ident">impl_</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">ItemImpl</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Path</span><span class="op">&gt;</span> {
-	<span class="ident">impl_</span>.<span class="ident">trait_</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="kw-2">&amp;</span><span class="ident">v</span>.<span class="number">1</span>).<span class="ident">ok_or_else</span>(
-		<span class="op">|</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">new</span>(<span class="ident">impl_</span>.<span class="ident">span</span>(), <span class="string">&quot;Only implementation of traits are supported!&quot;</span>)
-	).<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">p</span><span class="op">|</span> {
-		<span class="kw">if</span> <span class="ident">p</span>.<span class="ident">segments</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="number">1</span> {
-			<span class="prelude-val">Ok</span>(<span class="ident">p</span>)
-		} <span class="kw">else</span> {
-			<span class="prelude-val">Err</span>(
-				<span class="ident">Error</span>::<span class="ident">new</span>(
-					<span class="ident">p</span>.<span class="ident">span</span>(),
-					<span class="string">&quot;The implemented trait has to be referenced with a path, \
-					e.g. `impl client::Core for Runtime`.&quot;</span>
-				)
-			)
-		}
-	})
-}
-
-<span class="doccomment">/// Extracts the runtime block identifier.</span>
-<span class="kw">fn</span> <span class="ident">extract_runtime_block_ident</span>(<span class="ident">trait_</span>: <span class="kw-2">&amp;</span><span class="ident">Path</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">TypePath</span><span class="op">&gt;</span> {
-	<span class="kw">let</span> <span class="ident">span</span> <span class="op">=</span> <span class="ident">trait_</span>.<span class="ident">span</span>();
-	<span class="kw">let</span> <span class="ident">generics</span> <span class="op">=</span> <span class="ident">trait_</span>
-		.<span class="ident">segments</span>
-		.<span class="ident">last</span>()
-		.<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">new</span>(<span class="ident">span</span>, <span class="string">&quot;Empty path not supported&quot;</span>))<span class="question-mark">?</span>;
-
-	<span class="kw">match</span> <span class="kw-2">&amp;</span><span class="ident">generics</span>.<span class="ident">arguments</span> {
-		<span class="ident">PathArguments</span>::<span class="ident">AngleBracketed</span>(<span class="kw-2">ref</span> <span class="ident">args</span>) <span class="op">=</span><span class="op">&gt;</span> {
-			<span class="ident">args</span>.<span class="ident">args</span>.<span class="ident">first</span>().<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">v</span> {
-			<span class="ident">GenericArgument</span>::<span class="ident">Type</span>(<span class="ident">Type</span>::<span class="ident">Path</span>(<span class="kw-2">ref</span> <span class="ident">block</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">block</span>),
-				<span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">None</span>
-			}).<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">new</span>(<span class="ident">args</span>.<span class="ident">span</span>(), <span class="string">&quot;Missing `Block` generic parameter.&quot;</span>))
-		},
-		<span class="ident">PathArguments</span>::<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> {
-			<span class="kw">let</span> <span class="ident">span</span> <span class="op">=</span> <span class="ident">trait_</span>.<span class="ident">segments</span>.<span class="ident">last</span>().<span class="ident">as_ref</span>().<span class="ident">unwrap</span>().<span class="ident">span</span>();
-			<span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">new</span>(<span class="ident">span</span>, <span class="string">&quot;Missing `Block` generic parameter.&quot;</span>))
-		},
-		<span class="ident">PathArguments</span>::<span class="ident">Parenthesized</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
-			<span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">new</span>(<span class="ident">generics</span>.<span class="ident">arguments</span>.<span class="ident">span</span>(), <span class="string">&quot;Unexpected parentheses in path!&quot;</span>))
-		}
-	}
-}
-
 <span class="doccomment">/// Generate all the implementation calls for the given functions.</span>
 <span class="kw">fn</span> <span class="ident">generate_impl_calls</span>(
 	<span class="ident">impls</span>: <span class="kw-2">&amp;</span>[<span class="ident">ItemImpl</span>],
@@ -947,7 +874,7 @@
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">impl_calls</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
 
 	<span class="kw">for</span> <span class="ident">impl_</span> <span class="kw">in</span> <span class="ident">impls</span> {
-		<span class="kw">let</span> <span class="ident">impl_trait_path</span> <span class="op">=</span> <span class="ident">extract_impl_trait</span>(<span class="ident">impl_</span>)<span class="question-mark">?</span>;
+		<span class="kw">let</span> <span class="ident">impl_trait_path</span> <span class="op">=</span> <span class="ident">extract_impl_trait</span>(<span class="ident">impl_</span>, <span class="ident">RequireQualifiedTraitPath</span>::<span class="ident">Yes</span>)<span class="question-mark">?</span>;
 		<span class="kw">let</span> <span class="ident">impl_trait</span> <span class="op">=</span> <span class="ident">extend_with_runtime_decl_path</span>(<span class="ident">impl_trait_path</span>.<span class="ident">clone</span>());
 		<span class="kw">let</span> <span class="ident">impl_trait_ident</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">impl_trait_path</span>
 			.<span class="ident">segments</span>
@@ -1109,11 +1036,19 @@
 				<span class="ident">res</span>
 			}
 
-			<span class="kw">fn</span> <span class="ident">runtime_version_at</span>(
+			<span class="kw">fn</span> <span class="ident">has_api</span><span class="op">&lt;</span><span class="ident">A</span>: #<span class="ident">crate_</span>::<span class="ident">RuntimeApiInfo</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span><span class="op">&gt;</span>(
 				<span class="kw-2">&amp;</span><span class="self">self</span>,
 				<span class="ident">at</span>: <span class="kw-2">&amp;</span>#<span class="ident">crate_</span>::<span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
-			) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>#<span class="ident">crate_</span>::<span class="ident">RuntimeVersion</span>, <span class="ident">C</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
-				<span class="self">self</span>.<span class="ident">call</span>.<span class="ident">runtime_version_at</span>(<span class="ident">at</span>)
+			) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span>, <span class="ident">C</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="kw">where</span> <span class="self">Self</span>: <span class="ident">Sized</span> {
+				<span class="self">self</span>.<span class="ident">call</span>.<span class="ident">runtime_version_at</span>(<span class="ident">at</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="ident">v</span>.<span class="ident">has_api_with</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>::<span class="ident">ID</span>, <span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="ident">v</span> <span class="op">=</span><span class="op">=</span> <span class="ident">A</span>::<span class="ident">VERSION</span>))
+			}
+
+			<span class="kw">fn</span> <span class="ident">has_api_with</span><span class="op">&lt;</span><span class="ident">A</span>: #<span class="ident">crate_</span>::<span class="ident">RuntimeApiInfo</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span>, <span class="ident">P</span>: <span class="ident">Fn</span>(<span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span><span class="op">&gt;</span>(
+				<span class="kw-2">&amp;</span><span class="self">self</span>,
+				<span class="ident">at</span>: <span class="kw-2">&amp;</span>#<span class="ident">crate_</span>::<span class="ident">BlockId</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span>,
+				<span class="ident">pred</span>: <span class="ident">P</span>,
+			) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span>, <span class="ident">C</span>::<span class="ident">Error</span><span class="op">&gt;</span> <span class="kw">where</span> <span class="self">Self</span>: <span class="ident">Sized</span> {
+				<span class="self">self</span>.<span class="ident">call</span>.<span class="ident">runtime_version_at</span>(<span class="ident">at</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="ident">v</span>.<span class="ident">has_api_with</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>::<span class="ident">ID</span>, <span class="ident">pred</span>))
 			}
 
 			<span class="kw">fn</span> <span class="ident">record_proof</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
@@ -1252,7 +1187,7 @@
 	<span class="comment">// we put the `RuntimeBlock` as first argument for the trait generics.</span>
 	<span class="kw">for</span> <span class="ident">impl_</span> <span class="kw">in</span> <span class="ident">impls</span>.<span class="ident">iter</span>() {
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">impl_</span> <span class="op">=</span> <span class="ident">impl_</span>.<span class="ident">clone</span>();
-		<span class="kw">let</span> <span class="ident">trait_</span> <span class="op">=</span> <span class="ident">extract_impl_trait</span>(<span class="kw-2">&amp;</span><span class="ident">impl_</span>)<span class="question-mark">?</span>.<span class="ident">clone</span>();
+		<span class="kw">let</span> <span class="ident">trait_</span> <span class="op">=</span> <span class="ident">extract_impl_trait</span>(<span class="kw-2">&amp;</span><span class="ident">impl_</span>, <span class="ident">RequireQualifiedTraitPath</span>::<span class="ident">Yes</span>)<span class="question-mark">?</span>.<span class="ident">clone</span>();
 		<span class="kw">let</span> <span class="ident">trait_</span> <span class="op">=</span> <span class="ident">extend_with_runtime_decl_path</span>(<span class="ident">trait_</span>);
 
 		<span class="ident">impl_</span>.<span class="ident">trait_</span>.<span class="ident">as_mut</span>().<span class="ident">unwrap</span>().<span class="number">1</span> <span class="op">=</span> <span class="ident">trait_</span>;
@@ -1308,7 +1243,10 @@
 				}).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>()
 			};
 
-			<span class="kw">let</span> (<span class="ident">param_types</span>, <span class="ident">error</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">extract_parameter_names_types_and_borrows</span>(<span class="kw-2">&amp;</span><span class="ident">input</span>.<span class="ident">sig</span>) {
+			<span class="kw">let</span> (<span class="ident">param_types</span>, <span class="ident">error</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">extract_parameter_names_types_and_borrows</span>(
+				<span class="kw-2">&amp;</span><span class="ident">input</span>.<span class="ident">sig</span>,
+				<span class="ident">AllowSelfRefInParameters</span>::<span class="ident">No</span>,
+			) {
 				<span class="prelude-val">Ok</span>(<span class="ident">res</span>) <span class="op">=</span><span class="op">&gt;</span> (
 					<span class="ident">res</span>.<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> {
 						<span class="kw">let</span> <span class="ident">ty</span> <span class="op">=</span> <span class="ident">v</span>.<span class="number">1</span>;
@@ -1447,13 +1385,13 @@
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">impls</span>.<span class="ident">len</span>());
 
 	<span class="kw">for</span> <span class="ident">impl_</span> <span class="kw">in</span> <span class="ident">impls</span> {
-		<span class="kw">let</span> <span class="ident">impl_trait_path</span> <span class="op">=</span> <span class="ident">extract_impl_trait</span>(<span class="kw-2">&amp;</span><span class="ident">impl_</span>)<span class="question-mark">?</span>;
+		<span class="kw">let</span> <span class="ident">impl_trait_path</span> <span class="op">=</span> <span class="ident">extract_impl_trait</span>(<span class="kw-2">&amp;</span><span class="ident">impl_</span>, <span class="ident">RequireQualifiedTraitPath</span>::<span class="ident">Yes</span>)<span class="question-mark">?</span>;
 		<span class="kw">let</span> <span class="ident">impl_trait</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">impl_trait_path</span>
 			.<span class="ident">segments</span>
 			.<span class="ident">last</span>()
 			.<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">new</span>(<span class="ident">impl_trait_path</span>.<span class="ident">span</span>(), <span class="string">&quot;Empty trait path not possible!&quot;</span>))<span class="question-mark">?</span>
 			.<span class="ident">clone</span>();
-		<span class="kw">let</span> <span class="ident">runtime_block</span> <span class="op">=</span> <span class="ident">extract_runtime_block_ident</span>(<span class="ident">impl_trait_path</span>)<span class="question-mark">?</span>;
+		<span class="kw">let</span> <span class="ident">runtime_block</span> <span class="op">=</span> <span class="ident">extract_block_type_from_trait_path</span>(<span class="ident">impl_trait_path</span>)<span class="question-mark">?</span>;
 		<span class="kw">let</span> <span class="ident">runtime_type</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">impl_</span>.<span class="ident">self_ty</span>;
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">runtime_mod_path</span> <span class="op">=</span> <span class="ident">extend_with_runtime_decl_path</span>(<span class="ident">impl_trait_path</span>.<span class="ident">clone</span>());
 		<span class="comment">// remove the trait to get just the module path</span>
@@ -1484,7 +1422,9 @@
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">processed_traits</span> <span class="op">=</span> <span class="ident">HashSet</span>::<span class="ident">new</span>();
 
 	<span class="kw">for</span> <span class="ident">impl_</span> <span class="kw">in</span> <span class="ident">impls</span> {
-		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">path</span> <span class="op">=</span> <span class="ident">extend_with_runtime_decl_path</span>(<span class="ident">extract_impl_trait</span>(<span class="kw-2">&amp;</span><span class="ident">impl_</span>)<span class="question-mark">?</span>.<span class="ident">clone</span>());
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">path</span> <span class="op">=</span> <span class="ident">extend_with_runtime_decl_path</span>(
+			<span class="ident">extract_impl_trait</span>(<span class="kw-2">&amp;</span><span class="ident">impl_</span>, <span class="ident">RequireQualifiedTraitPath</span>::<span class="ident">Yes</span>)<span class="question-mark">?</span>.<span class="ident">clone</span>(),
+		);
 		<span class="comment">// Remove the trait</span>
 		<span class="kw">let</span> <span class="ident">trait_</span> <span class="op">=</span> <span class="ident">path</span>
 			.<span class="ident">segments</span>
