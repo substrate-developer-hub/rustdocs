@@ -212,6 +212,21 @@
 <span id="201">201</span>
 <span id="202">202</span>
 <span id="203">203</span>
+<span id="204">204</span>
+<span id="205">205</span>
+<span id="206">206</span>
+<span id="207">207</span>
+<span id="208">208</span>
+<span id="209">209</span>
+<span id="210">210</span>
+<span id="211">211</span>
+<span id="212">212</span>
+<span id="213">213</span>
+<span id="214">214</span>
+<span id="215">215</span>
+<span id="216">216</span>
+<span id="217">217</span>
+<span id="218">218</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -237,7 +252,7 @@
 <span class="kw">use</span> <span class="ident">sc_service</span>::{<span class="ident">Configuration</span>, <span class="ident">ChainSpec</span>};
 <span class="kw">use</span> <span class="ident">sc_executor</span>::{<span class="ident">NativeExecutor</span>, <span class="ident">NativeExecutionDispatch</span>};
 <span class="kw">use</span> <span class="ident">codec</span>::{<span class="ident">Encode</span>, <span class="ident">Decode</span>};
-<span class="kw">use</span> <span class="ident">frame_benchmarking</span>::{<span class="ident">BenchmarkResults</span>, <span class="ident">Analysis</span>};
+<span class="kw">use</span> <span class="ident">frame_benchmarking</span>::{<span class="ident">BenchmarkBatch</span>, <span class="ident">Analysis</span>};
 <span class="kw">use</span> <span class="ident">sp_core</span>::{
 	<span class="ident">tasks</span>,
 	<span class="ident">traits</span>::<span class="ident">KeystoreExt</span>,
@@ -248,11 +263,11 @@
 <span class="doccomment">/// The `benchmark` command used to benchmark FRAME Pallets.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">structopt</span>::<span class="ident">StructOpt</span>, <span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BenchmarkCmd</span> {
-	<span class="doccomment">/// Select a FRAME Pallet to benchmark.</span>
+	<span class="doccomment">/// Select a FRAME Pallet to benchmark, or `*` for all (in which case `extrinsic` must be `*`).</span>
 	<span class="attribute">#[<span class="ident">structopt</span>(<span class="ident">short</span>, <span class="ident">long</span>)]</span>
 	<span class="kw">pub</span> <span class="ident">pallet</span>: <span class="ident">String</span>,
 
-	<span class="doccomment">/// Select an extrinsic to benchmark.</span>
+	<span class="doccomment">/// Select an extrinsic inside the pallet to benchmark, or `*` for all.</span>
 	<span class="attribute">#[<span class="ident">structopt</span>(<span class="ident">short</span>, <span class="ident">long</span>)]</span>
 	<span class="kw">pub</span> <span class="ident">extrinsic</span>: <span class="ident">String</span>,
 
@@ -261,16 +276,28 @@
 	<span class="kw">pub</span> <span class="ident">steps</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>,
 
 	<span class="doccomment">/// Indicates lowest values for each of the component ranges.</span>
-	<span class="attribute">#[<span class="ident">structopt</span>(<span class="ident">long</span>, <span class="ident">use_delimiter</span> <span class="op">=</span> <span class="bool-val">true</span>)]</span>
+	<span class="attribute">#[<span class="ident">structopt</span>(<span class="ident">long</span> <span class="op">=</span> <span class="string">&quot;low&quot;</span>, <span class="ident">use_delimiter</span> <span class="op">=</span> <span class="bool-val">true</span>)]</span>
 	<span class="kw">pub</span> <span class="ident">lowest_range_values</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>,
 
 	<span class="doccomment">/// Indicates highest values for each of the component ranges.</span>
-	<span class="attribute">#[<span class="ident">structopt</span>(<span class="ident">long</span>, <span class="ident">use_delimiter</span> <span class="op">=</span> <span class="bool-val">true</span>)]</span>
+	<span class="attribute">#[<span class="ident">structopt</span>(<span class="ident">long</span> <span class="op">=</span> <span class="string">&quot;high&quot;</span>, <span class="ident">use_delimiter</span> <span class="op">=</span> <span class="bool-val">true</span>)]</span>
 	<span class="kw">pub</span> <span class="ident">highest_range_values</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>,
 
 	<span class="doccomment">/// Select how many repetitions of this benchmark should run.</span>
 	<span class="attribute">#[<span class="ident">structopt</span>(<span class="ident">short</span>, <span class="ident">long</span>, <span class="ident">default_value</span> <span class="op">=</span> <span class="string">&quot;1&quot;</span>)]</span>
 	<span class="kw">pub</span> <span class="ident">repeat</span>: <span class="ident">u32</span>,
+
+	<span class="doccomment">/// Print the raw results.</span>
+	<span class="attribute">#[<span class="ident">structopt</span>(<span class="ident">long</span> <span class="op">=</span> <span class="string">&quot;raw&quot;</span>)]</span>
+	<span class="kw">pub</span> <span class="ident">raw_data</span>: <span class="ident">bool</span>,
+
+	<span class="doccomment">/// Don&#39;t print the median-slopes linear regression analysis.</span>
+	<span class="attribute">#[<span class="ident">structopt</span>(<span class="ident">long</span>)]</span>
+	<span class="kw">pub</span> <span class="ident">no_median_slopes</span>: <span class="ident">bool</span>,
+
+	<span class="doccomment">/// Don&#39;t print the min-squares linear regression analysis.</span>
+	<span class="attribute">#[<span class="ident">structopt</span>(<span class="ident">long</span>)]</span>
+	<span class="kw">pub</span> <span class="ident">no_min_squares</span>: <span class="ident">bool</span>,
 
 	<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">missing_docs</span>)]</span>
 	<span class="attribute">#[<span class="ident">structopt</span>(<span class="ident">flatten</span>)]</span>
@@ -350,47 +377,50 @@
 		.<span class="ident">execute</span>(<span class="ident">strategy</span>.<span class="ident">into</span>())
 		.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Error executing runtime benchmark: {:?}&quot;</span>, <span class="ident">e</span>))<span class="question-mark">?</span>;
 
-		<span class="kw">let</span> <span class="ident">results</span> <span class="op">=</span> <span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BenchmarkResults</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span> <span class="kw">as</span> <span class="ident">Decode</span><span class="op">&gt;</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="ident">result</span>[..])
+		<span class="kw">let</span> <span class="ident">results</span> <span class="op">=</span> <span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BenchmarkBatch</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span> <span class="kw">as</span> <span class="ident">Decode</span><span class="op">&gt;</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="ident">result</span>[..])
 			.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Failed to decode benchmark results: {:?}&quot;</span>, <span class="ident">e</span>))<span class="question-mark">?</span>;
 
 		<span class="kw">match</span> <span class="ident">results</span> {
-			<span class="prelude-val">Ok</span>(<span class="ident">results</span>) <span class="op">=</span><span class="op">&gt;</span> {
+			<span class="prelude-val">Ok</span>(<span class="ident">batches</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">batch</span> <span class="kw">in</span> <span class="ident">batches</span>.<span class="ident">into_iter</span>() {
 				<span class="comment">// Print benchmark metadata</span>
 				<span class="macro">println</span><span class="macro">!</span>(
 					<span class="string">&quot;Pallet: {:?}, Extrinsic: {:?}, Lowest values: {:?}, Highest values: {:?}, Steps: {:?}, Repeat: {:?}&quot;</span>,
-					<span class="self">self</span>.<span class="ident">pallet</span>,
-					<span class="self">self</span>.<span class="ident">extrinsic</span>,
+					<span class="ident">String</span>::<span class="ident">from_utf8</span>(<span class="ident">batch</span>.<span class="ident">pallet</span>).<span class="ident">expect</span>(<span class="string">&quot;Encoded from String; qed&quot;</span>),
+					<span class="ident">String</span>::<span class="ident">from_utf8</span>(<span class="ident">batch</span>.<span class="ident">benchmark</span>).<span class="ident">expect</span>(<span class="string">&quot;Encoded from String; qed&quot;</span>),
 					<span class="self">self</span>.<span class="ident">lowest_range_values</span>,
 					<span class="self">self</span>.<span class="ident">highest_range_values</span>,
 					<span class="self">self</span>.<span class="ident">steps</span>,
 					<span class="self">self</span>.<span class="ident">repeat</span>,
 				);
 
-				<span class="comment">// Print the table header</span>
-				<span class="ident">results</span>[<span class="number">0</span>].<span class="number">0</span>.<span class="ident">iter</span>().<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">param</span><span class="op">|</span> <span class="macro">print</span><span class="macro">!</span>(<span class="string">&quot;{:?},&quot;</span>, <span class="ident">param</span>.<span class="number">0</span>));
+				<span class="kw">if</span> <span class="self">self</span>.<span class="ident">raw_data</span> {
+					<span class="comment">// Print the table header</span>
+					<span class="ident">batch</span>.<span class="ident">results</span>[<span class="number">0</span>].<span class="number">0</span>.<span class="ident">iter</span>().<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">param</span><span class="op">|</span> <span class="macro">print</span><span class="macro">!</span>(<span class="string">&quot;{:?},&quot;</span>, <span class="ident">param</span>.<span class="number">0</span>));
 
-				<span class="macro">print</span><span class="macro">!</span>(<span class="string">&quot;extrinsic_time,storage_root_time\n&quot;</span>);
-				<span class="comment">// Print the values</span>
-				<span class="ident">results</span>.<span class="ident">iter</span>().<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">result</span><span class="op">|</span> {
-					<span class="kw">let</span> <span class="ident">parameters</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">result</span>.<span class="number">0</span>;
-					<span class="ident">parameters</span>.<span class="ident">iter</span>().<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">param</span><span class="op">|</span> <span class="macro">print</span><span class="macro">!</span>(<span class="string">&quot;{:?},&quot;</span>, <span class="ident">param</span>.<span class="number">1</span>));
-					<span class="comment">// Print extrinsic time and storage root time</span>
-					<span class="macro">print</span><span class="macro">!</span>(<span class="string">&quot;{:?},{:?}\n&quot;</span>, <span class="ident">result</span>.<span class="number">1</span>, <span class="ident">result</span>.<span class="number">2</span>);
-				});
+					<span class="macro">print</span><span class="macro">!</span>(<span class="string">&quot;extrinsic_time,storage_root_time\n&quot;</span>);
+					<span class="comment">// Print the values</span>
+					<span class="ident">batch</span>.<span class="ident">results</span>.<span class="ident">iter</span>().<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">result</span><span class="op">|</span> {
+						<span class="kw">let</span> <span class="ident">parameters</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">result</span>.<span class="number">0</span>;
+						<span class="ident">parameters</span>.<span class="ident">iter</span>().<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">param</span><span class="op">|</span> <span class="macro">print</span><span class="macro">!</span>(<span class="string">&quot;{:?},&quot;</span>, <span class="ident">param</span>.<span class="number">1</span>));
+						<span class="comment">// Print extrinsic time and storage root time</span>
+						<span class="macro">print</span><span class="macro">!</span>(<span class="string">&quot;{:?},{:?}\n&quot;</span>, <span class="ident">result</span>.<span class="number">1</span>, <span class="ident">result</span>.<span class="number">2</span>);
+					});
 
-				<span class="macro">print</span><span class="macro">!</span>(<span class="string">&quot;\n&quot;</span>);
+					<span class="macro">print</span><span class="macro">!</span>(<span class="string">&quot;\n&quot;</span>);
+				}
 
 				<span class="comment">// Conduct analysis.</span>
-				<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">analysis</span>) <span class="op">=</span> <span class="ident">Analysis</span>::<span class="ident">median_slopes</span>(<span class="kw-2">&amp;</span><span class="ident">results</span>) {
-					<span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;Median Slopes Analysis\n========\n{}&quot;</span>, <span class="ident">analysis</span>);
+				<span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">no_median_slopes</span> {
+					<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">analysis</span>) <span class="op">=</span> <span class="ident">Analysis</span>::<span class="ident">median_slopes</span>(<span class="kw-2">&amp;</span><span class="ident">batch</span>.<span class="ident">results</span>) {
+						<span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;Median Slopes Analysis\n========\n{}&quot;</span>, <span class="ident">analysis</span>);
+					}
 				}
-
-				<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">analysis</span>) <span class="op">=</span> <span class="ident">Analysis</span>::<span class="ident">min_squares_iqr</span>(<span class="kw-2">&amp;</span><span class="ident">results</span>) {
-					<span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;Min Squares Analysis\n========\n{}&quot;</span>, <span class="ident">analysis</span>);
+				<span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">no_min_squares</span> {
+					<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">analysis</span>) <span class="op">=</span> <span class="ident">Analysis</span>::<span class="ident">min_squares_iqr</span>(<span class="kw-2">&amp;</span><span class="ident">batch</span>.<span class="ident">results</span>) {
+						<span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;Min Squares Analysis\n========\n{}&quot;</span>, <span class="ident">analysis</span>);
+					}
 				}
-
-				<span class="macro">eprintln</span><span class="macro">!</span>(<span class="string">&quot;Done.&quot;</span>);
-			}
+			},
 			<span class="prelude-val">Err</span>(<span class="ident">error</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">eprintln</span><span class="macro">!</span>(<span class="string">&quot;Error: {:?}&quot;</span>, <span class="ident">error</span>),
 		}
 
