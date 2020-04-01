@@ -297,6 +297,32 @@
 <span id="286">286</span>
 <span id="287">287</span>
 <span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2020 Parity Technologies (UK) Ltd.</span>
 <span class="comment">// This file is part of Substrate.</span>
@@ -319,6 +345,7 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">path</span>::<span class="ident">PathBuf</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cell</span>::{<span class="ident">Cell</span>, <span class="ident">RefCell</span>};
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
 <span class="kw">use</span> <span class="ident">rand</span>::<span class="ident">Rng</span>;
 
 <span class="kw">use</span> <span class="ident">hash_db</span>::{<span class="ident">Prefix</span>, <span class="ident">Hasher</span>};
@@ -354,12 +381,14 @@
 	<span class="ident">genesis_root</span>: <span class="ident">B</span>::<span class="ident">Hash</span>,
 	<span class="ident">state</span>: <span class="ident">RefCell</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">DbState</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 	<span class="ident">db</span>: <span class="ident">Cell</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">KeyValueDB</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-	<span class="ident">genesis</span>: <span class="op">&lt;</span><span class="ident">DbState</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="kw">as</span> <span class="ident">StateBackend</span><span class="op">&lt;</span><span class="ident">HashFor</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">Transaction</span>,
+	<span class="ident">genesis</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, (<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">i32</span>)<span class="op">&gt;</span>,
+	<span class="ident">record</span>: <span class="ident">Cell</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+	<span class="ident">cache_size_mb</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">BlockT</span><span class="op">&gt;</span> <span class="ident">BenchmarkingState</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> {
 	<span class="doccomment">/// Create a new instance that creates a database in a temporary dir.</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">genesis</span>: <span class="ident">Storage</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">String</span><span class="op">&gt;</span> {
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">genesis</span>: <span class="ident">Storage</span>, <span class="ident">cache_size_mb</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">String</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">temp_dir</span> <span class="op">=</span> <span class="ident">PathBuf</span>::<span class="ident">from</span>(<span class="ident">std</span>::<span class="ident">env</span>::<span class="ident">temp_dir</span>());
 		<span class="kw">let</span> <span class="ident">name</span>: <span class="ident">String</span> <span class="op">=</span> <span class="ident">rand</span>::<span class="ident">thread_rng</span>().<span class="ident">sample_iter</span>(<span class="kw-2">&amp;</span><span class="ident">rand</span>::<span class="ident">distributions</span>::<span class="ident">Alphanumeric</span>).<span class="ident">take</span>(<span class="number">10</span>).<span class="ident">collect</span>();
 		<span class="kw">let</span> <span class="ident">path</span> <span class="op">=</span> <span class="ident">temp_dir</span>.<span class="ident">join</span>(<span class="kw-2">&amp;</span><span class="ident">name</span>);
@@ -376,6 +405,8 @@
 			<span class="ident">root</span>: <span class="ident">Cell</span>::<span class="ident">new</span>(<span class="ident">root</span>),
 			<span class="ident">genesis</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
 			<span class="ident">genesis_root</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
+			<span class="ident">record</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
+			<span class="ident">cache_size_mb</span>,
 		};
 
 		<span class="ident">state</span>.<span class="ident">reopen</span>()<span class="question-mark">?</span>;
@@ -388,7 +419,7 @@
 			<span class="ident">genesis</span>.<span class="ident">top</span>.<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">k</span>, <span class="ident">v</span>)<span class="op">|</span> (<span class="ident">k</span>, <span class="prelude-val">Some</span>(<span class="ident">v</span>))),
 			<span class="ident">child_delta</span>,
 		);
-		<span class="ident">state</span>.<span class="ident">genesis</span> <span class="op">=</span> <span class="ident">transaction</span>.<span class="ident">clone</span>();
+		<span class="ident">state</span>.<span class="ident">genesis</span> <span class="op">=</span> <span class="ident">transaction</span>.<span class="ident">clone</span>().<span class="ident">drain</span>();
 		<span class="ident">state</span>.<span class="ident">genesis_root</span> <span class="op">=</span> <span class="ident">root</span>.<span class="ident">clone</span>();
 		<span class="ident">state</span>.<span class="ident">commit</span>(<span class="ident">root</span>, <span class="ident">transaction</span>)<span class="question-mark">?</span>;
 		<span class="prelude-val">Ok</span>(<span class="ident">state</span>)
@@ -397,7 +428,10 @@
 	<span class="kw">fn</span> <span class="ident">reopen</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">String</span><span class="op">&gt;</span> {
 		<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">state</span>.<span class="ident">borrow_mut</span>() <span class="op">=</span> <span class="prelude-val">None</span>;
 		<span class="self">self</span>.<span class="ident">db</span>.<span class="ident">set</span>(<span class="prelude-val">None</span>);
-		<span class="kw">let</span> <span class="ident">db_config</span> <span class="op">=</span> <span class="ident">DatabaseConfig</span>::<span class="ident">with_columns</span>(<span class="number">1</span>);
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">db_config</span> <span class="op">=</span> <span class="ident">DatabaseConfig</span>::<span class="ident">with_columns</span>(<span class="number">1</span>);
+		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">size</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">cache_size_mb</span> {
+			<span class="ident">db_config</span>.<span class="ident">memory_budget</span>.<span class="ident">insert</span>(<span class="number">0</span>, <span class="kw-2">*</span><span class="ident">size</span>);
+		}
 		<span class="kw">let</span> <span class="ident">path</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">path</span>.<span class="ident">to_str</span>()
 			.<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">String</span>::<span class="ident">from</span>(<span class="string">&quot;Invalid database path&quot;</span>))<span class="question-mark">?</span>;
 		<span class="kw">let</span> <span class="ident">db</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Database</span>::<span class="ident">open</span>(<span class="kw-2">&amp;</span><span class="ident">db_config</span>, <span class="kw-2">&amp;</span><span class="ident">path</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Error opening database: {:?}&quot;</span>, <span class="ident">e</span>))<span class="question-mark">?</span>);
@@ -557,14 +591,17 @@
 	{
 		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">db</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">db</span>.<span class="ident">take</span>() {
 			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">db_transaction</span> <span class="op">=</span> <span class="ident">DBTransaction</span>::<span class="ident">new</span>();
-
-			<span class="kw">for</span> (<span class="ident">key</span>, (<span class="ident">val</span>, <span class="ident">rc</span>)) <span class="kw">in</span> <span class="ident">transaction</span>.<span class="ident">drain</span>() {
+			<span class="kw">let</span> <span class="ident">changes</span> <span class="op">=</span> <span class="ident">transaction</span>.<span class="ident">drain</span>();
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">keys</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">changes</span>.<span class="ident">len</span>());
+			<span class="kw">for</span> (<span class="ident">key</span>, (<span class="ident">val</span>, <span class="ident">rc</span>)) <span class="kw">in</span> <span class="ident">changes</span> {
 				<span class="kw">if</span> <span class="ident">rc</span> <span class="op">&gt;</span> <span class="number">0</span> {
 					<span class="ident">db_transaction</span>.<span class="ident">put</span>(<span class="number">0</span>, <span class="kw-2">&amp;</span><span class="ident">key</span>, <span class="kw-2">&amp;</span><span class="ident">val</span>);
 				} <span class="kw">else</span> <span class="kw">if</span> <span class="ident">rc</span> <span class="op">&lt;</span> <span class="number">0</span> {
 					<span class="ident">db_transaction</span>.<span class="ident">delete</span>(<span class="number">0</span>, <span class="kw-2">&amp;</span><span class="ident">key</span>);
 				}
+				<span class="ident">keys</span>.<span class="ident">push</span>(<span class="ident">key</span>);
 			}
+			<span class="self">self</span>.<span class="ident">record</span>.<span class="ident">set</span>(<span class="ident">keys</span>);
 			<span class="ident">db</span>.<span class="ident">write</span>(<span class="ident">db_transaction</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">String</span>::<span class="ident">from</span>(<span class="string">&quot;Error committing transaction&quot;</span>))<span class="question-mark">?</span>;
 			<span class="self">self</span>.<span class="ident">root</span>.<span class="ident">set</span>(<span class="ident">storage_root</span>);
 		} <span class="kw">else</span> {
@@ -574,9 +611,24 @@
 	}
 
 	<span class="kw">fn</span> <span class="ident">wipe</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
-		<span class="self">self</span>.<span class="ident">kill</span>()<span class="question-mark">?</span>;
+		<span class="comment">// Restore to genesis</span>
+		<span class="kw">let</span> <span class="ident">record</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">record</span>.<span class="ident">take</span>();
+		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">db</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">db</span>.<span class="ident">take</span>() {
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">db_transaction</span> <span class="op">=</span> <span class="ident">DBTransaction</span>::<span class="ident">new</span>();
+			<span class="kw">for</span> <span class="ident">key</span> <span class="kw">in</span> <span class="ident">record</span> {
+				<span class="kw">match</span> <span class="self">self</span>.<span class="ident">genesis</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>) {
+					<span class="prelude-val">Some</span>((<span class="ident">v</span>, <span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">db_transaction</span>.<span class="ident">put</span>(<span class="number">0</span>, <span class="kw-2">&amp;</span><span class="ident">key</span>, <span class="ident">v</span>),
+					<span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">db_transaction</span>.<span class="ident">delete</span>(<span class="number">0</span>, <span class="kw-2">&amp;</span><span class="ident">key</span>),
+				}
+			}
+			<span class="ident">db</span>.<span class="ident">write</span>(<span class="ident">db_transaction</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">String</span>::<span class="ident">from</span>(<span class="string">&quot;Error committing transaction&quot;</span>))<span class="question-mark">?</span>;
+		}
+
+		<span class="self">self</span>.<span class="ident">db</span>.<span class="ident">set</span>(<span class="prelude-val">None</span>);
+		<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">state</span>.<span class="ident">borrow_mut</span>() <span class="op">=</span> <span class="prelude-val">None</span>;
+
+		<span class="self">self</span>.<span class="ident">root</span>.<span class="ident">set</span>(<span class="self">self</span>.<span class="ident">genesis_root</span>.<span class="ident">clone</span>());
 		<span class="self">self</span>.<span class="ident">reopen</span>()<span class="question-mark">?</span>;
-		<span class="self">self</span>.<span class="ident">commit</span>(<span class="self">self</span>.<span class="ident">genesis_root</span>.<span class="ident">clone</span>(), <span class="self">self</span>.<span class="ident">genesis</span>.<span class="ident">clone</span>())<span class="question-mark">?</span>;
 		<span class="prelude-val">Ok</span>(())
 	}
 }
