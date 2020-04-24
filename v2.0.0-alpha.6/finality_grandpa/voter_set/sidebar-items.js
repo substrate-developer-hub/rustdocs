@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["VoterInfo",""],["VoterSet","A voter set, with accompanying indices."]]});
