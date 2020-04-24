@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Salsa20","The Salsa20 cipher."],["XSalsa20","XSalsa20 is a Salsa20 variant with an extended 192-bit (24-byte) nonce."]]});

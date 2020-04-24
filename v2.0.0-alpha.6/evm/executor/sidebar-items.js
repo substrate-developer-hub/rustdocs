@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["StackAccount","Account definition for the stack-based executor."],["StackExecutor","Stack-based executor."]]});

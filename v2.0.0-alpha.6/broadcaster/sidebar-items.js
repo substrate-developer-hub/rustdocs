@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["BroadcastChannel","A broadcast channel, wrapping any clonable Stream and Sink to have every message sent to every receiver."]]});

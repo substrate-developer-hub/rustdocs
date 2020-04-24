@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["SimpleError",""],["SimplePosition",""]]});

@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["kvdb_web"] = [{"text":"impl <a class=\"trait\" href=\"kvdb_web/trait.KeyValueDB.html\" title=\"trait kvdb_web::KeyValueDB\">KeyValueDB</a> for <a class=\"struct\" href=\"kvdb_web/struct.Database.html\" title=\"struct kvdb_web::Database\">Database</a>","synthetic":false,"types":["kvdb_web::Database"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
