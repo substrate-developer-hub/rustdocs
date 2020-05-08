@@ -1,3 +1,0 @@
-(function() {var implementors = {};
-implementors["websocket"] = [{"text":"impl <a class=\"trait\" href=\"websocket/ws/trait.Sender.html\" title=\"trait websocket::ws::Sender\">Sender</a> for <a class=\"struct\" href=\"websocket/sender/struct.Sender.html\" title=\"struct websocket::sender::Sender\">Sender</a>","synthetic":false,"types":["websocket::sender::Sender"]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["StackAccount",""],["StackExecutor",""]]});

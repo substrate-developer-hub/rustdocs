@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["config","Create genesis runtime configuration for tests."]]});

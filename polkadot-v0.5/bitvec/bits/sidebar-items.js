@@ -1,1 +1,0 @@
-initSidebarItems({"trait":[["Bits","Allows a type to be used as a sequence of immutable bits."],["BitsMut","Allows a type to be used as a sequence of mutable bits."]]});

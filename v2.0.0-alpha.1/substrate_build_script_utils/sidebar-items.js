@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["rerun_if_git_head_changed","Make sure the calling `build.rs` script is rerun when `.git/HEAD` changed."]]});

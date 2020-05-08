@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["spawn","Creates a new task."]],"struct":[["JoinHandle","A handle that awaits the result of a task."],["Task","A task reference that runs its future."]]});

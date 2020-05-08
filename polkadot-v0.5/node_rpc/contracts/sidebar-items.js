@@ -1,1 +1,0 @@
-initSidebarItems({"mod":[["gen_client","The generated client module."]],"struct":[["CallRequest","A struct that encodes RPC parameters required for a call to a smart-contract."],["Contracts","An implementation of contract specific RPC methods."]],"trait":[["ContractsApi","Contracts RPC methods."]]});

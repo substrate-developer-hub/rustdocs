@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["dir","Path to the directory in which the manifest is stored."],["links","The `package.links` field, if set."]]});

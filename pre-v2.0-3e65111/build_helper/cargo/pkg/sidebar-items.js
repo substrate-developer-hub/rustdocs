@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["authors","A list of authors."],["description","The package description."],["homepage","URL to the package's homepage."],["name","Name of the package."],["version","Version of the package."]]});

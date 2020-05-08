@@ -1,1 +1,0 @@
-initSidebarItems({"constant":[["FIELD_NUMBER_MAX",""],["TAG_TYPE_BITS",""],["TAG_TYPE_MASK",""]],"enum":[["WireType",""]],"struct":[["Tag",""]]});

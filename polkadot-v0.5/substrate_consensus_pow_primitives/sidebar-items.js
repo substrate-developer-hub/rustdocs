@@ -1,1 +1,0 @@
-initSidebarItems({"constant":[["POW_ENGINE_ID","The `ConsensusEngineId` of PoW."]],"type":[["Difficulty","Type of difficulty."],["Seal","Type of seal."]]});

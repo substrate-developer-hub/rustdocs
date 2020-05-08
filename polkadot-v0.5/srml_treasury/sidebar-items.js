@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["Call",""],["RawEvent","Events for this module."]],"struct":[["Module",""],["Proposal","A spending proposal."]],"trait":[["Trait",""]],"type":[["Event","[`RawEvent`] specialized for the configuration [`Trait`]"]]});

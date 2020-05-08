@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["BlockBuilder","Utility for building new (valid) blocks from a stream of extrinsics."]],"trait":[["BlockBuilderApi","The `BlockBuilder` api trait that provides the required functionality for building a block."]]});

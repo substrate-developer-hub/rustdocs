@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["ExecutionExtensions","A producer of execution extensions for offchain calls."],["ExecutionStrategies","Execution strategies settings."]]});

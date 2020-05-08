@@ -1,1 +1,0 @@
-initSidebarItems({"type":[["WebSocketFuture","The most common Future in this library, it is simply some result `I` or a `WebSocketError`. This is analogous to the `WebSocketResult` type."]]});
