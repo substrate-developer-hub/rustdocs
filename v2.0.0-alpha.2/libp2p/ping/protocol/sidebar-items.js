@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["Ping","Represents a prototype for an upgrade to handle the ping protocol."]]});

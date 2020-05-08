@@ -1,1 +1,0 @@
-initSidebarItems({"trait":[["WasmRuntime","A trait that defines an abstract wasm runtime."]]});

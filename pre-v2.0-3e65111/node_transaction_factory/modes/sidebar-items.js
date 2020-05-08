@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["Mode","Token distribution modes."]]});

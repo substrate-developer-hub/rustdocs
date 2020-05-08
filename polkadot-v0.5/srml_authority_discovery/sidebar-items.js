@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["Call",""]],"struct":[["GenesisConfig",""],["Module",""]],"trait":[["Trait",""]]});

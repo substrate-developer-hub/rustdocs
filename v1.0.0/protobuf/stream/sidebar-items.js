@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["with_coded_output_stream_to_bytes",""]],"mod":[["wire_format",""]],"struct":[["CodedInputStream",""],["CodedOutputStream",""]],"trait":[["WithCodedInputStream",""],["WithCodedOutputStream",""]]});

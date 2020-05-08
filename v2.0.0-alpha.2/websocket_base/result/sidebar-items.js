@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["WebSocketError","Represents a WebSocket error"]],"mod":[["async","This module contains convenience types to make working with Futures and websocket results easier."]],"type":[["WebSocketResult","The type used for WebSocket results"]]});

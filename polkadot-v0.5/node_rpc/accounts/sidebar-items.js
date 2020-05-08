@@ -1,1 +1,0 @@
-initSidebarItems({"mod":[["gen_client","The generated client module."]],"struct":[["Accounts","An implementation of Accounts specific RPC methods."],["AccountsClient","The Client."]],"trait":[["AccountsApi","Accounts RPC methods."]]});

@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["factory","Manufactures transactions. The exact amount depends on `num` and `rounds`."]],"trait":[["RuntimeAdapter",""]]});

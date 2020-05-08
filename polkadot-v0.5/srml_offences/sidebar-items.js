@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["Call","Offences module, currently just responsible for taking offence reports."],["Event","Events for this module."]],"struct":[["Module",""]],"trait":[["Trait","Offences trait"]]});

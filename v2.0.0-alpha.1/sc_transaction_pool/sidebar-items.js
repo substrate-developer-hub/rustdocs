@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["RevalidationType","Type of revalidation."]],"mod":[["error","Transaction pool error."]],"struct":[["BasicPool","Basic implementation of transaction pool that can be customized by providing PoolApi."],["FullChainApi","The transaction pool logic for full client."],["LightChainApi","The transaction pool logic for light client."]]});

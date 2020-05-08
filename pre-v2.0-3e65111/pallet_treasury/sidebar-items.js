@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["Call","Dispatchable calls."],["Error","Error for the treasury module."],["RawEvent","Events for this module."]],"struct":[["GenesisConfig",""],["Module",""],["Proposal","A spending proposal."]],"trait":[["Trait",""]],"type":[["Event","[`RawEvent`] specialized for the configuration [`Trait`]"]]});

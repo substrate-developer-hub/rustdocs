@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["cargo","Path to Cargo binary."],["rustc","Path to `rustc` as selected by Cargo."],["rustdoc","Path to `rustdoc` as selected by Cargo."]]});

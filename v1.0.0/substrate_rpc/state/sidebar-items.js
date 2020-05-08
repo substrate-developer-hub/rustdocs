@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["State","State API with subscriptions support."]],"trait":[["StateApi","Substrate state API"]]});
