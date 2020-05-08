@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["SimpleTrie","Immutable generated trie database with root."]],"type":[["Hasher",""]]});

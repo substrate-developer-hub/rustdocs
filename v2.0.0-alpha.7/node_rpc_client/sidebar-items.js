@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["main",""],["remove_all_extrinsics","Remove all pending extrinsics from the node."]]});

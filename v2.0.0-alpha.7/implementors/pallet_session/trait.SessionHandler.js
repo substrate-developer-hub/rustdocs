@@ -1,0 +1,4 @@
+(function() {var implementors = {};
+implementors["pallet_session"] = [];
+implementors["submit_solution"] = [{"text":"impl <a class=\"trait\" href=\"pallet_session/trait.SessionHandler.html\" title=\"trait pallet_session::SessionHandler\">SessionHandler</a>&lt;<a class=\"primitive\" href=\"https://doc.rust-lang.org/nightly/std/primitive.u64.html\">u64</a>&gt; for <a class=\"struct\" href=\"submit_solution/mock/struct.TestSessionHandler.html\" title=\"struct submit_solution::mock::TestSessionHandler\">TestSessionHandler</a>","synthetic":false,"types":["submit_solution::mock::TestSessionHandler"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
