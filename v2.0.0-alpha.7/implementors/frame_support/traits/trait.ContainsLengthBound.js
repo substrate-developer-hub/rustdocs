@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["pallet_elections_phragmen"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=\"pallet_elections_phragmen/trait.Trait.html\" title=\"trait pallet_elections_phragmen::Trait\">Trait</a>&gt; <a class=\"trait\" href=\"frame_support/traits/trait.ContainsLengthBound.html\" title=\"trait frame_support::traits::ContainsLengthBound\">ContainsLengthBound</a> for <a class=\"struct\" href=\"pallet_elections_phragmen/struct.Module.html\" title=\"struct pallet_elections_phragmen::Module\">Module</a>&lt;T&gt;","synthetic":false,"types":["pallet_elections_phragmen::Module"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
