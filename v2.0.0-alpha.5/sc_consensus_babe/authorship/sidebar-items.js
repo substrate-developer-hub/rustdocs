@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["claim_slot","Tries to claim the given slot number. This method starts by trying to claim a primary VRF based slot. If we are not able to claim it, then if we have secondary slots enabled for the given epoch, we will fallback to trying to claim a secondary slot."]]});

@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["TcpConfig","Represents the configuration for a TCP/IP transport capability for libp2p."],["TcpListenStream","Stream that listens on an TCP/IP address."],["TcpTransStream","Wraps around a `TcpStream` and adds logging for important events."]]});

@@ -1,1 +1,0 @@
-initSidebarItems({"macro":[["assert_eq_uvec","Panic when the vectors are different, without taking the order into account."]]});

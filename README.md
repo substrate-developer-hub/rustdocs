@@ -9,6 +9,7 @@ The docs in this repopository are typically published automatically by CI jobs, 
 * Clone the main [Substrate](https://github.com/paritytech/substrate/) repository.
 * Checkout the tag whose docs you wish to publish.
 * Run `cargo doc`
+* Delete the folder for the oldest version currently in this repo.
 * Move the generated docs from `./target/doc` to the appropriately named folder in this repo.
 * Add an `index.html` to the folder you just copied in by duplicating one from a previous version.
-* Optional: update the repo's main `index.html` to point to the newly published version.
+* Update the repo's main `index.html` to point to the newly published version.
