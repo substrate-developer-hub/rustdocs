@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["config","Create genesis runtime configuration for tests."],["config_endowed","Create genesis runtime configuration for tests with some extra endowed accounts."]]});

@@ -1,1 +1,0 @@
-initSidebarItems({"mod":[["list","RPC a lenient list or value type."],["number","Chain RPC Block number type."]]});

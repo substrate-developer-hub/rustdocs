@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["Call","Dispatchable calls."],["Error",""],["RawEvent","Events for this module."]],"struct":[["Module","The module declaration."]],"trait":[["Trait","The pallet's configuration trait."]],"type":[["BalanceOf","Type alias for currency balance."],["Event","[`RawEvent`] specialized for the configuration [`Trait`]"]]});
