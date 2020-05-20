@@ -1,1 +1,0 @@
-initSidebarItems({"mod":[["client",""],["server",""]],"struct":[["TlsAcceptor","The TLS accepting part. The acceptor drives the server side of the TLS handshake process. It works on any asynchronous stream."],["TlsConnector","The TLS connecting part. The acceptor drives the client side of the TLS handshake process. It works on any asynchronous stream."]]});
