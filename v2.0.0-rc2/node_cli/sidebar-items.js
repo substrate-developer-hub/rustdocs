@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Subcommand","Possible subcommands of the main binary."]],"fn":[["__wasm_bindgen_generated_start_client","Starts the client."],["run","Parse command line arguments into service configuration."],["start_client","Starts the client."]],"mod":[["chain_spec","Substrate chain configurations."]],"struct":[["Cli","An overarching CLI command definition."]]});

@@ -1,0 +1,4 @@
+(function() {var implementors = {};
+implementors["node_runtime"] = [{"text":"impl <a class=\"trait\" href=\"pallet_staking/trait.Trait.html\" title=\"trait pallet_staking::Trait\">Trait</a> for <a class=\"struct\" href=\"node_runtime/struct.Runtime.html\" title=\"struct node_runtime::Runtime\">Runtime</a>","synthetic":false,"types":["node_runtime::Runtime"]}];
+implementors["submit_solution"] = [{"text":"impl <a class=\"trait\" href=\"pallet_staking/trait.Trait.html\" title=\"trait pallet_staking::Trait\">Trait</a> for <a class=\"struct\" href=\"submit_solution/mock/struct.Test.html\" title=\"struct submit_solution::mock::Test\">Test</a>","synthetic":false,"types":["submit_solution::mock::Test"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
