@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["Call","Dispatchable calls."],["Error","Error for the Sudo module"],["RawEvent","Events for this module."]],"struct":[["GenesisConfig","Genesis config for the module, allow to build genesis storage."],["Module",""]],"trait":[["Trait",""]],"type":[["Event","[`RawEvent`] specialized for the configuration [`Trait`]"]]});
