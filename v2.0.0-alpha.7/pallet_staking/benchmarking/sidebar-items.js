@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["create_stash_controller",""],["create_validator_with_nominators",""],["create_validators_with_nominators_for_era",""]]});

@@ -1,1 +1,0 @@
-initSidebarItems({"trait":[["InstanceExt","Extensions for the [`Instance`] type only available on Unix."]]});

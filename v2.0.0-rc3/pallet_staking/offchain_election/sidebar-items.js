@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["OffchainElectionError","Error types related to the offchain election machinery."]],"fn":[["prepare_submission","Takes an election result and spits out some data that can be submitted to the chain."]]});

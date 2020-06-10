@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["node_runtime"] = [{"text":"impl <a class=\"trait\" href=\"frame_support/traits/trait.FilterStack.html\" title=\"trait frame_support::traits::FilterStack\">FilterStack</a>&lt;<a class=\"enum\" href=\"node_runtime/enum.Call.html\" title=\"enum node_runtime::Call\">Call</a>&gt; for <a class=\"struct\" href=\"node_runtime/struct.IsCallable.html\" title=\"struct node_runtime::IsCallable\">IsCallable</a>","synthetic":false,"types":["node_runtime::IsCallable"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

@@ -1,0 +1,1 @@
+initSidebarItems({"macro":[["generate_compact_solution_type","Generates a struct to store the election assignments in a compact way. The struct can only store distributions up to the given input count. The given count must be greater than 2."]]});
