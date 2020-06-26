@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["SpanAndGuard",""],["SpanAndGuard_Borrow","Shared borrow of a rental struct."],["SpanAndGuard_BorrowMut","Mutable borrow of a rental struct."]]});

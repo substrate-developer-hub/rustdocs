@@ -1,1 +1,0 @@
-initSidebarItems({"macro":[["enter_span","Enter a span."],["if_tracing","Generates the given code if the tracing dependency is enabled."],["tracing_span","Runs given code within a tracing span, measuring it's execution time."]]});
