@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["account","Grab an account, seeded by a name and index."],["create_validator_with_nominators",""]],"macro":[["benchmarks","Construct pallet benchmarks for weighing dispatchables."]]});

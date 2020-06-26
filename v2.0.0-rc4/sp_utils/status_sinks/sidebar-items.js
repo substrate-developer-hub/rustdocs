@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["StatusSinks","Holds a list of `UnboundedSender`s, each associated with a certain time period. Every time the period elapses, we push an element on the sender."]]});
