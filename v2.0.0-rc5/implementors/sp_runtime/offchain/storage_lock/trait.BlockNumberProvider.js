@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["frame_system"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=\"frame_system/trait.Trait.html\" title=\"trait frame_system::Trait\">Trait</a>&gt; <a class=\"trait\" href=\"sp_runtime/offchain/storage_lock/trait.BlockNumberProvider.html\" title=\"trait sp_runtime::offchain::storage_lock::BlockNumberProvider\">BlockNumberProvider</a> for <a class=\"struct\" href=\"frame_system/struct.Module.html\" title=\"struct frame_system::Module\">Module</a>&lt;T&gt;","synthetic":false,"types":["frame_system::Module"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

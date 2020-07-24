@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["sp_tracing"] = [{"text":"impl&lt;'span: 'guard, 'guard&gt; Rental2&lt;'span, 'guard&gt; for <a class=\"struct\" href=\"sp_tracing/proxy/rent_span/struct.SpanAndGuard.html\" title=\"struct sp_tracing::proxy::rent_span::SpanAndGuard\">SpanAndGuard</a>","synthetic":false,"types":["sp_tracing::proxy::rent_span::SpanAndGuard"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

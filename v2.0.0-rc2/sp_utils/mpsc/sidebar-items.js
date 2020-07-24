@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["tracing_unbounded","Alias `mpsc::unbounded`"]],"type":[["TracingUnboundedReceiver",""],["TracingUnboundedSender",""]]});
