@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["create_full","Instantiate all Full RPC extensions."],["create_light","Instantiate all Light RPC extensions."]],"struct":[["BabeDeps","Extra dependencies for BABE."],["FullDeps","Full client dependencies."],["GrandpaDeps","Extra dependencies for GRANDPA"],["LightDeps","Light client extra dependencies."]]});

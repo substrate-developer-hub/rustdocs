@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Author",""],["CurrencyToVoteHandler","Struct that handles the conversion of Balance -> `u64`. This is used for staking's election calculation."]]});
