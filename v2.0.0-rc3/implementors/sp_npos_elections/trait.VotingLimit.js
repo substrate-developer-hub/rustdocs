@@ -1,3 +1,0 @@
-(function() {var implementors = {};
-implementors["pallet_staking"] = [{"text":"impl&lt;V, T, W&gt; <a class=\"trait\" href=\"sp_npos_elections/trait.VotingLimit.html\" title=\"trait sp_npos_elections::VotingLimit\">VotingLimit</a> for <a class=\"struct\" href=\"pallet_staking/struct.GenericCompactAssignments.html\" title=\"struct pallet_staking::GenericCompactAssignments\">GenericCompactAssignments</a>&lt;V, T, W&gt;","synthetic":false,"types":["pallet_staking::GenericCompactAssignments"]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

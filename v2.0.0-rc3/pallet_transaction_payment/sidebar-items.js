@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["Call","Dispatchable calls."]],"struct":[["ChargeTransactionPayment","Require the transactor pay for themselves and maybe include a tip to gain additional priority in the queue."],["Module",""],["NextFeeMultiplier",""]],"trait":[["Trait",""]],"type":[["Multiplier","Fee multiplier."]]});
