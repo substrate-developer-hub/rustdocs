@@ -1,3 +1,0 @@
-(function() {var implementors = {};
-implementors["wasmtime_environ"] = [{"text":"impl <a class=\"trait\" href=\"cranelift_codegen/binemit/memorysink/trait.TrapSink.html\" title=\"trait cranelift_codegen::binemit::memorysink::TrapSink\">TrapSink</a> for <a class=\"struct\" href=\"wasmtime_environ/cranelift/struct.TrapSink.html\" title=\"struct wasmtime_environ::cranelift::TrapSink\">TrapSink</a>","synthetic":false,"types":["wasmtime_environ::cranelift::TrapSink"]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
