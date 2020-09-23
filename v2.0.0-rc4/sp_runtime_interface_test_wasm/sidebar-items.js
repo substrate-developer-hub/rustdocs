@@ -1,1 +1,0 @@
-initSidebarItems({"constant":[["WASM_BINARY",""],["WASM_BINARY_BLOATY",""]],"fn":[["import_sp_io","This function is not used, but we require it for the compiler to include `sp-io`. `sp-io` is required for its panic and oom handler."]],"mod":[["test_api",""]]});

@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["set_wasm_tracing",""],["wasm_tracing_enabled",""]],"macro":[["enter_span","Enter a span."],["if_tracing","Generates the given code if the tracing dependency is enabled."],["tracing_span","Runs given code within a tracing span, measuring it's execution time."]],"mod":[["proxy","Proxy to allow entering tracing spans from wasm."]]});

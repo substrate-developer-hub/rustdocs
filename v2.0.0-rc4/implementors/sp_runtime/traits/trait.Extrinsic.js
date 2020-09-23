@@ -1,5 +1,0 @@
-(function() {var implementors = {};
-implementors["sp_runtime"] = [];
-implementors["sp_test_primitives"] = [{"text":"impl <a class=\"trait\" href=\"sp_runtime/traits/trait.Extrinsic.html\" title=\"trait sp_runtime::traits::Extrinsic\">Extrinsic</a> for <a class=\"enum\" href=\"sp_test_primitives/enum.Extrinsic.html\" title=\"enum sp_test_primitives::Extrinsic\">Extrinsic</a>","synthetic":false,"types":["sp_test_primitives::Extrinsic"]}];
-implementors["substrate_test_runtime"] = [{"text":"impl <a class=\"trait\" href=\"sp_runtime/traits/trait.Extrinsic.html\" title=\"trait sp_runtime::traits::Extrinsic\">Extrinsic</a> for <a class=\"enum\" href=\"substrate_test_runtime/enum.Extrinsic.html\" title=\"enum substrate_test_runtime::Extrinsic\">Extrinsic</a>","synthetic":false,"types":["substrate_test_runtime::Extrinsic"]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
