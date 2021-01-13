@@ -1,0 +1,5 @@
+(function() {var implementors = {};
+implementors["blake2"] = [{"text":"impl Update for VarBlake2b","synthetic":false,"types":[]},{"text":"impl Update for Blake2b","synthetic":false,"types":[]},{"text":"impl Update for VarBlake2s","synthetic":false,"types":[]},{"text":"impl Update for Blake2s","synthetic":false,"types":[]}];
+implementors["ripemd160"] = [{"text":"impl Update for Ripemd160","synthetic":false,"types":[]}];
+implementors["sha2"] = [{"text":"impl Update for Sha256","synthetic":false,"types":[]},{"text":"impl Update for Sha224","synthetic":false,"types":[]},{"text":"impl Update for Sha512","synthetic":false,"types":[]},{"text":"impl Update for Sha384","synthetic":false,"types":[]},{"text":"impl Update for Sha512Trunc256","synthetic":false,"types":[]},{"text":"impl Update for Sha512Trunc224","synthetic":false,"types":[]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

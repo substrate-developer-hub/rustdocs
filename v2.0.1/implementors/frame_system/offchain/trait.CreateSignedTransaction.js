@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["node_runtime"] = [{"text":"impl&lt;LocalCall&gt; CreateSignedTransaction&lt;LocalCall&gt; for Runtime <span class=\"where fmt-newline\">where<br>&nbsp;&nbsp;&nbsp;&nbsp;Call: From&lt;LocalCall&gt;,&nbsp;</span>","synthetic":false,"types":[]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
