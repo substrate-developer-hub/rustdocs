@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["Version","Represents a kernel version, in major.minor.release version."]]});

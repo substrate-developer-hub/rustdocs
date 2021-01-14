@@ -1,3 +1,0 @@
-(function() {var implementors = {};
-implementors["node_testing"] = [{"text":"impl <a class=\"trait\" href=\"node_testing/client/trait.CloneableSpawn.html\" title=\"trait node_testing::client::CloneableSpawn\">CloneableSpawn</a> for <a class=\"struct\" href=\"node_testing/bench/struct.TaskExecutor.html\" title=\"struct node_testing::bench::TaskExecutor\">TaskExecutor</a>","synthetic":false,"types":["node_testing::bench::TaskExecutor"]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

@@ -1,0 +1,6 @@
+(function() {var implementors = {};
+implementors["frame_support"] = [];
+implementors["node_runtime"] = [{"text":"impl OnUnbalanced&lt;&lt;Module&lt;Runtime, DefaultInstance&gt; as Currency&lt;&lt;&lt;MultiSignature as Verify&gt;::Signer as IdentifyAccount&gt;::AccountId&gt;&gt;::NegativeImbalance&gt; for Author","synthetic":false,"types":[]},{"text":"impl OnUnbalanced&lt;&lt;Module&lt;Runtime, DefaultInstance&gt; as Currency&lt;&lt;&lt;MultiSignature as Verify&gt;::Signer as IdentifyAccount&gt;::AccountId&gt;&gt;::NegativeImbalance&gt; for DealWithFees","synthetic":false,"types":[]}];
+implementors["pallet_society"] = [{"text":"impl&lt;T:&nbsp;Trait&gt; OnUnbalanced&lt;&lt;&lt;T as Trait&lt;DefaultInstance&gt;&gt;::Currency as Currency&lt;&lt;T as Trait&gt;::AccountId&gt;&gt;::NegativeImbalance&gt; for Module&lt;T&gt;","synthetic":false,"types":[]}];
+implementors["pallet_treasury"] = [{"text":"impl&lt;T:&nbsp;Trait&lt;I&gt;, I:&nbsp;Instance&gt; OnUnbalanced&lt;&lt;&lt;T as Trait&lt;I&gt;&gt;::Currency as Currency&lt;&lt;T as Trait&gt;::AccountId&gt;&gt;::NegativeImbalance&gt; for Module&lt;T, I&gt;","synthetic":false,"types":[]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

@@ -1,1 +1,0 @@
-initSidebarItems({"mod":[["chain_spec",""],["service","Service and ServiceFactory implementation. Specialized wrapper over substrate service."]]});

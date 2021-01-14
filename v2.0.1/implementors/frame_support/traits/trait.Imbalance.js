@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["pallet_balances"] = [{"text":"impl&lt;T:&nbsp;Trait&lt;I&gt;, I:&nbsp;Instance&gt; Imbalance&lt;&lt;T as Trait&lt;I&gt;&gt;::Balance&gt; for PositiveImbalance&lt;T, I&gt;","synthetic":false,"types":[]},{"text":"impl&lt;T:&nbsp;Trait&lt;I&gt;, I:&nbsp;Instance&gt; Imbalance&lt;&lt;T as Trait&lt;I&gt;&gt;::Balance&gt; for NegativeImbalance&lt;T, I&gt;","synthetic":false,"types":[]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
