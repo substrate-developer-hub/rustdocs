@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["pallet_vesting"] = [{"text":"impl&lt;T:&nbsp;Config&gt; VestingSchedule&lt;&lt;T as Config&gt;::AccountId&gt; for Module&lt;T&gt; <span class=\"where fmt-newline\">where<br>&nbsp;&nbsp;&nbsp;&nbsp;&lt;&lt;T as Config&gt;::Currency as Currency&lt;&lt;T as Config&gt;::AccountId&gt;&gt;::Balance: MaybeSerializeDeserialize + Debug,&nbsp;</span>","synthetic":false,"types":[]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

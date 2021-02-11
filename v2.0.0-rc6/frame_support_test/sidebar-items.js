@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["Call","Dispatchable calls."]],"struct":[["Module","Some test module"]],"trait":[["Trait","The configuration trait"]]});
