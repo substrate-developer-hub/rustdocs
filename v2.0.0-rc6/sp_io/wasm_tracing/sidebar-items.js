@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["enter_span","To create and enter a `tracing` span, using `sp_tracing::proxy` Returns 0 value to indicate that no further traces should be attempted"],["exit_span","Exit a `tracing` span, using `sp_tracing::proxy`"]],"struct":[["HostFunctions","Provides implementations for the extern host functions."]]});

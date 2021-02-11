@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Call","Dispatchable calls."],["Event","Events for this module."]],"struct":[["EnlistedParticipant","Request to enlist participant."],["Module","A public part of the pallet."]],"trait":[["Config",""]]});

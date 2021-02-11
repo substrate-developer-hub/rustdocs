@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["RuntimeDispatchInfo","Information related to a dispatchable's class, weight, and fee that can be queried from the runtime."]],"trait":[["TransactionPaymentApi",""]]});

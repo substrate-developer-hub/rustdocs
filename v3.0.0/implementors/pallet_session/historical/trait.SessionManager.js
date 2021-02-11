@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["pallet_staking"] = [{"text":"impl&lt;T:&nbsp;Config&gt; SessionManager&lt;&lt;T as Config&gt;::AccountId, Exposure&lt;&lt;T as Config&gt;::AccountId, &lt;&lt;T as Config&gt;::Currency as Currency&lt;&lt;T as Config&gt;::AccountId&gt;&gt;::Balance&gt;&gt; for Module&lt;T&gt;","synthetic":false,"types":[]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

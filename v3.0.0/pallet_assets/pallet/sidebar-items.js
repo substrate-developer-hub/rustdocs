@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Call",""],["Error",""],["Event",""]],"struct":[["Pallet",""]],"trait":[["Config","The module configuration trait."]],"type":[["Module","Type alias to `Pallet`, to be used by `construct_runtime`."],["RawEvent",""]]});

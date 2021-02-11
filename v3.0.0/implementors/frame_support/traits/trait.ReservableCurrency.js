@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["pallet_balances"] = [{"text":"impl&lt;T:&nbsp;Config&lt;I&gt;, I:&nbsp;'static&gt; ReservableCurrency&lt;&lt;T as Config&gt;::AccountId&gt; for Pallet&lt;T, I&gt; <span class=\"where fmt-newline\">where<br>&nbsp;&nbsp;&nbsp;&nbsp;T::Balance: MaybeSerializeDeserialize + Debug,&nbsp;</span>","synthetic":false,"types":[]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
