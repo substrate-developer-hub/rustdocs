@@ -1,9 +1,0 @@
-(function() {var implementors = {};
-implementors["node_runtime"] = [{"text":"impl ValidateUnsigned for Runtime","synthetic":false,"types":[]}];
-implementors["node_template_runtime"] = [{"text":"impl ValidateUnsigned for Runtime","synthetic":false,"types":[]}];
-implementors["pallet_babe"] = [{"text":"impl&lt;T:&nbsp;Trait&gt; ValidateUnsigned for Module&lt;T&gt;","synthetic":false,"types":[]}];
-implementors["pallet_example_offchain_worker"] = [{"text":"impl&lt;T:&nbsp;Trait&gt; ValidateUnsigned for Module&lt;T&gt;","synthetic":false,"types":[]}];
-implementors["pallet_grandpa"] = [{"text":"impl&lt;T:&nbsp;Trait&gt; ValidateUnsigned for Module&lt;T&gt;","synthetic":false,"types":[]}];
-implementors["pallet_im_online"] = [{"text":"impl&lt;T:&nbsp;Trait&gt; ValidateUnsigned for Module&lt;T&gt;","synthetic":false,"types":[]}];
-implementors["pallet_staking"] = [{"text":"impl&lt;T:&nbsp;Trait&gt; ValidateUnsigned for Module&lt;T&gt;","synthetic":false,"types":[]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

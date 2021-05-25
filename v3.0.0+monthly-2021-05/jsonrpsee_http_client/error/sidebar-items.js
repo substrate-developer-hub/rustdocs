@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Error","Error type."],["GenericTransportError","Generic transport error."],["RpcError","Error."]],"struct":[["Mismatch","Convenience type for displaying errors."]]});

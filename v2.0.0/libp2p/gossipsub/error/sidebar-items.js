@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["PublishError","Error associated with publishing a gossipsub message."]]});

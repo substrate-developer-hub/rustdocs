@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["JsonRpcNotifResponse","JSON-RPC notification response."],["JsonRpcResponse","JSON-RPC successful response object."]]});

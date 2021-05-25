@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["Polyval","POLYVAL: GHASH-like universal hash over GF(2^128)."]],"type":[["Block","POLYVAL blocks (16-bytes)"],["Key","POLYVAL keys (16-bytes)"],["Tag","POLYVAL tags (16-bytes)"]]});

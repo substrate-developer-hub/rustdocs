@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Call","Dispatchable calls."]],"struct":[["Module",""]],"type":[["Pallet","Type alias to `Module`, to be used by `construct_runtime`."]]});
