@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["BabeConsensusDataProvider","Provides BABE-compatible predigests and BlockImportParams. Intended for use with BABE runtimes."],["SlotTimestampProvider","Provide duration since unix epoch in millisecond for timestamp inherent. Mocks the timestamp inherent to always produce the timestamp for the next babe slot."]]});

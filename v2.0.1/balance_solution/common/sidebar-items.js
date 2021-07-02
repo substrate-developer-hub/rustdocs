@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["to_range","converts x into the range [a, b] in a pseudo-fair way."]]});

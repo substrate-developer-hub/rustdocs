@@ -1,7 +1,0 @@
-(function() {var implementors = {};
-implementors["sc_client_api"] = [{"text":"impl&lt;Block:&nbsp;BlockT&gt; HeaderMetadata&lt;Block&gt; for Blockchain&lt;Block&gt;","synthetic":false,"types":[]}];
-implementors["sc_client_db"] = [{"text":"impl&lt;Block:&nbsp;BlockT&gt; HeaderMetadata&lt;Block&gt; for LightStorage&lt;Block&gt;","synthetic":false,"types":[]},{"text":"impl&lt;Block:&nbsp;BlockT&gt; HeaderMetadata&lt;Block&gt; for BlockchainDb&lt;Block&gt;","synthetic":false,"types":[]}];
-implementors["sc_light"] = [{"text":"impl&lt;S, Block&gt; HeaderMetadata&lt;Block&gt; for Blockchain&lt;S&gt; <span class=\"where fmt-newline\">where<br>&nbsp;&nbsp;&nbsp;&nbsp;Block: BlockT,<br>&nbsp;&nbsp;&nbsp;&nbsp;S: Storage&lt;Block&gt;,&nbsp;</span>","synthetic":false,"types":[]}];
-implementors["sc_service"] = [{"text":"impl&lt;B, E, Block, RA&gt; HeaderMetadata&lt;Block&gt; for Client&lt;B, E, Block, RA&gt; <span class=\"where fmt-newline\">where<br>&nbsp;&nbsp;&nbsp;&nbsp;B: Backend&lt;Block&gt;,<br>&nbsp;&nbsp;&nbsp;&nbsp;E: CallExecutor&lt;Block&gt;,<br>&nbsp;&nbsp;&nbsp;&nbsp;Block: BlockT,&nbsp;</span>","synthetic":false,"types":[]}];
-implementors["substrate_test_runtime_transaction_pool"] = [{"text":"impl HeaderMetadata&lt;Block&lt;Header&lt;u64, BlakeTwo256&gt;, Extrinsic&gt;&gt; for TestApi","synthetic":false,"types":[]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

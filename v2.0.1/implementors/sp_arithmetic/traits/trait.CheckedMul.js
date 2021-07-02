@@ -1,3 +1,0 @@
-(function() {var implementors = {};
-implementors["sp_arithmetic"] = [{"text":"impl CheckedMul for FixedI64","synthetic":false,"types":[]},{"text":"impl CheckedMul for FixedI128","synthetic":false,"types":[]},{"text":"impl CheckedMul for FixedU128","synthetic":false,"types":[]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

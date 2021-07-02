@@ -1,5 +1,0 @@
-(function() {var implementors = {};
-implementors["pallet_offences"] = [{"text":"impl&lt;T:&nbsp;Trait, O:&nbsp;Offence&lt;T::IdentificationTuple&gt;&gt; ReportOffence&lt;&lt;T as Trait&gt;::AccountId, &lt;T as Trait&gt;::IdentificationTuple, O&gt; for Module&lt;T&gt; <span class=\"where fmt-newline\">where<br>&nbsp;&nbsp;&nbsp;&nbsp;T::IdentificationTuple: Clone,&nbsp;</span>","synthetic":false,"types":[]}];
-implementors["pallet_staking"] = [{"text":"impl&lt;T, Reporter, Offender, R, O&gt; ReportOffence&lt;Reporter, Offender, O&gt; for FilterHistoricalOffences&lt;Module&lt;T&gt;, R&gt; <span class=\"where fmt-newline\">where<br>&nbsp;&nbsp;&nbsp;&nbsp;T: Trait,<br>&nbsp;&nbsp;&nbsp;&nbsp;R: ReportOffence&lt;Reporter, Offender, O&gt;,<br>&nbsp;&nbsp;&nbsp;&nbsp;O: Offence&lt;Offender&gt;,&nbsp;</span>","synthetic":false,"types":[]}];
-implementors["sp_staking"] = [];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

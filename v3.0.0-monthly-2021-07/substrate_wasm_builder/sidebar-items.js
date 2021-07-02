@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["WasmBuilder","The builder for building a wasm binary."],["WasmBuilderSelectProject","First step of the [`WasmBuilder`] to select the project to build."]]});
