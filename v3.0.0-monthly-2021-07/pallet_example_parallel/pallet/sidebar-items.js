@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Call","A public part of the pallet."]],"struct":[["Pallet","The pallet implementing the on-chain logic."]],"trait":[["Config","Configuration trait of this pallet."]],"type":[["Module","Type alias to `Pallet`, to be used by `construct_runtime`."]]});

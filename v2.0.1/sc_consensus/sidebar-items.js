@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["LongestChain","Implement Longest Chain Select implementation where 'longest' is defined as the highest number of blocks"]]});

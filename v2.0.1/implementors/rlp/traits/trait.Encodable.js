@@ -1,5 +1,0 @@
-(function() {var implementors = {};
-implementors["ethbloom"] = [{"text":"impl Encodable for Bloom","synthetic":false,"types":[]}];
-implementors["ethereum_types"] = [{"text":"impl Encodable for H32","synthetic":false,"types":[]},{"text":"impl Encodable for H64","synthetic":false,"types":[]},{"text":"impl Encodable for H128","synthetic":false,"types":[]},{"text":"impl Encodable for H264","synthetic":false,"types":[]},{"text":"impl Encodable for H520","synthetic":false,"types":[]},{"text":"impl Encodable for U64","synthetic":false,"types":[]}];
-implementors["primitive_types"] = [{"text":"impl Encodable for U128","synthetic":false,"types":[]},{"text":"impl Encodable for U256","synthetic":false,"types":[]},{"text":"impl Encodable for U512","synthetic":false,"types":[]},{"text":"impl Encodable for H160","synthetic":false,"types":[]},{"text":"impl Encodable for H256","synthetic":false,"types":[]},{"text":"impl Encodable for H512","synthetic":false,"types":[]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

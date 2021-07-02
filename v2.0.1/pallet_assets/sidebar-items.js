@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["Call","Dispatchable calls."],["Error",""],["RawEvent","Events for this module."]],"struct":[["Module",""]],"trait":[["Trait","The module configuration trait."]],"type":[["Event","`RawEvent` specialized for the configuration `Trait`"]]});
