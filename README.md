@@ -15,4 +15,14 @@ make manual adjustments. Here is the process for publishing a new version.
 * Move the generated docs from `./target/doc` to the appropriately named folder in this repo.
 * Add an `index.html` to the folder you just copied in by duplicating one from a previous version.
 * Update the repo's main `index.html` to point to the newly published version.
+* After pushing to the remote master branch, tag the commit with the following:
 
+  ```bash
+  git tag <tagged-version>
+  # example:
+  # git tag v3.0.0+monthly-2021-07
+
+  git push origin <tagged-version>
+  # example:
+  # git push origin v3.0.0+monthly-2021-07
+  ```
