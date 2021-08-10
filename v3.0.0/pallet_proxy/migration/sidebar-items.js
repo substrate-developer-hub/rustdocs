@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["migrate_to_time_delayed_proxies","Migration code for https://github.com/paritytech/substrate/pull/6770"]]});

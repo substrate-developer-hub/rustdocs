@@ -1,3 +1,0 @@
-(function() {var implementors = {};
-implementors["libp2p_swarm"] = [{"text":"impl&lt;TIntoProtoHandler, TProtoHandler&gt; IntoConnectionHandler for NodeHandlerWrapperBuilder&lt;TIntoProtoHandler&gt; <span class=\"where fmt-newline\">where<br>&nbsp;&nbsp;&nbsp;&nbsp;TIntoProtoHandler: IntoProtocolsHandler&lt;Handler = TProtoHandler&gt;,<br>&nbsp;&nbsp;&nbsp;&nbsp;TProtoHandler: ProtocolsHandler,&nbsp;</span>","synthetic":false,"types":[]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

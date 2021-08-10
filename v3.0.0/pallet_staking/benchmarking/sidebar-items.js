@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["account","Grab an account, seeded by a name and index."],["create_validator_with_nominators",""],["whitelisted_caller","This caller account is automatically whitelisted for DB reads/writes by the benchmarking macro."]],"macro":[["benchmarks","Construct pallet benchmarks for weighing dispatchables."],["whitelist_account",""]]});

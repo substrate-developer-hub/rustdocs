@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["Call",""]],"struct":[["Pallet",""],["_GeneratedPrefixForStorageNow",""]],"trait":[["Config","The pallet configuration trait"]],"type":[["Module","Type alias to `Pallet`, to be used by `construct_runtime`."],["Now","Current time for the current block."]]});

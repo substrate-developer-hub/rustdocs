@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["claim_slot","Try to claim the given slot and return a `BabePreDigest` if successful."]]});

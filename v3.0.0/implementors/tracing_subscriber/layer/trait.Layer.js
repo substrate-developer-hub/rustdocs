@@ -1,5 +1,0 @@
-(function() {var implementors = {};
-implementors["sc_telemetry"] = [{"text":"impl&lt;S&gt; Layer&lt;S&gt; for TelemetryLayer <span class=\"where fmt-newline\">where<br>&nbsp;&nbsp;&nbsp;&nbsp;S: Subscriber + for&lt;'a&gt; LookupSpan&lt;'a&gt;,&nbsp;</span>","synthetic":false,"types":[]}];
-implementors["sc_tracing"] = [{"text":"impl&lt;S&gt; Layer&lt;S&gt; for PrefixLayer <span class=\"where fmt-newline\">where<br>&nbsp;&nbsp;&nbsp;&nbsp;S: Subscriber + for&lt;'a&gt; LookupSpan&lt;'a&gt;,&nbsp;</span>","synthetic":false,"types":[]},{"text":"impl&lt;S:&nbsp;Subscriber&gt; Layer&lt;S&gt; for ProfilingLayer","synthetic":false,"types":[]}];
-implementors["tracing_subscriber"] = [];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

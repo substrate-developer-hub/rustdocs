@@ -1,3 +1,0 @@
-(function() {var implementors = {};
-implementors["sc_tracing"] = [{"text":"impl&lt;S, N, T&gt; FormatEvent&lt;S, N&gt; for EventFormat&lt;T&gt; <span class=\"where fmt-newline\">where<br>&nbsp;&nbsp;&nbsp;&nbsp;S: Subscriber + for&lt;'a&gt; LookupSpan&lt;'a&gt;,<br>&nbsp;&nbsp;&nbsp;&nbsp;N: for&lt;'a&gt; FormatFields&lt;'a&gt; + 'static,<br>&nbsp;&nbsp;&nbsp;&nbsp;T: FormatTime,&nbsp;</span>","synthetic":false,"types":[]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

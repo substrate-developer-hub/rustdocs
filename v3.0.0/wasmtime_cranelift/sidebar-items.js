@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["Cranelift","A compiler that compiles a WebAssembly module with Cranelift, translating the Wasm to Cranelift IR, optimizing it and then translating to assembly."]]});

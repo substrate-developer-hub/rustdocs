@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["node_runtime"] = [{"text":"impl <a class=\"trait\" href=\"frame_support/traits/filter/trait.InstanceFilter.html\" title=\"trait frame_support::traits::filter::InstanceFilter\">InstanceFilter</a>&lt;<a class=\"enum\" href=\"node_runtime/enum.Call.html\" title=\"enum node_runtime::Call\">Call</a>&gt; for <a class=\"enum\" href=\"node_runtime/enum.ProxyType.html\" title=\"enum node_runtime::ProxyType\">ProxyType</a>","synthetic":false,"types":["node_runtime::ProxyType"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

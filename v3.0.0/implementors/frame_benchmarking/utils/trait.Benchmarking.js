@@ -1,6 +1,0 @@
-(function() {var implementors = {};
-implementors["frame_system_benchmarking"] = [{"text":"impl&lt;T:&nbsp;Config&gt; Benchmarking&lt;BenchmarkResults&gt; for Module&lt;T&gt; <span class=\"where fmt-newline\">where<br>&nbsp;&nbsp;&nbsp;&nbsp;T: Config,&nbsp;</span>","synthetic":false,"types":[]}];
-implementors["pallet_offences_benchmarking"] = [{"text":"impl&lt;T:&nbsp;Config&gt; Benchmarking&lt;BenchmarkResults&gt; for Module&lt;T&gt; <span class=\"where fmt-newline\">where<br>&nbsp;&nbsp;&nbsp;&nbsp;T: Config,&nbsp;</span>","synthetic":false,"types":[]}];
-implementors["pallet_session_benchmarking"] = [{"text":"impl&lt;T:&nbsp;Config&gt; Benchmarking&lt;BenchmarkResults&gt; for Module&lt;T&gt; <span class=\"where fmt-newline\">where<br>&nbsp;&nbsp;&nbsp;&nbsp;T: Config,&nbsp;</span>","synthetic":false,"types":[]}];
-implementors["pallet_staking"] = [{"text":"impl&lt;T:&nbsp;Config&gt; Benchmarking&lt;BenchmarkResults&gt; for Module&lt;T&gt; <span class=\"where fmt-newline\">where<br>&nbsp;&nbsp;&nbsp;&nbsp;T: Config,&nbsp;</span>","synthetic":false,"types":[]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

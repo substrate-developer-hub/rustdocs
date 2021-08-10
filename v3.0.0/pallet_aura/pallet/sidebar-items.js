@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["Call",""]],"struct":[["GenesisConfig",""],["Pallet",""]],"trait":[["Config",""]],"type":[["Module","Type alias to `Pallet`, to be used by `construct_runtime`."]]});
