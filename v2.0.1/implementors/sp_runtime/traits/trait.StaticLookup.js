@@ -1,0 +1,4 @@
+(function() {var implementors = {};
+implementors["pallet_indices"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=\"pallet_indices/trait.Trait.html\" title=\"trait pallet_indices::Trait\">Trait</a>&gt; <a class=\"trait\" href=\"sp_runtime/traits/trait.StaticLookup.html\" title=\"trait sp_runtime::traits::StaticLookup\">StaticLookup</a> for <a class=\"struct\" href=\"pallet_indices/struct.Module.html\" title=\"struct pallet_indices::Module\">Module</a>&lt;T&gt;","synthetic":false,"types":["pallet_indices::Module"]}];
+implementors["sp_runtime"] = [];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

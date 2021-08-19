@@ -1,0 +1,4 @@
+(function() {var implementors = {};
+implementors["sc_tracing"] = [{"text":"impl&lt;S:&nbsp;<a class=\"trait\" href=\"tracing_core/subscriber/trait.Subscriber.html\" title=\"trait tracing_core::subscriber::Subscriber\">Subscriber</a>&gt; <a class=\"trait\" href=\"tracing_subscriber/layer/trait.Layer.html\" title=\"trait tracing_subscriber::layer::Layer\">Layer</a>&lt;S&gt; for <a class=\"struct\" href=\"sc_tracing/struct.ProfilingLayer.html\" title=\"struct sc_tracing::ProfilingLayer\">ProfilingLayer</a>","synthetic":false,"types":["sc_tracing::ProfilingLayer"]}];
+implementors["tracing_subscriber"] = [];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
