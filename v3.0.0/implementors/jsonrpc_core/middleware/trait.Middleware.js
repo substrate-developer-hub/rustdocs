@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["sc_rpc_server"] = [{"text":"impl&lt;M:&nbsp;Metadata&gt; Middleware&lt;M&gt; for <a class=\"struct\" href=\"sc_rpc_server/struct.RpcMiddleware.html\" title=\"struct sc_rpc_server::RpcMiddleware\">RpcMiddleware</a>","synthetic":false,"types":["sc_rpc_server::middleware::RpcMiddleware"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

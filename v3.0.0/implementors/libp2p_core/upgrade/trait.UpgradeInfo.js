@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["sc_network"] = [{"text":"impl UpgradeInfo for <a class=\"struct\" href=\"sc_network/bitswap/struct.BitswapConfig.html\" title=\"struct sc_network::bitswap::BitswapConfig\">BitswapConfig</a>","synthetic":false,"types":["sc_network::bitswap::BitswapConfig"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

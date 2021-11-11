@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["pallet_contracts_primitives"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/fmt/trait.Binary.html\" title=\"trait core::fmt::Binary\">Binary</a> for <a class=\"struct\" href=\"pallet_contracts_primitives/struct.ReturnFlags.html\" title=\"struct pallet_contracts_primitives::ReturnFlags\">ReturnFlags</a>","synthetic":false,"types":["pallet_contracts_primitives::ReturnFlags"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
