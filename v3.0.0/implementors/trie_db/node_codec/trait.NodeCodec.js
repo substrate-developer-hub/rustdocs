@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["sp_trie"] = [{"text":"impl&lt;H:&nbsp;Hasher&gt; NodeCodec for <a class=\"struct\" href=\"sp_trie/struct.NodeCodec.html\" title=\"struct sp_trie::NodeCodec\">NodeCodec</a>&lt;H&gt;","synthetic":false,"types":["sp_trie::node_codec::NodeCodec"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

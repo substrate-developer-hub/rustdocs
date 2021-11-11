@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Call","Dispatchable calls."]],"struct":[["Module","Some test module"],["PanicPalletInfo","A PalletInfo implementation which just panics."]],"trait":[["Config","The configuration trait"]]});

@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["sp_trie"] = [{"text":"impl&lt;H:&nbsp;Hasher&gt; <a class=\"trait\" href=\"sp_trie/trait.TrieLayout.html\" title=\"trait sp_trie::TrieLayout\">TrieLayout</a> for <a class=\"struct\" href=\"sp_trie/struct.Layout.html\" title=\"struct sp_trie::Layout\">Layout</a>&lt;H&gt;","synthetic":false,"types":["sp_trie::Layout"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

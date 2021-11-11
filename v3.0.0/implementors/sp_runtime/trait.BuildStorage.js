@@ -1,0 +1,5 @@
+(function() {var implementors = {};
+implementors["sc_chain_spec"] = [{"text":"impl&lt;G:&nbsp;<a class=\"trait\" href=\"sc_chain_spec/trait.RuntimeGenesis.html\" title=\"trait sc_chain_spec::RuntimeGenesis\">RuntimeGenesis</a>, E&gt; <a class=\"trait\" href=\"sp_runtime/trait.BuildStorage.html\" title=\"trait sp_runtime::BuildStorage\">BuildStorage</a> for <a class=\"struct\" href=\"sc_chain_spec/struct.GenericChainSpec.html\" title=\"struct sc_chain_spec::GenericChainSpec\">ChainSpec</a>&lt;G, E&gt;","synthetic":false,"types":["sc_chain_spec::chain_spec::ChainSpec"]}];
+implementors["sp_runtime"] = [];
+implementors["submit_solution"] = [{"text":"impl <a class=\"trait\" href=\"sp_runtime/trait.BuildStorage.html\" title=\"trait sp_runtime::BuildStorage\">BuildStorage</a> for <a class=\"struct\" href=\"submit_solution/mock/struct.GenesisConfig.html\" title=\"struct submit_solution::mock::GenesisConfig\">GenesisConfig</a>","synthetic":false,"types":["submit_solution::mock::GenesisConfig"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
