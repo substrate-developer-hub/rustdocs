@@ -9,10 +9,9 @@ make manual adjustments. Here is the process for publishing a new version.
 
 * Clone the main [Substrate](https://github.com/paritytech/substrate/) repository.
 * Checkout the tag whose docs you wish to publish.
-* Run `BUILD_DUMMY_WASM_BINARY=1 RUSTDOCFLAGS="--html-in-header <path_to_this_repo>/google-analytics-header.html" cargo doc --workspace --verbose`.
+* Run `cargo +nightly doc --no-deps --workspace --all-features --open`.
   Use the absolute path to your local copy of _this_ project to replace `<path_to_this_repo>`.
-* Delete the folder for the oldest version currently in this repo.
-* Move the generated docs from `./target/doc` to the appropriately named folder in this repo.
+* Move (and override if existing) the generated docs from `./target/doc` to the appropriately named folder in this repo.
 * Add an `index.html` to the folder you just copied in by duplicating one from a previous version.
 * Update the repo's main `index.html` to point to the newly published version.
 * After pushing to the remote master branch, tag the commit with the following:
